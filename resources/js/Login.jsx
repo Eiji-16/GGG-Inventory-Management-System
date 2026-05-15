@@ -2,7 +2,7 @@ import "../css/index.css";
 
 const samplepic = "/image/sample.jpg";
 
-function Login() {
+function Login({ onLogin }) {
     return (
         <div className="Login-box">
 
@@ -17,22 +17,32 @@ function Login() {
             <div className="WelcomeText"> <h1><b>Welcome</b></h1> </div>
 
                 <div className="input-group">
-                    <label htmlFor="uname"><b>Username</b></label>
-                    <input type="text" className="input-field"  name="uname" required />
+                    <div className="input-icon">
+                        <i className="fa-solid fa-user"></i>
+                        <label htmlFor="uname"><b>User Account</b></label>
+                        <input type="text" className="input-field"  name="uname" required />
+                    </div>
                 </div>
                 <div className="input-group">
-                    <label htmlFor="psw"><b>Password</b></label>
-                    <input type="password" className="input-field"  name="psw" required />
+                    <div className="input-icon">
+                        <i className="fa-solid fa-lock"></i>
+                        <label htmlFor="psw"><b>Password</b></label>
+                        <input type="password" className="input-field"  name="psw" required />
+                    </div>
                 </div>
                                 {/* Forgot password */}
                     <div className = "ForgetPassword">Forgot your password?</div>
                                 {/* Log in Button */}
-                    <button type="submit" className="Login-button" ><b>Login</b></button>
+                    <button type="submit" className="Login-button" onClick={onLogin}>
+                        <b>Login</b>
+                    </button>
 
 
             </div>
         </div>
     );
 }
+
+
 
 export default Login;

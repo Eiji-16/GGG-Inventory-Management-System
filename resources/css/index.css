@@ -17,7 +17,7 @@ body {
     border-radius: 16px;
     overflow: hidden;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    border: 1px solid black;
+    border: 1px solid #1a2a4a;
 }
 /*-----Design Division Box-----*/
 .Design-side {
@@ -40,8 +40,8 @@ body {
 .WelcomeText h1 {
     font-size: 40px;
     margin: 0 0 20px 0;
+    color: #1a2a4a;
 }
-
 
 .Login-side {
     width: 50%;
@@ -80,6 +80,28 @@ body {
     width: 100%;
 }
 
+.input-icon {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #1a2a4a;
+    border-radius: 8px;
+    padding: 0 12px;
+}
+
+.input-icon i {
+    color: #1a2a4a;
+    font-size: 14px;
+}
+
+.input-icon input {
+    border: none;
+    outline: none;
+    padding: 12px 0;
+    width: 100%;
+    font-size: 14px;
+}
+
 .ForgetPassword {
     width: 100%;
     text-align: right;
@@ -89,7 +111,6 @@ body {
     cursor: pointer;
     color: #1a2a4a;
 }
-
 
 .Login-button{
     width: 33%;
