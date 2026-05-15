@@ -1,12 +1,5 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import Login from './Login';
 
-function App() {
-    return (
-        <div>
-            <h1>Hello from React + Laravel!</h1>
-        </div>
-    );
-}
-
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+ReactDOM.createRoot(document.getElementById('root')).render(<Login />);
