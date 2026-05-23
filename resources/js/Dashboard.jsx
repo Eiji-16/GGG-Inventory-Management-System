@@ -500,16 +500,16 @@ function Dashboard({ onLogout }) {
     const [active, setActive] = useState('Dashboard');
 
     const navItems = [
-        { icon: '⊞',  label: 'Dashboard'          },
-        { icon: '🔔', label: 'Reorder Alerts'      },
-        { icon: '🧮', label: 'Reorder Calculator'  },
-        { icon: '📈', label: 'Demand Forecast'     },
-        { icon: '📐', label: 'EOQ Tool'            },
-        { icon: '📦', label: 'Products'            },
-        { icon: '🏭', label: 'Suppliers'           },
-        { icon: '📋', label: 'Stock Movement'      },
-        { icon: '🌦️', label: 'Smart Adjustments'  },
-        { icon: '📊', label: 'Reports'             },
+        { icon: '',  label: 'Dashboard'          },
+        { icon: '', label: 'Reorder Alerts'      },
+        { icon: '', label: 'Reorder Calculator'  },
+        { icon: '', label: 'Demand Forecast'     },
+        { icon: '', label: 'EOQ Tool'            },
+        { icon: '', label: 'Products'            },
+        { icon: '', label: 'Suppliers'           },
+        { icon: '', label: 'Stock Movement'      },
+        { icon: '', label: 'Smart Adjustments'  },
+        { icon: '', label: 'Reports'             },
     ];
 
     const renderPage = () => {
