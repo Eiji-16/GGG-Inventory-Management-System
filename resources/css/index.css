@@ -1,3 +1,9 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
 body {
     font-family: 'Poppins', sans-serif;
     display: flex;
@@ -5,129 +11,185 @@ body {
     align-items: center;
     height: 100vh;
     margin: 0;
-    background-image: url("/image/sample.jpg");
+    background-image: url("");
 }
 
 /*-----Login Division Box-----*/
 .Login-box {
     display: flex;
-    flex-direction: row;
-    width: 800px;
-    height: 500px;
-    border-radius: 16px;
+    width: min(95vw, 70rem);
+    min-height: 30rem;
+    border-radius: 1.5rem;
     overflow: hidden;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    border: 1px solid #1a2a4a;
-}
-/*-----Design Division Box-----*/
-.Design-side {
-    width: 50%;
+    box-shadow: 0 1.5rem 3.75rem rgba(0, 0, 0, 0.18);
+    border: 0.0625rem solid rgba(26, 42, 74, 0.15);
+    background: #ffffff;
 }
 
-.Design-side img {
+
+/*-----Left Side Design Division Box-----*/
+.Design-side {
+    width: 50%;
+    min-width: 20rem;
+    position: relative;
+    background: linear-gradient(180deg, #0d1b3e 0%, #152d6b 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.Design-image {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
+    opacity: 0.14;
 }
 
-/*-----LoginPanel Division Box-----*/
+.Design-overlay {
+    position: relative;
+    z-index: 1;
+    padding: 2.5rem;
+    text-align: left;
+}
 
+.Design-overlay h1 {
+    margin: 0 0 1rem;
+    font-size: 2rem;
+    letter-spacing: 0.04em;
+}
+
+.Design-overlay p {
+    margin: 0;
+    max-width: 17.5rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+
+/*-----Right Side Login Division Box-----*/
+    /*-----WelcomeText-----*/
 .WelcomeText {
-    font-size: 20px;
-    margin-top:-30%;
+    text-align: left;
 }
 
-.WelcomeText h1 {
-    font-size: 40px;
-    margin: 0 0 20px 0;
+.WelcomeText h2 {
+    margin: 0 0 0.75rem;
+    font-size: 2rem;
     color: #1a2a4a;
+    letter-spacing: -0.03em;
 }
 
+.WelcomeText p {
+    margin: 0;
+    color: #4f5c7f;
+    font-size: 0.96rem;
+    max-width: 22.5rem;
+}
+
+    /*-----LogIn Form-----*/
 .Login-side {
     width: 50%;
-    background-color: white;
+    min-width: 0;
+    padding: 4rem 3.5rem;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: center;
-    padding: 40px;
-    position: relative;
+    background-color: #fff;
+    gap: 1.5rem;
 }
 
-.input-group label{
-    position: absolute;
-    top: -10px;
-    left: 12px;
-    background-color: white;
-    padding: 0 4px;
-    font-size: 12px;
-    color: #1a2a4a;
-}
-
-.input-group input {
+.Login-form {
     width: 100%;
-    padding: 12px;
-    border: 1px solid #1a2a4a;
-    border-radius: 8px;
-    font-size: 14px;
-    outline: none;
-    box-sizing: border-box;
+    max-width: 34rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.125rem;
 }
 
 .input-group {
-    position: relative;
-    margin-bottom: 15px;
-    width: 100%;
+    display: grid;
+    gap: 0.625rem;
+}
+
+.input-group label {
+    color: #808080;
+    font-size: 0.86rem;
+    
 }
 
 .input-icon {
     display: flex;
     align-items: center;
-    gap: 8px;
-    border: 1px solid #1a2a4a;
-    border-radius: 8px;
-    padding: 0 12px;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    background: #f8f9fb;
+    border-radius: 0.875rem;
+    border: 0.0625rem solid #d8e0ef;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.input-icon:hover {
+    border-color: #1a2a4a;
+    background: #ffffff;
 }
 
 .input-icon i {
     color: #1a2a4a;
-    font-size: 14px;
+    font-size: 1rem;
+    min-width: 1.25rem;
+    text-align: center;
 }
 
 .input-icon input {
     border: none;
+    background: transparent;
     outline: none;
-    padding: 12px 0;
     width: 100%;
-    font-size: 14px;
+    font-size: 1rem;
+    color: #1a2a4a;
+}
+
+.input-icon input::placeholder {
+    color: #71809a;
 }
 
 .ForgetPassword {
     width: 100%;
     text-align: right;
-    font-size: 12px;
-    margin-top: -8px;
-    margin-bottom: 16px;
-    cursor: pointer;
+    font-size: 0.9rem;
     color: #1a2a4a;
+    text-decoration: underline transparent;
+    cursor: pointer;
+    transition: color 0.2s ease, text-decoration-color 0.2s ease;
 }
 
-.Login-button{
-    width: 33%;
-    padding: 12px;
-    background-color: #1a2a4a;
-    color: #C9A84C ;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    box-shadow: inset 0 0 0 0 #C9A84C;
-    transition: ease-out 0.6s;
-    outline: none;
+.ForgetPassword:hover {
+    color: #0d1b3e;
+    text-decoration-color: #0d1b3e;
 }
-.Login-button:hover{
-    box-shadow: inset 300px 0 0 0 #C9A84C;
-    color: black;
-    
+
+.Login-button {
+    width: 100%;
+    padding: 1rem 1.25rem;
+    background: #1a2a4a;
+    color: #D4A827;
+    border: none;
+    border-radius: 0.875rem;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.Login-button:hover {
+    transform: translateY(-0.0625rem);
+    box-shadow: 0 0.875rem 1.75rem rgba(26, 42, 74, 0.18);
+    background: #0d1b3e;
+    color: #fff;
 }
 
 
@@ -155,17 +217,17 @@ body {
 
     .Design-side {
         width: 100%;
-        height: 200px;
+        height: 12.5rem;
     }
 
     .Login-side {
         width: 100%;
-        padding: 30px;
+        padding: 1.875rem;
         box-sizing: border-box;
     }
 
     .Login-button {
-        width: 50%;
+        width: 100%;
     }
 }
 
@@ -176,11 +238,11 @@ body {
     }
 
     .Design-side {
-        height: 150px;
+        height: 9.375rem;
     }
 
     .Login-side {
-        padding: 20px;
+        padding: 1.25rem;
     }
 
     .Login-button {

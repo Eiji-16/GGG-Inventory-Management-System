@@ -1,0 +1,448 @@
+
+<link rel="stylesheet" href="https://unpkg.com/tabler-icons@latest/iconfont/tabler-icons.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+.ti{font-family:'tabler-icons';font-style:normal;font-weight:400;speak:none;display:inline-block;text-transform:none;line-height:1;vertical-align:middle;text-decoration:inherit;text-rendering:auto;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--navy:#0d1b3e;--navy-light:#1a2d5a;--navy-hover:#243970;--gold:#d4a827;--gold-light:#f0c84a;--gold-pale:#fdf3d0;--white:#ffffff;--text-light:#e8eaf0;--text-muted:#9ba5c0;}
+body{font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f2f5fb;color:#243445;}
+.app{display:flex;min-height:100vh;border-radius:0px;overflow:hidden;border:0.5px solid #0d1b3e;background:#fff;}
+.sidebar{width:220px;background:var(--navy);display:flex;flex-direction:column;flex-shrink:0;}
+.sidebar-logo{padding:16px;border-bottom:1px solid var(--navy-hover);}
+.sidebar-logo p{font-size:13px;font-weight:500;color:var(--gold);}
+.sidebar-logo span{font-size:11px;color:var(--text-muted);}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:12px;color:var(--text-muted);cursor:pointer;border-left:3px solid transparent;transition:all 0.15s;}
+.nav-item:hover{background:var(--navy-light);color:var(--text-light);}
+.nav-item.active{background:var(--navy-hover);color:var(--gold);border-left:3px solid var(--gold);font-weight:500;}
+.nav-item i{font-size:15px;}
+.logout-btn{margin-top:auto;padding:10px 16px;border-top:1px solid var(--navy-hover);}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#f5f6fa;}
+.topbar{padding:12px 20px;background:var(--navy);display:flex;align-items:center;justify-content:space-between;}
+.topbar h2{font-size:14px;font-weight:500;color:var(--white);}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.badge{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500;}
+.badge-gold{background:var(--gold-pale);color:#7a5c00;}
+.badge-success{background:#e6f4ea;color:#1e6b35;}
+.badge-warning{background:#fff8e1;color:#7a5200;}
+.badge-danger{background:#fdecea;color:#8b1a1a;}
+.content{flex:1;overflow-y:auto;padding:16px 20px;}
+.screen{display:none;}
+.screen.active{display:block;}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+.stat-card{background:var(--white);border:0.5px solid #dde0ea;border-radius:8px;padding:12px;border-top:3px solid var(--gold);}
+.stat-label{font-size:11px;color:#6b7280;margin-bottom:4px;}
+.stat-value{font-size:22px;font-weight:500;color:var(--navy);}
+.stat-sub{font-size:11px;color:#9ba5c0;margin-top:2px;}
+.card{background:var(--white);border:0.5px solid #dde0ea;border-radius:8px;padding:14px;margin-bottom:12px;}
+.card-title{font-size:13px;font-weight:500;color:var(--navy);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.card-title::before{content:'';display:inline-block;width:3px;height:14px;background:var(--gold);border-radius:2px;}
+.table{width:100%;border-collapse:collapse;font-size:12px;}
+.table th{text-align:left;padding:7px 8px;color:#6b7280;font-weight:500;border-bottom:1px solid #eef0f5;background:#f8f9fc;}
+.table td{padding:7px 8px;color:#374151;border-bottom:0.5px solid #eef0f5;}
+.table tr:last-child td{border-bottom:none;}
+.table tr:hover td{background:#fafbff;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-size:12px;border:0.5px solid #dde0ea;border-radius:8px;background:var(--white);color:#374151;cursor:pointer;}
+.btn:hover{background:#f0f2f8;}
+.btn-primary{background:var(--navy);color:var(--gold);border-color:var(--navy);}
+.btn-primary:hover{background:var(--navy-light);}
+.btn-gold{background:var(--gold);color:var(--navy);border-color:var(--gold);font-weight:500;}
+.btn-gold:hover{background:var(--gold-light);}
+.btn-sm{padding:3px 8px;font-size:11px;}
+.btn-danger{background:#fdecea;color:#8b1a1a;border-color:#f5c6c6;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.alert-item{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:6px;margin-bottom:6px;}
+.alert-warn{background:#fff8e1;}
+.alert-danger{background:#fdecea;}
+.progress-bar{height:6px;border-radius:3px;background:#eef0f5;margin-top:4px;}
+.progress-fill{height:100%;border-radius:3px;}
+.input{width:100%;padding:7px 10px;font-size:12px;border:0.5px solid #dde0ea;border-radius:8px;background:var(--white);color:#374151;margin-bottom:8px;}
+.search-input{width:100%;max-width:220px;padding:6px 10px;font-size:12px;border:0.5px solid #dde0ea;border-radius:8px;color:#374151;}
+.form-label{font-size:11px;color:#6b7280;margin-bottom:3px;}
+.eoq-result-box{background:var(--navy);border-radius:8px;padding:16px;text-align:center;margin-bottom:10px;}
+.chart-bar-wrap{display:flex;align-items:flex-end;gap:6px;height:90px;margin-top:8px;}
+.chart-bar{flex:1;border-radius:3px 3px 0 0;background:var(--navy);}
+.chart-bar.gold{background:var(--gold);}
+.chart-labels{display:flex;gap:6px;margin-top:4px;}
+.chart-label{flex:1;text-align:center;font-size:10px;color:#9ba5c0;}
+.section-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;}
+.search-input{width:100%;max-width:220px;padding:6px 10px;font-size:12px;border:0.5px solid #dde0ea;border-radius:8px;color:#374151;}
+
+@media (max-width: 1120px) {
+  .stat-grid {grid-template-columns:repeat(2,1fr);}
+  .two-col {grid-template-columns:1fr 1fr;}
+  .card {padding:12px;}
+}
+
+@media (max-width: 860px) {
+  .app {flex-direction:column;}
+  .sidebar {width:100%;flex-direction:row;flex-wrap:wrap;justify-content:space-between;align-items:center;padding:10px;}
+  .sidebar-logo {flex:1 1 100%;border-bottom:none;padding-bottom:0;margin-bottom:8px;}
+  .nav-item {flex:1 1 50%;justify-content:center;border-left:none;border-bottom:1px solid rgba(255,255,255,.08);padding:10px 8px;font-size:11px;}
+  .logout-btn {width:100%;margin-top:0;border-top:none;padding-top:0;}
+  .topbar {flex-direction:column;align-items:flex-start;gap:10px;}
+  .content {padding:14px 16px;}
+  .stat-grid, .two-col {grid-template-columns:1fr;}
+  .chart-bar-wrap {height:88px;}
+  .chart-labels {font-size:10px;}
+  .table {display:block;overflow-x:auto;white-space:nowrap;}
+  .section-header {align-items:flex-start;}
+  .search-input {max-width:100%;}
+}
+
+@media (max-width: 600px) {
+  .sidebar {padding:8px;}
+  .nav-item {flex:1 1 100%;justify-content:flex-start;padding:10px;}
+  .topbar h2 {font-size:13px;}
+  .badge {font-size:10px;padding:4px 8px;}
+  .card-title {font-size:12px;}
+  .btn {font-size:11px;padding:6px 10px;}
+  .chart-bar-wrap {height:70px;}
+  .chart-labels {gap:4px;}
+  .table th, .table td {padding:6px 8px;}
+  .section-header {gap:8px;}
+  .input {font-size:12px;}
+}
+
+@media (max-width: 1120px) {
+  .stat-grid {grid-template-columns:repeat(2,1fr);}
+  .two-col {grid-template-columns:1fr 1fr;}
+  .card {padding:12px;}
+}
+
+@media (max-width: 860px) {
+  .app {flex-direction:column;}
+  .sidebar {width:100%;flex-direction:row;flex-wrap:wrap;justify-content:space-between;align-items:center;padding:10px;}
+  .sidebar-logo {flex:1 1 100%;border-bottom:none;padding-bottom:0;margin-bottom:8px;}
+  .nav-item {flex:1 1 50%;justify-content:center;border-left:none;border-bottom:1px solid rgba(255,255,255,.08);padding:10px 8px;font-size:11px;}
+  .logout-btn {width:100%;margin-top:0;border-top:none;padding-top:0;}
+  .topbar {flex-direction:column;align-items:flex-start;gap:10px;}
+  .content {padding:14px 16px;}
+  .stat-grid, .two-col {grid-template-columns:1fr;}
+  .chart-bar-wrap {height:88px;}
+  .chart-labels {font-size:10px;}
+  .table {display:block;overflow-x:auto;white-space:nowrap;}
+  .section-header {align-items:flex-start;}
+  .search-input {max-width:100%;}
+}
+
+@media (max-width: 600px) {
+  .sidebar {padding:8px;}
+  .nav-item {flex:1 1 100%;justify-content:flex-start;padding:10px;}
+  .topbar h2 {font-size:13px;}
+  .badge {font-size:10px;padding:4px 8px;}
+  .card-title {font-size:12px;}
+  .btn {font-size:11px;padding:6px 10px;}
+  .chart-bar-wrap {height:70px;}
+  .chart-labels {gap:4px;}
+  .table th, .table td {padding:6px 8px;}
+  .section-header {gap:8px;}
+  .input {font-size:12px;}
+}
+</style>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <p>GGG Inventory</p>
+      <span>Global Growth Guide</span>
+    </div>
+    <div class="nav-item active" onclick="showScreen('dashboard',this)"><i class="ti ti-dashboard" aria-hidden="true"></i> Dashboard</div>
+    <div class="nav-item" onclick="showScreen('products',this)"><i class="ti ti-box" aria-hidden="true"></i> Products</div>
+    <div class="nav-item" onclick="showScreen('suppliers',this)"><i class="ti ti-truck" aria-hidden="true"></i> Suppliers</div>
+    <div class="nav-item" onclick="showScreen('stock',this)"><i class="ti ti-arrows-right-left" aria-hidden="true"></i> Stock Movement</div>
+    <div class="nav-item" onclick="showScreen('reorder',this)"><i class="ti ti-bell" aria-hidden="true"></i> Reorder Alerts</div>
+    <div class="nav-item" onclick="showScreen('eoq',this)"><i class="ti ti-calculator" aria-hidden="true"></i> EOQ Calculator</div>
+    <div class="nav-item" onclick="showScreen('forecast',this)"><i class="ti ti-chart-line" aria-hidden="true"></i> Forecasting</div>
+    <div class="nav-item" onclick="showScreen('seasonal',this)"><i class="ti ti-calendar-event" aria-hidden="true"></i> Seasonal Adj.</div>
+    <div class="nav-item" onclick="showScreen('reports',this)"><i class="ti ti-file-text" aria-hidden="true"></i> Reports</div>
+    <div class="logout-btn"><div class="nav-item" style="padding:0;color:#e57373;border:none"><i class="ti ti-logout" aria-hidden="true"></i> Logout</div></div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <h2 id="page-title">Inventory Dashboard</h2>
+      <div class="topbar-right">
+        <span class="badge badge-gold">Online</span>
+        <span style="font-size:12px;color:var(--text-muted)">Ms. Edna M. Jackson</span>
+        <i class="ti ti-user-circle" style="font-size:20px;color:var(--gold)" aria-hidden="true"></i>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <div class="screen active" id="screen-dashboard">
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-label">Total Items</div><div class="stat-value">1,284</div><div class="stat-sub">↑ 3% this month</div></div>
+          <div class="stat-card"><div class="stat-label">Low Stock</div><div class="stat-value" style="color:#b45309">23</div><div class="stat-sub">Need restocking</div></div>
+          <div class="stat-card"><div class="stat-label">Out of Stock</div><div class="stat-value" style="color:#8b1a1a">5</div><div class="stat-sub">Immediate action</div></div>
+          <div class="stat-card"><div class="stat-label">On Order</div><div class="stat-value" style="color:var(--navy)">8</div><div class="stat-sub">Pending delivery</div></div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title">Stock distribution</div>
+            <div style="font-size:12px;color:#374151">
+              <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>T-Shirts</span><span style="font-weight:500;color:var(--navy)">384 pcs</span></div>
+              <div class="progress-bar"><div class="progress-fill" style="width:75%;background:var(--navy)"></div></div>
+              <div style="display:flex;justify-content:space-between;margin:8px 0 5px"><span>Hoodies</span><span style="font-weight:500;color:var(--navy)">210 pcs</span></div>
+              <div class="progress-bar"><div class="progress-fill" style="width:41%;background:var(--gold)"></div></div>
+              <div style="display:flex;justify-content:space-between;margin:8px 0 5px"><span>Caps</span><span style="font-weight:500;color:var(--navy)">156 pcs</span></div>
+              <div class="progress-bar"><div class="progress-fill" style="width:30%;background:#b45309"></div></div>
+              <div style="display:flex;justify-content:space-between;margin:8px 0 5px"><span>Tote Bags</span><span style="font-weight:500;color:var(--navy)">89 pcs</span></div>
+              <div class="progress-bar"><div class="progress-fill" style="width:17%;background:#8b1a1a"></div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Low stock alerts</div>
+            <div class="alert-item alert-warn"><span style="font-size:12px;color:#7a5200">Black Hoodie (M)</span><span class="badge badge-warning">8 left</span></div>
+            <div class="alert-item alert-warn"><span style="font-size:12px;color:#7a5200">White Cap</span><span class="badge badge-warning">5 left</span></div>
+            <div class="alert-item alert-danger"><span style="font-size:12px;color:#8b1a1a">Blue Tote Bag</span><span class="badge badge-danger">0 left</span></div>
+            <div class="alert-item alert-danger"><span style="font-size:12px;color:#8b1a1a">Red T-Shirt (S)</span><span class="badge badge-danger">0 left</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Monthly stock overview</div>
+          <div class="chart-bar-wrap">
+            <div class="chart-bar" style="height:60%"></div>
+            <div class="chart-bar gold" style="height:45%"></div>
+            <div class="chart-bar" style="height:70%"></div>
+            <div class="chart-bar gold" style="height:55%"></div>
+            <div class="chart-bar" style="height:80%"></div>
+            <div class="chart-bar gold" style="height:65%"></div>
+          </div>
+          <div class="chart-labels">
+            <div class="chart-label">Jan</div><div class="chart-label">Feb</div><div class="chart-label">Mar</div>
+            <div class="chart-label">Apr</div><div class="chart-label">May</div><div class="chart-label">Jun</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen" id="screen-products">
+        <div class="section-header">
+          <input class="search-input" placeholder="Search products..."/>
+          <button class="btn btn-gold"><i class="ti ti-plus"></i> Add product</button>
+        </div>
+        <div class="card">
+          <table class="table">
+            <thead><tr><th>Product</th><th>Variant</th><th>Category</th><th>Stock</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+              <tr><td>Classic T-Shirt</td><td>Black / M</td><td>Tops</td><td>120</td><td>₱299</td><td><span class="badge badge-success">In Stock</span></td><td><button class="btn btn-sm"><i class="ti ti-edit"></i></button> <button class="btn btn-sm btn-danger"><i class="ti ti-trash"></i></button></td></tr>
+              <tr><td>Classic T-Shirt</td><td>White / L</td><td>Tops</td><td>85</td><td>₱299</td><td><span class="badge badge-success">In Stock</span></td><td><button class="btn btn-sm"><i class="ti ti-edit"></i></button> <button class="btn btn-sm btn-danger"><i class="ti ti-trash"></i></button></td></tr>
+              <tr><td>Zip Hoodie</td><td>Gray / XL</td><td>Tops</td><td>8</td><td>₱599</td><td><span class="badge badge-warning">Low Stock</span></td><td><button class="btn btn-sm"><i class="ti ti-edit"></i></button> <button class="btn btn-sm btn-danger"><i class="ti ti-trash"></i></button></td></tr>
+              <tr><td>Snapback Cap</td><td>White / OS</td><td>Accessories</td><td>5</td><td>₱199</td><td><span class="badge badge-warning">Low Stock</span></td><td><button class="btn btn-sm"><i class="ti ti-edit"></i></button> <button class="btn btn-sm btn-danger"><i class="ti ti-trash"></i></button></td></tr>
+              <tr><td>Canvas Tote</td><td>Blue / OS</td><td>Bags</td><td>0</td><td>₱249</td><td><span class="badge badge-danger">Out of Stock</span></td><td><button class="btn btn-sm"><i class="ti ti-edit"></i></button> <button class="btn btn-sm btn-danger"><i class="ti ti-trash"></i></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="screen" id="screen-suppliers">
+        <div class="section-header">
+          <span style="font-size:12px;color:#6b7280">3 suppliers registered</span>
+          <button class="btn btn-gold"><i class="ti ti-plus"></i> Add supplier</button>
+        </div>
+        <div class="card">
+          <table class="table">
+            <thead><tr><th>Supplier</th><th>Contact</th><th>Products supplied</th><th>Lead time</th><th>Actions</th></tr></thead>
+            <tbody>
+              <tr><td>Sunshine Garments</td><td>09171234567</td><td>T-Shirts, Hoodies</td><td>3 days</td><td><button class="btn btn-sm"><i class="ti ti-edit"></i></button></td></tr>
+              <tr><td>Metro Accessories Co.</td><td>09281234567</td><td>Caps, Bags</td><td>5 days</td><td><button class="btn btn-sm"><i class="ti ti-edit"></i></button></td></tr>
+              <tr><td>FastPrint Manila</td><td>09391234567</td><td>Customized Items</td><td>7 days</td><td><button class="btn btn-sm"><i class="ti ti-edit"></i></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="screen" id="screen-stock">
+        <div class="section-header">
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-gold"><i class="ti ti-arrow-up"></i> Stock in</button>
+            <button class="btn btn-primary"><i class="ti ti-arrow-down"></i> Stock out</button>
+          </div>
+          <span style="font-size:12px;color:#6b7280">Showing last 5 transactions</span>
+        </div>
+        <div class="card">
+          <table class="table">
+            <thead><tr><th>Date</th><th>Product</th><th>Type</th><th>Qty</th><th>Remaining</th><th>Recorded by</th></tr></thead>
+            <tbody>
+              <tr><td>May 30, 2026</td><td>Black T-Shirt / M</td><td><span class="badge badge-success">Stock In</span></td><td>+50</td><td>120</td><td>Ms. Edna</td></tr>
+              <tr><td>May 29, 2026</td><td>White Cap / OS</td><td><span class="badge badge-danger">Stock Out</span></td><td>-10</td><td>5</td><td>Ms. Edna</td></tr>
+              <tr><td>May 28, 2026</td><td>Gray Hoodie / XL</td><td><span class="badge badge-danger">Stock Out</span></td><td>-5</td><td>8</td><td>Ms. Edna</td></tr>
+              <tr><td>May 27, 2026</td><td>Canvas Tote / Blue</td><td><span class="badge badge-danger">Stock Out</span></td><td>-3</td><td>0</td><td>Ms. Edna</td></tr>
+              <tr><td>May 26, 2026</td><td>White T-Shirt / L</td><td><span class="badge badge-success">Stock In</span></td><td>+30</td><td>85</td><td>Ms. Edna</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="screen" id="screen-reorder">
+        <div class="card">
+          <div class="card-title">Auto reorder alerts</div>
+          <table class="table">
+            <thead><tr><th>Product</th><th>Current stock</th><th>Reorder point</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td>Canvas Tote / Blue</td><td style="color:#8b1a1a;font-weight:500">0</td><td>10</td><td><span class="badge badge-danger">Out of Stock</span></td><td><button class="btn btn-gold btn-sm">Order now</button></td></tr>
+              <tr><td>Red T-Shirt / S</td><td style="color:#8b1a1a;font-weight:500">0</td><td>15</td><td><span class="badge badge-danger">Out of Stock</span></td><td><button class="btn btn-gold btn-sm">Order now</button></td></tr>
+              <tr><td>Gray Hoodie / XL</td><td style="color:#b45309;font-weight:500">8</td><td>20</td><td><span class="badge badge-warning">Low Stock</span></td><td><button class="btn btn-gold btn-sm">Order now</button></td></tr>
+              <tr><td>White Cap / OS</td><td style="color:#b45309;font-weight:500">5</td><td>15</td><td><span class="badge badge-warning">Low Stock</span></td><td><button class="btn btn-gold btn-sm">Order now</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="screen" id="screen-eoq">
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title">EOQ calculator</div>
+            <div class="form-label">Annual demand (units)</div>
+            <input class="input" id="eoq-d" type="number" value="1200" oninput="calcEOQ()"/>
+            <div class="form-label">Ordering cost (₱ per order)</div>
+            <input class="input" id="eoq-s" type="number" value="500" oninput="calcEOQ()"/>
+            <div class="form-label">Holding cost (₱ per unit/year)</div>
+            <input class="input" id="eoq-h" type="number" value="50" oninput="calcEOQ()"/>
+            <div class="form-label">Lead time (days)</div>
+            <input class="input" id="eoq-lt" type="number" value="3" oninput="calcEOQ()"/>
+            <div class="form-label">Safety stock (units)</div>
+            <input class="input" id="eoq-ss" type="number" value="20" oninput="calcEOQ()"/>
+            <button class="btn btn-gold" style="width:100%" onclick="calcEOQ()"><i class="ti ti-calculator"></i> Compute</button>
+          </div>
+          <div class="card">
+            <div class="card-title">Computation result</div>
+            <div class="eoq-result-box">
+              <div style="font-size:11px;color:var(--text-muted)">Economic Order Quantity</div>
+              <div style="font-size:36px;font-weight:500;color:var(--gold)" id="eoq-result">155</div>
+              <div style="font-size:11px;color:var(--text-muted)">units per order</div>
+            </div>
+            <div style="background:#f8f9fc;border-radius:8px;padding:12px;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span style="color:#6b7280">Reorder Point</span><span id="rop-result" style="font-weight:500;color:var(--navy)">30 units</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px"><span style="color:#6b7280">Safety Stock</span><span style="font-weight:500;color:var(--navy)">20 units</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:#6b7280">Orders per year</span><span id="orders-result" style="font-weight:500;color:var(--navy)">8 orders</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen" id="screen-forecast">
+        <div class="card">
+          <div class="card-title">Sales forecasting — Weighted Moving Average (WMA)</div>
+          <table class="table" style="margin-bottom:12px">
+            <thead><tr><th>Month</th><th>Actual sales</th><th>Weight</th><th>WMA forecast</th><th>Variance</th></tr></thead>
+            <tbody>
+              <tr><td>January</td><td>210</td><td>1</td><td>—</td><td>—</td></tr>
+              <tr><td>February</td><td>185</td><td>2</td><td>—</td><td>—</td></tr>
+              <tr><td>March</td><td>230</td><td>3</td><td>—</td><td>—</td></tr>
+              <tr><td>April</td><td>198</td><td>—</td><td>214</td><td style="color:#8b1a1a">-16</td></tr>
+              <tr><td>May</td><td>245</td><td>—</td><td>207</td><td style="color:#1e6b35">+38</td></tr>
+              <tr style="background:var(--gold-pale)"><td style="color:#7a5c00;font-weight:500">June (Forecast)</td><td style="color:#7a5c00">—</td><td style="color:#7a5c00">—</td><td style="color:#7a5c00;font-weight:500">228</td><td style="color:#7a5c00">—</td></tr>
+            </tbody>
+          </table>
+          <div class="chart-bar-wrap">
+            <div class="chart-bar" style="height:55%"></div>
+            <div class="chart-bar" style="height:48%"></div>
+            <div class="chart-bar" style="height:60%"></div>
+            <div class="chart-bar" style="height:52%"></div>
+            <div class="chart-bar" style="height:64%"></div>
+            <div class="chart-bar gold" style="height:59%"></div>
+          </div>
+          <div class="chart-labels">
+            <div class="chart-label">Jan</div><div class="chart-label">Feb</div><div class="chart-label">Mar</div>
+            <div class="chart-label">Apr</div><div class="chart-label">May</div>
+            <div class="chart-label" style="color:#b45309;font-weight:500">Jun ↗</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen" id="screen-seasonal">
+        <div class="section-header">
+          <span style="font-size:12px;color:#6b7280">3 seasonal events configured</span>
+          <button class="btn btn-gold"><i class="ti ti-plus"></i> Add event</button>
+        </div>
+        <div class="card">
+          <table class="table">
+            <thead><tr><th>Event</th><th>Date range</th><th>Adjustment %</th><th>Affected products</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+              <tr><td>Christmas Sale</td><td>Dec 1–25, 2026</td><td style="color:#1e6b35;font-weight:500">+35%</td><td>All Products</td><td><span class="badge badge-success">Active</span></td><td><button class="btn btn-sm"><i class="ti ti-edit"></i></button></td></tr>
+              <tr><td>Valentine's Day</td><td>Feb 10–14, 2026</td><td style="color:#1e6b35;font-weight:500">+20%</td><td>T-Shirts, Hoodies</td><td><span class="badge" style="background:#f0f2f8;color:#6b7280">Done</span></td><td><button class="btn btn-sm"><i class="ti ti-edit"></i></button></td></tr>
+              <tr><td>Summer Collection</td><td>Apr 1–30, 2026</td><td style="color:#1e6b35;font-weight:500">+15%</td><td>Caps, Tote Bags</td><td><span class="badge" style="background:#f0f2f8;color:#6b7280">Done</span></td><td><button class="btn btn-sm"><i class="ti ti-edit"></i></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="screen" id="screen-reports">
+        <div class="section-header">
+          <span style="font-size:12px;color:#6b7280">May 2026 report</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn"><i class="ti ti-download"></i> Export PDF</button>
+            <button class="btn btn-gold"><i class="ti ti-file-spreadsheet"></i> Export Excel</button>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title">Fast-moving products</div>
+            <table class="table">
+              <thead><tr><th>Product</th><th>Units sold</th></tr></thead>
+              <tbody>
+                <tr><td>Black T-Shirt / M</td><td style="color:#1e6b35;font-weight:500">384</td></tr>
+                <tr><td>White T-Shirt / L</td><td style="color:#1e6b35;font-weight:500">310</td></tr>
+                <tr><td>Gray Hoodie / XL</td><td style="color:#1e6b35;font-weight:500">210</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-title">Slow-moving products</div>
+            <table class="table">
+              <thead><tr><th>Product</th><th>Units sold</th></tr></thead>
+              <tbody>
+                <tr><td>Canvas Tote / Blue</td><td style="color:#8b1a1a;font-weight:500">12</td></tr>
+                <tr><td>White Cap / OS</td><td style="color:#8b1a1a;font-weight:500">18</td></tr>
+                <tr><td>Red T-Shirt / S</td><td style="color:#8b1a1a;font-weight:500">24</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Sales trend — May 2026</div>
+          <div class="chart-bar-wrap">
+            <div class="chart-bar" style="height:50%"></div>
+            <div class="chart-bar gold" style="height:65%"></div>
+            <div class="chart-bar" style="height:45%"></div>
+            <div class="chart-bar gold" style="height:80%"></div>
+            <div class="chart-bar" style="height:60%"></div>
+            <div class="chart-bar gold" style="height:90%"></div>
+            <div class="chart-bar" style="height:70%"></div>
+          </div>
+          <div class="chart-labels">
+            <div class="chart-label">W1</div><div class="chart-label">W2</div><div class="chart-label">W3</div>
+            <div class="chart-label">W4</div><div class="chart-label">W5</div><div class="chart-label">W6</div><div class="chart-label">W7</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function showScreen(id,el){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  el.classList.add('active');
+  const titles={dashboard:'Inventory Dashboard',products:'Product & Supplier Management',suppliers:'Supplier Management',stock:'Stock Movement Tracking',reorder:'Auto Reorder Alert',eoq:'Efficient Reorder & EOQ Calculator',forecast:'Sales Forecasting (WMA)',seasonal:'Seasonal Adjustments',reports:'Reports & Analytics'};
+  document.getElementById('page-title').textContent=titles[id];
+}
+function calcEOQ(){
+  const D=parseFloat(document.getElementById('eoq-d').value)||0;
+  const S=parseFloat(document.getElementById('eoq-s').value)||0;
+  const H=parseFloat(document.getElementById('eoq-h').value)||1;
+  const LT=parseFloat(document.getElementById('eoq-lt').value)||0;
+  const SS=parseFloat(document.getElementById('eoq-ss').value)||0;
+  const eoq=Math.round(Math.sqrt((2*D*S)/H));
+  const rop=Math.round((D/365)*LT+SS);
+  const orders=eoq>0?Math.round(D/eoq):0;
+  document.getElementById('eoq-result').textContent=eoq;
+  document.getElementById('rop-result').textContent=rop+' units';
+  document.getElementById('orders-result').textContent=orders+' orders';
+}
+calcEOQ();
+</script>

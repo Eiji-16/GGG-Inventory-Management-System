@@ -1,0 +1,182 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html, body{min-height:100%;font-family:Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;background:#f2f4fb;color:#24324a;}
+body{display:flex;align-items:center;justify-content:center;padding:24px;}
+:root{--navy:#0d1b3e;--navy-light:#1a2d5a;--gold:#d4a827;--gold-light:#f0c84a;--gold-pale:#fdf3d0;--white:#ffffff;}
+.wrapper{display:flex;flex-wrap:wrap;max-width:1100px;width:100%;border-radius:24px;overflow:hidden;border:0.5px solid rgba(13,27,62,0.16);background:#ffffff;box-shadow:0 24px 80px rgba(13,27,62,0.08);}
+.left{width:45%;min-width:320px;background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 34px;}
+.left-logo{width:70px;height:70px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;margin-bottom:24px;}
+.left-logo span{font-size:22px;font-weight:700;color:var(--navy);}
+.left h1{font-size:20px;font-weight:600;color:var(--white);text-align:center;margin-bottom:12px;line-height:1.2;}
+.left p{font-size:13px;color:#c2c9db;text-align:center;line-height:1.8;margin-bottom:18px;}
+.divider{width:44px;height:2px;background:var(--gold);border-radius:2px;margin:20px auto;}
+.features{display:flex;flex-direction:column;gap:14px;margin-top:8px;width:100%;}
+.feature-item{display:flex;align-items:flex-start;gap:12px;}
+.feature-item i{font-size:18px;color:var(--gold);margin-top:2px;}
+.feature-item span{font-size:13px;color:#c2c9db;line-height:1.6;}
+.right{flex:1;min-width:320px;background:var(--white);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 34px;}
+.right h2{font-size:24px;font-weight:600;color:var(--navy);margin-bottom:8px;}
+.right p{font-size:14px;color:#6b7280;margin-bottom:28px;}
+.form{width:100%;max-width:420px;}
+.form-label{font-size:12px;color:#6b7280;margin-bottom:6px;display:block;}
+.form-group{margin-bottom:18px;}
+.input-wrap{position:relative;}
+.input-wrap i{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;color:#9ba5c0;}
+.form-input{width:100%;padding:12px 14px 12px 40px;font-size:14px;border:1px solid #dde0ea;border-radius:12px;color:#24324a;background:#f8f9fc;outline:none;transition:all 0.2s ease-in-out;}
+.form-input:focus{border-color:var(--navy);background:var(--white);}
+.eye-btn{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#6b7280;font-size:18px;padding:6px;line-height:1;}
+.btn-login{width:100%;padding:14px 16px;background:var(--navy);color:var(--gold);border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:10px;transition:background 0.2s ease-in-out;}
+.btn-login:hover{background:var(--navy-light);}
+.error-msg{font-size:12px;color:#8b1a1a;background:#fdecea;border-radius:10px;padding:12px 14px;margin-bottom:18px;display:none;align-items:center;gap:8px;}
+.success-screen{display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+.success-icon{width:70px;height:70px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;margin-bottom:18px;}
+.success-icon i{font-size:30px;color:var(--gold);}
+.remember-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;}
+.remember-row label{display:flex;align-items:center;gap:8px;font-size:12px;color:#6b7280;cursor:pointer;}
+.remember-row input[type="checkbox"]{width:16px;height:16px;accent-color:var(--navy);}
+.forgot{font-size:12px;color:var(--navy);cursor:pointer;text-decoration:underline;}
+.bottom-brand{margin-top:28px;font-size:12px;color:#9ba5c0;text-align:center;line-height:1.6;}
+.bottom-brand span{color:var(--navy);font-weight:600;}
+@media (max-width: 980px){
+  .wrapper{border-radius:20px;}
+  .left, .right{padding:34px 26px;}
+  .left{width:100%;}
+  .right{width:100%;}
+  .left h1{font-size:18px;}
+  .right h2{font-size:22px;}
+}
+@media (max-width: 720px){
+  body{padding:16px;}
+  .wrapper{box-shadow:0 18px 60px rgba(13,27,62,0.08);}
+  .left{padding:28px 22px;}
+  .right{padding:28px 22px;}
+  .form{max-width:100%;}
+  .left p, .feature-item span, .right p, .form-label, .bottom-brand{font-size:12px;}
+  .feature-item i{font-size:16px;}
+  .btn-login{font-size:14px;padding:13px 14px;}
+}
+@media (max-width: 520px){
+  .wrapper{border-radius:18px;}
+  .left{padding:24px 18px;}
+  .right{padding:24px 18px;}
+  .left-logo{width:60px;height:60px;}
+  .left h1{font-size:18px;}
+  .left p{font-size:12px;}
+  .feature-item{gap:10px;}
+  .feature-item span{font-size:12px;}
+  .right h2{font-size:20px;}
+  .right p{font-size:13px;}
+  .form-input{padding:12px 14px 12px 38px;font-size:13px;}
+  .eye-btn{font-size:16px;}
+  .remember-row{flex-direction:column;align-items:flex-start;}
+  .btn-login{font-size:14px;padding:13px 14px;}
+}
+</style>
+
+<div class="wrapper">
+  <div class="left">
+    <div class="left-logo"><span>GGG</span></div>
+    <h1>Global Growth Guide</h1>
+    <p>Web-Based Inventory Management System with Sales Forecasting</p>
+    <div class="divider"></div>
+    <div class="features">
+      <div class="feature-item"><i class="ti ti-chart-bar" aria-hidden="true"></i><span>Real-time inventory dashboard</span></div>
+      <div class="feature-item"><i class="ti ti-bell" aria-hidden="true"></i><span>Automated reorder alerts</span></div>
+      <div class="feature-item"><i class="ti ti-chart-line" aria-hidden="true"></i><span>WMA sales forecasting</span></div>
+      <div class="feature-item"><i class="ti ti-calculator" aria-hidden="true"></i><span>EOQ & reorder computation</span></div>
+      <div class="feature-item"><i class="ti ti-report" aria-hidden="true"></i><span>Reports & analytics</span></div>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="form" id="login-form-wrap">
+      <h2>Welcome back</h2>
+      <p>Sign in to your account to continue</p>
+
+      <div class="error-msg" id="error-msg">
+        <i class="ti ti-alert-circle" aria-hidden="true"></i>
+        <span>Invalid username or password. Please try again.</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <div class="input-wrap">
+          <i class="ti ti-user" aria-hidden="true"></i>
+          <input class="form-input" id="username" type="text" placeholder="Enter your username"/>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="input-wrap">
+          <i class="ti ti-lock" aria-hidden="true"></i>
+          <input class="form-input" id="password" type="password" placeholder="Enter your password"/>
+          <button class="eye-btn" onclick="togglePass()" id="eye-btn"><i class="ti ti-eye" id="eye-icon" aria-hidden="true"></i></button>
+        </div>
+      </div>
+
+      <div class="remember-row">
+        <label><input type="checkbox" id="remember"/> Remember me</label>
+        <span class="forgot">Forgot password?</span>
+      </div>
+
+      <button class="btn-login" onclick="doLogin()">
+        <i class="ti ti-login" aria-hidden="true"></i> Sign in
+      </button>
+
+      
+    </div>
+
+    <div class="success-screen" id="success-screen">
+      <div class="success-icon"><i class="ti ti-check" aria-hidden="true"></i></div>
+      <h2 style="color:var(--navy);font-size:16px;font-weight:500;margin-bottom:6px">Login successful!</h2>
+      <p style="font-size:12px;color:#6b7280;margin-bottom:4px">Welcome back,</p>
+      <p style="font-size:14px;font-weight:500;color:var(--navy);margin-bottom:20px">Ms. Edna Mylene Jackson</p>
+      <p style="font-size:11px;color:#9ba5c0">Redirecting to dashboard...</p>
+      <div style="margin-top:16px;width:160px;height:4px;background:#eef0f5;border-radius:2px;overflow:hidden">
+        <div id="progress-bar" style="height:100%;width:0%;background:var(--gold);border-radius:2px;transition:width 2s linear"></div>
+      </div>
+      <button class="btn-login" style="margin-top:20px;width:auto;padding:8px 24px" onclick="resetLogin()">
+        <i class="ti ti-arrow-left" aria-hidden="true"></i> Back to login
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+function togglePass(){
+  const p=document.getElementById('password');
+  const i=document.getElementById('eye-icon');
+  if(p.type==='password'){p.type='text';i.className='ti ti-eye-off';}
+  else{p.type='password';i.className='ti ti-eye';}
+}
+function doLogin(){
+  const u=document.getElementById('username').value.trim();
+  const p=document.getElementById('password').value.trim();
+  const err=document.getElementById('error-msg');
+  err.style.display='none';
+  if(u==='admin'&&p==='admin123'){
+    document.getElementById('login-form-wrap').style.display='none';
+    const ss=document.getElementById('success-screen');
+    ss.style.display='flex';
+    setTimeout(()=>{document.getElementById('progress-bar').style.width='100%';},100);
+  } else if(u===''||p===''){
+    err.querySelector('span').textContent='Please fill in all fields.';
+    err.style.display='flex';
+  } else {
+    err.querySelector('span').textContent='Invalid username or password. Please try again.';
+    err.style.display='flex';
+  }
+}
+function resetLogin(){
+  document.getElementById('login-form-wrap').style.display='block';
+  document.getElementById('success-screen').style.display='none';
+  document.getElementById('username').value='';
+  document.getElementById('password').value='';
+  document.getElementById('error-msg').style.display='none';
+  document.getElementById('progress-bar').style.width='0%';
+}
+document.getElementById('password').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+document.getElementById('username').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+</script>
