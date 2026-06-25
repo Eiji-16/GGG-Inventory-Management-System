@@ -52,7 +52,7 @@ function Login({ onLogin }) {
                     <div className="ForgetPassword">Forgot your password?</div>
 
                     <button type="submit" className="Login-button">
-                        <b>Login</b>
+                        <b><span>Login</span></b>
                     </button>
                 </form>
             </div>

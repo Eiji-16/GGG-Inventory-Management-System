@@ -12,6 +12,7 @@ body {
     height: 100vh;
     margin: 0;
     background-image: url("");
+    
 }
 
 /*-----Login Division Box-----*/
@@ -175,21 +176,57 @@ body {
 .Login-button {
     width: 100%;
     padding: 1rem 1.25rem;
-    background: #1a2a4a;
-    color: #D4A827;
+    background: transparent;
+    color: #0d1b3e;
     border: none;
     border-radius: 0.875rem;
-    font-size: 1rem;
+    font-size: 20px;
     letter-spacing: 0.02em;
     cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    transition: all 0.3s ease;
+    margin: 0;
 }
 
+.Login-button span {
+    position: relative;
+    display: inline-block;
+    padding: 0 1rem;
+}
+
+/* Left line */
+.Login-button span::before,
+.Login-button span::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 0;
+    height: 3px;
+    background: currentColor;
+    transition: width 0.35s ease;
+}
+
+/* Left */
+.Login-button span::before {
+    right: 100%;
+    margin-right: 0.5rem;
+}
+
+/* Right */
+.Login-button span::after {
+    left: 100%;
+    margin-left: 0.5rem;
+}
+
+/* Hover */
 .Login-button:hover {
-    transform: translateY(-0.0625rem);
-    box-shadow: 0 0.875rem 1.75rem rgba(26, 42, 74, 0.18);
-    background: #0d1b3e;
-    color: #fff;
+
+    color: #0d1b3e;
+}
+
+.Login-button:hover span::before,
+.Login-button:hover span::after {
+    width: min(200%, 5rem);
+    min-width: 1.5rem;
 }
 
 
