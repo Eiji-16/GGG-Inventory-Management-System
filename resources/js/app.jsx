@@ -4,7 +4,7 @@ import Login from './Login';
 import Dashboard from './Dashboard';
 
 function App() {
-    const [page, setPage] = useState('login');
+    const [page, setPage] = useState('dashboard');
 
     return (
         <div>
