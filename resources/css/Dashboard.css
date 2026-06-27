@@ -1,0 +1,151 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+}
+/*==========DASHBOARD==========*/
+.dashboard-container {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+}
+/*=============================*/
+
+
+
+/*==========NAVIGATION BAR==========*/
+/*=============================*/
+
+
+
+/*==========SIDEBAR==========*/
+.sidebar{
+    width: 30vh;
+    background-color: #6b6868;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    gap: 15px;
+    position: fixed;
+    transition: transform 0.3s ease, width 0.3s ease;
+    font-size: 11px;
+}
+
+.sidebar-brands {
+    display: flex;
+    align-items: center;
+    justify-content: center; /* Centers your logo horizontally */
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.sidebar-logo-img {
+    max-width: 100%;
+    height: 60px;
+    width: 60px;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.sidebar-menu {
+    list-style: none;
+}
+
+.sidebar-item a {
+    display: block;
+    text-decoration: none;
+    padding:  12px 15px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-weight: 500;
+    transition: all 0.2s
+}
+
+.sidebar-icon {
+    width: 18px;
+    height: 18px;
+    margin-right: 12px;
+    object-fit: contain;
+}
+/*=============================*/
+
+
+
+/*==========Responsiveness==========*/
+
+@media (max-width: 1024px) and (min-width: 769px) {
+    .sidebar {
+        width: 80px;
+        min-width: 80px;
+        padding: 20px 8px;
+    }
+    /* Hide long nav labels or shrink font sizes to fit miniature widths */
+    .sidebar-item a {
+        padding: 12px 5px;
+        font-size: 11px;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .sidebar-brands {
+        text-align: center;
+        font-size: 18px;
+    }
+}
+
+/* 2. MOBILE BREAKPOINT (Hides sidebar offscreen, slides into view when active) */
+@media (max-width: 768px) {
+    .mobile-toggle {
+        display: block;
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        z-index: 200;
+        background-color: #7f7f7f;
+        color: white;
+        border: none;
+        padding: 10px 14px;
+        font-size: 18px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        transform: translateX(-100%); /* Keeps menu hidden offscreen to the left edge */
+        box-shadow: 5px 0 15px rgba(0,0,0,0.15);
+    }
+
+    /* Triggered by React state to slide it outward smoothly */
+    .sidebar.open {
+        transform: translateX(0); 
+    }
+
+    .overview {
+        padding: 80px 20px 20px 20px; /* Leave space at top for mobile switch bar */
+        width: 100vw;
+    }
+
+    /* Darkens background overlay when mobile panel slides forward */
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 50;
+    }
+}
