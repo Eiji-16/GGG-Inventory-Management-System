@@ -17,27 +17,88 @@ body,
     display: flex;
     min-height: 100vh;
     width: 100%;
+    background-color: #f7f3e8;
 }
 /*=============================*/
 
 
 
 /*==========NAVIGATION BAR==========*/
+.top-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    margin-bottom: 24px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #ffffff, #f2ebdb);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.top-nav__welcome h2 {
+    font-size: 1.25rem;
+    color: #2f2a24;
+}
+
+.top-nav__eyebrow {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: #8a6d2b;
+    margin-bottom: 4px;
+}
+
+.top-nav__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.top-nav__button {
+    border: none;
+    border-radius: 999px;
+    padding: 10px 16px;
+    background-color: #a18a2d;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.top-nav__button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(161, 138, 45, 0.25);
+}
+
+.top-nav__avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #6b6868, #a18a2d);
+}
 /*=============================*/
 
 
 
 /*==========SIDEBAR==========*/
 .sidebar{
-    width: 30vh;
-    background-color: #6b6868;
+    width: 10vh;
+    min-width: 220px;
+    background-color: #ffffff;
     display: flex;
     flex-direction: column;
     padding: 20px;
     gap: 15px;
     position: fixed;
+    height: 100vh;
     transition: transform 0.3s ease, width 0.3s ease;
     font-size: 11px;
+    z-index: 100;
 }
 
 .sidebar-brands {
@@ -50,24 +111,47 @@ body,
 
 .sidebar-logo-img {
     max-width: 100%;
-    height: 60px;
-    width: 60px;
+    height: 40px;
+    width: 40px;
     object-fit: cover;
     border-radius: 50%;
+   
 }
 
 .sidebar-menu {
     list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0px;
 }
 
 .sidebar-item a {
-    display: block;
+    display: flex;
+    align-items: center;
     text-decoration: none;
-    padding:  12px 15px;
+    padding: 12px 15px;
     border-radius: 8px;
     margin-bottom: 8px;
     font-weight: 500;
-    transition: all 0.2s
+    color: #0B1B33;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+.sidebar-label {
+    display: inline-block;
+    vertical-align: middle;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    margin-left: 8px;
+}
+
+.sidebar-item a:hover {
+    background-color: #0D1E3D; /* Your Navy Blue background image color */
+    color: #CCA43B; /* Your Gold-Yellow text color */
 }
 
 .sidebar-icon {
@@ -75,6 +159,25 @@ body,
     height: 18px;
     margin-right: 12px;
     object-fit: contain;
+    flex-shrink: 0;
+    filter: invert(13%) sepia(13%) saturate(1900%) hue-rotate(174deg) brightness(95%) contrast(93%);
+}
+
+.sidebar-item a:hover .sidebar-icon {
+    /* Precise filter to hit that bright metallic gold on top of the dark asset */
+    filter: invert(72%) sepia(31%) saturate(1210%) hue-rotate(5deg) brightness(96%) contrast(85%);
+}
+/*=============================*/
+
+
+
+/*==========MAIN CONTENT==========*/
+.overview {
+    flex: 1;
+    margin-left: 30vh;
+    padding: 24px;
+    min-height: 100vh;
+    transition: margin-left 0.3s ease;
 }
 /*=============================*/
 
@@ -91,15 +194,33 @@ body,
     /* Hide long nav labels or shrink font sizes to fit miniature widths */
     .sidebar-item a {
         padding: 12px 5px;
-        font-size: 11px;
+        font-size: 10px;
+        justify-content: center;
         text-align: center;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
+    .sidebar-icon {
+        margin-right: 0;
+        width: 16px;
+        height: 16px;
+    }
+    /* Hide labels and only show icons when sidebar is narrow */
+    .sidebar-label {
+        opacity: 0;
+        transform: translateX(-6px);
+        width: 0;
+        margin-left: 0;
+        pointer-events: none;
+    }
     .sidebar-brands {
         text-align: center;
         font-size: 18px;
+    }
+    .overview {
+        margin-left: 80px;
+        padding: 20px;
     }
 }
 
@@ -124,18 +245,26 @@ body,
         position: fixed;
         top: 0;
         left: 0;
+        width: min(280px, 85vw);
         transform: translateX(-100%); /* Keeps menu hidden offscreen to the left edge */
         box-shadow: 5px 0 15px rgba(0,0,0,0.15);
     }
 
     /* Triggered by React state to slide it outward smoothly */
     .sidebar.open {
-        transform: translateX(0); 
+        transform: translateX(0);
     }
 
     .overview {
+        margin-left: 0;
         padding: 80px 20px 20px 20px; /* Leave space at top for mobile switch bar */
-        width: 100vw;
+        width: 100%;
+    }
+
+    .top-nav {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
     }
 
     /* Darkens background overlay when mobile panel slides forward */
