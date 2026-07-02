@@ -100,7 +100,7 @@ body,
     font-size: 11px;
     z-index: 100;
     overflow-y: auto;
-    scrollbar-width: none; 
+    scrollbar-width: none;
 }
 
 .sidebar-brands {
@@ -169,7 +169,7 @@ body,
 }
 
 .sidebar-item a:hover .sidebar-icon {
-    filter: invert(72%) sepia(31%) saturate(1210%) hue-rotate(5deg) brightness(96%) contrast(85%);
+    filter: brightness(0) invert(100%);
 }
 
 
@@ -267,8 +267,8 @@ body,
         z-index: 200;
         color: #1C2A3A;
         border: none;
-        padding: 10px 15px;
-        font-size: 18px;
+        padding: 10px 14px;
+        font-size: 14px;
         border-radius: 90px;
         cursor: pointer;
         background-color: rgb(148, 141, 141);
@@ -276,10 +276,9 @@ body,
     }
 
     .mobile-toggle.open {
-    transform: rotate(360deg); /* Spins the button one full circle forward */
-}
+    transform: rotate(360deg);
+    }
 
-    
 
     .sidebar {
         position: fixed;

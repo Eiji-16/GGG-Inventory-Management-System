@@ -90,10 +90,6 @@ function Dashboard() {
             <p className="top-nav__eyebrow">Inventory Control</p>
             <h2>Dashboard Overview</h2>
           </div>
-
-          <div className="top-nav__actions">
-            ICON here
-          </div>
         </header>
 
 
