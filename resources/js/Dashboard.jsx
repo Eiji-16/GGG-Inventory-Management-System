@@ -16,7 +16,7 @@ function Dashboard() {
       {/* Mobile Navigation Trigger & Backdrop Overlay */}
 
       <button
-        className="mobile-toggle"
+        className={`mobile-toggle ${isSidebarOpen ? 'open' : ''}`}
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
         aria-label="Toggle navigation"
       >
@@ -92,7 +92,7 @@ function Dashboard() {
           </div>
 
           <div className="top-nav__actions">
-            
+            ICON here
           </div>
         </header>
 

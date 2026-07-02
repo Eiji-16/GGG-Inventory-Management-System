@@ -99,6 +99,8 @@ body,
     transition: transform 0.3s ease, width 0.3s ease;
     font-size: 11px;
     z-index: 100;
+    overflow-y: auto;
+    scrollbar-width: none; 
 }
 
 .sidebar-brands {
@@ -263,14 +265,21 @@ body,
         top: 15px;
         left: 15px;
         z-index: 200;
-        background-color: #7f7f7f;
-        color: white;
+        color: #1C2A3A;
         border: none;
-        padding: 10px 14px;
+        padding: 10px 15px;
         font-size: 18px;
-        border-radius: 6px;
+        border-radius: 90px;
         cursor: pointer;
+        background-color: rgb(148, 141, 141);
+        transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease;
     }
+
+    .mobile-toggle.open {
+    transform: rotate(360deg); /* Spins the button one full circle forward */
+}
+
+    
 
     .sidebar {
         position: fixed;
