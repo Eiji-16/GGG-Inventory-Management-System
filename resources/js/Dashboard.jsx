@@ -69,12 +69,21 @@ function Dashboard() {
               <span className="sidebar-label">Report & Analytics</span>
             </a>
           </li>
+
+          <li id="log-out" className="sidebar-item">
+            <a href="#logout"><img src="/image/Icons/logout.png" alt=""  className="sidebar-icon" />
+              <span className="sidebar-label">Log out</span>
+            </a>
+          </li>
         </ul>
+
+
+
       </aside>
 
       <main className="overview">
 
-        {/* NavBar / Header */}
+        {/* NavBar */}
 
         <header className="top-nav">
           <div className="top-nav__welcome">
@@ -83,8 +92,7 @@ function Dashboard() {
           </div>
 
           <div className="top-nav__actions">
-            <button className="top-nav__button">New Report</button>
-            <div className="top-nav__avatar">JD</div>
+            
           </div>
         </header>
 
