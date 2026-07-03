@@ -28,19 +28,20 @@ body,
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 24px;
+    padding: 16px 20px;
     margin-bottom: 24px;
     border-radius: 16px;
     background-color: transparent;
-    
+    width: 100%;
+    gap: 24px;
 }
 
-.top-nav__welcome h2 {
+.top-nav-welcome h2 {
     font-size: 1.25rem;
     color: #2f2a24;
 }
 
-.top-nav__eyebrow {
+.top-nav-eyebrow {
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.2em;
@@ -48,48 +49,75 @@ body,
     margin-bottom: 4px;
 }
 
-.top-nav__actions {
+.top-nav-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 20px;
 }
 
-.top-nav__button {
+.top-nav-search-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.top-nav-search-input {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.8rem;
+    border: 1px solid rgba(11, 27, 51, 0.15);
+    border-radius: 99px;
+    width: 14rem;
+    outline: none;
+    background-color: rgba(255, 255, 255, 0.8);
+    transition: all 0.25s ease-in-out;
+    color: #1C2A3A;
+}
+
+.top-nav-search-input:focus {
+    border-color: #0B1B33;
+    width: 18rem;
+    box-shadow: 0 4px 12px rgba(11, 27, 51, 0.06);
+}
+
+.top-nav-icon-btn {
+    background: none;
     border: none;
-    border-radius: 999px;
-    padding: 10px 16px;
-    background-color: #a18a2d;
-    color: #fff;
-    font-weight: 600;
+    position: relative;
     cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.top-nav__button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 14px rgba(161, 138, 45, 0.25);
-}
-
-.top-nav__avatar {
-    width: 42px;
-    height: 42px;
+    padding: 0.5rem;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    color: #fff;
-    background: linear-gradient(135deg, #6b6868, #a18a2d);
+    transition: background-color 0.2s ease;
 }
+
+.top-nav-icon-btn:hover .top-nav-icon {
+    color: #CCA43B;
+}
+
+.top-nav-badge {
+    position: absolute;
+    top: 0.2rem;
+    right: 0.2rem;
+    width: 0.5rem;
+    height: 0.5rem;
+    background-color: #FF0000;
+    border-radius: 50%;
+    border: 1.5px solid #ffffff;
+}
+
+
 /*=============================*/
 
 
 
 /*==========SIDEBAR==========*/
 .sidebar{
-    width: 10vh;
-    min-width: 220px;
-    background-color: #ffffff;
+    width: 16rem;
+    max-width: 20vw;
+    min-width: 200px;
+    background-color: #cecbcb;
     display: flex;
     flex-direction: column;
     padding: 20px;
@@ -101,6 +129,7 @@ body,
     z-index: 100;
     overflow-y: auto;
     scrollbar-width: none;
+    border-right: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .sidebar-brands {
@@ -163,13 +192,13 @@ body,
     width: 18px;
     height: 18px;
     margin-right: 12px;
-    object-fit: contain;
     flex-shrink: 0;
-    filter: invert(13%) sepia(13%) saturate(1900%) hue-rotate(174deg) brightness(95%) contrast(93%);
+    color: #0D1E3D;
+    transition: color 0.2s ease-in-out;
 }
 
 .sidebar-item a:hover .sidebar-icon {
-    filter: brightness(0) invert(100%);
+    color: #ffffff; 
 }
 
 
@@ -182,7 +211,7 @@ body,
 }
 
 #log-out .sidebar-icon {
-     filter: brightness(0) invert(10%) sepia(21%) saturate(2975%) hue-rotate(198deg) brightness(91%) contrast(97%);
+    color: #0D1E3D;
 }
 
 #log-out .sidebar-label {
@@ -191,12 +220,9 @@ body,
 }
 
 
-#log-out a:hover .sidebar-label {
-    color: #FF0000;
-}
-
+#log-out a:hover .sidebar-label,
 #log-out a:hover .sidebar-icon {
-    filter: brightness(0) invert(15%) sepia(99%) saturate(7413%) hue-rotate(359deg) brightness(101%) contrast(113%);
+    color: #FF0000;
 }
 
 
@@ -207,10 +233,15 @@ body,
 /*==========MAIN CONTENT==========*/
 .overview {
     flex: 1;
-    margin-left: 30vh;
-    padding: 24px;
+    margin-left: 14.5rem;
+    width: calc(100vw - 16rem);
+    padding: 2rem;
+    padding-left: 50px;
     min-height: 100vh;
     transition: margin-left 0.3s ease;
+    display: flex;
+    flex-direction: column;
+
 }
 /*=============================*/
 
@@ -285,18 +316,18 @@ body,
         top: 0;
         left: 0;
         width: min(280px, 85vw);
-        transform: translateX(-100%); /* Keeps menu hidden offscreen to the left edge */
+        transform: translateX(-100%);
         box-shadow: 5px 0 15px rgba(0,0,0,0.15);
     }
 
-    /* Triggered by React state to slide it outward smoothly */
+    
     .sidebar.open {
         transform: translateX(0);
     }
 
     .overview {
         margin-left: 0;
-        padding: 80px 20px 20px 20px; /* Leave space at top for mobile switch bar */
+        padding: 80px 20px 20px 20px;
         width: 100%;
     }
 
