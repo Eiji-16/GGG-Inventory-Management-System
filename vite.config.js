@@ -10,4 +10,9 @@ export default defineConfig({
         }),
         react(),
     ],
+    /* 🛠️ ADD THIS BUILD OBJECT TARGET */
+    build: {
+        outDir: 'dist', // Forces Vite to override Laravel rules and output the exact folder Vercel needs
+        emptyOutDir: true,
+    }
 });
