@@ -4,13 +4,13 @@ import {
     XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line
 } from 'recharts';
 /* 🛠️ 1. IMPORT YOUR CLEAN LUCIDE VECTOR COMPONENTS */
-import { 
-  LayoutDashboard, 
-  Users, 
-  Boxes, 
-  Calculator, 
-  TrendingUp, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  Users,
+  Boxes,
+  Calculator,
+  TrendingUp,
+  BarChart3,
   LogOut,
   Moon,
   Bell
