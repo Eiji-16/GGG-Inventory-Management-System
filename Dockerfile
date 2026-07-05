@@ -1,7 +1,7 @@
-FROM php:8.2-apache
+FROM php:8.3-apache
 
-# Install required system packages for Laravel and copy Composer directly from its official image
-RUN apt-get update && apt-get install -y unzip libpng-dev libpng-dev \
+# Install required system packages for Laravel 13 and copy Composer
+RUN apt-get update && apt-get install -y unzip libpng-dev \
     && docker-php-ext-install pdo pdo_mysql gd
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
