@@ -2,8 +2,8 @@ import { useState } from 'react';
 import {
     AreaChart, Area, BarChart, Bar,
     XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line
-} from 'recharts';
-/* 🛠️ 1. IMPORT YOUR CLEAN LUCIDE VECTOR COMPONENTS */
+} from 'recharts'; /* Charts Components */
+
 import {
   LayoutDashboard,
   Users,
@@ -13,18 +13,27 @@ import {
   BarChart3,
   LogOut,
   Moon,
-  Bell
-} from 'lucide-react';
-import '../css/Dashboard.css';
+  Bell,
+  Sun
+} from 'lucide-react'; /* Lucid Components */
+import '../css/Dashboard.css'; /* CSS Connection */
 
 // Dashboard.jsx
 function Dashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false); /* To Toggle Darkmode and Lightmode */
+  const toggleTheme = () => {
+  const nextTheme = !isDarkMode;
+  setIsDarkMode(nextTheme);
 
+  document.documentElement.setAttribute('data-theme', nextTheme ? 'dark' : 'light');
+};
   return (
+
+
     <div className="dashboard-container">
 
-      {/* Mobile Navigation Trigger & Backdrop Overlay */}
+{/* Mobile Navigation Trigger & Backdrop Overlay */}
       <button
         className={`mobile-toggle ${isSidebarOpen ? 'open' : ''}`}
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -40,14 +49,15 @@ function Dashboard() {
         />
       )}
 
-      {/* Sidebar panel */}
+{/* Sidebar panel */}
       <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-brands">
           <img src="/image/sample.jpg" alt="GGG Logo" className="sidebar-logo-img" />
         </div>
-
+{/* Using Lucid react icons  */}
         <ul className="sidebar-menu">
-          {/* 🛠️ REPLACED LOGIC WITH VECTOR COMPONENTS */}
+         
+{/* Sidebar navigation menu  */}
           <li className="sidebar-item">
             <a href="#dashboard">
               <LayoutDashboard className="sidebar-icon" />
@@ -84,7 +94,7 @@ function Dashboard() {
               <span className="sidebar-label">Report & Analytics</span>
             </a>
           </li>
-
+ {/* Logout Button  */}
           <li id="log-out" className="sidebar-item">
             <a href="#logout">
               <LogOut className="sidebar-icon" />
@@ -93,17 +103,18 @@ function Dashboard() {
           </li>
         </ul>
       </aside>
+{/* ==================================================================== */}
 
+{/* Main content */}
       <main className="overview">
-        {/* NavBar Header Container */}
-        <header className="top-nav">
-          {/* Left Column: Title */}
+{/* Top Navigation Bar */}
+        <header className="top-nav"> 
+{/* Left Column: Title */}
           <div className="top-nav-welcome">
             <p className="top-nav-eyebrow">Inventory Control</p>
             <h2>Dashboard Overview</h2>
           </div>
-
-          {/* Right Column: SearchBar, User Profile, Darkmode, Notification */}
+{/* Right Column: SearchBar, User Profile, Darkmode, Notification */}
           <div className="top-nav-actions">
             <div className="top-nav-search-container">
               <input
@@ -113,22 +124,29 @@ function Dashboard() {
               />
             </div>
 
-            {/* 🛠️ REPLACED WITH LIGHTWEIGHT NATURALLY COLORED RECT VECTORS */}
-            <button className="top-nav-icon-btn" aria-label="Toggle Dark Mode">
-              <Moon className="top-nav-icon-profile" />
-            </button>
+{/* Navigation Actions */}
+            <button
+              className="top-nav-icon-btn"
+              onClick={toggleTheme}
+              aria-label="Toggle Theme Mode"
+            > {isDarkMode ? (
+                <Sun className="top-nav-icon-profile text-gold" />
+              ) : (
+                <Moon className="top-nav-icon-profile" />
+              )}
+          </button>
 
             <button className="top-nav-icon-btn" aria-label="View Notifications">
               <Bell className="top-nav-icon-profile" />
               <span className="top-nav-badge"></span>
             </button>
 
-            <div className="top-nav-avatar">JD</div>
+            <div className="top-nav-avatar">A</div>
           </div>
         </header>
 
-        {/* 🛠️ Your layout content tracks below this line */}
-          
+{/* Main Overview Content from dashboard  */}
+        
       </main>
     </div>
   );

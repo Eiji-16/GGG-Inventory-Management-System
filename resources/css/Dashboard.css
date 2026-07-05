@@ -3,7 +3,28 @@
     padding: 0;
     box-sizing: border-box;
 }
+/*==========USED FOR DARK & LIGHT MODE==========*/
+:root, [data-theme="light"] {
+    --bg-main: #ffffff;
+    --bg-sidebar: #cecbcb;
+    --bg-card: #ffffff;
+    --text-primary: #0B1B33;
+    --text-muted: #64748b;
+    --border-color: rgba(0, 0, 0, 0.08);
+    --text-sidebar-icon: #0D1E3D;
+}
 
+[data-theme="dark"] {
+    --bg-main: #0b1320;
+    --bg-sidebar: #172237;
+    --bg-card: #121e31;
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-color: rgba(255, 255, 255, 0.08);
+    --text-sidebar-icon: #ffffff;
+}
+
+/*==========DEFAULT WEBSITE SIZE==========*/
 html,
 body,
 #root {
@@ -12,16 +33,15 @@ body,
     height: 100%;
     width: 100%;
 }
+
 /*==========DASHBOARD==========*/
 .dashboard-container {
     display: flex;
     min-height: 100vh;
     width: 100%;
-    background-color: #ffffff;
+    background-color: var(--bg-main); /* 👈 Changed from #ffffff */
+    transition: background-color 0.3s ease;
 }
-/*=============================*/
-
-
 
 /*==========NAVIGATION BAR==========*/
 .top-nav {
@@ -38,7 +58,7 @@ body,
 
 .top-nav-welcome h2 {
     font-size: 1.25rem;
-    color: #2f2a24;
+    color: var(--text-primary); /* 👈 Changed from #2f2a24 */
 }
 
 .top-nav-eyebrow {
@@ -64,13 +84,13 @@ body,
 .top-nav-search-input {
     padding: 0.6rem 1.2rem;
     font-size: 0.8rem;
-    border: 1px solid rgba(11, 27, 51, 0.15);
+    border: 1px solid var(--border-color);
     border-radius: 99px;
     width: 14rem;
     outline: none;
-    background-color: rgba(255, 255, 255, 0.8);
+    background-color: var(--bg-card);
     transition: all 0.25s ease-in-out;
-    color: #1C2A3A;
+    color: var(--text-primary);
 }
 
 .top-nav-search-input:focus {
@@ -106,36 +126,38 @@ body,
     border-radius: 50%;
     border: 1.5px solid #ffffff;
 }
-
-
-/*=============================*/
-
-
+.top-nav-avatar,
+.top-nav-icon-profile {
+    width: 20px;
+    height: 20px;
+    color: var(--text-primary);
+    transition: color 0.2s ease;
+}
 
 /*==========SIDEBAR==========*/
-.sidebar{
+.sidebar {
     width: 16rem;
     max-width: 20vw;
     min-width: 200px;
-    background-color: #cecbcb;
+    background-color: var(--bg-sidebar);
     display: flex;
     flex-direction: column;
     padding: 20px;
     gap: 15px;
     position: fixed;
     height: 100vh;
-    transition: transform 0.3s ease, width 0.3s ease;
+    transition: transform 0.3s ease, width 0.3s ease, background-color 0.3s ease;
     font-size: 11px;
     z-index: 100;
     overflow-y: auto;
     scrollbar-width: none;
-    border-right: 1px solid rgba(0, 0, 0, 0.1);
+    border-right: 1px solid var(--border-color);
 }
 
 .sidebar-brands {
     display: flex;
     align-items: center;
-    justify-content: center; /* Centers your logo horizontally */
+    justify-content: center;
     margin-bottom: 20px;
     width: 100%;
 }
@@ -166,13 +188,9 @@ body,
     border-radius: 8px;
     margin-bottom: 8px;
     font-weight: 500;
-    color: #0B1B33;
+    color: var(--text-primary);
     transition: all 0.2s ease;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
-
 
 .sidebar-label {
     display: inline-block;
@@ -193,15 +211,15 @@ body,
     height: 18px;
     margin-right: 12px;
     flex-shrink: 0;
-    color: #0D1E3D;
-    transition: color 0.2s ease-in-out;
+    color: var(--text-sidebar-icon) !important;
+    stroke: var(--text-sidebar-icon) !important;
+    transition: color 0.2s ease-in-out, stroke 0.2s ease-in-out;
 }
 
 .sidebar-item a:hover .sidebar-icon {
-    color: #ffffff; 
+    color: #ffffff !important;
+    stroke: #ffffff !important;
 }
-
-
 
 /*==============SIDEBAR LOGOUT===============*/
 
@@ -211,26 +229,38 @@ body,
 }
 
 #log-out .sidebar-icon {
-    color: #0D1E3D;
+    color: var(--text-primary) !important;
+    stroke: var(--text-primary) !important;
 }
 
 #log-out .sidebar-label {
-    color: #1C2A3A;
+    color: var(--text-primary) !important;
     transition: color 0.2s ease-in-out;
 }
 
 
 #log-out a:hover .sidebar-label,
 #log-out a:hover .sidebar-icon {
-    color: #FF0000;
+    color: #FF0000 !important;
+    stroke: #FF0000 !important;
 }
 
-
-/*=============================*/
-
-
-
 /*==========MAIN CONTENT==========*/
+.overview-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.overview-table td {
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.card-header-flex h3 {
+    color: var(--text-primary);
+}
+
 .overview {
     flex: 1;
     margin-left: 14.5rem;
@@ -241,13 +271,9 @@ body,
     transition: margin-left 0.3s ease;
     display: flex;
     flex-direction: column;
-
 }
-/*=============================*/
 
-
-
-/*==========Responsiveness==========*/
+/*==========RESPONSIVENESS OF THE WEBSITE==========*/
 
 @media (max-width: 1024px) and (min-width: 769px) {
     .sidebar {
@@ -348,3 +374,5 @@ body,
         z-index: 50;
     }
 }
+
+
