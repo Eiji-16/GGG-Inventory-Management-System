@@ -1,14 +1,22 @@
 FROM php:8.3-apache
 
-# Set up the public directory context
+# Install required system tools for compiling backend packages
+RUN apt-get update && apt-get install -y unzip libpng-dev \
+    && docker-php-ext-install pdo pdo_mysql gd
+
+# Copy the official composer binary directly into system binaries
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Set up the working directory inside the container
 WORKDIR /var/www/html
 
-# Copy all your project files into the container
+# Copy all your project files into that folder
 COPY . .
 
-# Bypass Laravel completely: Point Apache straight to the compiled React index file
-RUN sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf \
-    && a2enmod rewrite \
-    && cp /var/www/html/public/index.php /var/www/html/public/index.html || true
+# Run composer installation and update Apache root paths smoothly
+RUN composer install --no-dev --optimize-autoloader \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf \
+    && a2enmod rewrite
 
 EXPOSE 80
