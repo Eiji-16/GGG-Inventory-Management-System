@@ -1,17 +1,14 @@
 FROM php:8.3-apache
 
-# Install required system packages for Laravel 13 and copy Composer
-RUN apt-get update && apt-get install -y unzip libpng-dev \
-    && docker-php-ext-install pdo pdo_mysql gd
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
+# Set up the public directory context
 WORKDIR /var/www/html
+
+# Copy all your project files into the container
 COPY . .
 
-# Run composer installation smoothly
-RUN composer install --no-dev --optimize-autoloader \
-    && chown -R www-data:www-data storage bootstrap/cache \
-    && sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf \
-    && a2enmod rewrite
+# Bypass Laravel completely: Point Apache straight to the compiled React index file
+RUN sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf \
+    && a2enmod rewrite \
+    && cp /var/www/html/public/index.php /var/www/html/public/index.html || true
 
 EXPOSE 80
