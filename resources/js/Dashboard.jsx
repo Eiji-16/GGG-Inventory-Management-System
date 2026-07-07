@@ -20,8 +20,9 @@ import '../css/Dashboard.css'; /* CSS Connection */
 
 // Dashboard.jsx
 function Dashboard() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* Action button for sidebar when zoomed or phone size */
   const [isDarkMode, setIsDarkMode] = useState(false); /* To Toggle Darkmode and Lightmode */
+  const [activeView, setActiveView] = useState ('dashboard'); /* To toggle active button */
   const toggleTheme = () => {
   const nextTheme = !isDarkMode;
   setIsDarkMode(nextTheme);
@@ -58,11 +59,11 @@ function Dashboard() {
         <ul className="sidebar-menu">
          
 {/* Sidebar navigation menu  */}
-          <li className="sidebar-item">
-            <a href="#dashboard">
+          <li className={"sidebar-item ${activeView === 'dashboard' ? 'active' : ''}"}>
+            <button onClick={() => {setActiveView('dashboard'); isSidebarOpen(false); }}>
               <LayoutDashboard className="sidebar-icon" />
               <span className="sidebar-label">Dashboard</span>
-            </a>
+            </button>
           </li>
           <li className="sidebar-item">
             <a href="#products">
