@@ -59,48 +59,48 @@ function Dashboard() {
         <ul className="sidebar-menu">
          
 {/* Sidebar navigation menu  */}
-          <li className={"sidebar-item ${activeView === 'dashboard' ? 'active' : ''}"}>
-            <button onClick={() => {setActiveView('dashboard'); isSidebarOpen(false); }}>
+          <li className={`sidebar-item ${activeView === 'dashboard' ? 'active' : ''}`}>
+            <button onClick={() => {setActiveView('dashboard'); setIsSidebarOpen(false); }}>
               <LayoutDashboard className="sidebar-icon" />
               <span className="sidebar-label">Dashboard</span>
             </button>
           </li>
-          <li className="sidebar-item">
-            <a href="#products">
+          <li className={`sidebar-item ${activeView === 'Product-Supplier' ? 'active' : ''}`}>
+            <button onClick={() => {setActiveView('Product-Supplier'); setIsSidebarOpen(false); }}>
               <Users className="sidebar-icon" />
               <span className="sidebar-label">Product & <br/>Supplier Management </span>
-            </a>
+            </button>
           </li>
-          <li className="sidebar-item">
-            <a href="#stock">
+          <li className={`sidebar-item ${activeView === 'Stock' ? 'active' : ''}`}>
+            <button onClick={() => {setActiveView('Stock'); setIsSidebarOpen(false); }}>
               <Boxes className="sidebar-icon" />
               <span className="sidebar-label">Stock Control</span>
-            </a>
+            </button>
           </li>
-          <li className="sidebar-item">
-            <a href="#eoq">
+          <li className={`sidebar-item ${activeView === 'EOQ' ? 'active' : ''}`}>
+            <button onClick={() => {setActiveView('EOQ'); setIsSidebarOpen(false); }}>
               <Calculator className="sidebar-icon" />
-              <span className="sidebar-label">EOQ-Calculator</span>
-            </a>
+              <span className="sidebar-label">EOQ Calculator</span>
+            </button>
           </li>
-          <li className="sidebar-item">
-            <a href="#forecasting">
+          <li className={`sidebar-item ${activeView === 'Forecasting' ? 'active' : ''}`}>
+            <button onClick={() => {setActiveView('Forecasting'); setIsSidebarOpen(false); }}>
               <TrendingUp className="sidebar-icon" />
               <span className="sidebar-label">Demand Forecasting</span>
-            </a>
+            </button>
           </li>
-          <li className="sidebar-item">
-            <a href="#reports">
+          <li className={`sidebar-item ${activeView === 'Reports' ? 'active' : ''}`}>
+            <button onClick={() => {setActiveView('Reports'); setIsSidebarOpen(false); }}>
               <BarChart3 className="sidebar-icon" />
               <span className="sidebar-label">Report & Analytics</span>
-            </a>
+            </button>
           </li>
  {/* Logout Button  */}
           <li id="log-out" className="sidebar-item">
-            <a href="#logout">
+            <button href="#logout">
               <LogOut className="sidebar-icon" />
               <span className="sidebar-label">Log out</span>
-            </a>
+            </button>
           </li>
         </ul>
       </aside>

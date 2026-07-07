@@ -180,7 +180,8 @@ body,
     padding: 0px;
 }
 
-.sidebar-item a {
+.sidebar-item button{
+    text-align: left;
     display: flex;
     align-items: center;
     text-decoration: none;
@@ -199,7 +200,7 @@ body,
     margin-left: 8px;
 }
 
-.sidebar-item a:hover {
+.sidebar-item button:hover {
     background-color: #0B1B33;
     transform: translateX(4px);
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
@@ -216,7 +217,7 @@ body,
     transition: color 0.2s ease-in-out, stroke 0.2s ease-in-out;
 }
 
-.sidebar-item a:hover .sidebar-icon {
+.sidebar-item button:hover .sidebar-icon  {
     color: #ffffff !important;
     stroke: #ffffff !important;
 }
@@ -239,8 +240,8 @@ body,
 }
 
 
-#log-out a:hover .sidebar-label,
-#log-out a:hover .sidebar-icon {
+#log-out button:hover .sidebar-label,
+#log-out button:hover .sidebar-icon {
     color: #FF0000 !important;
     stroke: #FF0000 !important;
 }
