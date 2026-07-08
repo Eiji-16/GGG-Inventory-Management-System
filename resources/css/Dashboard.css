@@ -152,6 +152,7 @@ body,
     overflow-y: auto;
     scrollbar-width: none;
     border-right: 1px solid var(--border-color);
+    font-weight: bold;
 }
 
 .sidebar-brands {
@@ -175,12 +176,13 @@ body,
     list-style: none;
     display: flex;
     flex-direction: column;
-    flex-grow: 1;
-    gap: 0;
+    flex-grow: 1; 
+    gap: 5px;
     padding: 0px;
 }
 
 .sidebar-item button{
+    width: 100%;
     text-align: left;
     display: flex;
     align-items: center;
@@ -191,6 +193,7 @@ body,
     font-weight: 500;
     color: var(--text-primary);
     transition: all 0.2s ease;
+
 }
 
 .sidebar-label {
@@ -201,7 +204,7 @@ body,
 }
 
 .sidebar-item button:hover {
-    background-color: #0B1B33;
+    background-color: #24334d;
     transform: translateX(4px);
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
     color: #CCA43B;
@@ -274,17 +277,25 @@ body,
     flex-direction: column;
 }
 
+.main-content {
+    flex: 1;
+    overflow-y: auto;
+}
+
 /*==========RESPONSIVENESS OF THE WEBSITE==========*/
 
 @media (max-width: 1024px) and (min-width: 769px) {
     .sidebar {
         width: 80px;
         min-width: 80px;
-        padding: 20px 8px;
+        padding: 20px 15px;
     }
     
     .sidebar-item a {
-        padding: 12px 5px;
+        display: flex;
+        align-items: center;
+        width: 100%;
+        padding: 12px 0px;
         font-size: 10px;
         justify-content: center;
         text-align: center;
@@ -293,7 +304,7 @@ body,
         text-overflow: ellipsis;
     }
     .sidebar-icon {
-        margin-right: 0;
+        margin-right: 0 auto;
         width: 16px;
         height: 16px;
     }
@@ -320,7 +331,7 @@ body,
     .mobile-toggle {
         display: block;
         position: fixed;
-        top: 15px;
+        top: 19px;
         left: 15px;
         z-index: 200;
         color: #1C2A3A;

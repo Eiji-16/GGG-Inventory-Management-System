@@ -17,6 +17,8 @@ import {
   Sun
 } from 'lucide-react'; /* Lucid Components */
 import '../css/Dashboard.css'; /* CSS Connection */
+import '../css/LandingPage.css'; /* Landing Page CSS */
+import LandingPage from './LandingPage'; /* Landing Page Component */
 
 // Dashboard.jsx
 function Dashboard() {
@@ -68,7 +70,7 @@ function Dashboard() {
           <li className={`sidebar-item ${activeView === 'Product-Supplier' ? 'active' : ''}`}>
             <button onClick={() => {setActiveView('Product-Supplier'); setIsSidebarOpen(false); }}>
               <Users className="sidebar-icon" />
-              <span className="sidebar-label">Product & <br/>Supplier Management </span>
+              <span className="sidebar-label"> Management </span>
             </button>
           </li>
           <li className={`sidebar-item ${activeView === 'Stock' ? 'active' : ''}`}>
@@ -86,13 +88,13 @@ function Dashboard() {
           <li className={`sidebar-item ${activeView === 'Forecasting' ? 'active' : ''}`}>
             <button onClick={() => {setActiveView('Forecasting'); setIsSidebarOpen(false); }}>
               <TrendingUp className="sidebar-icon" />
-              <span className="sidebar-label">Demand Forecasting</span>
+              <span className="sidebar-label">Forecasting</span>
             </button>
           </li>
           <li className={`sidebar-item ${activeView === 'Reports' ? 'active' : ''}`}>
             <button onClick={() => {setActiveView('Reports'); setIsSidebarOpen(false); }}>
               <BarChart3 className="sidebar-icon" />
-              <span className="sidebar-label">Report & Analytics</span>
+              <span className="sidebar-label">Reports</span>
             </button>
           </li>
  {/* Logout Button  */}
@@ -147,7 +149,12 @@ function Dashboard() {
         </header>
 
 {/* Main Overview Content from dashboard  */}
-        
+        <div className="main-content">
+          {activeView === 'dashboard' && (
+            <LandingPage onNavigate={setActiveView} />
+          )}
+          {/* Other views can be added here in the future */}
+        </div>
       </main>
     </div>
   );
