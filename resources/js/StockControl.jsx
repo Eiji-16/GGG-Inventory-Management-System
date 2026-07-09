@@ -10,12 +10,12 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-function productSupplier({ onNavigate }) {
+function stockManagement({ onNavigate }) {
   
 
   return (
-   <>2</>
+   <>3</>
   );
 }
 
-export default productSupplier;
+export default stockManagement;

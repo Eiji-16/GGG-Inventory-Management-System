@@ -1,223 +1,187 @@
-import React from 'react';
+import { useState } from 'react';
 import {
-  BarChart3,
+    AreaChart, Area, BarChart, Bar,
+    XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line
+} from 'recharts'; /* Charts Components */
+
+import {
+  LayoutDashboard,
   Users,
   Boxes,
-  TrendingUp,
   Calculator,
-  FileText,
-  ArrowRight,
-  Package,
-  AlertCircle
-} from 'lucide-react';
+  TrendingUp,
+  BarChart3,
+  LogOut,
+  Moon,
+  Bell,
+  Sun
+} from 'lucide-react'; /* Lucid Components */
+import '../css/Dashboard.css'; /* CSS Connection */
+import '../css/LandingPage.css'; /* Landing Page CSS */
+import Dashboard from './Dashboard'; /* Dashboard content component */
+import ProductSupplier from './Product-Supplier'; /* Product and Supplier content component */
+import EOQCalculator from './EOQ'; /* EOQ content component */
+import SalesForecasting from './Forecasting'; /* Forecasting content component */
+import ReportAnalytics from './Reports';/* Report content component */
+import StockManagement from './StockControl'; /* Stock Control content component */
 
-function LandingPage({ onNavigate }) {
-  // Sample stats data
-  const stats = [
-    {
-      icon: Package,
-      label: 'Total Products',
-      value: '1,243',
-      color: '#FFD700',
-      trend: '+12% from last month'
-    },
-    {
-      icon: Boxes,
-      label: 'Current Stock',
-      value: '5,890 units',
-      color: '#0066CC',
-      trend: '+8% increase'
-    },
-    {
-      icon: Users,
-      label: 'Suppliers',
-      value: '48',
-      color: '#00AA00',
-      trend: '5 new this month'
-    },
-    {
-      icon: TrendingUp,
-      label: 'Forecast Accuracy',
-      value: '94.2%',
-      color: '#FF6B35',
-      trend: 'Best performance'
-    }
-  ];
+// LandingPage.jsx
+function LandingPage() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* Action button for sidebar when zoomed or phone size */
+  const [isDarkMode, setIsDarkMode] = useState(false); /* To Toggle Darkmode and Lightmode */
+  const [activeView, setActiveView] = useState('dashboard'); /* To toggle active button */
+  const toggleTheme = () => {
+  const nextTheme = !isDarkMode;
+  setIsDarkMode(nextTheme);
 
-  // Quick actions
-  const quickActions = [
-    {
-      icon: Boxes,
-      title: 'Stock Control',
-      description: 'Monitor and manage your inventory levels',
-      action: 'Stock',
-      color: '#0066CC'
-    },
-    {
-      icon: Users,
-      title: 'Product & Supplier',
-      description: 'Manage products and supplier information',
-      action: 'Product-Supplier',
-      color: '#00AA00'
-    },
-    {
-      icon: Calculator,
-      title: 'EOQ Calculator',
-      description: 'Calculate optimal order quantities',
-      action: 'EOQ',
-      color: '#FFD700'
-    },
-    {
-      icon: TrendingUp,
-      title: 'Forecasting',
-      description: 'Predict future demand trends',
-      action: 'Forecasting',
-      color: '#FF6B35'
-    },
-    {
-      icon: BarChart3,
-      title: 'Reports',
-      description: 'View detailed inventory reports',
-      action: 'Reports',
-      color: '#9B59B6'
-    },
-    {
-      icon: AlertCircle,
-      title: 'Alerts',
-      description: 'Low stock warnings and notifications',
-      action: 'Alerts',
-      color: '#E74C3C'
-    }
-  ];
-
-  const recentActivity = [
-    { id: 1, action: 'Stock Updated', item: 'Product #SK-2024-001', time: '2 hours ago', status: 'success' },
-    { id: 2, action: 'New Supplier Added', item: 'Premium Materials Inc.', time: '5 hours ago', status: 'success' },
-    { id: 3, action: 'Low Stock Alert', item: 'Product #SK-2024-042', time: '1 day ago', status: 'warning' },
-    { id: 4, action: 'Order Received', item: 'Batch #ORD-2024-1523', time: '2 days ago', status: 'success' }
-  ];
-
+  document.documentElement.setAttribute('data-theme', nextTheme ? 'dark' : 'light');
+};
   return (
-    <div className="landing-page-container">
-      {/* Welcome Section */}
-      <section className="landing-welcome-section">
-        <div className="welcome-content">
-          <h1>Welcome to GGG Inventory Management System</h1>
-          <p>Streamline your inventory operations with powerful tools for stock control, demand forecasting, and supplier management.</p>
-        </div>
-      </section>
 
-      {/* Stats Grid */}
-      <section className="landing-stats-section">
-        <h2 className="section-title">Performance Overview</h2>
-        <div className="stats-grid">
-          {stats.map((stat, index) => {
-            const Icon = stat.icon;
-            return (
-              <div key={index} className="stat-card">
-                <div className="stat-icon-wrapper" style={{ borderColor: stat.color }}>
-                  <Icon className="stat-icon" style={{ color: stat.color }} />
-                </div>
-                <div className="stat-content">
-                  <p className="stat-label">{stat.label}</p>
-                  <h3 className="stat-value">{stat.value}</h3>
-                  <p className="stat-trend">{stat.trend}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
 
-      {/* Quick Actions */}
-      <section className="landing-actions-section">
-        <h2 className="section-title">Quick Actions</h2>
-        <div className="actions-grid">
-          {quickActions.map((action, index) => {
-            const Icon = action.icon;
-            return (
-              <button
-                key={index}
-                className="action-card"
-                onClick={() => onNavigate(action.action)}
-                style={{ borderLeftColor: action.color }}
-              >
-                <Icon className="action-icon" style={{ color: action.color }} />
-                <h3>{action.title}</h3>
-                <p>{action.description}</p>
-                <div className="action-footer">
-                  <span>Get Started</span>
-                  <ArrowRight size={16} />
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+    <div className="dashboard-container">
 
-      {/* Recent Activity */}
-      <section className="landing-activity-section">
-        <div className="activity-header">
-          <h2 className="section-title">Recent Activity</h2>
+{/* Mobile Navigation Trigger & Backdrop Overlay */}
+      <button
+        className={`mobile-toggle ${isSidebarOpen ? 'open' : ''}`}
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        aria-label="Toggle navigation"
+      >
+        ☰
+      </button>
+
+      {isSidebarOpen && (
+        <div
+          className="sidebar-overlay"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+{/* Sidebar panel */}
+      <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-brands">
+          <img src="/image/sample.jpg" alt="GGG Logo" className="sidebar-logo-img" />
         </div>
-        <div className="activity-list">
-          {recentActivity.map((activity) => (
-            <div key={activity.id} className="activity-item">
-              <div className="activity-marker" style={{
-                backgroundColor: activity.status === 'success' ? '#00AA00' : '#FF9500'
-              }}></div>
-              <div className="activity-content">
-                <div className="activity-main">
-                  <p className="activity-action">{activity.action}</p>
-                  <p className="activity-item-name">{activity.item}</p>
-                </div>
-                <p className="activity-time">{activity.time}</p>
-              </div>
+{/* Using Lucid react icons  */}
+        <ul className="sidebar-menu">
+         
+{/* Sidebar navigation menu  */}
+          <li className={`sidebar-item ${activeView === 'dashboard' ? 'active' : ''}`}>
+            <button onClick={() => {setActiveView('dashboard'); setIsSidebarOpen(false); }}>
+              <LayoutDashboard className="sidebar-icon" />
+              <span className="sidebar-label">Dashboard</span>
+            </button>
+          </li>
+          <li className={`sidebar-item ${activeView === 'Product-Supplier' ? 'active' : ''}`}>
+            <button onClick={() => {setActiveView('Product-Supplier'); setIsSidebarOpen(false); }}>
+              <Users className="sidebar-icon" />
+              <span className="sidebar-label"> Management </span>
+            </button>
+          </li>
+          <li className={`sidebar-item ${activeView === 'Stock' ? 'active' : ''}`}>
+            <button onClick={() => {setActiveView('Stock'); setIsSidebarOpen(false); }}>
+              <Boxes className="sidebar-icon" />
+              <span className="sidebar-label">Stock Control</span>
+            </button>
+          </li>
+          <li className={`sidebar-item ${activeView === 'EOQ' ? 'active' : ''}`}>
+            <button onClick={() => {setActiveView('EOQ'); setIsSidebarOpen(false); }}>
+              <Calculator className="sidebar-icon" />
+              <span className="sidebar-label">EOQ Calculator</span>
+            </button>
+          </li>
+          <li className={`sidebar-item ${activeView === 'Forecasting' ? 'active' : ''}`}>
+            <button onClick={() => {setActiveView('Forecasting'); setIsSidebarOpen(false); }}>
+              <TrendingUp className="sidebar-icon" />
+              <span className="sidebar-label">Forecasting</span>
+            </button>
+          </li>
+          <li className={`sidebar-item ${activeView === 'Reports' ? 'active' : ''}`}>
+            <button onClick={() => {setActiveView('Reports'); setIsSidebarOpen(false); }}>
+              <BarChart3 className="sidebar-icon" />
+              <span className="sidebar-label">Reports</span>
+            </button>
+          </li>
+ {/* Logout Button  */}
+          <li id="log-out" className="sidebar-item">
+            <button href="#logout">
+              <LogOut className="sidebar-icon" />
+              <span className="sidebar-label">Log out</span>
+            </button>
+          </li>
+        </ul>
+      </aside>
+{/* ==================================================================== */}
+
+{/* Main content */}
+      <main className="overview">
+{/* Top Navigation Bar */}
+        <header className="top-nav">
+{/* Left Column: Title */}
+          <div className="top-nav-welcome">
+            <p className="top-nav-eyebrow">Inventory Control</p>
+            <h2>Dashboard Overview</h2>
+          </div>
+{/* Right Column: SearchBar, User Profile, Darkmode, Notification */}
+          <div className="top-nav-actions">
+            <div className="top-nav-search-container">
+              <input
+                type="text"
+                placeholder="Search everything..."
+                className="top-nav-search-input"
+              />
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* Features Section */}
-      <section className="landing-features-section">
-        <h2 className="section-title">System Features</h2>
-        <div className="features-grid">
-          <div className="feature-box">
-            <Boxes className="feature-icon" style={{ color: '#0066CC' }} />
-            <h3>Real-time Stock Tracking</h3>
-            <p>Monitor inventory levels across multiple locations in real-time</p>
-          </div>
-          <div className="feature-box">
-            <Calculator className="feature-icon" style={{ color: '#FFD700' }} />
-            <h3>Smart EOQ Calculation</h3>
-            <p>Automatically calculate optimal order quantities to minimize costs</p>
-          </div>
-          <div className="feature-box">
-            <TrendingUp className="feature-icon" style={{ color: '#FF6B35' }} />
-            <h3>Demand Forecasting</h3>
-            <p>Predict future demand with advanced forecasting algorithms</p>
-          </div>
-          <div className="feature-box">
-            <BarChart3 className="feature-icon" style={{ color: '#9B59B6' }} />
-            <h3>Comprehensive Reports</h3>
-            <p>Generate detailed reports and analytics for data-driven decisions</p>
-          </div>
-        </div>
-      </section>
+{/* Navigation Actions */}
+            <button
+              className="top-nav-icon-btn"
+              onClick={toggleTheme}
+              aria-label="Toggle Theme Mode"
+            > {isDarkMode ? (
+                <Sun className="top-nav-icon-profile text-gold" />
+              ) : (
+                <Moon className="top-nav-icon-profile" />
+              )}
+          </button>
 
-      {/* Call to Action */}
-      <section className="landing-cta-section">
-        <h2>Ready to Optimize Your Inventory?</h2>
-        <p>Start by exploring your stock levels or running a demand forecast</p>
-        <div className="cta-buttons">
-          <button className="cta-btn primary-btn" onClick={() => onNavigate('Stock')}>
-            View Stock Control
-          </button>
-          <button className="cta-btn secondary-btn" onClick={() => onNavigate('Forecasting')}>
-            Run Forecast
-          </button>
+            <button className="top-nav-icon-btn" aria-label="View Notifications">
+              <Bell className="top-nav-icon-profile" />
+              <span className="top-nav-badge"></span>
+            </button>
+
+            <div className="top-nav-avatar">A</div>
+          </div>
+        </header>
+
+{/* Main Overview Content from dashboard  */}
+        <div className="main-content">
+          {activeView === 'dashboard' && (
+            <Dashboard onNavigate={setActiveView} />
+          )}
+
+          {activeView === 'Product-Supplier' && (
+            <ProductSupplier onNavigate={setActiveView} />
+          )}
+
+          {activeView === 'Stock' && (
+            <StockManagement onNavigate={setActiveView} />
+          )}
+
+          {activeView === 'EOQ' && (
+            <EOQCalculator onNavigate={setActiveView} />
+          )}
+
+          {activeView === 'Forecasting' && (
+            <SalesForecasting onNavigate={setActiveView} />
+          )}
+
+          {activeView === 'Reports' && (
+            <ReportAnalytics onNavigate={setActiveView} />
+          )}
+
+          {/* Other views can be added here in the future */}
         </div>
-      </section>
+      </main>
     </div>
   );
 }

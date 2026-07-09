@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import Login from './Login';
-import Dashboard from './Dashboard';
+import LandingPage from './LandingPage';
 
 function App() {
     const [page, setPage] = useState('dashboard');
@@ -9,7 +9,7 @@ function App() {
     return (
         <div>
             {page === 'login' && <Login onLogin={() => setPage('dashboard')} />}
-            {page === 'dashboard' && <Dashboard />}
+            {page === 'dashboard' && <LandingPage />}
         </div>
     );
 }

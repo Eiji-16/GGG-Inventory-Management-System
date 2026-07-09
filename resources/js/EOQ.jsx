@@ -10,12 +10,12 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-function productSupplier({ onNavigate }) {
+function eoqCalculator({ onNavigate }) {
   
 
   return (
-   <>2</>
+   <>4</>
   );
 }
 
-export default productSupplier;
+export default eoqCalculator;

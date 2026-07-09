@@ -10,12 +10,12 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-function productSupplier({ onNavigate }) {
+function reportAnalytics({ onNavigate }) {
   
 
   return (
-   <>2</>
+   <>6</>
   );
 }
 
-export default productSupplier;
+export default reportAnalytics;
