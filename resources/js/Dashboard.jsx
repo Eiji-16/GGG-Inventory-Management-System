@@ -10,12 +10,12 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-function Dashboard({ onNavigate }) {
+function salesForecasting({ onNavigate }) {
   
 
   return (
-   <>12</>
+   <>5</>
   );
 }
 
-export default Dashboard;
+export default salesForecasting;

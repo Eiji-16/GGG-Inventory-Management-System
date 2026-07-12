@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  
+  
+    <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
+  <div className="sidebar-brands">
+    {/* Clean minimalist star/logo from reference */}
+    <span style={{ fontSize: '24px', color: '#fff', fontWeight: 'bold' }}>✻</span>
+  </div>
+
+  {/* Main Action Items List */}
+  <ul className="sidebar-menu">
+    <li className={`sidebar-item ${activeView === 'dashboard' ? 'active' : ''}`}>
+      <button onClick={() => { setActiveView('dashboard'); setIsSidebarOpen(false); }}>
+        <LayoutDashboard className="sidebar-icon" />
+      </button>
+    </li>
+    <li className={`sidebar-item ${activeView === 'Product-Supplier' ? 'active' : ''}`}>
+      <button onClick={() => { setActiveView('Product-Supplier'); setIsSidebarOpen(false); }}>
+        <Users className="sidebar-icon" />
+      </button>
+    </li>
+    <li className={`sidebar-item ${activeView === 'Stock' ? 'active' : ''}`}>
+      <button onClick={() => { setActiveView('Stock'); setIsSidebarOpen(false); }}>
+        <Boxes className="sidebar-icon" />
+      </button>
+    </li>
+    <li className={`sidebar-item ${activeView === 'EOQ' ? 'active' : ''}`}>
+      <button onClick={() => { setActiveView('EOQ'); setIsSidebarOpen(false); }}>
+        <Calculator className="sidebar-icon" />
+      </button>
+    </li>
+    <li className={`sidebar-item ${activeView === 'Forecasting' ? 'active' : ''}`}>
+      <button onClick={() => { setActiveView('Forecasting'); setIsSidebarOpen(false); }}>
+        <TrendingUp className="sidebar-icon" />
+      </button>
+    </li>
+    <li className={`sidebar-item ${activeView === 'Reports' ? 'active' : ''}`}>
+      <button onClick={() => { setActiveView('Reports'); setIsSidebarOpen(false); }}>
+        <BarChart3 className="sidebar-icon" />
+      </button>
+    </li>
+  </ul>
+
+  {/* New Bottom Area Group for Theme, Config, & Exit actions */}
+  <div className="sidebar-footer-group">
+    {/* Dark Mode toggle icon moved down to sidebar bottom */}
+    <div className="sidebar-item">
+      <button onClick={toggleTheme} aria-label="Toggle Theme Mode">
+        {isDarkMode ? <Sun className="sidebar-icon" /> : <Moon className="sidebar-icon" />}
+      </button>
+    </div>
+    
+    {/* Logout action positioned at base edge */}
+    <div className="sidebar-item" id="log-out">
+      <button onClick={() => console.log('logging out...')}>
+        <LogOut className="sidebar-icon" />
+      </button>
+    </div>
+  </div>
+</aside>
+
+<style></style>
+
+/* ===== FLOATING CAPSULE SIDEBAR ===== */
+
+/* Main Container Wrapper Fix */
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--dashboard-bg, #f4f6f9);
+  padding: 1.5rem; /* Creates the outer floating buffer gap */
+  gap: 1.5rem;
+}
+
+/* Sidebar Capsule Layout */
+.sidebar {
+  width: 72px; /* Fixed ultra-narrow width */
+  background-color: #121212; /* Deep dark/black background from reference */
+  border-radius: 24px; /* Smooth rounded pill container */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between; /* Pushes utility items to the bottom */
+  padding: 1.5rem 0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  height: calc(100vh - 3rem); /* Keeps sidebar matching screen size minus padding */
+  position: sticky;
+  top: 1.5rem;
+  flex-shrink: 0;
+}
+
+/* Hide brand logo text layout, keep icon centering */
+.sidebar-brands {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+/* Sidebar Menu Wrapper */
+.sidebar-menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem; /* Tight spacing between navigation circles */
+  flex: 1;
+}
+
+/* Individual list item layout */
+.sidebar-item {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Force action buttons into perfect circles */
+.sidebar-item button {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px; /* Slightly rounded squares/circles */
+  border: none;
+  background: transparent;
+  color: #888888; /* Deselect item color */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s ease-in-out;
+  position: relative;
+}
+
+/* Active Navigation Item (White block background) */
+.sidebar-item.active button {
+  background-color: #ffffff;
+  color: #121212; /* Dark icon contrast inside active item */
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+}
+
+/* Hover effects for inactive choices */
+.sidebar-item:not(.active) button:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+/* Icon Resizing */
+.sidebar-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* CRITICAL: Hide labels entirely to replicate reference style */
+.sidebar-label {
+  display: none !important;
+}
+
+/* Separator Group to force Settings & Logout to stick to the very bottom */
+.sidebar-footer-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  margin-top: auto; /* Pushes this container downward */
+  padding-top: 1.5rem;
+}
+
+/* Main content column adjustment to match layout gaps */
+.overview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+</style>
+</body>
+</html>{/* Sidebar panel */}
+
