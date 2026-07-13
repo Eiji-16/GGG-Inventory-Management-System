@@ -14,7 +14,7 @@ function salesForecasting({ onNavigate }) {
   
 
   return (
-   <>5</>
+   <>test</>
   );
 }
 
