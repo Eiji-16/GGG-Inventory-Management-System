@@ -10,11 +10,17 @@ import {
   ArrowRight
 } from 'lucide-react';
 
+import '../css/Product-Supplier.css'; /*Product and Supplier CSS */
+
 function productSupplier({ onNavigate }) {
   
 
   return (
-   <>2</>
+   <div className = "product-supplier-parent">
+      <div>
+       
+      </div>
+   </div>
   );
 }
 

@@ -16,7 +16,7 @@ import {
   Bell,
   Sun
 } from 'lucide-react'; /* Lucid Components */
-import '../css/Dashboard.css'; /* CSS Connection */
+
 import '../css/LandingPage.css'; /* Landing Page CSS */
 import Dashboard from './Dashboard'; /* Dashboard content component */
 import ProductSupplier from './Product-Supplier'; /* Product and Supplier content component */
@@ -178,7 +178,6 @@ function LandingPage() {
           {activeView === 'Reports' && (
             <ReportAnalytics onNavigate={setActiveView} />
           )}
-
           {/* Other views can be added here in the future */}
         </div>
       </main>
