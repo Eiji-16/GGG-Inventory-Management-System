@@ -47,7 +47,7 @@ function LandingPage() {
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
         aria-label="Toggle navigation"
       >
-        ☰
+        
       </button>
 
       {isSidebarOpen && (
@@ -60,12 +60,14 @@ function LandingPage() {
 {/* Sidebar panel */}
       <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-brands">
-          <img src="/image/sample.jpg" alt="GGG Logo" className="sidebar-logo-img" />
+          <span className="sidebar-logo">
+              {/* Logo Icon here */}
+        
+          </span>
         </div>
-{/* Using Lucid react icons  */}
-        <ul className="sidebar-menu">
-         
+
 {/* Sidebar navigation menu  */}
+        <ul className="sidebar-menu">
           <li className={`sidebar-item ${activeView === 'dashboard' ? 'active' : ''}`}>
             <button onClick={() => {setActiveView('dashboard'); setIsSidebarOpen(false); }}>
               <LayoutDashboard className="sidebar-icon" />
@@ -102,14 +104,22 @@ function LandingPage() {
               <span className="sidebar-label">Reports</span>
             </button>
           </li>
- {/* Logout Button  */}
-          <li id="log-out" className="sidebar-item">
-            <button href="#logout">
-              <LogOut className="sidebar-icon" />
-              <span className="sidebar-label">Log out</span>
-            </button>
-          </li>
         </ul>
+ {/* Logout Button  */}
+      <div className="sidebar-footer-group">
+
+          <div className="siderbar-item">
+            <button onClick={toggleTheme} aria-label="Toggle Theme Mode">
+              {isDarkMode ? <Sun className="sidebar-icon" /> : <Moon className = "sidebar-icon" />} 
+            </button>
+          </div>
+
+          <div id="log-out" className="sidebar-item">
+            <button onClick={() => console.log('logging out...')}>
+              <LogOut className="sidebar-icon" />
+            </button>
+          </div>
+      </div>
       </aside>
 {/* ==================================================================== */}
 
