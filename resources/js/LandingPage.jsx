@@ -14,7 +14,10 @@ import {
   LogOut,
   Moon,
   Bell,
-  Sun
+  Sun,
+  Menu,
+  User,
+  Heading6
 } from 'lucide-react'; /* Lucid Components */
 
 import '../css/LandingPage.css'; /* Landing Page CSS */
@@ -37,37 +40,21 @@ function LandingPage() {
   document.documentElement.setAttribute('data-theme', nextTheme ? 'dark' : 'light');
 };
   return (
-
-
-    <div className="dashboard-container">
-
-{/* Mobile Navigation Trigger & Backdrop Overlay */}
-      <button
-        className={`mobile-toggle ${isSidebarOpen ? 'open' : ''}`}
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        aria-label="Toggle navigation"
-      >
-        
-      </button>
-
-      {isSidebarOpen && (
-        <div
-          className="sidebar-overlay"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-{/* Sidebar panel */}
-      <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-brands">
-          <span className="sidebar-logo">
-              {/* Logo Icon here */}
-        
+    <div className="dashboard-page-wrapper">
+      <div className="dashboard-container-parent">
+        <aside className={`sidebar-body ${isSidebarOpen ? 'open' : ''}`}>
+  {/* Sidebar navigation menu  */}
+  <ul className="sidebar-menu">
+      <div className="sidebar-item">
+        <span id="sidebar-logo">
+          {/* Logo Icon here */}
+          A
           </span>
-        </div>
-
-{/* Sidebar navigation menu  */}
-        <ul className="sidebar-menu">
+      </div>
+        
+{/* Logo */}
+          
+{/* Menus  */}
           <li className={`sidebar-item ${activeView === 'dashboard' ? 'active' : ''}`}>
             <button onClick={() => {setActiveView('dashboard'); setIsSidebarOpen(false); }}>
               <LayoutDashboard className="sidebar-icon" />
@@ -106,91 +93,64 @@ function LandingPage() {
           </li>
         </ul>
  {/* Logout Button  */}
-      <div className="sidebar-footer-group">
+        <div className="sidebar-footer-item">
+            <div className="siderbar-item">
+              <button onClick={toggleTheme} aria-label="Toggle Theme Mode">
+                {isDarkMode ? <Sun className="sidebar-icon" /> : <Moon className = "sidebar-icon" />} 
+              </button>
+            </div>
 
-          <div className="siderbar-item">
-            <button onClick={toggleTheme} aria-label="Toggle Theme Mode">
-              {isDarkMode ? <Sun className="sidebar-icon" /> : <Moon className = "sidebar-icon" />} 
-            </button>
-          </div>
-
-          <div id="log-out" className="sidebar-item">
-            <button onClick={() => console.log('logging out...')}>
-              <LogOut className="sidebar-icon" />
-            </button>
-          </div>
-      </div>
+            <div id="log-out" className="sidebar-item">
+              <button onClick={() => console.log('logging out...')}>
+                <LogOut className="sidebar-icon" />
+              </button>
+            </div>
+        </div>
       </aside>
 {/* ==================================================================== */}
 
-{/* Main content */}
-      <main className="overview">
-{/* Top Navigation Bar */}
-        <header className="top-nav">
-{/* Left Column: Title */}
-          <div className="top-nav-welcome">
-            <p className="top-nav-eyebrow">Inventory Control</p>
-            <h2>Dashboard Overview</h2>
-          </div>
-{/* Right Column: SearchBar, User Profile, Darkmode, Notification */}
-          <div className="top-nav-actions">
-            <div className="top-nav-search-container">
-              <input
-                type="text"
-                placeholder="Search everything..."
-                className="top-nav-search-input"
-              />
+        <div className="main-wrapper">
+          <header className="top-navbar">
+            <div className="top-navbar-left-side">
+              <button className="mobile-menu-toggle" 
+              onClick={() =>setIsSidebarOpen(true)} aria-label = "Open Sidebar">  </button>
+              <div className="page-title-row">
+                <h1>
+                  {activeView === 'dashboard' && 'Dashboard Overview'}
+                  {activeView === 'Product-Supplier' && 'Product & Supplier'}
+                  {activeView === 'Stock' && 'Stock Control'}
+                  {activeView === 'EOQ' && 'EOQ Calculator'}
+                  {activeView === 'Forecasting' && 'Sales Forecasting'}
+                  {activeView === 'Reports' && 'Reports & Analytics'}
+                </h1>
+
+                <p className= "sub-title">
+                  {activeView === 'dashboard' && 'Detailed Information about your store'}
+                  {activeView === 'Product-Supplier' && 'Item specifications and supplier information'}
+                  {activeView === 'Stock' && 'Product details and assigned supplier tracking'}
+                  {activeView === 'EOQ' && 'Optimize product order sizes and minimize supplier carrying costs'}
+                  {activeView === 'Forecasting' && 'Analyze historical trends to project future inventory demand'}
+                  {activeView === 'Reports' && 'Review inventory performance, optimization metrics, and forecasting trends'}
+                </p>
+              </div>
             </div>
+            <div className = "top-navbar-right-side">
+              <button className = "navbar-bell-icon" aria-label="Notification">
+                <Bell size = {20}> </Bell>
+                <span className="notif-bell-dot"></span>
+              </button>
 
-{/* Navigation Actions */}
-            <button
-              className="top-nav-icon-btn"
-              onClick={toggleTheme}
-              aria-label="Toggle Theme Mode"
-            > {isDarkMode ? (
-                <Sun className="top-nav-icon-profile text-gold" />
-              ) : (
-                <Moon className="top-nav-icon-profile" />
-              )}
-          </button>
-
-            <button className="top-nav-icon-btn" aria-label="View Notifications">
-              <Bell className="top-nav-icon-profile" />
-              <span className="top-nav-badge"></span>
-            </button>
-
-            <div className="top-nav-avatar">A</div>
-          </div>
-        </header>
-
-{/* Main Overview Content from dashboard  */}
-        <div className="main-content">
-          {activeView === 'dashboard' && (
-            <Dashboard onNavigate={setActiveView} />
-          )}
-
-          {activeView === 'Product-Supplier' && (
-            <ProductSupplier onNavigate={setActiveView} />
-          )}
-
-          {activeView === 'Stock' && (
-            <StockManagement onNavigate={setActiveView} />
-          )}
-
-          {activeView === 'EOQ' && (
-            <EOQCalculator onNavigate={setActiveView} />
-          )}
-
-          {activeView === 'Forecasting' && (
-            <SalesForecasting onNavigate={setActiveView} />
-          )}
-
-          {activeView === 'Reports' && (
-            <ReportAnalytics onNavigate={setActiveView} />
-          )}
-          {/* Other views can be added here in the future */}
+              <div className="navbar-user-profile" title="User Profile">
+                <img src=''></img>
+                <User size ={20}/>
+              </div>
+            </div>
+          </header>
+            <main className="main-content-window">
+              {/* ALL CONTENTS HERE!!!! */}
+            </main>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
