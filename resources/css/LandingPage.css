@@ -221,7 +221,9 @@ body,
 
 /*==========CONTENT BODY==========*/
 .main-wrapper {
-    background-color: gray;
+    background-color: rgba(233, 234, 237, 0.45);
+    -webkit-backdrop-filter: blur(10px) saturate(180%);
+    backdrop-filter: blur(12px) saturate(180%);
     padding: 0.5rem;
     display: flex;
     gap: 10px;
@@ -235,7 +237,7 @@ body,
 }
 /*==========NAVBAR / PAGE TITLE AND ACTION BUTTONS==========*/
 .top-navbar {
-    background-color: green;
+    background-color: transparent;
     width: 100%;
     display: flex;
     min-height: 3rem;
@@ -259,7 +261,7 @@ body,
 }
 
 .top-navbar-left-side{
-    background-color: blue;
+    background-color: transparent;
     border-radius: 1rem;
     flex-direction: row;
     display: flex;
@@ -269,7 +271,7 @@ body,
 }
 
 .top-navbar-right-side{
-    background-color: navy;
+    background-color: transparent;
     border-radius: 1rem;
     flex-direction: row;
     display: flex;
@@ -278,6 +280,7 @@ body,
     width: 100%;
     gap: 2.5rem;
     cursor: pointer;
+    padding-right: 2rem;
     
 }
 
