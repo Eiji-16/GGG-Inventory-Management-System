@@ -20,19 +20,19 @@ import {
   Heading6
 } from 'lucide-react'; /* Lucid Components */
 
-import '../css/LandingPage.css'; /* Landing Page CSS */
-import Dashboard from './Dashboard'; /* Dashboard content component */
-import ProductSupplier from './Product-Supplier'; /* Product and Supplier content component */
-import EOQCalculator from './EOQ'; /* EOQ content component */
-import SalesForecasting from './Forecasting'; /* Forecasting content component */
-import ReportAnalytics from './Reports';/* Report content component */
-import StockManagement from './StockControl'; /* Stock Control content component */
+import '../css/landingPage.css'; /* Landing Page CSS */
+import Dashboard from './dashboard'; /* Dashboard content component */
+import ProductSupplier from './productSupplier'; /* Product and Supplier content component */
+import EOQCalculator from './eoq'; /* EOQ content component */
+import SalesForecasting from './forecasting'; /* Forecasting content component */
+import ReportAnalytics from './reports';/* Report content component */
+import StockManagement from './stockControl'; /* Stock Control content component */
 
 // LandingPage.jsx
 function LandingPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* Action button for sidebar when zoomed or phone size */
   const [isDarkMode, setIsDarkMode] = useState(false); /* To Toggle Darkmode and Lightmode */
-  const [activeView, setActiveView] = useState('dashboard'); /* To toggle active button */
+  const [activeView, setActiveView] = useState('Dashboard'); /* To toggle active button */
   const toggleTheme = () => {
   const nextTheme = !isDarkMode;
   setIsDarkMode(nextTheme);
@@ -55,8 +55,8 @@ function LandingPage() {
 {/* Logo */}
           
 {/* Menus  */}
-          <li className={`sidebar-item ${activeView === 'dashboard' ? 'active' : ''}`}>
-            <button onClick={() => {setActiveView('dashboard'); setIsSidebarOpen(false); }}>
+          <li className={`sidebar-item ${activeView === 'Dashboard' ? 'active' : ''}`}>
+            <button onClick={() => {setActiveView('Dashboard'); setIsSidebarOpen(false); }}>
               <LayoutDashboard className="sidebar-icon" />
               <span className="sidebar-label">Dashboard</span>
             </button>
@@ -112,11 +112,11 @@ function LandingPage() {
         <div className="main-wrapper">
           <header className="top-navbar">
             <div className="top-navbar-left-side">
-              <button className="mobile-menu-toggle" 
+              <button className="mobile-menu-toggle"
               onClick={() =>setIsSidebarOpen(true)} aria-label = "Open Sidebar">  </button>
               <div className="page-title-row">
                 <h1>
-                  {activeView === 'dashboard' && 'Dashboard Overview'}
+                  {activeView === 'Dashboard' && 'Dashboard Overview'}
                   {activeView === 'Product-Supplier' && 'Product & Supplier'}
                   {activeView === 'Stock' && 'Stock Control'}
                   {activeView === 'EOQ' && 'EOQ Calculator'}
@@ -125,7 +125,7 @@ function LandingPage() {
                 </h1>
 
                 <p className= "sub-title">
-                  {activeView === 'dashboard' && 'Detailed Information about your store'}
+                  {activeView === 'Dashboard' && 'Detailed Information about your store'}
                   {activeView === 'Product-Supplier' && 'Item specifications and supplier information'}
                   {activeView === 'Stock' && 'Product details and assigned supplier tracking'}
                   {activeView === 'EOQ' && 'Optimize product order sizes and minimize supplier carrying costs'}
@@ -148,6 +148,12 @@ function LandingPage() {
           </header>
             <main className="main-content-window">
               {/* ALL CONTENTS HERE!!!! */}
+              {activeView === 'Dashboard' && <Dashboard />}
+              {activeView === 'Product-Supplier' && <ProductSupplier />}
+              {activeView === 'Stock' && <StockManagement/>}
+              {activeView === 'EOQ' && <EOQCalculator/>}
+              {activeView === 'Forecasting' && <SalesForecasting/>}
+              {activeView === 'Reports' && <ReportAnalytics/>}
             </main>
         </div>
       </div>

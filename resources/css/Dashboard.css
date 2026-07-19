@@ -1,0 +1,117 @@
+.dashboard-content-view {
+    background-color: transparent;
+}
+
+
+.parent {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: auto auto auto;
+    gap: 8px;
+    max-width: 1200px; 
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+}
+    
+.salesAnalytics-card {
+    height: 100px;
+    border: 1px solid black;
+    min-height: 12rem;
+    background: rgb(86, 86, 255);
+    min-height: 12rem;
+    grid-column: span 5 / span 5;
+    grid-row: span 3 / span 3;
+}
+
+.regionalBreakdown-card {
+    height: 100px;
+    border: 1px solid black;
+    min-height: 12rem;
+    min-height: 12rem; 
+    background: rgb(86, 86, 255);
+    grid-column: span 2 / span 2;
+    grid-row: span 3 / span 3;
+    grid-column-start: 1;
+    grid-row-start: 4;
+}
+
+.eoqActivity-card {
+    height: 100px;
+    border: 1px solid black;
+    min-height: 12rem;
+    min-height: 12rem;
+    background: rgb(86, 86, 255);
+    grid-column: span 3 / span 3;
+    grid-row: span 3 / span 3;
+    grid-column-start: 3;
+    grid-row-start: 4;
+}
+
+.productSales-card {
+    height: 100px;
+    border: 1px solid black;
+    min-height: 25rem;
+    background: rgb(86, 86, 255);
+    grid-column: span 3 / span 3;
+    grid-row: span 6 / span 6;
+    grid-column-start: 1;
+    grid-row-start: 7;
+}
+
+.catalogStatus-card {
+    height: 100px;
+    border: 1px solid black;
+    min-height: 12rem;
+    background: rgb(86, 86, 255);
+    grid-column: span 2 / span 2;
+    grid-row: span 3 / span 3;
+    grid-column-start: 6;
+    grid-row-start: 1;
+}
+  
+.totalRevenue-card {
+    height: 100px;
+    border: 1px solid black;
+    min-height: 12rem;
+    background: rgb(86, 86, 255);
+    grid-column: span 2 / span 2;
+    grid-row: span 3 / span 3;
+    grid-column-start: 6;
+    grid-row-start: 4;
+}
+
+.totalOrder-card {
+    height: 100px;
+    border: 1px solid black;
+    min-height: 12rem;
+    background: rgb(86, 86, 255);
+    grid-column: span 2 / span 2;
+    grid-row: span 3 / span 3;
+    grid-column-start: 6;
+    grid-row-start: 7;
+}
+
+.totalCustomer-card {
+    height: 100px;
+    border: 1px solid black;
+    min-height: 12rem;
+    background: rgb(86, 86, 255);
+    grid-column: span 2 / span 2;
+    grid-row: span 3 / span 3;
+    grid-column-start: 6;
+    grid-row-start: 10;
+}
+
+.lowStockalerts-card {
+    height: 100px;
+    border: 1px solid black;
+    min-height: 25rem;
+    background: rgb(86, 86, 255);
+    grid-column: span 2 / span 2;
+    grid-row: span 6 / span 6;
+    grid-column-start: 4;
+    grid-row-start: 7;
+}
+        
+        

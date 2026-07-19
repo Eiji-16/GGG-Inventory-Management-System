@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import Login from './Login';
-import LandingPage from './LandingPage';
+import LandingPage from './landingPage';
 
 function App() {
     const [page, setPage] = useState('dashboard');
