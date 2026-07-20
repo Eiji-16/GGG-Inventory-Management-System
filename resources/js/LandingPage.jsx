@@ -136,13 +136,13 @@ function LandingPage() {
             </div>
             <div className = "top-navbar-right-side">
               <button className = "navbar-bell-icon" aria-label="Notification">
-                <Bell size = {20}> </Bell>
+                <Bell size = {16}> </Bell>
                 <span className="notif-bell-dot"></span>
               </button>
 
               <div className="navbar-user-profile" title="User Profile">
                 <img src=''></img>
-                <User size ={20}/>
+                <User size ={16}/>
               </div>
             </div>
           </header>

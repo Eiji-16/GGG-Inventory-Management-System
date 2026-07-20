@@ -1,0 +1,93 @@
+
+/*-------------TABLE PARENT-------------*/
+.table-parent{
+    padding: 10px;
+    width: 100%;
+    height: 100%;
+
+}
+
+/*-------------SEARCH BAR-------------*/
+.navigation-bar{
+    background: transparent;
+    padding: 5px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+form{
+    
+    min-width: 10rem;
+    
+    min-height: 28px;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    background-color: transparent;
+    display: flex;
+    gap: 1px;
+    border-radius: 1rem;
+    overflow: hidden;
+    border: 0.5px solid black;
+}
+
+input{
+    outline: none;
+    border: none;
+    font-size: 10px;
+}
+
+/*-------------LABEL BAR-------------*/
+.label-row-grid{
+    border: 0.5px solid black;
+    border-top-right-radius: 0.5rem;
+    border-top-left-radius: 0.5rem;
+    background-color: transparent;
+    justify-content: flex-start;
+    padding: 0.3rem;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 8px;
+    text-align: center;
+    align-items: center;
+    font-size: 10px;
+        grid-template-columns:
+        minmax(70px, 1fr)       /* Product ID */
+        minmax(180px, 2fr)     /* Product Name */
+        minmax(110px, 1.2fr)   /* Category */
+        minmax(110px, 1.2fr)   /* Brand */
+        minmax(110px, 1.2fr)   /* Model */
+        minmax(90px, 1.4fr)      /* Unit Measure */
+        minmax(180px, 2fr)     /* Supplier Information */
+        minmax(90px, 0.8fr);    /* Action */
+}
+
+.label-row-grid > div {
+    border-right: 1px solid black;
+}
+
+.label-row-grid > div:nth-child(8){
+    border-right: none;
+}
+
+.grid-divider{
+    display: block;
+    background-color: black ;
+    height: 100%;
+    width: 1px;
+    padding: 0;
+    margin: 0;
+    
+}
+
+/*-------------DATA TABLE-------------*/
+.data-table{
+    background-color: transparent;
+    justify-content: flex-start;
+    padding: 0.3rem;
+    border-right: 1px solid black ;
+    border-left: 1px solid black;
+    border-bottom: 1px solid black;
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+}
+
