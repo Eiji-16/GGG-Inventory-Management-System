@@ -1,53 +1,64 @@
-.product-supplier-parent{
-    background-color: gray;
+
+/*-------------TABLE PARENT-------------*/
+.table-parent{
+    padding: 10px;
+    background-color: transparent;
     width: 100%;
     height: 100%;
-    border-radius: 10px;
-    padding: 30px;
+
 }
 
-.search-bar-container{
-    position: relative;
-    max-width: 450px;
-    margin-bottom: 20px;
-}
-
-.search-input{
-    width: 100%;
-    padding: 12px 40px 12px 14px;
-    font-size: 15px;
-    border: 1px solid black;
-    border-radius: 6px;
-    box-sizing: border-box;
-}
-
-.option-selector {
+/*-------------SEARCH BAR-------------*/
+.navigation-bar{
+    background: transparent;
+    padding: 5px;
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 16px;
-    padding: 14px;
-    background-color: #f2f2f2;
-    border: 1px solid #bdbdbd;
-    border-radius: 8px;
-    max-width: 320px;
+    justify-content: flex-end;
 }
 
-.option-selector label {
-    font-weight: 600;
-    color: #222;
+form{
+    width: auto;
+    height: 2rem;
+    align-items: center;
+    padding: 1rem;
+    background-color: transparent;
+    display: flex;
+    gap: 10px;
+    border-radius: 3rem;
+    overflow: hidden;
+    border: 0.5px solid black;
 }
 
-.option-selector select {
-    padding: 10px 12px;
-    border: 1px solid #666;
-    border-radius: 6px;
-    font-size: 14px;
-    background-color: white;
+input{
+    outline: none;
+    border: none;
 }
 
-.option-selector p {
+/*-------------LABEL BAR-------------*/
+.label-row-grid{
+    border-radius: 1rem;
+    background-color: rgb(175, 175, 175);
+    justify-content: flex-start;
+    padding: 0.3rem;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+
+}
+
+.grid-divider{
+    display: block;
+    background-color: black ;
+    height: 100%;
+    width: 1px;
+    padding: 0;
     margin: 0;
-    font-size: 14px;
-    color: #333;
+    position: absolute;
+}
+
+
+/*-------------DATA TABLE-------------*/
+.data-table{
+    background-color: transparent(66, 47, 84);
+    justify-content: flex-start;
+    padding: 0.3rem;
 }
