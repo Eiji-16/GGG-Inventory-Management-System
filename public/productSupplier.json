@@ -1,0 +1,47 @@
+[
+  {
+    "id": "PRD-9402",
+    "name": "Precision Steel Chronograph",
+    "category": "Timepieces",
+    "brand": "Omega",
+    "model": "Speedmaster-32",
+    "unitMeasure": "Units",
+    "supplierInfo": "Swiss Alliance Logistics Inc."
+  },
+  {
+    "id": "PRD-1184",
+    "name": "Water-Resistant Diver Strap",
+    "category": "Accessories",
+    "brand": "Seiko",
+    "model": "SKX-Rubber-22",
+    "unitMeasure": "Pairs",
+    "supplierInfo": "Pacific Rim Component Group"
+  },
+  {
+    "id": "PRD-3351",
+    "name": "Sapphire Crystal Glass Face",
+    "category": "Spare Parts",
+    "brand": "SapphireCo",
+    "model": "SC-DOMED-40",
+    "unitMeasure": "Boxes",
+    "supplierInfo": "Apex Global Distribution"
+  },
+  {
+    "id": "PRD-7720",
+    "name": "Premium Calfskin Band",
+    "category": "Accessories",
+    "brand": "Hirsch",
+    "model": "H-OAK-20",
+    "unitMeasure": "Units",
+    "supplierInfo": "EuroLeather Import Corp."
+  },
+  {
+    "id": "PRD-5069",
+    "name": "Automatic Movement Caliber",
+    "category": "Movements",
+    "brand": "Miyota",
+    "model": "M-9015-EXP",
+    "unitMeasure": "Trays",
+    "supplierInfo": "Tokyo Micro-Engineering"
+  }
+]

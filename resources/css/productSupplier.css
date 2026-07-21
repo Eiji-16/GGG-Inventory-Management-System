@@ -13,12 +13,12 @@
     padding: 5px;
     display: flex;
     justify-content: flex-end;
+    gap: 10px;
+    margin-bottom: 10px;
 }
 
 form{
-    
     min-width: 10rem;
-    
     min-height: 28px;
     align-items: center;
     padding: 0.25rem 0.5rem;
@@ -36,6 +36,17 @@ input{
     font-size: 10px;
 }
 
+.Add-btn{
+    padding: 0.25rem 0.5rem;
+    align-items: center;
+    display: inline-flex;
+    background-color: transparent;
+    border-radius: 1rem;
+    font-size: 10px;
+    border: 0.5px solid black;
+
+}
+
 /*-------------LABEL BAR-------------*/
 .label-row-grid{
     border: 0.5px solid black;
@@ -43,13 +54,11 @@ input{
     border-top-left-radius: 0.5rem;
     background-color: transparent;
     justify-content: flex-start;
-    padding: 0.3rem;
     display: grid;
     grid-template-columns: repeat(8, 1fr);
-    gap: 8px;
     text-align: center;
     align-items: center;
-    font-size: 10px;
+    font-size: 13px;
         grid-template-columns:
         minmax(70px, 1fr)       /* Product ID */
         minmax(180px, 2fr)     /* Product Name */
@@ -59,6 +68,10 @@ input{
         minmax(90px, 1.4fr)      /* Unit Measure */
         minmax(180px, 2fr)     /* Supplier Information */
         minmax(90px, 0.8fr);    /* Action */
+}
+
+.label-row-grid > div {
+    padding: 10px;
 }
 
 .label-row-grid > div {
@@ -83,11 +96,47 @@ input{
 .data-table{
     background-color: transparent;
     justify-content: flex-start;
-    padding: 0.3rem;
     border-right: 1px solid black ;
     border-left: 1px solid black;
     border-bottom: 1px solid black;
     border-bottom-left-radius: 0.5rem;
     border-bottom-right-radius: 0.5rem;
+    
+}
+
+.data-row-grid {
+    background-color: transparent;
+    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    border-bottom: 1px solid rgba(0, 0, 0, 1);
+    text-align: center;
+    align-items: center;
+    font-size: 10px;
+    
+        grid-template-columns:
+        minmax(70px, 1fr)       /* Product ID */
+        minmax(180px, 2fr)     /* Product Name */
+        minmax(110px, 1.2fr)   /* Category */
+        minmax(110px, 1.2fr)   /* Brand */
+        minmax(110px, 1.2fr)   /* Model */
+        minmax(90px, 1.4fr)      /* Unit Measure */
+        minmax(180px, 2fr)     /* Supplier Information */
+        minmax(90px, 0.8fr);    /* Action */
+}
+
+.data-row-grid > div {
+    padding: 0.75rem 1rem;
+    border-right: 1px solid rgba(0, 0, 0, 1);
+    box-sizing: border-box;
+}
+
+.data-row-grid > div:last-child {
+    border-right: none;
+    
+}
+
+.data-table .data-row-grid:last-child{
+    border: none;
 }
 
