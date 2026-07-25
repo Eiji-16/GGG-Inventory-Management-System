@@ -74,7 +74,7 @@ useEffect(() => {
         {/* Dynamic empty layout container preventing white voids if data is zero */}
         {productsFromDatabase.length === 0 && (
           <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif', fontSize: '12px', color: '#666', background: '#fff' }}>
-            LOADING INVENTORY DATABASES OR NO LOGS RECORDED...
+            LOADINGS INVENTORY DATABASES OR NO LOGS RECORDED...
           </div>
         )}
       </main>
