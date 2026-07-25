@@ -10,7 +10,7 @@ function ProductSupplier({ onNavigate }) {
 
 const [productsFromDatabase, setProductsFromDatabase] = useState([]);
 useEffect(() => {
-  fetch('/productSupplier.json')
+  fetch('/stockControl.json')
   .then((response) => response.json())
   .then((data) => setProductsFromDatabase(data))
   .catch((error) => console.error("Error reading your file:", error));
@@ -41,14 +41,14 @@ useEffect(() => {
 
 {/* Label bar */}
       <div className="label-row-grid">
-        <div>Product ID</div>
+        <div>Date</div>
         <div>Product Name</div>
         <div>Category</div>
-        <div>Brand</div>
-        <div>Model</div>
-        <div>Unit Measure</div>
-        <div>Supplier Information</div>
-        <div>Actions</div>
+        <div>Type</div>
+        <div>Qty</div>
+        <div>Remaining Stock</div>
+        <div>Notes</div>
+        <div>Recorded by</div>
       </div>
 
 {/* Data-tables */}
@@ -57,13 +57,13 @@ useEffect(() => {
         {/* Loop reads from the state basket array safely */}
         {productsFromDatabase.map((product) => (
           <div className="data-row-grid" key={product.id}>
-            <div className="cell-id">{product.id}</div>
-            <div className="cell-text" title={product.name}>{product.name}</div>
+            <div className="cell-id">{product.date}</div>
+            <div className="cell-text" title={product.productName}>{product.productName}</div>
             <div className="cell-text">{product.category}</div>
-            <div className="cell-text">{product.brand}</div>
-            <div className="cell-text">{product.model}</div>
-            <div className="cell-text">{product.unitMeasure}</div>
-            <div className="cell-text" title={product.supplierInfo}>{product.supplierInfo}</div>
+            <div className="cell-text">{product.type}</div>
+            <div className="cell-text">{product.qty}</div>
+            <div className="cell-text">{product.remainingStock}</div>
+            <div className="cell-text" title={product.notes}>{product.notes}</div>
             <div>
               <button className="table-action-btn edit-btn" onClick={() => handleEdit(product.id)}>Edit</button>
               <button className="table-action-btn delete-btn" onClick={() => handleDelete(product.id)}>Delete</button>

@@ -72,10 +72,13 @@ input{
 
 .label-row-grid > div {
     padding: 10px;
+    padding-left: 0px;
+    padding-right: 0px;
 }
 
 .label-row-grid > div {
     border-right: 1px solid black;
+    
 }
 
 .label-row-grid > div:nth-child(8){
@@ -104,6 +107,12 @@ input{
     
 }
 
+.cell-text {
+    padding: 0px;
+    padding-left: 0px;
+    padding-right: 0px;
+}
+
 .data-row-grid {
     background-color: transparent;
     justify-content: flex-start;
@@ -126,7 +135,7 @@ input{
 }
 
 .data-row-grid > div {
-    padding: 0.75rem 1rem;
+    padding: 10px;
     border-right: 1px solid rgba(0, 0, 0, 1);
     box-sizing: border-box;
 }
