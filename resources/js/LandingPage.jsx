@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     AreaChart, Area, BarChart, Bar,
     XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line
@@ -31,14 +31,16 @@ import StockManagement from './stockControl'; /* Stock Control content component
 // LandingPage.jsx
 function LandingPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* Action button for sidebar when zoomed or phone size */
-  const [isDarkMode, setIsDarkMode] = useState(false); /* To Toggle Darkmode and Lightmode */
+  const [isDarkMode, setIsDarkMode] = useState(true); /* Default to dark theme */
   const [activeView, setActiveView] = useState('Dashboard'); /* To toggle active button */
-  const toggleTheme = () => {
-  const nextTheme = !isDarkMode;
-  setIsDarkMode(nextTheme);
 
-  document.documentElement.setAttribute('data-theme', nextTheme ? 'dark' : 'light');
-};
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
+
+  const toggleTheme = () => {
+    setIsDarkMode((currentMode) => !currentMode);
+  };
   return (
     <div className="dashboard-page-wrapper">
       <div className="dashboard-container-parent">

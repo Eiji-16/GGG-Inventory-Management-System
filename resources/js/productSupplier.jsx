@@ -33,7 +33,7 @@ useEffect(() => {
         </search>
 
          <button className="Add-btn" >
-          <p>Add Item</p>
+          <p>Add</p>
           <Plus size={12} className="Add-icon"  />
          </button>
 

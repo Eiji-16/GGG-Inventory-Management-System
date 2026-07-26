@@ -6,6 +6,9 @@
     "brand": "Omega",
     "model": "Speedmaster-32",
     "unitMeasure": "Units",
+    "supplierName": "Swiss Alliance Logistics Inc.",
+    "supplierContact": "+41 44 555 0180",
+    "company": "Swiss Alliance Logistics Inc.",
     "supplierInfo": "Swiss Alliance Logistics Inc."
   },
   {
@@ -15,6 +18,9 @@
     "brand": "Seiko",
     "model": "SKX-Rubber-22",
     "unitMeasure": "Pairs",
+    "supplierName": "Pacific Rim Component Group",
+    "supplierContact": "+1 800 555 0143",
+    "company": "Pacific Rim Component Group",
     "supplierInfo": "Pacific Rim Component Group"
   },
   {
@@ -24,6 +30,9 @@
     "brand": "SapphireCo",
     "model": "SC-DOMED-40",
     "unitMeasure": "Boxes",
+    "supplierName": "Apex Global Distribution",
+    "supplierContact": "+44 20 7946 0123",
+    "company": "Apex Global Distribution",
     "supplierInfo": "Apex Global Distribution"
   },
   {
@@ -33,6 +42,9 @@
     "brand": "Hirsch",
     "model": "H-OAK-20",
     "unitMeasure": "Units",
+    "supplierName": "EuroLeather Import Corp.",
+    "supplierContact": "+49 30 555 0117",
+    "company": "EuroLeather Import Corp.",
     "supplierInfo": "EuroLeather Import Corp."
   },
   {
@@ -42,6 +54,9 @@
     "brand": "Miyota",
     "model": "M-9015-EXP",
     "unitMeasure": "Trays",
+    "supplierName": "Tokyo Micro-Engineering",
+    "supplierContact": "+81 3 5555 0148",
+    "company": "Tokyo Micro-Engineering",
     "supplierInfo": "Tokyo Micro-Engineering"
   }
 ]

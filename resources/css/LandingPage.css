@@ -12,8 +12,9 @@
     --text-muted: #64748b;
     --border-color: rgba(0, 0, 0, 0.08);
     --text-sidebar-icon: #0D1E3D;
+    --icon-active-color: #D4AF37;
 }
-
+ 
 [data-theme="dark"] {
     --bg-main: #0b1320;
     --bg-sidebar: #172237;
@@ -22,6 +23,7 @@
     --text-muted: #94a3b8;
     --border-color: rgba(255, 255, 255, 0.08);
     --text-sidebar-icon: #ffffff;
+    --background-icon:
 }
 
 /*==========DEFAULT WEBSITE SIZE==========*/
@@ -39,7 +41,7 @@ body,
 .dashboard-page-wrapper{
     width: 100%;
     min-height: 100vh;
-    background-color: white;
+    background-color: var(--bg-main);
     display: flex;
     justify-content: center;
 }
@@ -95,7 +97,7 @@ body,
 
 #sidebar-logo {
     font-size: 20px;
-    color: #191313;
+    color: var(--text-primary);
     font-weight: bold;
     align-items: center;
     justify-content: center;
@@ -127,22 +129,20 @@ body,
 }
 
 .sidebar-item.active button {
-    background-color: #ffffff !important;
+    background-color: #1a2847 !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .sidebar-item.active button .sidebar-icon {
-    color: #1a2847 !important;
-    stroke: #1a2847 !important;
+    stroke: var(--icon-active-color) !important;
 }
 
 .sidebar-item:not(.active) button:hover {
-    background-color: rgba(255, 255, 255, 0.08) !important;
+    background-color: rgba(247, 245, 245, 0.978) !important; 
 }
 
 .sidebar-item:not(.active) button:hover .sidebar-icon {
-    color: #ffffff !important;
-    stroke: #ffffff !important;
+    stroke: var(--text-sidebar-icon) !important;
 }
 
 .sidebar-label {
@@ -210,13 +210,13 @@ body,
 }
 
 #log-out button:hover {
-    background-color: rgba(231, 76, 60, 0.15) !important;
+    background-color: rgba(255, 2, 2, 0.378) !important;
 }
 
 #log-out button:hover .sidebar-label,
 #log-out button:hover .sidebar-icon {
-    color: #e74c3c !important;
-    stroke: #e74c3c !important;
+    color: #ff0101 !important;
+    stroke: #ff0000fd !important;
 }
 
 /*==========CONTENT BODY==========*/
