@@ -12,19 +12,65 @@
     --text-muted: #64748b;
     --border-color: rgba(0, 0, 0, 0.08);
     --text-sidebar-icon: #0D1E3D;
+    --background-icon-active-color: #0D1E3D;
     --icon-active-color: #D4AF37;
+    --background-icon-active-color-theme: rgba(11, 27, 51, 0.08);
 }
  
 [data-theme="dark"] {
-    --bg-main: #0b1320;
-    --bg-sidebar: #172237;
-    --bg-card: #121e31;
-    --text-primary: #f8fafc;
-    --text-muted: #94a3b8;
-    --border-color: rgba(255, 255, 255, 0.08);
+    color-scheme: dark;
+    --bg-main: #0B1B33;
+    --bg-sidebar: #071324;
+    --bg-card: #0D1E3D;
+    --text-primary: #ffffff;
+    --text-muted: #8892b0;
+    --border-color: rgba(214, 175, 55, 0.2);
     --text-sidebar-icon: #ffffff;
-    --background-icon:
+    --background-icon-active-color: #D4AF37;
+    --icon-active-color: #0B1B33;
+    --background-icon-active-color-theme: rgba(212, 175, 55, 0.12);
 }
+
+/*========== DARK MODE: MOON ICON GLOW (ISOLATED SPECIFICITY) ==========*/
+[data-theme="dark"] .siderbar-item button:hover .sidebar-icon {
+    color: var(--accent);
+    filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.65)) 
+            drop-shadow(0 0 20px rgba(212, 175, 55, 0.3));
+    transform: rotate(-12deg) scale(1.08);
+}
+
+/*========== LIGHT MODE: SUN ICON GLOW (ISOLATED SPECIFICITY) ==========*/
+[data-theme="light"] .siderbar-item button:hover .sidebar-icon {
+    color: var(--accent);
+    filter: drop-shadow(0 0 6px rgba(11, 27, 51, 0.45)) 
+            drop-shadow(0 0 15px rgba(11, 27, 51, 0.2));
+    transform: scale(1.12);
+}
+
+/*========== GLOBAL TRANSITION HOOKS FOR ALL SIDEBAR ICONS ==========*/
+.sidebar-icon {
+    transition: filter 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: filter, transform;
+}
+
+/*========== CLEAN RESET FOR THE INNER TOGGLE BUTTON PANEL ==========*/
+.siderbar-item button {
+    background: transparent;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+}
+
+
+
 
 /*==========DEFAULT WEBSITE SIZE==========*/
 html,
@@ -129,7 +175,7 @@ body,
 }
 
 .sidebar-item.active button {
-    background-color: #1a2847 !important;
+    background-color:var(--background-icon-active-color) !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
@@ -138,7 +184,7 @@ body,
 }
 
 .sidebar-item:not(.active) button:hover {
-    background-color: rgba(247, 245, 245, 0.978) !important; 
+    background-color: rgba(247, 245, 245, 0.1) !important; 
 }
 
 .sidebar-item:not(.active) button:hover .sidebar-icon {
@@ -191,7 +237,7 @@ body,
 }
 
 .sidebar-footer-item .siderbar-item button:hover {
-    background-color: rgba(255, 255, 255, 0.08) !important;
+    background-color: var(--background-icon-active-color-theme) !important;
 }
 
 #log-out {
@@ -215,15 +261,13 @@ body,
 
 #log-out button:hover .sidebar-label,
 #log-out button:hover .sidebar-icon {
-    color: #ff0101 !important;
+    color: #c60808 !important;
     stroke: #ff0000fd !important;
 }
 
 /*==========CONTENT BODY==========*/
 .main-wrapper {
-    background-color: transparent;
-    -webkit-backdrop-filter: blur(10px) saturate(180%);
-    backdrop-filter: blur(12px) saturate(180%);
+    
     padding: 0.5rem;
     display: flex;
     gap: 10px;
