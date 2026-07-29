@@ -34,7 +34,7 @@
 /*========== DARK MODE: MOON ICON GLOW (ISOLATED SPECIFICITY) ==========*/
 [data-theme="dark"] .siderbar-item button:hover .sidebar-icon {
     color: var(--accent);
-    filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.65)) 
+    filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.65))
             drop-shadow(0 0 20px rgba(212, 175, 55, 0.3));
     transform: rotate(-12deg) scale(1.08);
 }
@@ -42,7 +42,7 @@
 /*========== LIGHT MODE: SUN ICON GLOW (ISOLATED SPECIFICITY) ==========*/
 [data-theme="light"] .siderbar-item button:hover .sidebar-icon {
     color: var(--accent);
-    filter: drop-shadow(0 0 6px rgba(11, 27, 51, 0.45)) 
+    filter: drop-shadow(0 0 6px rgba(11, 27, 51, 0.45))
             drop-shadow(0 0 15px rgba(11, 27, 51, 0.2));
     transform: scale(1.12);
 }
@@ -80,6 +80,23 @@ body,
     padding: 0;
     height: 100%;
     width: 100%;
+    background-color: var(--bg-main);
+    transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: background-color;
+}
+
+/*==========SMOOTH THEME BACKGROUND TRANSITIONS==========*/
+.dashboard-page-wrapper,
+.dashboard-container-parent,
+.sidebar-menu,
+.sidebar-footer-item,
+.main-wrapper,
+.top-navbar,
+.top-navbar-left-side,
+.top-navbar-right-side,
+.main-content-window {
+    transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: background-color;
 }
 
 /*==========DASHBOARD BODY==========*/
@@ -87,7 +104,7 @@ body,
 .dashboard-page-wrapper{
     width: 100%;
     min-height: 100vh;
-    background-color: var(--bg-main);
+
     display: flex;
     justify-content: center;
 }

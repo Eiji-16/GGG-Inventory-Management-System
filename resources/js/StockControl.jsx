@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'; 
 import {
+  Edit,
   Plus,
-  Search
+  Search,
+  Trash2
 } from 'lucide-react';
 
 import '../css/stockControl.css'; /*Product and Supplier CSS */
@@ -64,9 +66,24 @@ useEffect(() => {
             <div className="cell-text">{product.qty}</div>
             <div className="cell-text">{product.remainingStock}</div>
             <div className="cell-text" title={product.notes}>{product.notes}</div>
-            <div>
-              <button className="table-action-btn edit-btn" onClick={() => handleEdit(product.id)}>Edit</button>
-              <button className="table-action-btn delete-btn" onClick={() => handleDelete(product.id)}>Delete</button>
+            <div className="action-cell-container">
+              <button
+                className="table-action-btn edit-btn"
+                onClick={() => handleEdit(product.id)}
+                aria-label="Edit Item"
+                title="Edit Item"
+              >
+                <Edit size={16} />
+              </button>
+              
+              <button
+                className="table-action-btn delete-btn"
+                onClick={() => handleDelete(product.id)}
+                aria-label="Delete Item"
+                title="Delete Item"
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
           </div>
         ))}

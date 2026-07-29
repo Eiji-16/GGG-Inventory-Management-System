@@ -140,3 +140,73 @@ input{
     border: none;
 }
 
+.data-row-grid > div {
+    padding: 10px 4px;
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+}
+
+/* Structural Grid Track Inner Alignment Wrapper */
+.data-row-grid > div:last-child {
+    border-right: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0; 
+}
+
+/* Unified Action Buttons Horizontal Track */
+.action-cell-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+/* Semi-Translucent Minimalist Micro Action Buttons */
+.table-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Luxury Gold Accent Focus Hover State for the Edit Variant */
+.table-action-btn.edit-btn:hover {
+    color: var(--accent);
+    background: var(--background-icon-active-color-theme);
+    border-color: var(--accent);
+    box-shadow: 0 0 10px var(--shadow-glow);
+    transform: translateY(-1px);
+}
+
+/* High Contrast Alert Hover State for the Delete Variant */
+.table-action-btn.delete-btn:hover {
+    color: #ff4d4d;
+    background: rgba(255, 77, 77, 0.08);
+    border-color: rgba(255, 77, 77, 0.3);
+    box-shadow: 0 0 10px rgba(255, 77, 77, 0.15);
+    transform: translateY(-1px);
+}
+
+/* Mechanical Click Action UI Feedback Layer */
+.table-action-btn:active {
+    transform: translateY(0) scale(0.94);
+}
+
