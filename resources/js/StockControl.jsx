@@ -1,48 +1,37 @@
-import React, { useState, useEffect } from 'react'; 
-import {
-  Edit,
-  Plus,
-  Search,
-  Trash2
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Search } from 'lucide-react';
 
-import '../css/stockControl.css'; /*Product and Supplier CSS */
+import '../css/stockControl.css';
 
-function ProductSupplier({ onNavigate }) {
+function StockControl({ onNavigate }) {
 
-const [productsFromDatabase, setProductsFromDatabase] = useState([]);
-useEffect(() => {
-  fetch('/stockControl.json')
-  .then((response) => response.json())
-  .then((data) => setProductsFromDatabase(data))
-  .catch((error) => console.error("Error reading your file:", error));
-}, []);
-  const handleEdit = (id) => alert(`Editing item: ${id}`);
-  const handleDelete = (id) => alert(`Deleting item: ${id}`);
-
-
+  const [stockFromDatabase, setStockFromDatabase] = useState([]);
+  useEffect(() => {
+    fetch('/stockControl.json')
+      .then((response) => response.json())
+      .then((data) => setStockFromDatabase(data))
+      .catch((error) => console.error("Error reading your file:", error));
+  }, []);
 
   return (
-    <div className="table-parent">
-      
-{/* Search bar */}
-      <div className="navigation-bar">
-        <search>
+    <div className="sc-table-parent">
+
+      {/* Search bar */}
+      <div className="sc-navigation-bar">
+        <div className="sc-search-wrapper">
           <form action="/search-result" method="get">
-            <input type="search" placeholder= "Search... "name="search-bar" id="search-input" />
-            <Search size={12} className="search-icon" />
+            <input type="search" placeholder="Search..." name="search-bar" id="sc-search-input" />
+            <Search size={12} className="sc-search-icon" />
           </form>
-        </search>
-
-         <button className="Add-btn" >
+        </div>
+        <button className="sc-add-btn">
           <p>Add Item</p>
-          <Plus size={12} className="Add-icon"  />
-         </button>
-
+          <Plus size={12} className="sc-add-icon" />
+        </button>
       </div>
 
-{/* Label bar */}
-      <div className="label-row-grid">
+      {/* Label bar */}
+      <div className="sc-label-row-grid">
         <div>Date</div>
         <div>Product Name</div>
         <div>Category</div>
@@ -53,45 +42,24 @@ useEffect(() => {
         <div>Recorded by</div>
       </div>
 
-{/* Data-tables */}
-    {/* Sample Data AI GENERATE */}
-      <main className="data-table">
-        {/* Loop reads from the state basket array safely */}
-        {productsFromDatabase.map((product) => (
-          <div className="data-row-grid" key={product.id}>
-            <div className="cell-id">{product.date}</div>
-            <div className="cell-text" title={product.productName}>{product.productName}</div>
-            <div className="cell-text">{product.category}</div>
-            <div className="cell-text">{product.type}</div>
-            <div className="cell-text">{product.qty}</div>
-            <div className="cell-text">{product.remainingStock}</div>
-            <div className="cell-text" title={product.notes}>{product.notes}</div>
-            <div className="action-cell-container">
-              <button
-                className="table-action-btn edit-btn"
-                onClick={() => handleEdit(product.id)}
-                aria-label="Edit Item"
-                title="Edit Item"
-              >
-                <Edit size={16} />
-              </button>
-              
-              <button
-                className="table-action-btn delete-btn"
-                onClick={() => handleDelete(product.id)}
-                aria-label="Delete Item"
-                title="Delete Item"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
+      {/* Data table */}
+      <main className="sc-data-table">
+        {stockFromDatabase.map((stock, index) => (
+          <div className="sc-data-row-grid" key={index}>
+            <div className="sc-cell-text">{stock.date}</div>
+            <div className="sc-cell-text" title={stock.productName}>{stock.productName}</div>
+            <div className="sc-cell-text">{stock.category}</div>
+            <div className="sc-cell-text">{stock.type}</div>
+            <div className="sc-cell-text">{stock.qty}</div>
+            <div className="sc-cell-text">{stock.remainingStock}</div>
+            <div className="sc-cell-text" title={stock.notes}>{stock.notes || '—'}</div>
+            <div className="sc-cell-text">{stock.recordedBy}</div>
           </div>
         ))}
 
-        {/* Dynamic empty layout container preventing white voids if data is zero */}
-        {productsFromDatabase.length === 0 && (
-          <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif', fontSize: '12px', color: '#666', background: '#fff' }}>
-            LOADINGS INVENTORY DATABASES OR NO LOGS RECORDED...
+        {stockFromDatabase.length === 0 && (
+          <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif', fontSize: '12px', color: '#666' }}>
+            LOADING INVENTORY DATABASES OR NO LOGS RECORDED...
           </div>
         )}
       </main>
@@ -99,4 +67,4 @@ useEffect(() => {
   );
 }
 
-export default ProductSupplier;
+export default StockControl;

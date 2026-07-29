@@ -1,6 +1,6 @@
 
 /*-------------TABLE PARENT-------------*/
-.table-parent{
+.ps-table-parent{
     padding: 10px;
     width: 100%;
     height: 100%;
@@ -8,7 +8,7 @@
 }
 
 /*-------------SEARCH BAR-------------*/
-.navigation-bar{
+.ps-navigation-bar{
     background: transparent;
     padding: 5px;
     display: flex;
@@ -36,7 +36,7 @@ input{
     font-size: 10px;
 }
 
-.Add-btn{
+.ps-add-btn{
     padding: 0.25rem 0.5rem;
     align-items: center;
     display: inline-flex;
@@ -48,14 +48,13 @@ input{
 }
 
 /*-------------LABEL BAR-------------*/
-.label-row-grid{
+.ps-label-row-grid{
     border: 0.5px solid black;
     border-top-right-radius: 0.5rem;
     border-top-left-radius: 0.5rem;
     background-color: transparent;
     justify-content: flex-start;
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
     text-align: center;
     align-items: center;
     font-size: 13px;
@@ -70,30 +69,21 @@ input{
         minmax(90px, 0.8fr);    /* Action */
 }
 
-.label-row-grid > div {
+.ps-label-row-grid > div {
     padding: 10px;
 }
 
-.label-row-grid > div {
+.ps-label-row-grid > div {
     border-right: 1px solid black;
 }
 
-.label-row-grid > div:nth-child(8){
+.ps-label-row-grid > div:nth-child(8){
     border-right: none;
 }
 
-.grid-divider{
-    display: block;
-    background-color: black ;
-    height: 100%;
-    width: 1px;
-    padding: 0;
-    margin: 0;
-    
-}
 
 /*-------------DATA TABLE-------------*/
-.data-table{
+.ps-data-table{
     background-color: transparent;
     justify-content: flex-start;
     border-right: 1px solid black ;
@@ -104,12 +94,11 @@ input{
     
 }
 
-.data-row-grid {
+.ps-data-row-grid {
     background-color: transparent;
     justify-content: flex-start;
     display: grid;
     grid-template-columns: repeat(8, 1fr);
-    border-bottom: 1px solid rgba(0, 0, 0, 1);
     text-align: center;
     align-items: center;
     font-size: 10px;
@@ -125,22 +114,17 @@ input{
         minmax(90px, 0.8fr);    /* Action */
 }
 
-.data-row-grid > div {
-    padding: 0.75rem 1rem;
-    border-right: 1px solid rgba(0, 0, 0, 1);
-    box-sizing: border-box;
-}
 
-.data-row-grid > div:last-child {
+.ps-data-row-grid > div:last-child {
     border-right: none;
     
 }
 
-.data-table .data-row-grid:last-child{
+.ps-data-table .data-row-grid:last-child{
     border: none;
 }
 
-.data-row-grid > div {
+.ps-data-row-grid > div {
     padding: 10px 4px;
     box-sizing: border-box;
     height: 100%;
@@ -150,63 +134,50 @@ input{
     
 }
 
-/* Structural Grid Track Inner Alignment Wrapper */
-.data-row-grid > div:last-child {
-    border-right: none;
+/*===============FIX BY AI===============*/
+.ps-table-action-btn {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0; 
+    padding: 6px;
+    border-radius: 4px;
+    color: var(--text-primary);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Unified Action Buttons Horizontal Track */
-.action-cell-container {
+
+.ps-table-action-btn.edit-btn:hover {
+    color: var(--accent);
+    background: var(--background-icon-active-color-theme) !important; 
+    filter: drop-shadow(0 0 6px var(--shadow-glow));
+}
+
+.ps-table-action-btn.delete-btn:hover {
+    color: #ff4d4d;
+    background: rgba(255, 77, 77, 0.08) !important;
+    filter: drop-shadow(0 0 6px rgba(255, 77, 77, 0.2));
+}
+
+/* Micro-interaction tap down feedback */
+.ps-table-action-btn:active {
+    transform: scale(0.9);
+}
+
+.ps-action-cell-container {
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    width: 100%;
-    height: 100%;
-    box-sizing: border-box;
 }
 
-/* Semi-Translucent Minimalist Micro Action Buttons */
-.table-action-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    cursor: pointer;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    color: var(--text-primary);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
 
-/* Luxury Gold Accent Focus Hover State for the Edit Variant */
-.table-action-btn.edit-btn:hover {
-    color: var(--accent);
-    background: var(--background-icon-active-color-theme);
-    border-color: var(--accent);
-    box-shadow: 0 0 10px var(--shadow-glow);
-    transform: translateY(-1px);
-}
 
-/* High Contrast Alert Hover State for the Delete Variant */
-.table-action-btn.delete-btn:hover {
-    color: #ff4d4d;
-    background: rgba(255, 77, 77, 0.08);
-    border-color: rgba(255, 77, 77, 0.3);
-    box-shadow: 0 0 10px rgba(255, 77, 77, 0.15);
-    transform: translateY(-1px);
-}
 
-/* Mechanical Click Action UI Feedback Layer */
-.table-action-btn:active {
-    transform: translateY(0) scale(0.94);
-}
+
 
