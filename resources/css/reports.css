@@ -1,0 +1,301 @@
+/* ROOT */
+.rp-root {
+    padding: 10px;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-sans, system-ui, sans-serif);
+}
+
+/* HEADER */
+.rp-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+.rp-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+.rp-subtitle {
+    font-size: 11px;
+    color: #888;
+}
+
+/* EXPORT BUTTONS */
+.rp-export-group {
+    display: flex;
+    gap: 6px;
+}
+.rp-export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0.25rem 0.625rem;
+    font-size: 11px;
+    border-radius: 1rem;
+    border: 0.5px solid black;
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.rp-export-btn:hover {
+    background: rgba(0,0,0,0.05);
+}
+
+/* TABS */
+.rp-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 1rem;
+}
+.rp-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0.25rem 0.75rem;
+    font-size: 11px;
+    border-radius: 1rem;
+    border: 0.5px solid black;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.rp-tab.active {
+    background: black;
+    color: white;
+}
+
+/* SECTION */
+.rp-section {
+    width: 100%;
+}
+
+/* KPI ROW */
+.rp-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 8px;
+    margin-bottom: 1rem;
+}
+.rp-kpi {
+    border: 0.5px solid black;
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.75rem;
+}
+.rp-kpi-label {
+    font-size: 10px;
+    color: #888;
+    margin-bottom: 4px;
+}
+.rp-kpi-val {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+/* TABLE */
+.rp-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+.rp-label-row {
+    display: grid;
+    grid-template-columns:
+        minmax(180px, 2.5fr)
+        minmax(110px, 1.2fr)
+        minmax(80px, 1fr)
+        minmax(80px, 1fr)
+        minmax(90px, 1fr)
+        minmax(100px, 1fr);
+    border: 0.5px solid black;
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+    font-size: 12px;
+    text-align: center;
+    align-items: center;
+}
+.rp-label-row > div {
+    padding: 8px 4px;
+    border-right: 0.5px solid black;
+}
+.rp-label-row > div:last-child {
+    border-right: none;
+}
+
+/* Top moving table — 5 cols */
+.rp-label-row-top {
+    grid-template-columns:
+        minmax(50px, 0.5fr)
+        minmax(180px, 2.5fr)
+        minmax(120px, 1.2fr)
+        minmax(100px, 1fr)
+        minmax(100px, 1fr);
+}
+
+.rp-data-table {
+    border-left: 0.5px solid black;
+    border-right: 0.5px solid black;
+    border-bottom: 0.5px solid black;
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+}
+.rp-data-row {
+    display: grid;
+    grid-template-columns:
+        minmax(180px, 2.5fr)
+        minmax(110px, 1.2fr)
+        minmax(80px, 1fr)
+        minmax(80px, 1fr)
+        minmax(90px, 1fr)
+        minmax(100px, 1fr);
+    font-size: 10px;
+    text-align: center;
+    align-items: center;
+    border-bottom: 0.5px solid black;
+}
+.rp-data-table .rp-data-row:last-child {
+    border-bottom: none;
+}
+.rp-data-row-top {
+    grid-template-columns:
+        minmax(50px, 0.5fr)
+        minmax(180px, 2.5fr)
+        minmax(120px, 1.2fr)
+        minmax(100px, 1fr)
+        minmax(100px, 1fr);
+}
+.rp-cell {
+    padding: 8px 4px;
+    border-right: 0.5px solid rgba(0,0,0,0.2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    box-sizing: border-box;
+}
+.rp-cell:last-child {
+    border-right: none;
+}
+.rp-rank {
+    font-weight: 600;
+    font-size: 12px;
+}
+
+/* BADGES */
+.rp-badge {
+    display: inline-block;
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 1rem;
+    font-weight: 500;
+}
+.badge-ok { background: #e8f7ee; color: #0ca30c; }
+.badge-low { background: #fff8e1; color: #fab219; }
+.badge-out { background: #fdecea; color: #e24b4a; }
+
+/* CHART */
+.rp-chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+.rp-legend {
+    display: flex;
+    align-items: center;
+    font-size: 11px;
+    gap: 4px;
+}
+.rp-legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+}
+.rp-period-toggle {
+    display: flex;
+    gap: 4px;
+}
+.rp-period-btn {
+    padding: 3px 10px;
+    font-size: 10px;
+    border-radius: 1rem;
+    border: 0.5px solid black;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.rp-period-btn.active {
+    background: black;
+    color: white;
+}
+
+/* BAR CHART */
+.rp-chart-wrap {
+    display: flex;
+    gap: 8px;
+    height: 220px;
+    border: 0.5px solid black;
+    border-radius: 0.5rem;
+    padding: 12px;
+    align-items: flex-end;
+    overflow-x: auto;
+}
+.rp-chart-y-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    font-size: 9px;
+    color: #888;
+    min-width: 28px;
+    text-align: right;
+    padding-right: 4px;
+}
+.rp-y-label {
+    line-height: 1;
+}
+.rp-chart-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex: 1;
+    height: 100%;
+}
+.rp-bar-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    height: 100%;
+    min-width: 32px;
+}
+.rp-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    flex: 1;
+    width: 100%;
+    justify-content: center;
+}
+.rp-bar {
+    width: 12px;
+    border-radius: 3px 3px 0 0;
+    transition: height 0.3s ease;
+    cursor: pointer;
+}
+.rp-bar:hover {
+    opacity: 0.8;
+}
+.rp-bar-in { background: #0ca30c; }
+.rp-bar-out { background: #e24b4a; }
+.rp-bar-label {
+    font-size: 9px;
+    color: #888;
+    margin-top: 4px;
+    text-align: center;
+}
