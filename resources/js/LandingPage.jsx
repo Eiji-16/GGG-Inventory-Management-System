@@ -23,7 +23,7 @@ import {
 import '../css/landingPage.css'; /* Landing Page CSS */
 import Dashboard from './dashboard'; /* Dashboard content component */
 import ProductSupplier from './productSupplier'; /* Product and Supplier content component */
-import EOQCalculator from './eoq'; /* EOQ content component */
+import AutoCalculator from './autoCal'; /* EOQ content component */
 import SalesForecasting from './forecasting'; /* Forecasting content component */
 import ReportAnalytics from './reports';/* Report content component */
 import StockManagement from './stockControl'; /* Stock Control content component */
@@ -153,7 +153,7 @@ function LandingPage() {
               {activeView === 'Dashboard' && <Dashboard />}
               {activeView === 'Product-Supplier' && <ProductSupplier />}
               {activeView === 'Stock' && <StockManagement/>}
-              {activeView === 'EOQ' && <EOQCalculator/>}
+              {activeView === 'EOQ' && <AutoCalculator/>}
               {activeView === 'Forecasting' && <SalesForecasting/>}
               {activeView === 'Reports' && <ReportAnalytics/>}
             </main>

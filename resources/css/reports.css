@@ -167,7 +167,7 @@
 }
 .rp-cell {
     padding: 8px 4px;
-    border-right: 0.5px solid rgba(0,0,0,0.2);
+    border-right: 0.5px solid rgba(0,0,0,1);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
