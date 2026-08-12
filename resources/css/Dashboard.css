@@ -1,104 +1,265 @@
+/* ─── ROOT ─────────────────────────────────────────────────── */
 .dashboard-content-view {
-    background-color: transparent;
-}
-
-
-.parent {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    grid-template-rows: auto auto auto;
-    gap: 8px;
-    max-width: 1200px;
-    margin: 0 auto;
     width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: transparent;
     box-sizing: border-box;
 }
-    
-.salesAnalytics-card,
-.regionalBreakdown-card,
-.eoqActivity-card,
-.productSales-card,
-.catalogStatus-card,
-.totalRevenue-card,
-.totalOrder-card,
-.totalCustomer-card,
-.lowStockalerts-card {
-    height: 100px;
-    border: 1px solid var(--border-color);
-    min-height: 12rem;
-    background: gray;
-    color: var(--text-primary);
-    box-shadow: 0 10px 24px rgba(12, 27, 50, 0.12);
+
+/* ─── SCROLL CONTAINER ─────────────────────────────────────── */
+/*  Smooth scroll + fade-in cards as they enter viewport       */
+.dashboard-scroll-container {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px;
+    box-sizing: border-box;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+
+    /* Fade mask at bottom so cards don't hard-cut */
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 3%,
+        black 92%,
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 3%,
+        black 92%,
+        transparent 100%
+    );
 }
 
+/* ─── GRID ─────────────────────────────────────────────────── */
+.parent {
+    display: grid;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+
+
+/* ─── BASE CARD ────────────────────────────────────────────── */
+.card {
+    border: 1px solid var(--border-color, rgba(0,0,0,0.15));
+    background: var(--surface-2, #f5f5f2);
+    color: var(--text-primary, #1a1a19);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    box-sizing: border-box;
+    overflow: hidden;
+
+    /* Slide-up entrance animation */
+    animation: cardEnter 0.35s ease both;
+}
+
+@keyframes cardEnter {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Stagger delay per card */
+.parent > .card:nth-child(1) { animation-delay: 0.00s; }
+.parent > .card:nth-child(2) { animation-delay: 0.04s; }
+.parent > .card:nth-child(3) { animation-delay: 0.08s; }
+.parent > .card:nth-child(4) { animation-delay: 0.12s; }
+.parent > .card:nth-child(5) { animation-delay: 0.16s; }
+.parent > .card:nth-child(6) { animation-delay: 0.20s; }
+.parent > .card:nth-child(7) { animation-delay: 0.24s; }
+.parent > .card:nth-child(8) { animation-delay: 0.28s; }
+.parent > .card:nth-child(9) { animation-delay: 0.32s; }
+
+/* ─── CARD PLACEMENTS — DESKTOP ────────────────────────────── */
 .salesAnalytics-card {
-    min-height: 12rem;
-    grid-column: span 5 / span 5;
-    grid-row: span 3 / span 3;
-}
-
-.regionalBreakdown-card {
-    min-height: 12rem;
-    grid-column: span 2 / span 2;
-    grid-row: span 3 / span 3;
-    grid-column-start: 1;
-    grid-row-start: 4;
-}
-
-.eoqActivity-card {
-    min-height: 12rem;
-    grid-column: span 3 / span 3;
-    grid-row: span 3 / span 3;
-    grid-column-start: 3;
-    grid-row-start: 4;
-}
-
-.productSales-card {
-    min-height: 25rem;
-    grid-column: span 3 / span 3;
-    grid-row: span 6 / span 6;
-    grid-column-start: 1;
-    grid-row-start: 7;
+    grid-column: 1 / span 5;
+    grid-row: 1 / span 2;
+    min-height: 14rem;
 }
 
 .catalogStatus-card {
-    min-height: 12rem;
-    grid-column: span 2 / span 2;
-    grid-row: span 3 / span 3;
-    grid-column-start: 6;
-    grid-row-start: 1;
+    grid-column: 6 / span 2;
+    grid-row: 1;
+    min-height: 6rem;
 }
-  
+
 .totalRevenue-card {
-    min-height: 12rem;
-    grid-column: span 2 / span 2;
-    grid-row: span 3 / span 3;
-    grid-column-start: 6;
-    grid-row-start: 4;
+    grid-column: 6 / span 2;
+    grid-row: 2;
+    min-height: 6rem;
+}
+
+.regionalBreakdown-card {
+    grid-column: 1 / span 2;
+    grid-row: 3;
+    min-height: 10rem;
+}
+
+.eoqActivity-card {
+    grid-column: 3 / span 3;
+    grid-row: 3;
+    min-height: 10rem;
 }
 
 .totalOrder-card {
-    min-height: 12rem;
-    grid-column: span 2 / span 2;
-    grid-row: span 3 / span 3;
-    grid-column-start: 6;
-    grid-row-start: 7;
+    grid-column: 6 / span 2;
+    grid-row: 3;
+    min-height: 10rem;
 }
 
-.totalCustomer-card {
-    min-height: 12rem;
-    grid-column: span 2 / span 2;
-    grid-row: span 3 / span 3;
-    grid-column-start: 6;
-    grid-row-start: 10;
+.productSales-card {
+    grid-column: 1 / span 3;
+    grid-row: 4;
+    min-height: 16rem;
 }
 
 .lowStockalerts-card {
-    min-height: 25rem;
-    grid-column: span 2 / span 2;
-    grid-row: span 6 / span 6;
-    grid-column-start: 4;
-    grid-row-start: 7;
+    grid-column: 4 / span 2;
+    grid-row: 4;
+    min-height: 16rem;
 }
-        
-        
+
+.totalCustomer-card {
+    grid-column: 6 / span 2;
+    grid-row: 4;
+    min-height: 16rem;
+}
+
+/* ─── TABLET — 1024px ──────────────────────────────────────── */
+@media (max-width: 1024px) {
+    .parent {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .salesAnalytics-card {
+        grid-column: 1 / span 4;
+        grid-row: 1;
+        min-height: 12rem;
+    }
+
+    .catalogStatus-card {
+        grid-column: 1 / span 2;
+        grid-row: 2;
+        min-height: 7rem;
+    }
+
+    .totalRevenue-card {
+        grid-column: 3 / span 2;
+        grid-row: 2;
+        min-height: 7rem;
+    }
+
+    .regionalBreakdown-card {
+        grid-column: 1 / span 2;
+        grid-row: 3;
+        min-height: 9rem;
+    }
+
+    .eoqActivity-card {
+        grid-column: 3 / span 2;
+        grid-row: 3;
+        min-height: 9rem;
+    }
+
+    .totalOrder-card {
+        grid-column: 1 / span 2;
+        grid-row: 4;
+        min-height: 7rem;
+    }
+
+    .totalCustomer-card {
+        grid-column: 3 / span 2;
+        grid-row: 4;
+        min-height: 7rem;
+    }
+
+    .productSales-card {
+        grid-column: 1 / span 2;
+        grid-row: 5;
+        min-height: 14rem;
+    }
+
+    .lowStockalerts-card {
+        grid-column: 3 / span 2;
+        grid-row: 5;
+        min-height: 14rem;
+    }
+}
+
+/* ─── MOBILE — 640px ───────────────────────────────────────── */
+@media (max-width: 640px) {
+    .parent {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .salesAnalytics-card {
+        grid-column: 1 / span 2;
+        grid-row: auto;
+        min-height: 10rem;
+    }
+
+    .catalogStatus-card,
+    .totalRevenue-card,
+    .totalOrder-card,
+    .totalCustomer-card {
+        grid-column: span 1;
+        grid-row: auto;
+        min-height: 6rem;
+    }
+
+    .regionalBreakdown-card,
+    .eoqActivity-card {
+        grid-column: span 1;
+        grid-row: auto;
+        min-height: 8rem;
+    }
+
+    .productSales-card,
+    .lowStockalerts-card {
+        grid-column: 1 / span 2;
+        grid-row: auto;
+        min-height: 12rem;
+    }
+}
+
+/* ─── MOBILE SMALL — 400px ─────────────────────────────────── */
+@media (max-width: 400px) {
+    .parent {
+        grid-template-columns: 1fr;
+    }
+
+    .salesAnalytics-card,
+    .catalogStatus-card,
+    .totalRevenue-card,
+    .totalOrder-card,
+    .totalCustomer-card,
+    .regionalBreakdown-card,
+    .eoqActivity-card,
+    .productSales-card,
+    .lowStockalerts-card {
+        grid-column: 1;
+        grid-row: auto;
+        min-height: 8rem;
+    }
+}

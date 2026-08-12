@@ -5,30 +5,32 @@
 }
 /*==========USED FOR DARK & LIGHT MODE==========*/
 :root, [data-theme="light"] {
-    --bg-main: #ffffff;
-    --bg-sidebar: #cecbcb;
-    --bg-card: #ffffff;
+    --bg-main: #F8FAFC;
+    --bg-sidebar: #e0dbdb;
+    --bg-card: #FFFFFF;
     --text-primary: #0B1B33;
-    --text-muted: #64748b;
-    --border-color: rgba(0, 0, 0, 0.08);
-    --text-sidebar-icon: #0D1E3D;
-    --background-icon-active-color: #0D1E3D;
-    --icon-active-color: #D4AF37;
-    --background-icon-active-color-theme: rgba(11, 27, 51, 0.08);
+    --text-muted: #64748B;
+    --border-color: rgba(11, 27, 51, 0.08);
+    --text-sidebar-icon: #0B1B33;
+    --background-icon-active-color: #E8C547;
+    --icon-active-color: #0B1B33;
+    --background-icon-active-color-theme: rgba(232, 197, 71, 0.12);
+    --static-bg-color: #EEF2F7;
 }
  
 [data-theme="dark"] {
     color-scheme: dark;
-    --bg-main: #0B1B33;
-    --bg-sidebar: #071324;
-    --bg-card: #0D1E3D;
-    --text-primary: #ffffff;
-    --text-muted: #8892b0;
-    --border-color: rgba(214, 175, 55, 0.2);
-    --text-sidebar-icon: #ffffff;
-    --background-icon-active-color: #D4AF37;
-    --icon-active-color: #0B1B33;
-    --background-icon-active-color-theme: rgba(212, 175, 55, 0.12);
+    --bg-main: #0B1426;
+    --bg-sidebar: #0f1c36;
+    --bg-card: #111E33;
+    --text-primary: #F8FAFC;
+    --text-muted: #94A3B8;
+    --border-color: rgba(232, 197, 71, 0.15);
+    --text-sidebar-icon: #F8FAFC;
+    --background-icon-active-color: #E8C547;
+    --icon-active-color: #0B1426;
+    --background-icon-active-color-theme: rgba(232, 197, 71, 0.12);
+    --static-bg-color: #1A2940;
 }
 
 /*========== DARK MODE: MOON ICON GLOW (ISOLATED SPECIFICITY) ==========*/
@@ -154,7 +156,7 @@ body,
     flex: none !important;
     width: 100%;
     background-color: var(--bg-sidebar, #172237);
-    border-radius: 1.25rem;
+    border-radius: 1rem;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
 }
 
@@ -189,6 +191,7 @@ body,
     position: relative;
     padding: 0;
     color: var(--text-primary);
+    background-color: var(--static-bg-color);
 }
 
 .sidebar-item.active button {
@@ -201,7 +204,7 @@ body,
 }
 
 .sidebar-item:not(.active) button:hover {
-    background-color: rgba(247, 245, 245, 0.1) !important; 
+    background-color: rgba(247, 245, 245, 0.1) !important;
 }
 
 .sidebar-item:not(.active) button:hover .sidebar-icon {
@@ -233,11 +236,29 @@ body,
     width: 100%;
     margin-top: auto;
     padding: 0.75rem 0;
-    background-color: var(--bg-sidebar, #172237);
+    background-color: transparent;
     border-radius: 1.25rem;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
     flex-shrink: 0 !important;
 }
+
+.sub-sidebar-footer-item{
+    gap: 10px;
+}
+
+
+.sub-sidebar-footer-item-logout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    width: auto;
+    margin-top: auto;
+    padding: 0.3rem 0.3rem;
+    background-color: var(--bg-sidebar);
+    border-radius: 1rem;
+    flex-shrink: 0 !important;
+}
+
 
 .sidebar-footer-item .siderbar-item button {
     width: 2.5rem;
@@ -248,7 +269,7 @@ body,
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    border-radius: 0.625rem;
+    border-radius: 1rem;
     transition: all 0.25s ease-in-out;
     padding: 0;
 }
@@ -257,13 +278,19 @@ body,
     background-color: var(--background-icon-active-color-theme) !important;
 }
 
-#log-out {
+#log-out.sidebar-item {
     margin-top: 0;
     width: 100%;
+    background-color: transparent !important;
 }
 
-#log-out .sidebar-icon {
-    color: var(--text-primary) !important;
+#log-out.sidebar-item button {
+    background-color: transparent !important;
+    color: #ffffff;
+}
+
+#log-out.sidebar-item .sidebar-icon {
+    color: #ffffff !important;
     stroke: var(--text-primary) !important;
 }
 
@@ -272,9 +299,7 @@ body,
     transition: color 0.2s ease-in-out;
 }
 
-#log-out button:hover {
-    background-color: rgba(255, 2, 2, 0.378) !important;
-}
+
 
 #log-out button:hover .sidebar-label,
 #log-out button:hover .sidebar-icon {
@@ -284,7 +309,6 @@ body,
 
 /*==========CONTENT BODY==========*/
 .main-wrapper {
-    
     padding: 0.5rem;
     display: flex;
     gap: 10px;
@@ -346,10 +370,35 @@ body,
 }
 
 .main-content-window {
+    position: relative;
     overflow-y: auto;
+    overflow-x: hidden;
     scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
     height: calc(90vh - 4.5rem);
     width: 100%;
+    padding-bottom: 0;
+}
+
+.main-content-window::before,
+.main-content-window::after {
+  content: '';
+  position: sticky;
+  pointer-events: none;
+  left: 0;
+  right: 0;
+  height: 3rem;
+  z-index: 2;
+}
+
+.main-content-window::before {
+  top: 0;
+  background: linear-gradient(180deg, rgba(11, 27, 51, 0.95), rgba(11, 27, 51, 0));
+}
+
+.main-content-window::after {
+  bottom: 0;
+  background: linear-gradient(0deg, rgba(11, 27, 51, 0.95), rgba(11, 27, 51, 0));
 }
 
 .main-content-window::-webkit-scrollbar {

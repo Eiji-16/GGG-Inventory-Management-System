@@ -17,6 +17,7 @@ import {
   Sun,
   Menu,
   User,
+  Settings,
   Heading6
 } from 'lucide-react'; /* Lucid Components */
 
@@ -96,16 +97,27 @@ function LandingPage() {
         </ul>
  {/* Logout Button  */}
         <div className="sidebar-footer-item">
-            <div className="siderbar-item">
-              <button onClick={toggleTheme} aria-label="Toggle Theme Mode">
-                {isDarkMode ? <Sun className="sidebar-icon" /> : <Moon className = "sidebar-icon" />} 
-              </button>
-            </div>
+            <div className = "sub-sidebar-footer-item">
+              <div className={`siderbar-item $ {activeView === "Setting' ? 'active' : ''}`}>
+                <button onClick={() => {setActiveView('Setting'); setIsSidebarOpen(false); }}>
+                  <Settings className="sidebar-icon"/>
+                  <span className="sidebar-label">Setting</span>
+                </button>
+              </div>
 
-            <div id="log-out" className="sidebar-item">
-              <button onClick={() => console.log('logging out...')}>
-                <LogOut className="sidebar-icon" />
-              </button>
+              <div className="siderbar-item">
+                <button onClick={toggleTheme} aria-label="Toggle Theme Mode">
+                  {isDarkMode ? <Sun className="sidebar-icon" /> : <Moon className = "sidebar-icon" />} 
+                </button>
+              </div>
+            </div>
+            
+            <div className = "sub-sidebar-footer-item-logout">
+              <div id="log-out" className="sidebar-item">
+                <button onClick={() => console.log('logging out...')}>
+                  <LogOut className="sidebar-icon" />
+                </button>
+              </div>
             </div>
         </div>
       </aside>
