@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, X, Calculator } from 'lucide-react';
-import '../css/autoCal.css';
+import './autoCal.css';
 
 const DEFAULT_FORMULAS = [
   {
@@ -167,8 +167,7 @@ function AutoCalculator({ onNavigate }) {
       {/* Header */}
       <div className="ac-header">
         <div>
-          <h2 className="ac-title">Auto Calculator</h2>
-          <p className="ac-subtitle">Compute inventory formulas automatically</p>
+          
         </div>
         <button className="ac-add-btn" onClick={() => setShowModal(true)}>
           <Plus size={13} /> Add Formula

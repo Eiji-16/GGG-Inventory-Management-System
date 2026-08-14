@@ -8,7 +8,7 @@ import {
   BarChart2,
   Package,
 } from 'lucide-react';
-import '../css/reports.css';
+import './reports.css';
 
 // Sample Data
 const STOCK_SUMMARY = [

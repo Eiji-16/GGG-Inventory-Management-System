@@ -1,5 +1,5 @@
 import React from 'react';
-import '../css/dashboard.css';
+import './dashboard.css';
 
 function Dashboard({ onNavigate }) {
   return (

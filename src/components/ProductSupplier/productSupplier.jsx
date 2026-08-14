@@ -3,7 +3,7 @@ import {
    Search, Plus, Edit, Trash2
 } from 'lucide-react';
 
-import '../css/productSupplier.css';
+import './productSupplier.css';
 
 function ProductSupplier({ onNavigate }) {
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
-import Login from './Login';
-import LandingPage from './landingPage';
+import Login from '../components/Login/Login';
+import LandingPage from '../components/LandingPage/landingPage';
 
 function App() {
     const [page, setPage] = useState('dashboard');
@@ -14,4 +14,9 @@ function App() {
     );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+// Initialize root once and reuse for HMR
+const rootElement = document.getElementById('root');
+if (!window.__reactRoot__) {
+    window.__reactRoot__ = ReactDOM.createRoot(rootElement);
+}
+window.__reactRoot__.render(<App />);

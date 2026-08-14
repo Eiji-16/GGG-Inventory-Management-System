@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search } from 'lucide-react';
 
-import '../css/stockControl.css';
+import './stockControl.css';
 
 function StockControl({ onNavigate }) {
 

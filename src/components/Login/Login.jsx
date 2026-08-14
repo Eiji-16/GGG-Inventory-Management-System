@@ -1,4 +1,4 @@
-import "../css/index.css";
+import '../../styles/index.css';
 
 const samplepic = "/image/sample.jpg";
 

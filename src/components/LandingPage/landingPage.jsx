@@ -21,13 +21,13 @@ import {
   Heading6
 } from 'lucide-react'; /* Lucid Components */
 
-import '../css/landingPage.css'; /* Landing Page CSS */
-import Dashboard from './dashboard'; /* Dashboard content component */
-import ProductSupplier from './productSupplier'; /* Product and Supplier content component */
-import AutoCalculator from './autoCal'; /* EOQ content component */
-import SalesForecasting from './forecasting'; /* Forecasting content component */
-import ReportAnalytics from './reports';/* Report content component */
-import StockManagement from './stockControl'; /* Stock Control content component */
+import './landingPage.css'; /* Landing Page CSS */
+import Dashboard from '../Dashboard/dashboard'; /* Dashboard content component */
+import ProductSupplier from '../ProductSupplier/productSupplier'; /* Product and Supplier content component */
+import AutoCalculator from '../AutoCalculator/autoCal'; /* EOQ content component */
+import SalesForecasting from '../Forecasting/forecasting'; /* Forecasting content component */
+import ReportAnalytics from '../Reports/reports';/* Report content component */
+import StockManagement from '../StockControl/stockControl'; /* Stock Control content component */
 
 // LandingPage.jsx
 function LandingPage() {
@@ -126,17 +126,16 @@ function LandingPage() {
         <div className="main-wrapper">
           <header className="top-navbar">
             <div className="top-navbar-left-side">
-              <button className="mobile-menu-toggle"
-              onClick={() =>setIsSidebarOpen(true)} aria-label = "Open Sidebar">  </button>
+              
               <div className="page-title-row">
-                <h1>
+                <h2>
                   {activeView === 'Dashboard' && 'Dashboard Overview'}
                   {activeView === 'Product-Supplier' && 'Product & Supplier'}
                   {activeView === 'Stock' && 'Stock Control'}
                   {activeView === 'EOQ' && 'EOQ Calculator'}
                   {activeView === 'Forecasting' && 'Sales Forecasting'}
                   {activeView === 'Reports' && 'Reports & Analytics'}
-                </h1>
+                </h2>
 
                 <p className= "sub-title">
                   {activeView === 'Dashboard' && 'Detailed Information about your store'}
@@ -150,12 +149,11 @@ function LandingPage() {
             </div>
             <div className = "top-navbar-right-side">
               <button className = "navbar-bell-icon" aria-label="Notification">
-                <Bell size = {16}> </Bell>
+                <Bell size = {16}/>
                 <span className="notif-bell-dot"></span>
               </button>
 
               <div className="navbar-user-profile" title="User Profile">
-                <img src=''></img>
                 <User size ={16}/>
               </div>
             </div>
