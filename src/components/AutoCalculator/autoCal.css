@@ -1,384 +1,158 @@
-/* ROOT */
-.ac-root {
-    padding: 10px;
-    width: 100%;
-    height: 100%;
-    font-family: var(--font-sans, system-ui, sans-serif);
-    box-sizing: border-box;
-}
-
-/* HEADER */
-.ac-header {
+/* HEADER ACTIONS */
+.ac-header-actions {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 1rem;
-}
-.ac-title {
-    font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 2px;
-}
-.ac-subtitle {
-    font-size: 11px;
-    color: #888;
-}
-.ac-add-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 0.25rem 0.625rem;
-    font-size: 11px;
-    border-radius: 1rem;
-    border: 0.5px solid black;
-    background: transparent;
-    cursor: pointer;
-    transition: background 0.15s;
-}
-.ac-add-btn:hover {
-    background: rgba(0,0,0,0.05);
-}
-
-/* TABS */
-.ac-tabs {
-    display: flex;
-    gap: 4px;
+    gap: 6px;
     flex-wrap: wrap;
-    margin-bottom: 1.25rem;
 }
-.ac-tab {
+.ac-icon-btn {
     display: inline-flex;
     align-items: center;
-    border: 0.5px solid black;
-    border-radius: 1rem;
-    overflow: hidden;
-    transition: all 0.15s;
-}
-.ac-tab.active {
-    background: black;
-    color: white;
-}
-.ac-tab-btn {
+    gap: 4px;
     padding: 0.25rem 0.625rem;
     font-size: 11px;
+    border-radius: 1rem;
+    border: 0.5px solid black;
     background: transparent;
-    border: none;
     cursor: pointer;
-    color: inherit;
-}
-.ac-tab-close {
-    padding: 0.25rem 0.375rem;
-    background: transparent;
-    border: none;
-    border-left: 0.5px solid rgba(255,255,255,0.3);
-    cursor: pointer;
-    color: inherit;
-    display: flex;
-    align-items: center;
     transition: background 0.15s;
 }
-.ac-tab-close:hover {
-    background: rgba(255,0,0,0.15);
+.ac-icon-btn:hover { background: rgba(0,0,0,0.05); }
+
+/* TOOLTIP */
+.ac-tooltip-wrapper {
+    position: relative;
+    display: inline-flex;
+    margin-left: 6px;
+    cursor: help;
+    vertical-align: middle;
 }
-.ac-tab:not(.active) .ac-tab-close {
-    border-left: 0.5px solid rgba(0,0,0,0.2);
+.ac-tooltip-icon { color: #888; }
+.ac-tooltip-box {
+    position: absolute;
+    top: 120%;
+    left: 0;
+    z-index: 20;
+    width: 220px;
+    background: #222;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.5;
+    padding: 8px 10px;
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
-/* BODY */
-.ac-body {
+/* PRODUCT SELECTOR */
+.ac-product-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 1rem;
+    max-width: 320px;
+}
+
+/* EXPORT */
+.ac-export-actions {
+    display: flex;
+    gap: 6px;
+}
+.ac-export-actions .ac-btn-reset {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* HISTORY */
+.ac-modal-wide { max-width: 620px; }
+.ac-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+.ac-history-item {
+    border: 0.5px solid rgba(0,0,0,0.15);
+    border-radius: 0.5rem;
+    padding: 10px;
+}
+.ac-history-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+.ac-history-date { font-weight: 400; color: #888; font-size: 10px; }
+.ac-history-inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+.ac-history-input-chip {
+    font-size: 10px;
+    background: rgba(0,0,0,0.05);
+    border-radius: 0.75rem;
+    padding: 2px 8px;
+    color: #555;
+}
+.ac-history-result { font-size: 12px; }
+
+/* COMPARISON MODE */
+.ac-compare-wrapper {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
 }
 @media (max-width: 600px) {
-    .ac-body { grid-template-columns: 1fr; }
+    .ac-compare-wrapper { grid-template-columns: 1fr; }
 }
-
-/* LEFT */
-.ac-left {
+.ac-compare-col {
     border: 0.5px solid black;
     border-radius: 0.5rem;
     padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-.ac-formula-info {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-.ac-formula-name {
-    font-size: 13px;
-    font-weight: 600;
-}
-.ac-formula-desc {
-    font-size: 11px;
-    color: #888;
-    line-height: 1.5;
-}
-.ac-formula-expr {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    background: rgba(0,0,0,0.04);
-    border: 0.5px solid rgba(0,0,0,0.15);
-    border-radius: 0.375rem;
-    padding: 4px 8px;
-    font-size: 12px;
-    font-family: monospace;
-    color: #444;
-    width: fit-content;
-}
-
-/* INPUTS */
-.ac-inputs {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
-.ac-input-group {
+.ac-compare-select-row {
     display: flex;
     flex-direction: column;
     gap: 4px;
 }
-.ac-label {
-    font-size: 11px;
-    font-weight: 500;
-    color: #555;
-}
-.ac-required {
-    color: #e24b4a;
-}
-.ac-input-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-.ac-input {
-    flex: 1;
-    padding: 6px 8px;
-    font-size: 12px;
-    border: 0.5px solid black;
-    border-radius: 0.375rem;
-    outline: none;
-    background: transparent;
-    transition: border-color 0.15s;
-}
-.ac-input:focus {
-    border-color: #444;
-}
-.ac-input-sm {
-    flex: 1;
-    min-width: 0;
-}
-.ac-unit {
-    font-size: 10px;
-    color: #888;
-    white-space: nowrap;
-    min-width: 80px;
-}
-
-/* ACTIONS */
-.ac-actions {
-    display: flex;
-    gap: 6px;
-}
-.ac-btn-compute {
-    padding: 0.375rem 1rem;
-    font-size: 12px;
-    border-radius: 1rem;
-    border: 0.5px solid black;
-    background: black;
-    color: white;
-    cursor: pointer;
-    transition: opacity 0.15s;
-}
-.ac-btn-compute:hover { opacity: 0.8; }
-.ac-btn-reset {
-    padding: 0.375rem 0.75rem;
-    font-size: 12px;
-    border-radius: 1rem;
-    border: 0.5px solid black;
-    background: transparent;
-    cursor: pointer;
-    transition: background 0.15s;
-}
-.ac-btn-reset:hover { background: rgba(0,0,0,0.05); }
-
-/* RIGHT — RESULT */
-.ac-right {
-    display: flex;
-    flex-direction: column;
-}
-.ac-result-box {
-    border: 0.5px solid black;
-    border-radius: 0.5rem;
-    padding: 1rem;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-.ac-result-section {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-.ac-result-section-label {
-    font-size: 10px;
-    color: #888;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-.ac-result-formula {
-    font-size: 16px;
-    font-weight: 600;
-    font-family: monospace;
-}
-.ac-result-divider {
-    border: none;
-    border-top: 0.5px solid rgba(0,0,0,0.15);
-}
-.ac-result-value {
-    font-size: 40px;
+.ac-compare-result {
+    font-size: 24px;
     font-weight: 700;
-    color: #ccc;
-    transition: color 0.2s;
-    line-height: 1;
-}
-.ac-result-value.has-result {
-    color: black;
-}
-.ac-result-unit {
-    font-size: 12px;
-    color: #888;
-    margin-top: 2px;
-}
-.ac-result-hint {
-    font-size: 12px;
-    color: #444;
-    background: rgba(0,0,0,0.04);
-    border: 0.5px solid rgba(0,0,0,0.1);
-    border-radius: 0.375rem;
-    padding: 8px 10px;
-    line-height: 1.5;
-}
-.ac-result-empty {
-    font-size: 11px;
-    color: #aaa;
-    line-height: 1.5;
+    margin-top: 8px;
 }
 
-/* MODAL */
-.ac-modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.4);
+/* BATCH COMPUTE */
+.ac-batch-product-list {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-.ac-modal {
-    background: white;
-    border-radius: 0.75rem;
-    width: 100%;
-    max-width: 480px;
-    max-height: 90vh;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 160px;
     overflow-y: auto;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-}
-.ac-modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1rem 0.75rem;
-    border-bottom: 0.5px solid rgba(0,0,0,0.15);
-}
-.ac-modal-title {
-    font-size: 14px;
-    font-weight: 600;
-}
-.ac-modal-close {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #888;
-    display: flex;
-    align-items: center;
-}
-.ac-modal-body {
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-.ac-field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-.ac-fields-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 6px;
-}
-.ac-field-row {
-    display: grid;
-    grid-template-columns: 1fr 1.5fr 1fr auto;
-    gap: 4px;
-    align-items: center;
-}
-.ac-remove-field-btn {
-    background: none;
-    border: 0.5px solid rgba(0,0,0,0.2);
-    border-radius: 0.25rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    padding: 4px;
-    color: #e24b4a;
-}
-.ac-add-field-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
-    font-size: 11px;
-    border: 0.5px dashed rgba(0,0,0,0.3);
+    border: 0.5px solid rgba(0,0,0,0.15);
     border-radius: 0.375rem;
-    background: transparent;
-    cursor: pointer;
-    color: #888;
-    transition: background 0.15s;
+    padding: 8px;
 }
-.ac-add-field-btn:hover { background: rgba(0,0,0,0.04); }
-.ac-modal-footer {
+.ac-batch-product-item {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
     gap: 6px;
-    padding: 0.75rem 1rem 1rem;
-    border-top: 0.5px solid rgba(0,0,0,0.1);
-}
-.ac-btn-cancel {
-    padding: 0.375rem 0.75rem;
     font-size: 12px;
-    border-radius: 1rem;
-    border: 0.5px solid black;
-    background: transparent;
-    cursor: pointer;
 }
-.ac-btn-save {
-    padding: 0.375rem 1rem;
+.ac-batch-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
     font-size: 12px;
-    border-radius: 1rem;
-    border: 0.5px solid black;
-    background: black;
-    color: white;
-    cursor: pointer;
-    transition: opacity 0.15s;
 }
-.ac-btn-save:hover { opacity: 0.8; }
+.ac-batch-table th, .ac-batch-table td {
+    border: 0.5px solid rgba(0,0,0,0.15);
+    padding: 6px 8px;
+    text-align: left;
+}
