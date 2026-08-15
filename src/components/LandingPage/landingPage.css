@@ -28,7 +28,7 @@
  
 [data-theme="dark"] {
     color-scheme: dark;
-    --bg-main: #0B1426;
+    --bg-main: linear-gradient(180deg, #0d1b3e 0%, #152d6b 100%);
     --bg-sidebar: #0f1c36;
     --bg-card: #111E33;
     --text-primary: #F8FAFC;
@@ -334,6 +334,7 @@
 .page-title-row {
     display: flex;
     flex-direction: column;
+    color: var(--text-primary);
 }
 
 .page-title{
@@ -379,7 +380,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--text-primary);
   position: relative;
 }
 
