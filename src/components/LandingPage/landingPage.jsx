@@ -30,10 +30,11 @@ import ReportAnalytics from '../Reports/reports';/* Report content component */
 import StockManagement from '../StockControl/stockControl'; /* Stock Control content component */
 
 // LandingPage.jsx
-function LandingPage() {
+function LandingPage({onLogout}) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* Action button for sidebar when zoomed or phone size */
   const [isDarkMode, setIsDarkMode] = useState(true); /* Default to dark theme */
   const [activeView, setActiveView] = useState('Dashboard'); /* To toggle active button */
+  
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
@@ -41,6 +42,14 @@ function LandingPage() {
 
   const toggleTheme = () => {
     setIsDarkMode((currentMode) => !currentMode);
+  };
+
+  const handleLogout =  () => {
+    if (onLogout) {
+      onLogout();
+    } else {
+      console.log('Logging out...')
+    }
   };
   return (
     <div className="dashboard-page-wrapper">
@@ -114,7 +123,7 @@ function LandingPage() {
             
             <div className = "sub-sidebar-footer-item-logout">
               <div id="log-out" className="sidebar-item">
-                <button onClick={() => console.log('logging out...')}>
+                <button onClick={handleLogout}>
                   <LogOut className="sidebar-icon" />
                 </button>
               </div>

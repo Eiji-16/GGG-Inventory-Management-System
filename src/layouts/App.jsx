@@ -9,7 +9,7 @@ function App() {
     return (
         <div>
             {page === 'login' && <Login onLogin={() => setPage('dashboard')} />}
-            {page === 'dashboard' && <LandingPage />}
+            {page === 'dashboard' && <LandingPage onLogout={() => setPage('login')} />}
         </div>
     );
 }
