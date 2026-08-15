@@ -137,14 +137,14 @@ function LandingPage({onLogout}) {
             <div className="top-navbar-left-side">
               
               <div className="page-title-row">
-                <h2>
+                <p>
                   {activeView === 'Dashboard' && 'Dashboard Overview'}
                   {activeView === 'Product-Supplier' && 'Product & Supplier'}
                   {activeView === 'Stock' && 'Stock Control'}
                   {activeView === 'EOQ' && 'EOQ Calculator'}
                   {activeView === 'Forecasting' && 'Sales Forecasting'}
                   {activeView === 'Reports' && 'Reports & Analytics'}
-                </h2>
+                </p>
 
                 <p className= "sub-title">
                   {activeView === 'Dashboard' && 'Detailed Information about your store'}
