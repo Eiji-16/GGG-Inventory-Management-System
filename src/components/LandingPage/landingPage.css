@@ -13,7 +13,7 @@
 }
 /*==========USED FOR DARK & LIGHT MODE==========*/
 :root, [data-theme="light"] {
-    --bg-main: #F8FAFC;
+    --bg-main: #c9cacc;
     --bg-sidebar: #e0dbdb;
     --bg-card: #FFFFFF;
     --text-primary: #0B1B33;
@@ -84,7 +84,7 @@
     padding: 0;
     min-height: 100vh;
     width: 100%;
-    background-color: var(--bg-main);
+    background: var(--bg-main);
     transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     will-change: background-color;
 }

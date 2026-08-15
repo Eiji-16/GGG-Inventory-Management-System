@@ -1,4 +1,3 @@
-
 /*-------------TABLE PARENT-------------*/
 .ps-table-parent{
     padding: 10px;
@@ -37,17 +36,28 @@ input{
     background: transparent;
 }
 
-
-
 .ps-add-btn{
     padding: 0.25rem 0.5rem;
     align-items: center;
     display: inline-flex;
+    gap: 6px;
     background-color: transparent;
     border-radius: 1rem;
     font-size: 10px;
     border: 0.5px solid black;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--text-primary);
+}
 
+.ps-add-btn:hover {
+    background-color: var(--background-icon-active-color-theme) !important;
+    border-color: var(--accent, #E8C547);
+    transform: translateY(-1px);
+}
+
+.ps-add-btn:active {
+    transform: scale(0.96);
 }
 
 /*-------------LABEL BAR-------------*/
@@ -62,6 +72,7 @@ input{
     align-items: center;
     font-size: 13px;
         grid-template-columns:
+        minmax(32px, 0.35fr)   /* Checkbox */
         minmax(70px, 1fr)       /* Product ID */
         minmax(180px, 2fr)     /* Product Name */
         minmax(110px, 1.2fr)   /* Category */
@@ -80,10 +91,9 @@ input{
     border-right: 1px solid black;
 }
 
-.ps-label-row-grid > div:nth-child(8){
+.ps-label-row-grid > div:last-child{
     border-right: none;
 }
-
 
 /*-------------DATA TABLE-------------*/
 .ps-data-table{
@@ -101,12 +111,14 @@ input{
     background-color: transparent;
     justify-content: flex-start;
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
     text-align: center;
     align-items: center;
     font-size: 10px;
-    
+    transition: background-color 0.2s ease;
+    border-bottom: 0.5px solid rgba(0, 0, 0, 0.15);
+
         grid-template-columns:
+        minmax(32px, 0.35fr)   /* Checkbox */
         minmax(70px, 1fr)       /* Product ID */
         minmax(180px, 2fr)     /* Product Name */
         minmax(110px, 1.2fr)   /* Category */
@@ -117,14 +129,20 @@ input{
         minmax(90px, 0.8fr);    /* Action */
 }
 
+.ps-data-row-grid:last-child {
+    border-bottom: none;
+}
+
+.ps-data-row-grid:hover {
+    background-color: var(--background-icon-active-color-theme) !important;
+}
+
+.ps-data-row-grid.is-selected {
+    background-color: var(--background-icon-active-color-theme) !important;
+}
 
 .ps-data-row-grid > div:last-child {
     border-right: none;
-    
-}
-
-.ps-data-table .data-row-grid:last-child{
-    border: none;
 }
 
 .ps-data-row-grid > div {
@@ -134,7 +152,20 @@ input{
     display: flex;
     align-items: center;
     justify-content: center;
-    
+}
+
+.ps-cell-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/*-------------CHECKBOX-------------*/
+.ps-checkbox-cell input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    accent-color: var(--background-icon-active-color, #E8C547);
 }
 
 /*===============FIX BY AI===============*/
@@ -153,17 +184,18 @@ input{
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-
-.ps-table-action-btn.edit-btn:hover {
-    color: var(--accent);
+.ps-table-action-btn.ps-edit-btn:hover {
+    color: var(--accent, #E8C547);
     background: var(--background-icon-active-color-theme) !important; 
-    filter: drop-shadow(0 0 6px var(--shadow-glow));
+    filter: drop-shadow(0 0 6px rgba(232, 197, 71, 0.4));
+    transform: scale(1.08);
 }
 
-.ps-table-action-btn.delete-btn:hover {
+.ps-table-action-btn.ps-delete-btn:hover {
     color: #ff4d4d;
     background: rgba(255, 77, 77, 0.08) !important;
     filter: drop-shadow(0 0 6px rgba(255, 77, 77, 0.2));
+    transform: scale(1.08);
 }
 
 /* Micro-interaction tap down feedback */
@@ -177,4 +209,206 @@ input{
     align-items: center;
     justify-content: center;
     gap: 6px;
+}
+
+/*-------------EMPTY STATE-------------*/
+.ps-empty-state {
+    padding: 2rem;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted, #666);
+}
+
+/*==========================================
+    ADD / EDIT MODAL
+==========================================*/
+.ps-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: ps-fade-in 0.15s ease;
+}
+
+@keyframes ps-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.ps-modal {
+    background-color: var(--bg-card, #ffffff);
+    color: var(--text-primary);
+    border-radius: 1rem;
+    width: min(90vw, 26rem);
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 1.5rem 3.75rem rgba(0, 0, 0, 0.25);
+    animation: ps-slide-up 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes ps-slide-up {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.ps-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ps-modal-header h3 {
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.ps-modal-close-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.ps-modal-close-btn:hover {
+    background: var(--background-icon-active-color-theme) !important;
+    color: var(--text-primary);
+}
+
+.ps-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.5rem;
+}
+
+.ps-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.ps-form-group {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.ps-form-group label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.ps-form-group input {
+    border: 1px solid var(--border-color);
+    border-radius: 0.6rem;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.85rem;
+    background: var(--static-bg-color, #f8fafc);
+    color: var(--text-primary);
+    transition: border-color 0.2s ease;
+}
+
+.ps-form-group input:focus {
+    border-color: var(--accent, #E8C547);
+}
+
+.ps-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.ps-modal-cancel-btn,
+.ps-modal-save-btn {
+    padding: 0.6rem 1.1rem;
+    border-radius: 0.7rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.ps-modal-cancel-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.ps-modal-cancel-btn:hover {
+    background: var(--background-icon-active-color-theme) !important;
+}
+
+.ps-modal-save-btn {
+    background: var(--background-icon-active-color, #E8C547);
+    color: var(--icon-active-color, #0B1B33);
+    font-weight: 600;
+}
+
+.ps-modal-save-btn:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+}
+
+/*==========================================
+    RESPONSIVENESS
+==========================================*/
+@media (max-width: 900px) {
+    .ps-label-row-grid {
+        display: none; /* header collapses; cards use data-label instead */
+    }
+
+    .ps-data-row-grid {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        row-gap: 6px;
+        column-gap: 10px;
+        border: 0.5px solid black;
+        border-radius: 0.6rem;
+        margin-bottom: 10px;
+        padding: 10px;
+    }
+
+    .ps-data-row-grid > div {
+        justify-content: flex-start;
+        padding: 4px 0;
+    }
+
+    .ps-cell-text::before,
+    .ps-action-cell-container::before {
+        content: attr(data-label);
+        font-weight: 600;
+        font-size: 9px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-right: 6px;
+        min-width: 90px;
+        display: inline-block;
+    }
+
+    .ps-checkbox-cell {
+        grid-column: 1 / -1;
+        justify-content: flex-start !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .ps-form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .ps-modal {
+        width: 92vw;
+    }
 }
