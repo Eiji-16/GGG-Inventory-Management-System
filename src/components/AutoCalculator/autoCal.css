@@ -91,7 +91,7 @@
 .ac-label {
     font-size: 11px;
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
 }
@@ -113,7 +113,7 @@
 .ac-input:focus {
     box-shadow: 0 0 0 2px rgba(0,0,0,0.12);
 }
-.ac-input::placeholder { color: #aaa; }
+.ac-input::placeholder { color: black; }
 .ac-input-sm { flex: 1; padding: 0.4rem 0.5rem; font-size: 11px; }
 
 /* ---------- CALCULATOR BODY ---------- */
@@ -126,7 +126,10 @@
     .ac-body { grid-template-columns: 1fr; }
 }
 
-.ac-formula-info { margin-bottom: 1rem; }
+.ac-formula-info {
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
 .ac-formula-name {
     font-size: 15px;
     font-weight: 700;
@@ -257,7 +260,7 @@
 .ac-modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(2px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -265,7 +268,7 @@
     padding: 1rem;
 }
 .ac-modal {
-    background: #fff;
+    background: var(--bg-card);
     border-radius: 0.75rem;
     border: 0.5px solid black;
     width: 100%;
@@ -278,6 +281,7 @@
 .ac-modal-header {
     display: flex;
     align-items: center;
+    color: var(--text-primary);
     justify-content: space-between;
     padding: 0.9rem 1.1rem;
     border-bottom: 0.5px solid rgba(0,0,0,0.15);
