@@ -389,7 +389,7 @@ export default function DemandForecast({ showHeader = false, theme: themeProp } 
 </style>
 </head>
 <body>
-  <h1>Demand Forecast Summary</h1>
+  
   <div class="meta">Generated ${forecast.generatedAt.toLocaleString()}</div>
   <table>${rowsHtml}</table>
 </body>
