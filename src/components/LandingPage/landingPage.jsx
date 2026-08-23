@@ -24,7 +24,7 @@ import {
 import './landingPage.css'; /* Landing Page CSS */
 import Dashboard from '../Dashboard/dashboard'; /* Dashboard content component */
 import ProductSupplier from '../ProductSupplier/productSupplier'; /* Product and Supplier content component */
-import AutoCalculator from '../AutoCalculator/autoCal'; /* EOQ content component */
+import AutoCalculator from '../AutoCalculator/autoCal'; /* Auto-Calculator content component */
 import SalesForecasting from '../Forecasting/forecasting'; /* Forecasting content component */
 import ReportAnalytics from '../Reports/reports';/* Report content component */
 import StockManagement from '../StockControl/stockControl'; /* Stock Control content component */
@@ -85,10 +85,10 @@ function LandingPage({onLogout}) {
               <span className="sidebar-label">Stock Control</span>
             </button>
           </li>
-          <li className={`sidebar-item ${activeView === 'EOQ' ? 'active' : ''}`}>
-            <button onClick={() => {setActiveView('EOQ'); setIsSidebarOpen(false); }}>
+          <li className={`sidebar-item ${activeView === 'Auto-Calculator' ? 'active' : ''}`}>
+            <button onClick={() => {setActiveView('Auto-Calculator'); setIsSidebarOpen(false); }}>
               <Calculator className="sidebar-icon" />
-              <span className="sidebar-label">EOQ Calculator</span>
+              <span className="sidebar-label">Auto-Calculator Calculator</span>
             </button>
           </li>
           <li className={`sidebar-item ${activeView === 'Forecasting' ? 'active' : ''}`}>
@@ -141,7 +141,7 @@ function LandingPage({onLogout}) {
                   {activeView === 'Dashboard' && 'Dashboard Overview'}
                   {activeView === 'Product-Supplier' && 'Product & Supplier'}
                   {activeView === 'Stock' && 'Stock Control'}
-                  {activeView === 'EOQ' && 'EOQ Calculator'}
+                  {activeView === 'Auto-Calculator' && 'Auto Calculator'}
                   {activeView === 'Forecasting' && 'Sales Forecasting'}
                   {activeView === 'Reports' && 'Reports & Analytics'}
                 </p>
@@ -150,7 +150,7 @@ function LandingPage({onLogout}) {
                   {activeView === 'Dashboard' && 'Detailed Information about your store'}
                   {activeView === 'Product-Supplier' && 'Item specifications and supplier information'}
                   {activeView === 'Stock' && 'Product details and assigned supplier tracking'}
-                  {activeView === 'EOQ' && 'Optimize product order sizes and minimize supplier carrying costs'}
+                  {activeView === 'Auto-Calculator' && 'Optimize product order sizes and minimize supplier carrying costs'}
                   {activeView === 'Forecasting' && 'Analyze historical trends to project future inventory demand'}
                   {activeView === 'Reports' && 'Review inventory performance, optimization metrics, and forecasting trends'}
                 </p>
@@ -172,7 +172,7 @@ function LandingPage({onLogout}) {
               {activeView === 'Dashboard' && <Dashboard />}
               {activeView === 'Product-Supplier' && <ProductSupplier />}
               {activeView === 'Stock' && <StockManagement/>}
-              {activeView === 'EOQ' && <AutoCalculator/>}
+              {activeView === 'Auto-Calculator' && <AutoCalculator/>}
               {activeView === 'Forecasting' && <SalesForecasting/>}
               {activeView === 'Reports' && <ReportAnalytics/>}
             </main>
