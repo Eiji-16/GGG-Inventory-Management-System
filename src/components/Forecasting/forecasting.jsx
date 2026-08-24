@@ -1,16 +1,6 @@
 import React from 'react';
 import './forecasting.css';
 
-/*
-  DESIGN-ONLY VERSION — no state, no handlers, no calculations.
-  Pure static markup for visual review. Sample values are hardcoded
-  so every panel (search, chart area, result, summary card, add-formula
-  panel) renders in its "filled in" state at once.
-
-  Swap this out for the functional forecasting.jsx once the design
-  is signed off.
-*/
-
 const SAMPLE_PRODUCT = {
   id: 'PRD-9402',
   name: 'Precision Steel Chronograph',
@@ -53,23 +43,21 @@ export default function DemandForecastDesign() {
     <div className="f-root" data-theme="dark">
       <div className="f-app">
         <main className="f-main">
-          <header className="f-topbar">
-            <div>
-              <h1>Demand Forecast</h1>
-              <p>Predict future demand per product and plan the next reorder</p>
-            </div>
-            <button className="f-icon-btn" title="Toggle theme">
-              <SunIcon />
-            </button>
-          </header>
 
           {/* CONTROLS */}
           <div className="f-controls-bar">
-            <div className="f-field f-grow f-search-wrap">
-              <label>Search product</label>
-              <SearchIcon />
-              <input type="text" placeholder="Search by name, ID, brand or category…" />
+            <div className="f-field f-grow f-search-wrap relative w-full">
+              <label className="block mb-1 text-sm font-medium text-gray-700">Search product</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search by name, ID, brand or category…"
+                  className="w-full pr-10 pl-3 py-2 border rounded-md"
+                />
+                <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+              </div>
             </div>
+
 
             <div className="f-field" style={{ minWidth: 190 }}>
               <label>Product</label>
