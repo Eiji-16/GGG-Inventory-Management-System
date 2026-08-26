@@ -12,12 +12,10 @@ import {
   TrendingUp,
   BarChart3,
   LogOut,
-  Moon,
   Bell,
-  Sun,
   Menu,
   User,
-  Settings,
+  Settings as SettingsIcon,
   Heading6
 } from 'lucide-react'; /* Lucid Components */
 
@@ -28,6 +26,7 @@ import AutoCalculator from '../AutoCalculator/autoCal'; /* Auto-Calculator conte
 import SalesForecasting from '../Forecasting/forecasting'; /* Forecasting content component */
 import ReportAnalytics from '../Reports/reports';/* Report content component */
 import StockManagement from '../StockControl/stockControl'; /* Stock Control content component */
+import Settings from '../Settings/Settings'; /* Settings content component (now owns the dark/light mode switch) */
 
 // LandingPage.jsx
 function LandingPage({onLogout}) {
@@ -107,16 +106,10 @@ function LandingPage({onLogout}) {
  {/* Logout Button  */}
         <div className="sidebar-footer-item">
             <div className = "sub-sidebar-footer-item">
-              <div className={`siderbar-item $ {activeView === "Setting' ? 'active' : ''}`}>
+              <div className={`siderbar-item ${activeView === 'Setting' ? 'active' : ''}`}>
                 <button onClick={() => {setActiveView('Setting'); setIsSidebarOpen(false); }}>
-                  <Settings className="sidebar-icon"/>
+                  <SettingsIcon className="sidebar-icon"/>
                   <span className="sidebar-label">Setting</span>
-                </button>
-              </div>
-
-              <div className="siderbar-item">
-                <button onClick={toggleTheme} aria-label="Toggle Theme Mode">
-                  {isDarkMode ? <Sun className="sidebar-icon" /> : <Moon className = "sidebar-icon" />} 
                 </button>
               </div>
             </div>
@@ -144,6 +137,7 @@ function LandingPage({onLogout}) {
                   {activeView === 'Auto-Calculator' && 'Auto Calculator'}
                   {activeView === 'Forecasting' && 'Sales Forecasting'}
                   {activeView === 'Reports' && 'Reports & Analytics'}
+                  {activeView === 'Setting' && 'Settings'}
                 </p>
 
                 <p className= "sub-title">
@@ -153,6 +147,7 @@ function LandingPage({onLogout}) {
                   {activeView === 'Auto-Calculator' && 'Optimize product order sizes and minimize supplier carrying costs'}
                   {activeView === 'Forecasting' && 'Analyze historical trends to project future inventory demand'}
                   {activeView === 'Reports' && 'Review inventory performance, optimization metrics, and forecasting trends'}
+                  {activeView === 'Setting' && 'Manage your workspace preferences'}
                 </p>
               </div>
             </div>
@@ -175,6 +170,7 @@ function LandingPage({onLogout}) {
               {activeView === 'Auto-Calculator' && <AutoCalculator/>}
               {activeView === 'Forecasting' && <SalesForecasting/>}
               {activeView === 'Reports' && <ReportAnalytics/>}
+              {activeView === 'Setting' && <Settings isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />}
             </main>
         </div>
       </div>

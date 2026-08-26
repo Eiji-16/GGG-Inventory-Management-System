@@ -1,231 +1,304 @@
 import React, { useState } from 'react';
-import {
-  Download,
-  FileText,
-  Image,
-  TrendingUp,
-  TrendingDown,
-  BarChart2,
-  Package,
-} from 'lucide-react';
+import { Download, Search } from 'lucide-react';
 import './reports.css';
 
-// Sample Data
-const STOCK_SUMMARY = [
-  { name: 'Precision Steel Chronograph', category: 'Timepieces', stockIn: 150, stockOut: 98, remaining: 52, status: 'In Stock' },
-  { name: 'Water-Resistant Diver Strap', category: 'Accessories', stockIn: 200, stockOut: 185, remaining: 15, status: 'Low Stock' },
-  { name: 'Sapphire Crystal Glass Face', category: 'Spare Parts', stockIn: 300, stockOut: 300, remaining: 0, status: 'Out of Stock' },
-  { name: 'Premium Calfskin Band', category: 'Accessories', stockIn: 120, stockOut: 80, remaining: 40, status: 'In Stock' },
-  { name: 'Automatic Movement Caliber', category: 'Movements', stockIn: 90, stockOut: 75, remaining: 15, status: 'Low Stock' },
+const TABS = [
+  'Stock Summary',
+  'Stock Movement',
+  'Top Moving Products',
+  'Demand Forecast Summary',
+  'AutoCalculator Summary',
+  'Inventory Aging Report',
+  'Reorder Point Report',
 ];
 
-const MONTHLY_DATA = {
-  week:  { labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], stockIn: [20,15,30,25,18,40,22], stockOut: [12,10,18,20,15,35,18] },
-  month: { labels: ['W1', 'W2', 'W3', 'W4'], stockIn: [120, 140, 110, 130], stockOut: [90, 110, 85, 100] },
-  year:  { labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], stockIn: [300,280,320,290,350,380,310,360,340,390,420,450], stockOut: [220,200,240,210,270,300,230,280,260,310,340,370] },
-};
+const PanelHeader = ({ title, subtitle }) => (
+  <div className="ra-panel-header">
+    <div className="ra-panel-title">
+      <h2>{title}</h2>
+      <p>{subtitle}</p>
+    </div>
+    <button className="ra-export-btn">
+      <Download size={13} /> Export
+    </button>
+  </div>
+);
 
-const TOP_MOVING = [
-  { name: 'Precision Steel Chronograph', category: 'Timepieces', sold: 98, trend: 'up' },
-  { name: 'Premium Calfskin Band', category: 'Accessories', sold: 80, trend: 'up' },
-  { name: 'Automatic Movement Caliber', category: 'Movements', sold: 75, trend: 'down' },
-  { name: 'Water-Resistant Diver Strap', category: 'Accessories', sold: 185, trend: 'up' },
-  { name: 'Sapphire Crystal Glass Face', category: 'Spare Parts', sold: 300, trend: 'down' },
-];
-
-function Reports({ onNavigate }) {
-  const [period, setPeriod] = useState('month');
-  const [activeReport, setActiveReport] = useState('summary');
-
-  const data = MONTHLY_DATA[period];
-  const maxVal = Math.max(...data.stockIn, ...data.stockOut);
-
-  function handleExport(type) {
-    alert(`Exporting as ${type.toUpperCase()}... (connect to actual export library)`);
-  }
-
+function StockSummaryTab() {
   return (
-    <div className="rp-root">
+    <div>
+      <PanelHeader title="Stock Summary" subtitle="Overview of current inventory levels across all products" />
 
-      {/* Header */}
-      <div className="rp-header">
-        <div>
-          <h2 className="rp-title">Reports & Analytics</h2>
-          <p className="rp-subtitle">View inventory performance and download reports</p>
+      <div className="ra-filters-bar">
+        <div className="ra-filter-field">
+          <label>From date</label>
+          <input type="date" />
         </div>
-        <div className="rp-export-group">
-          <button className="rp-export-btn" onClick={() => handleExport('excel')}>
-            <FileText size={13} /> Excel
-          </button>
-          <button className="rp-export-btn" onClick={() => handleExport('pdf')}>
-            <FileText size={13} /> PDF
-          </button>
-          <button className="rp-export-btn" onClick={() => handleExport('image')}>
-            <Image size={13} /> Image
-          </button>
+        <div className="ra-filter-field">
+          <label>To date</label>
+          <input type="date" />
+        </div>
+        <div className="ra-filter-field">
+          <label>Category</label>
+          <select defaultValue="">
+            <option value="">All categories</option>
+            <option>Timepieces</option>
+            <option>Accessories</option>
+            <option>Movements</option>
+          </select>
+        </div>
+        <div className="ra-filter-field" style={{ flex: 1, minWidth: 200 }}>
+          <label>Search</label>
+          <div style={{ position: 'relative' }}>
+            <Search size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted, #888)' }} />
+            <input type="text" placeholder="Search product…" style={{ paddingLeft: 28, width: '100%' }} />
+          </div>
         </div>
       </div>
 
-      {/* Report Type Tabs */}
-      <div className="rp-tabs">
-        <button className={`rp-tab ${activeReport === 'summary' ? 'active' : ''}`} onClick={() => setActiveReport('summary')}>
-          <Package size={13} /> Stock Summary
-        </button>
-        <button className={`rp-tab ${activeReport === 'movement' ? 'active' : ''}`} onClick={() => setActiveReport('movement')}>
-          <BarChart2 size={13} /> Stock Movement
-        </button>
-        <button className={`rp-tab ${activeReport === 'top' ? 'active' : ''}`} onClick={() => setActiveReport('top')}>
-          <TrendingUp size={13} /> Top Moving Products
-        </button>
+      <div className="ra-kpi-row">
+        <div className="ra-kpi-card">
+          <div className="ra-kpi-label">Total Stock</div>
+          <div className="ra-kpi-value">1,842</div>
+          <div className="ra-kpi-sub">units across 5 products</div>
+        </div>
+        <div className="ra-kpi-card">
+          <div className="ra-kpi-label">Low Stock Items</div>
+          <div className="ra-kpi-value">2</div>
+          <div className="ra-kpi-sub">below reorder point</div>
+        </div>
+        <div className="ra-kpi-card">
+          <div className="ra-kpi-label">Out of Stock</div>
+          <div className="ra-kpi-value">0</div>
+          <div className="ra-kpi-sub">no products depleted</div>
+        </div>
+        <div className="ra-kpi-card">
+          <div className="ra-kpi-label">Inventory Value</div>
+          <div className="ra-kpi-value">₱612K</div>
+          <div className="ra-kpi-sub">at cost</div>
+        </div>
       </div>
 
-      {/* Stock Summary Report */}
-      {activeReport === 'summary' && (
-        <div className="rp-section">
-          <div className="rp-kpi-row">
-            <div className="rp-kpi">
-              <div className="rp-kpi-label">Total Products</div>
-              <div className="rp-kpi-val">5</div>
-            </div>
-            <div className="rp-kpi">
-              <div className="rp-kpi-label">Total Stock In</div>
-              <div className="rp-kpi-val" style={{color:'#0ca30c'}}>860</div>
-            </div>
-            <div className="rp-kpi">
-              <div className="rp-kpi-label">Total Stock Out</div>
-              <div className="rp-kpi-val" style={{color:'#e24b4a'}}>738</div>
-            </div>
-            <div className="rp-kpi">
-              <div className="rp-kpi-label">Total Remaining</div>
-              <div className="rp-kpi-val">122</div>
-            </div>
-            <div className="rp-kpi">
-              <div className="rp-kpi-label">Low Stock</div>
-              <div className="rp-kpi-val" style={{color:'#fab219'}}>2</div>
-            </div>
-            <div className="rp-kpi">
-              <div className="rp-kpi-label">Out of Stock</div>
-              <div className="rp-kpi-val" style={{color:'#e24b4a'}}>1</div>
-            </div>
-          </div>
-
-          {/* Summary Table */}
-          <div className="rp-table-wrap">
-            <div className="rp-label-row">
-              <div>Product Name</div>
-              <div>Category</div>
-              <div>Stock In</div>
-              <div>Stock Out</div>
-              <div>Remaining</div>
-              <div>Status</div>
-            </div>
-            <main className="rp-data-table">
-              {STOCK_SUMMARY.map((item, i) => (
-                <div className="rp-data-row" key={i}>
-                  <div className="rp-cell" title={item.name}>{item.name}</div>
-                  <div className="rp-cell">{item.category}</div>
-                  <div className="rp-cell" style={{color:'#0ca30c'}}>+{item.stockIn}</div>
-                  <div className="rp-cell" style={{color:'#e24b4a'}}>-{item.stockOut}</div>
-                  <div className="rp-cell">{item.remaining}</div>
-                  <div className="rp-cell">
-                    <span className={`rp-badge ${
-                      item.status === 'In Stock' ? 'badge-ok' :
-                      item.status === 'Low Stock' ? 'badge-low' : 'badge-out'
-                    }`}>{item.status}</span>
-                  </div>
-                </div>
-              ))}
-            </main>
-          </div>
-        </div>
-      )}
-
-      {/* Stock Movement Chart */}
-      {activeReport === 'movement' && (
-        <div className="rp-section">
-          <div className="rp-chart-header">
-            <div className="rp-legend">
-              <span className="rp-legend-dot" style={{background:'#0ca30c'}}></span> Stock In
-              <span className="rp-legend-dot" style={{background:'#e24b4a', marginLeft:'12px'}}></span> Stock Out
-            </div>
-            <div className="rp-period-toggle">
-              {['week','month','year'].map(p => (
-                <button
-                  key={p}
-                  className={`rp-period-btn ${period === p ? 'active' : ''}`}
-                  onClick={() => setPeriod(p)}
-                >
-                  {p.charAt(0).toUpperCase() + p.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Bar Chart */}
-          <div className="rp-chart-wrap">
-            <div className="rp-chart-y-axis">
-              {[100, 75, 50, 25, 0].map(v => (
-                <div key={v} className="rp-y-label">{Math.round(maxVal * v / 100)}</div>
-              ))}
-            </div>
-            <div className="rp-chart-bars">
-              {data.labels.map((label, i) => (
-                <div className="rp-bar-group" key={i}>
-                  <div className="rp-bars">
-                    <div
-                      className="rp-bar rp-bar-in"
-                      style={{ height: `${(data.stockIn[i] / maxVal) * 100}%` }}
-                      title={`Stock In: ${data.stockIn[i]}`}
-                    />
-                    <div
-                      className="rp-bar rp-bar-out"
-                      style={{ height: `${(data.stockOut[i] / maxVal) * 100}%` }}
-                      title={`Stock Out: ${data.stockOut[i]}`}
-                    />
-                  </div>
-                  <div className="rp-bar-label">{label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Top Moving Products */}
-      {activeReport === 'top' && (
-        <div className="rp-section">
-          <div className="rp-table-wrap">
-            <div className="rp-label-row rp-label-row-top">
-              <div>Rank</div>
-              <div>Product Name</div>
-              <div>Category</div>
-              <div>Units Sold</div>
-              <div>Trend</div>
-            </div>
-            <main className="rp-data-table">
-              {[...TOP_MOVING]
-                .sort((a, b) => b.sold - a.sold)
-                .map((item, i) => (
-                <div className="rp-data-row rp-data-row-top" key={i}>
-                  <div className="rp-cell rp-rank">#{i + 1}</div>
-                  <div className="rp-cell" title={item.name}>{item.name}</div>
-                  <div className="rp-cell">{item.category}</div>
-                  <div className="rp-cell"><strong>{item.sold}</strong> units</div>
-                  <div className="rp-cell">
-                    {item.trend === 'up'
-                      ? <span style={{color:'#0ca30c', display:'flex', alignItems:'center', gap:'4px', justifyContent:'center'}}><TrendingUp size={14}/> Rising</span>
-                      : <span style={{color:'#e24b4a', display:'flex', alignItems:'center', gap:'4px', justifyContent:'center'}}><TrendingDown size={14}/> Declining</span>
-                    }
-                  </div>
-                </div>
-              ))}
-            </main>
-          </div>
-        </div>
-      )}
-
+      <div className="ra-table-card">
+        <table className="ra-table">
+          <thead>
+            <tr><th>Product</th><th>Category</th><th>Stock</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Precision Steel Chronograph</td><td>Timepieces</td><td>42</td><td><span className="ra-badge ra-badge-good"><span className="ra-dot" />In Stock</span></td></tr>
+            <tr><td>Water-Resistant Diver Strap</td><td>Accessories</td><td>120</td><td><span className="ra-badge ra-badge-good"><span className="ra-dot" />In Stock</span></td></tr>
+            <tr><td>Sapphire Crystal Glass Face</td><td>Spare Parts</td><td>8</td><td><span className="ra-badge ra-badge-bad"><span className="ra-dot" />Low Stock</span></td></tr>
+            <tr><td>Premium Calfskin Band</td><td>Accessories</td><td>65</td><td><span className="ra-badge ra-badge-good"><span className="ra-dot" />In Stock</span></td></tr>
+            <tr><td>Automatic Movement Caliber</td><td>Movements</td><td>15</td><td><span className="ra-badge ra-badge-warn"><span className="ra-dot" />Watch</span></td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
-export default Reports;
+function StockMovementTab() {
+  const [chartType, setChartType] = useState('bar');
+  return (
+    <div>
+      <PanelHeader title="Stock Movement" subtitle="Units moving in and out of inventory over time" />
+
+      <div className="ra-filters-bar">
+        <div className="ra-filter-field">
+          <label>From date</label>
+          <input type="date" />
+        </div>
+        <div className="ra-filter-field">
+          <label>To date</label>
+          <input type="date" />
+        </div>
+      </div>
+
+      <div className="ra-chart-card">
+        <div className="ra-chart-card-head">
+          <h3>Movement over time</h3>
+          <div className="ra-toggle-group">
+            <button className={chartType === 'bar' ? 'active' : ''} onClick={() => setChartType('bar')}>Bar</button>
+            <button className={chartType === 'line' ? 'active' : ''} onClick={() => setChartType('line')}>Line</button>
+          </div>
+          <div className="ra-toggle-group">
+            <button className="active">Week</button>
+            <button>Month</button>
+            <button>Year</button>
+          </div>
+        </div>
+        <div className="ra-chart-placeholder">
+          [ {chartType} chart renders here ]
+        </div>
+      </div>
+
+      <div className="ra-table-card">
+        <table className="ra-table">
+          <thead>
+            <tr><th>Period</th><th>Stock In</th><th>Stock Out</th><th>Net Change</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Week 1</td><td>120</td><td>95</td><td className="ra-trend-up">+25</td></tr>
+            <tr><td>Week 2</td><td>80</td><td>110</td><td className="ra-trend-down">-30</td></tr>
+            <tr><td>Week 3</td><td>150</td><td>90</td><td className="ra-trend-up">+60</td></tr>
+            <tr><td>Week 4</td><td>60</td><td>75</td><td className="ra-trend-down">-15</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function TopMovingProductsTab() {
+  const [moveType, setMoveType] = useState('fast');
+  return (
+    <div>
+      <PanelHeader title="Top Moving Products" subtitle="Ranked by sales velocity" />
+
+      <div className="ra-filters-bar">
+        <div className="ra-filter-field">
+          <label>Category</label>
+          <select defaultValue="">
+            <option value="">All categories</option>
+            <option>Timepieces</option>
+            <option>Accessories</option>
+          </select>
+        </div>
+        <div className="ra-filter-field">
+          <label>View</label>
+          <div className="ra-toggle-group">
+            <button className={moveType === 'fast' ? 'active' : ''} onClick={() => setMoveType('fast')}>Fast Moving</button>
+            <button className={moveType === 'slow' ? 'active' : ''} onClick={() => setMoveType('slow')}>Slow Moving</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="ra-table-card">
+        <table className="ra-table">
+          <thead>
+            <tr><th>Rank</th><th>Product</th><th>Units Sold</th><th>Revenue</th><th>Trend</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Water-Resistant Diver Strap</td><td>95</td><td>₱142,500</td><td className="ra-trend-up">▲ 18%</td></tr>
+            <tr><td>2</td><td>Premium Calfskin Band</td><td>58</td><td>₱87,000</td><td className="ra-trend-up">▲ 9%</td></tr>
+            <tr><td>3</td><td>Precision Steel Chronograph</td><td>38</td><td>₱304,000</td><td className="ra-trend-down">▼ 4%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function DemandForecastSummaryTab() {
+  return (
+    <div>
+      <PanelHeader title="Demand Forecast Summary" subtitle="Latest forecast run across all products" />
+      <div className="ra-table-card">
+        <table className="ra-table">
+          <thead>
+            <tr><th>Product</th><th>Current Stock</th><th>Forecasted Demand</th><th>Suggested Reorder</th><th>Confidence</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Precision Steel Chronograph</td><td>42</td><td>32.1</td><td>10</td><td><span className="ra-badge ra-badge-good"><span className="ra-dot" />High</span></td></tr>
+            <tr><td>Sapphire Crystal Glass Face</td><td>8</td><td>13.2</td><td>9</td><td><span className="ra-badge ra-badge-warn"><span className="ra-dot" />Medium</span></td></tr>
+            <tr><td>Automatic Movement Caliber</td><td>15</td><td>9.8</td><td>0</td><td><span className="ra-badge ra-badge-bad"><span className="ra-dot" />Low</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function AutoCalculatorSummaryTab() {
+  return (
+    <div>
+      <PanelHeader title="AutoCalculator Summary" subtitle="Every AutoCalculator computation logged to date" />
+      <div className="ra-table-card">
+        <table className="ra-table">
+          <thead>
+            <tr><th>Product</th><th>Annual Demand</th><th>Order Cost</th><th>Holding Cost</th><th>AutoCalculator Result</th><th>Date Computed</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Precision Steel Chronograph</td><td>1,200</td><td>₱500</td><td>₱50</td><td>109.54</td><td>8/23/2026</td></tr>
+            <tr><td>Sapphire Crystal Glass Face</td><td>480</td><td>₱300</td><td>₱40</td><td>84.85</td><td>8/20/2026</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function InventoryAgingReportTab() {
+  return (
+    <div>
+      <PanelHeader title="Inventory Aging Report" subtitle="How long products have sat in stock" />
+      <div className="ra-table-card">
+        <table className="ra-table">
+          <thead>
+            <tr><th>Product</th><th>Days in Stock</th><th>Stock Level</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Sapphire Crystal Glass Face</td><td>142</td><td>8</td><td><span className="ra-badge ra-badge-bad"><span className="ra-dot" />Slow Mover</span></td></tr>
+            <tr><td>Automatic Movement Caliber</td><td>98</td><td>15</td><td><span className="ra-badge ra-badge-warn"><span className="ra-dot" />Aging</span></td></tr>
+            <tr><td>Water-Resistant Diver Strap</td><td>21</td><td>120</td><td><span className="ra-badge ra-badge-good"><span className="ra-dot" />Healthy</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ReorderPointReportTab() {
+  return (
+    <div>
+      <PanelHeader title="Reorder Point Report" subtitle="Products currently below their reorder point" />
+      <div className="ra-table-card">
+        <table className="ra-table">
+          <thead>
+            <tr><th>Product</th><th>Current Stock</th><th>Reorder Point</th><th>Urgency</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Sapphire Crystal Glass Face</td><td>8</td><td>20</td><td><span className="ra-badge ra-badge-bad"><span className="ra-dot" />Critical</span></td></tr>
+            <tr><td>Automatic Movement Caliber</td><td>15</td><td>18</td><td><span className="ra-badge ra-badge-warn"><span className="ra-dot" />Low</span></td></tr>
+          </tbody>
+        </table>
+        <div className="ra-supplier-note">
+          📋 This report is formatted for direct export and hand-off to your supplier.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const TAB_COMPONENTS = [
+  StockSummaryTab,
+  StockMovementTab,
+  TopMovingProductsTab,
+  DemandForecastSummaryTab,
+  AutoCalculatorSummaryTab,
+  InventoryAgingReportTab,
+  ReorderPointReportTab,
+];
+
+export default function ReportsAnalyticsDesign() {
+  const [activeTab, setActiveTab] = useState(0);
+  const ActiveTabContent = TAB_COMPONENTS[activeTab];
+
+  return (
+    <div className="ra-root">
+      <div className="ra-tabbar">
+        {TABS.map((label, i) => (
+          <button
+            key={label}
+            className={`ra-tab ${activeTab === i ? 'active' : ''}`}
+            onClick={() => setActiveTab(i)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <ActiveTabContent />
+    </div>
+  );
+}

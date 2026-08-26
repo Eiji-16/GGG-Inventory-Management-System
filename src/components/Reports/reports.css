@@ -1,301 +1,263 @@
-/* ROOT */
-.rp-root {
-    padding: 10px;
-    width: 100%;
-    height: 100%;
-    font-family: var(--font-sans, system-ui, sans-serif);
+
+
+.ra-root {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--text-primary, #111);
+    font-size: 13px;
+    max-width: 1100px;
+    margin: 0 auto;
 }
 
-/* HEADER */
-.rp-header {
+/* ---------- TAB BAR ---------- */
+.ra-tabbar {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 0.5px solid var(--border-color, rgba(0,0,0,0.15));
+    scrollbar-width: thin;
+}
+.ra-tab {
+    flex-shrink: 0;
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 0.45rem 0.9rem;
+    border-radius: 1rem;
+    border: 0.5px solid var(--border-strong, #111);
+    background: transparent;
+    color: var(--text-primary, #111);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+.ra-tab.active {
+    background: var(--btn-fill-bg, #111);
+    color: var(--btn-fill-text, #fff);
+}
+.ra-tab:hover:not(.active) { background: rgba(0,0,0,0.05); }
+
+/* ---------- PANEL HEADER (title + export, same spot every tab) ---------- */
+.ra-panel-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
+    gap: 1rem;
     margin-bottom: 1rem;
 }
-.rp-title {
+.ra-panel-title h2 {
+    margin: 0 0 3px;
     font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 2px;
+    font-weight: 800;
 }
-.rp-subtitle {
-    font-size: 11px;
-    color: #888;
+.ra-panel-title p {
+    margin: 0;
+    color: var(--text-muted, #888);
+    font-size: 12px;
 }
-
-/* EXPORT BUTTONS */
-.rp-export-group {
-    display: flex;
-    gap: 6px;
-}
-.rp-export-btn {
+.ra-export-btn {
+    flex-shrink: 0;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 0.25rem 0.625rem;
-    font-size: 11px;
+    gap: 5px;
+    padding: 0.45rem 0.9rem;
+    font-size: 11.5px;
+    font-weight: 600;
     border-radius: 1rem;
-    border: 0.5px solid black;
+    border: 0.5px solid var(--border-strong, #111);
     background: transparent;
+    color: var(--text-primary, #111);
     cursor: pointer;
     transition: background 0.15s;
 }
-.rp-export-btn:hover {
-    background: rgba(0,0,0,0.05);
+.ra-export-btn:hover { background: rgba(0,0,0,0.05); }
+
+/* ---------- FILTERS BAR ---------- */
+.ra-filters-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 1.25rem;
+    background: var(--bg-card, #fff);
+    border: 0.5px solid var(--border-color, rgba(0,0,0,0.15));
+    border-radius: 0.75rem;
+    padding: 0.9rem;
+}
+.ra-filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.ra-filter-field label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted, #888);
+}
+.ra-filter-field input,
+.ra-filter-field select {
+    font: inherit;
+    font-size: 12px;
+    padding: 0.45rem 0.6rem;
+    border: 0.5px solid var(--border-color, rgba(0,0,0,0.2));
+    border-radius: 0.375rem;
+    background: var(--bg-card, #fff);
+    color: var(--text-primary, #111);
+    outline: none;
+    min-width: 140px;
+}
+.ra-toggle-group {
+    display: inline-flex;
+    border: 0.5px solid var(--border-strong, #111);
+    border-radius: 1rem;
+    overflow: hidden;
+}
+.ra-toggle-group button {
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 0.4rem 0.9rem;
+    border: none;
+    background: transparent;
+    color: var(--text-primary, #111);
+    cursor: pointer;
+}
+.ra-toggle-group button.active {
+    background: var(--btn-fill-bg, #111);
+    color: var(--btn-fill-text, #fff);
 }
 
-/* TABS */
-.rp-tabs {
+/* ---------- KPI CARDS ---------- */
+.ra-kpi-row {
     display: flex;
-    gap: 6px;
-    margin-bottom: 1rem;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
 }
-.rp-tab {
+.ra-kpi-card {
+    flex: 1;
+    min-width: 150px;
+    background: var(--bg-card, #fff);
+    border: 0.5px solid var(--border-color, rgba(0,0,0,0.15));
+    border-radius: 0.75rem;
+    padding: 1rem 1.1rem;
+}
+.ra-kpi-card .ra-kpi-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted, #888);
+    margin-bottom: 6px;
+}
+.ra-kpi-card .ra-kpi-value {
+    font-size: 24px;
+    font-weight: 800;
+}
+.ra-kpi-card .ra-kpi-sub {
+    font-size: 11px;
+    color: var(--text-muted, #888);
+    margin-top: 3px;
+}
+
+/* ---------- CHART PLACEHOLDER ---------- */
+.ra-chart-card {
+    background: var(--bg-card, #fff);
+    border: 0.5px solid var(--border-color, rgba(0,0,0,0.15));
+    border-radius: 0.75rem;
+    padding: 1.1rem;
+    margin-bottom: 1.25rem;
+}
+.ra-chart-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.9rem;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.ra-chart-card-head h3 { margin: 0; font-size: 13.5px; font-weight: 700; }
+.ra-chart-placeholder {
+    height: 220px;
+    border: 1px dashed var(--border-color, rgba(0,0,0,0.2));
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted, #888);
+    font-size: 12px;
+}
+
+/* ---------- TABLE ---------- */
+.ra-table-card {
+    background: var(--bg-card, #fff);
+    border: 0.5px solid var(--border-color, rgba(0,0,0,0.15));
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.5rem 0.75rem;
+    overflow-x: auto;
+}
+.ra-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+}
+.ra-table th {
+    text-align: left;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted, #888);
+    padding: 10px 12px;
+    border-bottom: 0.5px solid var(--border-color, rgba(0,0,0,0.15));
+    white-space: nowrap;
+}
+.ra-table td {
+    padding: 10px 12px;
+    border-bottom: 0.5px solid var(--border-color, rgba(0,0,0,0.1));
+    white-space: nowrap;
+}
+.ra-table tbody tr:last-child td { border-bottom: none; }
+.ra-table tbody tr:hover { background: rgba(0,0,0,0.02); }
+
+.ra-trend-up { color: #1e8a5f; font-weight: 700; }
+.ra-trend-down { color: #c4432e; font-weight: 700; }
+
+/* ---------- STATUS BADGES ---------- */
+.ra-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 0.25rem 0.75rem;
-    font-size: 11px;
-    border-radius: 1rem;
-    border: 0.5px solid black;
-    background: transparent;
-    cursor: pointer;
-    transition: all 0.15s;
-}
-.rp-tab.active {
-    background: black;
-    color: white;
-}
-
-/* SECTION */
-.rp-section {
-    width: 100%;
-}
-
-/* KPI ROW */
-.rp-kpi-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-    gap: 8px;
-    margin-bottom: 1rem;
-}
-.rp-kpi {
-    border: 0.5px solid black;
-    border-radius: 0.5rem;
-    padding: 0.625rem 0.75rem;
-}
-.rp-kpi-label {
-    font-size: 10px;
-    color: #888;
-    margin-bottom: 4px;
-}
-.rp-kpi-val {
-    font-size: 20px;
-    font-weight: 600;
-}
-
-/* TABLE */
-.rp-table-wrap {
-    width: 100%;
-    overflow-x: auto;
-}
-.rp-label-row {
-    display: grid;
-    grid-template-columns:
-        minmax(180px, 2.5fr)
-        minmax(110px, 1.2fr)
-        minmax(80px, 1fr)
-        minmax(80px, 1fr)
-        minmax(90px, 1fr)
-        minmax(100px, 1fr);
-    border: 0.5px solid black;
-    border-top-left-radius: 0.5rem;
-    border-top-right-radius: 0.5rem;
-    font-size: 12px;
-    text-align: center;
-    align-items: center;
-}
-.rp-label-row > div {
-    padding: 8px 4px;
-    border-right: 0.5px solid black;
-}
-.rp-label-row > div:last-child {
-    border-right: none;
-}
-
-/* Top moving table — 5 cols */
-.rp-label-row-top {
-    grid-template-columns:
-        minmax(50px, 0.5fr)
-        minmax(180px, 2.5fr)
-        minmax(120px, 1.2fr)
-        minmax(100px, 1fr)
-        minmax(100px, 1fr);
-}
-
-.rp-data-table {
-    border-left: 0.5px solid black;
-    border-right: 0.5px solid black;
-    border-bottom: 0.5px solid black;
-    border-bottom-left-radius: 0.5rem;
-    border-bottom-right-radius: 0.5rem;
-}
-.rp-data-row {
-    display: grid;
-    grid-template-columns:
-        minmax(180px, 2.5fr)
-        minmax(110px, 1.2fr)
-        minmax(80px, 1fr)
-        minmax(80px, 1fr)
-        minmax(90px, 1fr)
-        minmax(100px, 1fr);
-    font-size: 10px;
-    text-align: center;
-    align-items: center;
-    border-bottom: 0.5px solid black;
-}
-.rp-data-table .rp-data-row:last-child {
-    border-bottom: none;
-}
-.rp-data-row-top {
-    grid-template-columns:
-        minmax(50px, 0.5fr)
-        minmax(180px, 2.5fr)
-        minmax(120px, 1.2fr)
-        minmax(100px, 1fr)
-        minmax(100px, 1fr);
-}
-.rp-cell {
-    padding: 8px 4px;
-    border-right: 0.5px solid rgba(0,0,0,1);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    box-sizing: border-box;
-}
-.rp-cell:last-child {
-    border-right: none;
-}
-.rp-rank {
-    font-weight: 600;
-    font-size: 12px;
-}
-
-/* BADGES */
-.rp-badge {
-    display: inline-block;
-    font-size: 9px;
-    padding: 2px 8px;
-    border-radius: 1rem;
-    font-weight: 500;
-}
-.badge-ok { background: #e8f7ee; color: #0ca30c; }
-.badge-low { background: #fff8e1; color: #fab219; }
-.badge-out { background: #fdecea; color: #e24b4a; }
-
-/* CHART */
-.rp-chart-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.75rem;
-}
-.rp-legend {
-    display: flex;
-    align-items: center;
-    font-size: 11px;
-    gap: 4px;
-}
-.rp-legend-dot {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
-}
-.rp-period-toggle {
-    display: flex;
-    gap: 4px;
-}
-.rp-period-btn {
+    gap: 5px;
+    font-size: 10.5px;
+    font-weight: 700;
     padding: 3px 10px;
-    font-size: 10px;
     border-radius: 1rem;
-    border: 0.5px solid black;
-    background: transparent;
-    cursor: pointer;
-    transition: all 0.15s;
 }
-.rp-period-btn.active {
-    background: black;
-    color: white;
-}
+.ra-badge .ra-dot { width: 6px; height: 6px; border-radius: 50%; }
 
-/* BAR CHART */
-.rp-chart-wrap {
+.ra-badge-good { background: rgba(30,138,95,.12); color: #1e8a5f; }
+.ra-badge-good .ra-dot { background: #1e8a5f; }
+
+.ra-badge-warn { background: rgba(192,138,30,.14); color: #c08a1e; }
+.ra-badge-warn .ra-dot { background: #c08a1e; }
+
+.ra-badge-bad { background: rgba(196,67,46,.12); color: #c4432e; }
+.ra-badge-bad .ra-dot { background: #c4432e; }
+
+.ra-badge-neutral { background: rgba(0,0,0,0.06); color: var(--text-muted, #888); }
+.ra-badge-neutral .ra-dot { background: var(--text-muted, #888); }
+
+/* ---------- SUPPLIER NOTE ---------- */
+.ra-supplier-note {
     display: flex;
-    gap: 8px;
-    height: 220px;
-    border: 0.5px solid black;
-    border-radius: 0.5rem;
-    padding: 12px;
-    align-items: flex-end;
-    overflow-x: auto;
-}
-.rp-chart-y-axis {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    height: 100%;
-    font-size: 9px;
-    color: #888;
-    min-width: 28px;
-    text-align: right;
-    padding-right: 4px;
-}
-.rp-y-label {
-    line-height: 1;
-}
-.rp-chart-bars {
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-    flex: 1;
-    height: 100%;
-}
-.rp-bar-group {
-    display: flex;
-    flex-direction: column;
     align-items: center;
-    flex: 1;
-    height: 100%;
-    min-width: 32px;
-}
-.rp-bars {
-    display: flex;
-    align-items: flex-end;
-    gap: 2px;
-    flex: 1;
-    width: 100%;
-    justify-content: center;
-}
-.rp-bar {
-    width: 12px;
-    border-radius: 3px 3px 0 0;
-    transition: height 0.3s ease;
-    cursor: pointer;
-}
-.rp-bar:hover {
-    opacity: 0.8;
-}
-.rp-bar-in { background: #0ca30c; }
-.rp-bar-out { background: #e24b4a; }
-.rp-bar-label {
-    font-size: 9px;
-    color: #888;
-    margin-top: 4px;
-    text-align: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-muted, #888);
+    background: rgba(0,0,0,0.03);
+    border-radius: 0.5rem;
+    padding: 0.6rem 0.8rem;
+    margin-top: 0.9rem;
 }
