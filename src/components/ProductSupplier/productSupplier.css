@@ -3,7 +3,9 @@
     padding: 10px;
     width: 100%;
     height: 100%;
-
+    background: transparent;
+    border-radius: 10px;
+    box-sizing: border-box;
 }
 
 /*-------------SEARCH BAR-------------*/
@@ -70,7 +72,7 @@ input{
     display: grid;
     text-align: center;
     align-items: center;
-    font-size: 13px;
+    font-size: 14px;
         grid-template-columns:
         minmax(32px, 0.35fr)   /* Checkbox */
         minmax(70px, 1fr)       /* Product ID */
@@ -113,7 +115,7 @@ input{
     display: grid;
     text-align: center;
     align-items: center;
-    font-size: 10px;
+    font-size: 12px;
     transition: background-color 0.2s ease;
     border-bottom: 0.5px solid rgba(0, 0, 0, 0.15);
 

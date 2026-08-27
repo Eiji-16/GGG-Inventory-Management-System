@@ -106,6 +106,12 @@ function LandingPage({onLogout}) {
  {/* Logout Button  */}
         <div className="sidebar-footer-item">
             <div className = "sub-sidebar-footer-item">
+              <div className={`siderbar-item ${activeView === 'Profile' ? 'active' : ''}`}>
+                <button onClick={() => {setActiveView('Profile'); setIsSidebarOpen(false); }} title="User Profile">
+                  <User className="sidebar-icon"/>
+                  <span className="sidebar-label">Profile</span>
+                </button>
+              </div>
               <div className={`siderbar-item ${activeView === 'Setting' ? 'active' : ''}`}>
                 <button onClick={() => {setActiveView('Setting'); setIsSidebarOpen(false); }}>
                   <SettingsIcon className="sidebar-icon"/>
@@ -138,6 +144,7 @@ function LandingPage({onLogout}) {
                   {activeView === 'Forecasting' && 'Sales Forecasting'}
                   {activeView === 'Reports' && 'Reports & Analytics'}
                   {activeView === 'Setting' && 'Settings'}
+                  {activeView === 'Profile' && 'User Profile'}
                 </p>
 
                 <p className= "sub-title">
@@ -148,6 +155,7 @@ function LandingPage({onLogout}) {
                   {activeView === 'Forecasting' && 'Analyze historical trends to project future inventory demand'}
                   {activeView === 'Reports' && 'Review inventory performance, optimization metrics, and forecasting trends'}
                   {activeView === 'Setting' && 'Manage your workspace preferences'}
+                  {activeView === 'Profile' && 'View and manage your account details'}
                 </p>
               </div>
             </div>
@@ -156,10 +164,6 @@ function LandingPage({onLogout}) {
                 <Bell size = {16}/>
                 <span className="notif-bell-dot"></span>
               </button>
-
-              <div className="navbar-user-profile" title="User Profile">
-                <User size ={16}/>
-              </div>
             </div>
           </header>
             <main className="main-content-window">

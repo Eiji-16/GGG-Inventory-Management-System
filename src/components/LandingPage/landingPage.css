@@ -2,6 +2,7 @@
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
 }
 
 :root {
@@ -16,7 +17,10 @@
 
 body {
     font-family: 'Inter', sans-serif;
-    font-weight: 200;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 1.5;
+    letter-spacing: 0.1px;
 }
 /*==========USED FOR DARK & LIGHT MODE==========*/
 :root, [data-theme="light"] {
@@ -35,17 +39,17 @@ body {
  
 [data-theme="dark"] {
     color-scheme: dark;
-    --bg-main: linear-gradient(180deg, #0d1b3e 0%, #152d6b 100%);
-    --bg-sidebar: #0f1c36;
-    --bg-card: #111E33;
+    --bg-main: linear-gradient(180deg, #16264f 0%, #1f3c86 100%);
+    --bg-sidebar: #1a2a4d;
+    --bg-card: #1b2c4a;
     --text-primary: #F8FAFC;
-    --text-muted: #94A3B8;
-    --border-color: rgba(232, 197, 71, 0.15);
+    --text-muted: #A7B4CC;
+    --border-color: rgba(232, 197, 71, 0.18);
     --text-sidebar-icon: #F8FAFC;
     --background-icon-active-color: #E8C547;
     --icon-active-color: #0B1426;
-    --background-icon-active-color-theme: rgba(232, 197, 71, 0.12);
-    --static-bg-color: #1A2940;
+    --background-icon-active-color-theme: rgba(232, 197, 71, 0.14);
+    --static-bg-color: #26385a;
 }
 
 /*========== DARK MODE: MOON ICON GLOW (ISOLATED SPECIFICITY) ==========*/
@@ -137,7 +141,7 @@ body {
 }
 
 .sidebar-body {
-    width: 3.5rem;
+    width: 3rem;
     background-color: transparent;
     border-radius: 1.25rem;
     display: flex;
@@ -170,7 +174,7 @@ body {
 }
 
 #sidebar-logo {
-    font-size: 20px;
+    font-size: 16px;
     color: var(--text-primary);
     font-weight: bold;
     align-items: center;
@@ -187,8 +191,8 @@ body {
 }
 
 .sidebar-item button {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 2.1rem;
+    height: 2.1rem;
     border: 1.5px solid transparent;
     background: transparent;
     display: flex;
@@ -228,8 +232,8 @@ body {
 }
 
 .sidebar-icon {
-    width: 1.1rem;
-    height: 1.1rem;
+    width: 1rem;
+    height: 1rem;
     margin-right: 0 !important;
     flex-shrink: 0;
     color: var(--text-sidebar-icon) !important;
@@ -270,8 +274,8 @@ body {
 
 
 .sidebar-footer-item .siderbar-item button {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 2.1rem;
+    height: 2.1rem;
     border: none;
     background: transparent;
     display: flex;
@@ -342,11 +346,13 @@ body {
     display: flex;
     flex-direction: column;
     color: var(--text-primary);
-    font-size: 25px;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.2;
 }
 
 .sub-title{
-    font-size: 12px;
+    font-size: 11px;
     align-items: baseline;
     padding-left: 2px;  
     color: rgb(167, 163, 163);
@@ -370,22 +376,72 @@ body {
     align-items: center;
     justify-content: flex-end;
     width: 100%;
-    gap: 2.5rem;
+    gap: 1rem;
     cursor: pointer;
     padding-right: 2rem;
-    
+
 }
 
 .navbar-bell-icon {
-  background: transparent;
-  border: none;
+  background: var(--static-bg-color);
+  border: 1px solid var(--border-color);
   padding: 0;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 0.7rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-primary);
   position: relative;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out,
+              transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.navbar-bell-icon:hover {
+  background: var(--background-icon-active-color-theme);
+  border-color: var(--background-icon-active-color);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.navbar-bell-icon:active {
+  transform: translateY(0);
+}
+
+.notif-bell-dot {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.4rem;
+  width: 7px;
+  height: 7px;
+  background: #ef4444;
+  border: 1.5px solid var(--static-bg-color);
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.7);
+}
+
+.navbar-user-profile {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 0.7rem;
+  background: var(--static-bg-color);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out,
+              transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.navbar-user-profile:hover {
+  background: var(--background-icon-active-color-theme);
+  border-color: var(--background-icon-active-color);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 
