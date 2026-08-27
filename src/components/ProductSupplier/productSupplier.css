@@ -75,18 +75,20 @@ input{
     font-size: 14px;
         grid-template-columns:
         minmax(32px, 0.35fr)   /* Checkbox */
-        minmax(70px, 1fr)       /* Product ID */
-        minmax(180px, 2fr)     /* Product Name */
-        minmax(110px, 1.2fr)   /* Category */
-        minmax(110px, 1.2fr)   /* Brand */
-        minmax(110px, 1.2fr)   /* Model */
-        minmax(90px, 1.4fr)      /* Unit Measure */
-        minmax(180px, 2fr)     /* Supplier Information */
-        minmax(90px, 0.8fr);    /* Action */
+        minmax(80px, 0.8fr)     /* Product ID */
+        minmax(150px, 2fr)     /* Product Name */
+        minmax(95px, 1fr)       /* Category */
+        minmax(90px, 1fr)       /* Brand */
+        minmax(100px, 1.1fr)   /* Model */
+        minmax(100px, 1fr)      /* Unit Measure */
+        minmax(150px, 2fr)     /* Supplier Information */
+        minmax(80px, 0.8fr);    /* Action */
 }
 
 .ps-label-row-grid > div {
     padding: 10px;
+    min-width: 0;
+    white-space: nowrap;
 }
 
 .ps-label-row-grid > div {
@@ -115,20 +117,20 @@ input{
     display: grid;
     text-align: center;
     align-items: center;
-    font-size: 12px;
+    font-size: 13px;
     transition: background-color 0.2s ease;
     border-bottom: 0.5px solid rgba(0, 0, 0, 0.15);
 
         grid-template-columns:
         minmax(32px, 0.35fr)   /* Checkbox */
-        minmax(70px, 1fr)       /* Product ID */
-        minmax(180px, 2fr)     /* Product Name */
-        minmax(110px, 1.2fr)   /* Category */
-        minmax(110px, 1.2fr)   /* Brand */
-        minmax(110px, 1.2fr)   /* Model */
-        minmax(90px, 1.4fr)      /* Unit Measure */
-        minmax(180px, 2fr)     /* Supplier Information */
-        minmax(90px, 0.8fr);    /* Action */
+        minmax(80px, 0.8fr)     /* Product ID */
+        minmax(150px, 2fr)     /* Product Name */
+        minmax(95px, 1fr)       /* Category */
+        minmax(90px, 1fr)       /* Brand */
+        minmax(100px, 1.1fr)   /* Model */
+        minmax(100px, 1fr)      /* Unit Measure */
+        minmax(150px, 2fr)     /* Supplier Information */
+        minmax(80px, 0.8fr);    /* Action */
 }
 
 .ps-data-row-grid:last-child {
@@ -151,15 +153,19 @@ input{
     padding: 10px 4px;
     box-sizing: border-box;
     height: 100%;
+    min-width: 0;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .ps-cell-text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    width: 100%;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.35;
 }
 
 /*-------------CHECKBOX-------------*/
@@ -297,21 +303,28 @@ input{
 
 .ps-form-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 1rem;
 }
 
 .ps-form-group {
     display: grid;
     gap: 0.4rem;
+    min-width: 0;
 }
 
 .ps-form-group label {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-align: left;
     color: var(--text-muted);
 }
 
-.ps-form-group input {
+.ps-form-group input,
+.ps-form-group select {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     border: 1px solid var(--border-color);
     border-radius: 0.6rem;
     padding: 0.6rem 0.75rem;
@@ -321,8 +334,10 @@ input{
     transition: border-color 0.2s ease;
 }
 
-.ps-form-group input:focus {
+.ps-form-group input:focus,
+.ps-form-group select:focus {
     border-color: var(--accent, #E8C547);
+    outline: none;
 }
 
 .ps-modal-actions {
