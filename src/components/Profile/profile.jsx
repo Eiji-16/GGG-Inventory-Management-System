@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import './profile.css';
 
-/* Sample account record — replace with the Firebase `users/{uid}` document. */
+/* Sample User */
 const SAMPLE_USER = {
   fullName: 'Wrenz AJ Aquino',
   username: 'wrenzaj',
@@ -26,7 +26,7 @@ const SAMPLE_USER = {
   lastLogin: 'Today · 08:42 AM',
 };
 
-/* What each role is allowed to do. Drives the permissions card. */
+/* Role Matrix */
 const ROLE_MATRIX = {
   'Super Admin': [
     'Full access to every module',
@@ -43,7 +43,7 @@ const ROLE_MATRIX = {
   ],
 };
 
-/* Recent actions attributed to this user. Sourced from stock movement records. */
+/* Recent Activity */
 const RECENT_ACTIVITY = [
   { icon: Boxes, label: 'Recorded stock out — 12 units', meta: 'Precision Steel Chronograph · 2h ago' },
   { icon: TrendingUp, label: 'Computed forecast — next month', meta: 'Weighted Moving Average · 5h ago' },
@@ -88,7 +88,7 @@ export default function Profile() {
     <div className="pf-root">
       <div className="pf-grid">
 
-        {/* ── 1 · IDENTITY ────────────────────────────────────── */}
+        {/* Identity */}
         <section className="pf-card pf-area-identity">
           <div className="pf-avatar">{initialsOf(user.fullName)}</div>
           <div className="pf-identity-text">
@@ -116,7 +116,7 @@ export default function Profile() {
           )}
         </section>
 
-        {/* ── 2 · ACCOUNT DETAILS ─────────────────────────────── */}
+        {/* Account Details */}
         <section className="pf-card pf-area-details">
           <h3>Account Details</h3>
           <p className="pf-sub">Contact information tied to this account</p>
@@ -173,7 +173,7 @@ export default function Profile() {
           </div>
         </section>
 
-        {/* ── 3 · ROLE & PERMISSIONS ──────────────────────────── */}
+        {/* Role And Permissions */}
         <section className="pf-card pf-area-permissions">
           <h3>Role &amp; Permissions</h3>
           <p className="pf-sub">What a {user.role} can do in this system</p>
@@ -187,7 +187,7 @@ export default function Profile() {
           </ul>
         </section>
 
-        {/* ── 4 · SECURITY ────────────────────────────────────── */}
+        {/* Security */}
         <section className="pf-card pf-area-security">
           <h3>Security</h3>
           <p className="pf-sub">Keep this account protected</p>
@@ -201,7 +201,7 @@ export default function Profile() {
           </div>
         </section>
 
-        {/* ── 5 · RECENT ACTIVITY ─────────────────────────────── */}
+        {/* Recent Activity */}
         <section className="pf-card pf-area-activity">
           <h3>Recent Activity</h3>
           <p className="pf-sub">Actions recorded under this account</p>

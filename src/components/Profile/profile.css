@@ -1,4 +1,4 @@
-/* ═══ PROFILE — prefix: pf- ═══════════════════════════════ */
+/*==========PROFILE==========*/
 
 .pf-root {
     width: 100%;
@@ -7,7 +7,7 @@
     box-sizing: border-box;
 }
 
-/* ─── GRID ─────────────────────────────────────────────────── */
+/*==========GRID==========*/
 .pf-grid {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -23,7 +23,7 @@
 .pf-area-security    { grid-column: 1 / span 4; grid-row: 3; }
 .pf-area-activity    { grid-column: 1 / span 6; grid-row: 4; }
 
-/* ─── CARD ─────────────────────────────────────────────────── */
+/*==========CARD==========*/
 .pf-card {
     display: flex;
     flex-direction: column;
@@ -59,7 +59,7 @@
     margin: 3px 0 0;
 }
 
-/* ─── 1 · IDENTITY ─────────────────────────────────────────── */
+/*==========IDENTITY==========*/
 .pf-area-identity {
     flex-direction: row;
     align-items: center;
@@ -115,7 +115,7 @@
     flex-shrink: 0;
 }
 
-/* ─── BUTTONS ──────────────────────────────────────────────── */
+/*==========BUTTONS==========*/
 .pf-btn {
     display: inline-flex;
     align-items: center;
@@ -145,7 +145,7 @@
     border-color: transparent;
 }
 
-/* ─── 2 · ACCOUNT DETAILS ──────────────────────────────────── */
+/*==========ACCOUNT DETAILS==========*/
 .pf-field-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -203,7 +203,7 @@
     border-color: var(--accent, #E8C547);
 }
 
-/* ─── 3 · PERMISSIONS ──────────────────────────────────────── */
+/*==========PERMISSIONS==========*/
 .pf-perm-list {
     list-style: none;
     margin: 14px 0 0;
@@ -228,7 +228,7 @@
     color: var(--accent, #E8C547);
 }
 
-/* ─── 4 · SECURITY / 5 · ACTIVITY shared rows ──────────────── */
+/*==========SECURITY AND ACTIVITY ROWS==========*/
 .pf-row-icon {
     width: 2.1rem;
     height: 2.1rem;
@@ -278,12 +278,15 @@
     margin-top: 8px;
     max-height: 230px;
     overflow-y: auto;
-    scrollbar-width: none;
+
+    /*==========FADE MASK==========*/
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
 }
 
 .pf-scroll::-webkit-scrollbar { display: none; }
 
-/* ─── RESPONSIVE ───────────────────────────────────────────── */
+/*==========RESPONSIVENESS==========*/
 @media (max-width: 1100px) {
     .pf-grid {
         grid-template-columns: 1fr;

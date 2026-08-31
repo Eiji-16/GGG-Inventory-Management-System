@@ -14,7 +14,7 @@ function App() {
     );
 }
 
-// Initialize root once and reuse for HMR
+// Initialize React root
 const rootElement = document.getElementById('root');
 if (!window.__reactRoot__) {
     window.__reactRoot__ = ReactDOM.createRoot(rootElement);

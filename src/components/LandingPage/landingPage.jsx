@@ -26,7 +26,7 @@ import AutoCalculator from '../AutoCalculator/autoCal'; /* Auto-Calculator conte
 import SalesForecasting from '../Forecasting/forecasting'; /* Forecasting content component */
 import ReportAnalytics from '../Reports/reports';/* Report content component */
 import StockManagement from '../StockControl/stockControl'; /* Stock Control content component */
-import Settings from '../Settings/Settings'; /* Settings content component (now owns the dark/light mode switch) */
+import Settings from '../Settings/Settings'; /* Settings content component */
 import Profile from '../Profile/profile'; /* User Profile content component */
 
 // LandingPage.jsx
@@ -53,9 +53,7 @@ function LandingPage({onLogout}) {
     }
   };
 
-  /* Cross-tab hand-off. Switches the view and parks the payload so the
-     destination tab can pre-populate its inputs once the tabs read real
-     data — Stock Control → Auto Calculator, Forecasting ⇄ Auto Calculator. */
+  /* Cross Tab Handoff */
   const handleNavigate = (view, payload = null) => {
     setHandoff(payload);
     setActiveView(view);
@@ -65,18 +63,18 @@ function LandingPage({onLogout}) {
     <div className="dashboard-page-wrapper">
       <div className="dashboard-container-parent">
         <aside className={`sidebar-body ${isSidebarOpen ? 'open' : ''}`}>
-  {/* Sidebar navigation menu  */}
+  {/* Sidebar Navigation */}
   <ul className="sidebar-menu">
       <div className="sidebar-item">
         <span id="sidebar-logo">
-          {/* Logo Icon here */}
+          {/* Logo Icon */}
           A
           </span>
       </div>
         
 {/* Logo */}
           
-{/* Menus  */}
+{/* Menus */}
           <li className={`sidebar-item ${activeView === 'Dashboard' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Dashboard')}>
               <LayoutDashboard className="sidebar-icon" />
@@ -114,7 +112,7 @@ function LandingPage({onLogout}) {
             </button>
           </li>
         </ul>
- {/* Logout Button  */}
+ {/* Logout Button */}
         <div className="sidebar-footer-item">
             <div className = "sub-sidebar-footer-item">
               <div className={`siderbar-item ${activeView === 'Profile' ? 'active' : ''}`}>
@@ -140,7 +138,7 @@ function LandingPage({onLogout}) {
             </div>
         </div>
       </aside>
-{/* ==================================================================== */}
+{/* Main Wrapper */}
 
         <div className="main-wrapper">
           <header className="top-navbar">
@@ -178,7 +176,7 @@ function LandingPage({onLogout}) {
             </div>
           </header>
             <main className="main-content-window">
-              {/* ALL CONTENTS HERE!!!! */}
+              {/* Content Views */}
               {activeView === 'Dashboard' && <Dashboard />}
               {activeView === 'Product-Supplier' && <ProductSupplier />}
               {activeView === 'Stock' && <StockManagement onNavigate={handleNavigate} />}

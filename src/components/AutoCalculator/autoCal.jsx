@@ -2,15 +2,7 @@ import React, { useState } from 'react';
 import { Plus, X, Calculator, History, Download, GitCompare, Info, TrendingUp, Boxes } from 'lucide-react';
 import './autoCal.css';
 
-/*
-  DESIGN VERSION — modals open/close for real (that's just UI state),
-  but there's no compute logic, no EOQ/ROP math, no localStorage,
-  no product fetch, and no CSV/PDF export. Numbers shown are static
-  sample data, not calculated.
-
-  Swap this out for the fully functional AutoCalculator once the
-  design is signed off.
-*/
+/* Sample Data */
 
 const SAMPLE_FORMULA = {
   name: 'EOQ',
@@ -37,7 +29,7 @@ const SAMPLE_HISTORY = [
   { formulaName: 'ROP', inputs: { dailyDemand: 20, leadTime: 7, safetyStock: 30 }, result: '170.00', unit: 'units', date: '8/22/2026, 4:02 PM' },
 ];
 
-// ---------- Add Formula Modal ----------
+/* Add Formula Modal */
 function AddFormulaModal({ onClose }) {
   return (
     <div className="ac-modal-overlay" onClick={onClose}>
@@ -86,7 +78,7 @@ function AddFormulaModal({ onClose }) {
   );
 }
 
-// ---------- History Panel ----------
+/* History Panel */
 function HistoryPanel({ onClose }) {
   return (
     <div className="ac-modal-overlay" onClick={onClose}>
@@ -123,7 +115,7 @@ function HistoryPanel({ onClose }) {
   );
 }
 
-// ---------- Batch Compute Modal ----------
+/* Batch Compute Modal */
 function BatchComputeModal({ onClose }) {
   const [selected, setSelected] = useState(new Set());
 
@@ -183,7 +175,7 @@ function BatchComputeModal({ onClose }) {
   );
 }
 
-// ---------- Main Component ----------
+/* Main Component */
 export default function AutoCalculatorDesign({ onNavigate, handoff }) {
   const [showModal, setShowModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -193,7 +185,7 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
   return (
     <div className="ac-root">
 
-      {/* Header — tabs and actions on one line, divider below */}
+      {/* Header */}
       <div className="ac-header">
         <div className="ac-tabs">
           <div className="ac-tab active">
@@ -231,8 +223,7 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
         </div>
       </div>
 
-      {/* Arrived here from Stock Control or Forecasting — shows what was
-          handed over. Once inputs are state-bound this also fills them. */}
+      {/* Handoff Banner */}
       {handoff && (
         <div className="ac-handoff-banner">
           <TrendingUp size={13} />

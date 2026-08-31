@@ -15,15 +15,7 @@ const emptyForm = {
   recordedBy: '',
 };
 
-/*
-  DESIGN-STAGE reorder alerts.
-
-  Per the spec these are generated on every Stock Out by comparing the
-  product's remaining stock against its reorder point in Firebase, with
-  urgency set by how far below the threshold it sits. Until that data
-  exists, these are sample rows so the alert UI and its quick action
-  into the Auto Calculator can be reviewed.
-*/
+/* Sample Reorder Alerts */
 const SAMPLE_ALERTS = [
   {
     productName: 'Premium Calfskin Band',
@@ -41,14 +33,13 @@ const SAMPLE_ALERTS = [
   },
 ];
 
-/* Stock In and Adjustment add to the balance, Stock Out subtracts. */
+/* Signed Quantity */
 const signedQty = (row) => {
   const qty = Number(row.qty) || 0;
   return row.type === 'Stock Out' ? -qty : qty;
 };
 
-/* Movement type is a three-way choice, so it reads better as a segmented
-   control than a dropdown — all options visible, colour-coded by effect. */
+/* Movement Types */
 const MOVEMENT_TYPES = [
   { value: 'Stock In', label: 'Stock In', tone: 'in' },
   { value: 'Stock Out', label: 'Stock Out', tone: 'out' },
@@ -71,9 +62,7 @@ function StockControl({ onNavigate }) {
       .catch((error) => console.error("Error reading your file:", error));
   }, []);
 
-  /* Per-product ledger. Every log row is grouped under its product, sorted
-     oldest first, then walked to build a running balance — the same idea as
-     an order history: each line shows what changed and what was left after. */
+  /* Product Ledgers */
   const ledgers = useMemo(() => {
     const grouped = new Map();
     stockFromDatabase.forEach((row, index) => {
@@ -106,9 +95,7 @@ function StockControl({ onNavigate }) {
   const openHistory = (productName) => setHistoryProduct(productName || '—');
   const activeLedger = historyProduct ? ledgers.get(historyProduct) : null;
 
-  /* Remaining stock is derived, never typed — it's the product's balance
-     before this entry, plus or minus the quantity being recorded. The row
-     under edit is excluded so re-saving it doesn't double-count. */
+  /* Projected Remaining Stock */
   const projectedRemaining = useMemo(() => {
     if (!formData.productName || !formData.type || formData.qty === '') return null;
     const base = stockFromDatabase.reduce((sum, row, i) => (
@@ -122,8 +109,7 @@ function StockControl({ onNavigate }) {
   const dismissAlert = (productName) =>
     setDismissedAlerts((prev) => new Set(prev).add(productName));
 
-  /* Hands the flagged product off to the Auto Calculator. Navigation works
-     now; pre-populating demand needs the Firebase product record. */
+  /* Send To Auto Calculator */
   const computeEoqFor = (alert) => {
     if (onNavigate) onNavigate('Auto-Calculator', { product: alert.productName, annualDemand: alert.annualDemand });
   };
@@ -196,8 +182,7 @@ function StockControl({ onNavigate }) {
   return (
     <div className="sc-table-parent">
 
-      {/* Reorder alerts — fired when a stock out drops remaining stock
-          below the product's reorder point. */}
+      {/* Reorder alerts */}
       {alerts.length > 0 && (
         <div className="sc-alert-stack">
           {alerts.map((alert) => (
@@ -257,6 +242,8 @@ function StockControl({ onNavigate }) {
         </button>
       </div>
 
+      {/* Table Scroll */}
+      <div className="sc-table-scroll">
       {/* Label bar */}
       <div className="sc-label-row-grid">
         <div className="sc-checkbox-cell">
@@ -356,6 +343,7 @@ function StockControl({ onNavigate }) {
           </div>
         )}
       </main>
+      </div>
 
       {/* Add Item Modal */}
       {isModalOpen && (
@@ -470,8 +458,7 @@ function StockControl({ onNavigate }) {
                 <section className="sc-form-section">
                   <h4 className="sc-form-section-title">Result</h4>
 
-                  {/* Derived, never typed — shown as an outcome card so it reads
-                      as the consequence of the entry above. */}
+                  {/* Computed remaining stock */}
                   <div className="sc-computed-field" aria-live="polite">
                     <div className="sc-computed-copy">
                       <span className="sc-computed-label">Remaining Stock</span>
@@ -516,9 +503,7 @@ function StockControl({ onNavigate }) {
           </div>
         </div>
       )}
-      {/* Per-product movement history — every stock in, stock out and
-          adjustment for one item, oldest first, with the balance it left
-          behind. Same read as an order history in a shopping app. */}
+      {/* Movement history panel */}
       {historyProduct && (
         <div className="sc-modal-overlay" onClick={() => setHistoryProduct(null)}>
           <div className="sc-history-panel" onClick={(e) => e.stopPropagation()}>

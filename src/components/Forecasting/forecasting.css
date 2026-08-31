@@ -1,6 +1,4 @@
-/* =========================================================
-   BASE
-   ========================================================= */
+/*==========BASE==========*/
 
 .f-root,
 .f-root * {
@@ -48,9 +46,7 @@
 }
 
 
-/* =========================================================
-   TOPBAR
-   ========================================================= */
+/*==========TOPBAR==========*/
 
 .f-topbar {
     display: flex;
@@ -116,9 +112,7 @@
 }
 
 
-/* =========================================================
-   CONTROLS / FILTER BAR
-   ========================================================= */
+/*==========CONTROLS BAR==========*/
 
 .f-controls-bar {
     display: flex;
@@ -278,9 +272,7 @@
 }
 
 
-/* =========================================================
-   BUTTONS
-   ========================================================= */
+/*==========BUTTONS==========*/
 
 .f-btn {
     display: inline-flex;
@@ -348,8 +340,8 @@
     border-radius: 1.25rem;
 }
 
-/* ─── CROSS-TAB HAND-OFF ───────────────────────────────────── */
-/* Accented so the integration reads as a feature, not a plain action. */
+/*==========CROSS-TAB HAND-OFF==========*/
+/*==========LINK BUTTON==========*/
 .f-btn-link {
     min-height: 34px;
     padding: 7px 12px;
@@ -391,9 +383,7 @@
 }
 
 
-/* =========================================================
-   WARNING
-   ========================================================= */
+/*==========WARNING==========*/
 
 .f-warning-banner {
     display: flex;
@@ -419,13 +409,9 @@
 }
 
 
-/* =========================================================
-   MAIN WORKSPACE
-   ========================================================= */
+/*==========MAIN WORKSPACE==========*/
 
-/* =========================================================
-   PAGE GRID — 8 columns × 8 rows
-   ========================================================= */
+/*==========PAGE GRID==========*/
 
 .f-grid {
     display: grid;
@@ -440,40 +426,38 @@
     min-width: 0;
 }
 
-/* 1 · navbar / controls */
+/*==========CONTROLS AREA==========*/
 .f-area-controls { grid-column: 1 / span 8; grid-row: 1; }
 
-/* 2 · product */
+/*==========PRODUCT AREA==========*/
 .f-area-product  { grid-column: 1 / span 2; grid-row: 2 / span 2; }
 
-/* 3 · forecast result */
+/*==========RESULT AREA==========*/
 .f-area-result   { grid-column: 7 / span 2; grid-row: 2 / span 3; }
 
-/* 4 · actual vs forecasted demand */
+/*==========CHART AREA==========*/
 .f-area-chart    { grid-column: 3 / span 4; grid-row: 2 / span 3; }
 
-/* 5 · reorder — now sits in the upper right slot */
+/*==========REORDER AREA==========*/
 .f-area-reorder  { grid-column: 7 / span 2; grid-row: 5; }
 
-/* 6 · seasonal adjustment */
+/*==========SEASONAL AREA==========*/
 .f-area-seasonal { grid-column: 1 / span 2; grid-row: 4 / span 3; }
 
-/* 7 · historical sales data */
+/*==========HISTORY AREA==========*/
 .f-area-history  { grid-column: 3 / span 4; grid-row: 5 / span 2; }
 
-/* 8 · output summary */
+/*==========SUMMARY AREA==========*/
 .f-area-summary  { grid-column: 1 / span 6; grid-row: 7 / span 2; }
 
-/* 9 · export — now sits in the lower right slot */
+/*==========EXPORT AREA==========*/
 .f-area-export   { grid-column: 7 / span 2; grid-row: 8; }
 
-/* 10 · formula used */
+/*==========FORMULA AREA==========*/
 .f-area-formula  { grid-column: 7 / span 2; grid-row: 6 / span 2; }
 
 
-/* =========================================================
-   CARDS
-   ========================================================= */
+/*==========CARDS==========*/
 
 .f-card {
     position: relative;
@@ -524,9 +508,7 @@
 }
 
 
-/* =========================================================
-   STAT BOXES
-   ========================================================= */
+/*==========STAT BOXES==========*/
 
 .f-stat-row {
     display: flex;
@@ -587,9 +569,7 @@
 }
 
 
-/* =========================================================
-   CHART
-   ========================================================= */
+/*==========CHART==========*/
 
 .f-chart-wrap {
     position: relative;
@@ -624,9 +604,7 @@
 }
 
 
-/* =========================================================
-   TABLE
-   ========================================================= */
+/*==========TABLE==========*/
 
 .f-scroll-table {
     max-height: 170px;
@@ -636,6 +614,10 @@
 
     border: 1px solid var(--border-color);
     border-radius: 0.9rem;
+
+    /*==========FADE MASK==========*/
+    -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 1.1rem), transparent 100%);
+    mask-image: linear-gradient(to bottom, black calc(100% - 1.1rem), transparent 100%);
 }
 
 .f-hist {
@@ -688,9 +670,7 @@
 }
 
 
-/* =========================================================
-   TOGGLE / SEASONAL ADJUSTMENT
-   ========================================================= */
+/*==========SEASONAL TOGGLE==========*/
 
 .f-toggle-row {
     display: flex;
@@ -775,9 +755,7 @@
 }
 
 
-/* =========================================================
-   STATUS / CONFIDENCE
-   ========================================================= */
+/*==========CONFIDENCE PILL==========*/
 
 .f-confidence-pill {
     display: inline-flex;
@@ -830,9 +808,7 @@
 }
 
 
-/* =========================================================
-   FORMULA TAG
-   ========================================================= */
+/*==========FORMULA TAG==========*/
 
 .f-formula-tag {
     display: inline-flex;
@@ -853,9 +829,7 @@
 }
 
 
-/* =========================================================
-   FORECAST RESULT
-   ========================================================= */
+/*==========FORECAST RESULT==========*/
 
 .f-result-big {
     padding: 10px 0 6px;
@@ -883,9 +857,7 @@
 }
 
 
-/* =========================================================
-   REORDER
-   ========================================================= */
+/*==========REORDER==========*/
 
 .f-reorder-figure {
     display: flex;
@@ -904,9 +876,7 @@
 }
 
 
-/* =========================================================
-   FORMULA PANEL
-   ========================================================= */
+/*==========FORMULA PANEL==========*/
 
 .f-add-formula-panel {
     display: flex;
@@ -920,9 +890,7 @@
 }
 
 
-/* =========================================================
-   EMPTY STATE
-   ========================================================= */
+/*==========EMPTY STATE==========*/
 
 .f-empty-state {
     padding: 22px 10px 10px;
@@ -943,9 +911,7 @@
 }
 
 
-/* =========================================================
-   DOWNLOAD ACTIONS
-   ========================================================= */
+/*==========DOWNLOAD ACTIONS==========*/
 
 .f-download-actions {
     display: flex;
@@ -962,9 +928,7 @@
 }
 
 
-/* =========================================================
-   SUMMARY CARD
-   ========================================================= */
+/*==========SUMMARY CARD==========*/
 
 .f-summary-card {
     margin-top: 0;
@@ -976,7 +940,7 @@
     box-shadow: var(--shadow-card);
 }
 
-/* Compact recap strip — a slim addition under the workspace, not a full block */
+/*==========COMPACT SUMMARY==========*/
 .f-summary-compact {
     padding: 14px 18px;
     border-radius: 0.9rem;
@@ -1014,7 +978,7 @@
     font-size: 14px;
 }
 
-/* Seasonal-adjustment suggestion line */
+/*==========SUGGESTION ROW==========*/
 .f-suggest-row {
     display: flex;
     align-items: center;
@@ -1107,7 +1071,7 @@
 }
 
 
-/* Cards are flex columns now — keep inline-ish children from stretching */
+/*==========CARD CHILD ALIGNMENT==========*/
 .f-card > .f-formula-tag,
 .f-card > .f-btn,
 .f-card > .f-confidence-pill,
@@ -1115,17 +1079,14 @@
     align-self: flex-start;
 }
 
-/* …except the cross-tab hand-off, which spans the card as a primary action. */
+/*==========HAND-OFF STRETCH==========*/
 .f-card > .f-eoq-handoff {
     align-self: stretch;
 }
 
-/* =========================================================
-   PER-AREA FITTING
-   Narrow cards (2 of 8 columns) need stacked internals.
-   ========================================================= */
+/*==========PER-AREA FITTING==========*/
 
-/* 2 · product — stats stack instead of sitting side by side */
+/*==========PRODUCT STATS==========*/
 .f-area-product .f-stat-row {
     flex-direction: column;
     gap: 8px;
@@ -1140,7 +1101,7 @@
     font-size: 18px;
 }
 
-/* 3 · result — big number sits centred in the tall card */
+/*==========RESULT FIGURE==========*/
 .f-area-result .f-result-big {
     flex: 1;
 
@@ -1153,13 +1114,13 @@
     min-width: 0;
 }
 
-/* 5 · export — buttons pinned to the bottom of the card */
+/*==========EXPORT BUTTONS==========*/
 .f-area-export .f-download-actions {
     margin-top: auto;
     padding-top: 8px;
 }
 
-/* 6 · seasonal — event + % stack in the narrow column */
+/*==========SEASONAL FIELDS==========*/
 .f-area-seasonal .f-row2 {
     grid-template-columns: 1fr;
 }
@@ -1170,23 +1131,21 @@
     gap: 8px;
 }
 
-/* 7 · history — capped so the 12-row table scrolls instead of stretching */
+/*==========HISTORY SCROLL==========*/
 .f-area-history .f-scroll-table {
     max-height: 210px;
 }
 
-/* 9 · reorder */
+/*==========REORDER UNIT==========*/
 .f-unit {
     color: var(--text-muted);
     font-size: 13px;
 }
 
-/* =========================================================
-   RESPONSIVE
-   ========================================================= */
+/*==========RESPONSIVENESS==========*/
 
 @media (max-width: 1100px) {
-    /* Collapse the 8-column bento into a single ordered stack */
+    /*==========GRID STACK==========*/
     .f-grid {
         grid-template-columns: 1fr;
         grid-template-rows: none;

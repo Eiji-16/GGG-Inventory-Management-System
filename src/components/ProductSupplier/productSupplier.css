@@ -1,4 +1,4 @@
-/*-------------TABLE PARENT-------------*/
+/*==========TABLE PARENT==========*/
 .ps-table-parent{
     padding: 10px;
     width: 100%;
@@ -8,7 +8,7 @@
     box-sizing: border-box;
 }
 
-/*-------------SEARCH BAR-------------*/
+/*==========SEARCH BAR==========*/
 .ps-navigation-bar{
     background: transparent;
     padding: 5px;
@@ -18,9 +18,7 @@
     margin-bottom: 10px;
 }
 
-/* Scoped to the search bar. These used to be bare `form` and `input`
-   selectors, which leaked out of this file and squashed the modal fields
-   (and StockControl's too, since component CSS here is global). */
+/*==========SEARCH FIELD SCOPE==========*/
 .ps-search-wrapper form {
     min-width: 10rem;
     min-height: 28px;
@@ -65,7 +63,7 @@
     transform: scale(0.96);
 }
 
-/*-------------LABEL BAR-------------*/
+/*==========LABEL BAR==========*/
 .ps-label-row-grid{
     border: 0.5px solid black;
     border-top-right-radius: 0.5rem;
@@ -78,31 +76,35 @@
     font-size: 14px;
         grid-template-columns:
         minmax(32px, 0.35fr)   /* Checkbox */
-        minmax(80px, 0.8fr)     /* Product ID */
+        minmax(90px, 0.8fr)     /* Product ID */
         minmax(150px, 2fr)     /* Product Name */
         minmax(95px, 1fr)       /* Category */
         minmax(90px, 1fr)       /* Brand */
         minmax(100px, 1.1fr)   /* Model */
-        minmax(100px, 1fr)      /* Unit Measure */
+        minmax(110px, 1fr)      /* Unit Measure */
         minmax(150px, 2fr)     /* Supplier Information */
         minmax(80px, 0.8fr);    /* Action */
 }
 
 .ps-label-row-grid > div {
-    padding: 10px;
-    min-width: 0;
-    white-space: nowrap;
-}
-
-.ps-label-row-grid > div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 6px;
     border-right: 1px solid black;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: break-word;
+    text-align: center;
+    line-height: 1.25;
+    font-weight: 600;
 }
 
 .ps-label-row-grid > div:last-child{
     border-right: none;
 }
 
-/*-------------DATA TABLE-------------*/
+/*==========DATA TABLE==========*/
 .ps-data-table{
     background-color: transparent;
     justify-content: flex-start;
@@ -171,7 +173,7 @@
     line-height: 1.35;
 }
 
-/*-------------CHECKBOX-------------*/
+/*==========CHECKBOX==========*/
 .ps-checkbox-cell input[type="checkbox"] {
     width: 14px;
     height: 14px;
@@ -179,7 +181,7 @@
     accent-color: var(--background-icon-active-color, #E8C547);
 }
 
-/*===============FIX BY AI===============*/
+/*==========TABLE ACTION BUTTONS==========*/
 .ps-table-action-btn {
     background: transparent !important;
     border: none !important;
@@ -209,7 +211,7 @@
     transform: scale(1.08);
 }
 
-/* Micro-interaction tap down feedback */
+/*==========TAP FEEDBACK==========*/
 .ps-table-action-btn:active {
     transform: scale(0.9);
 }
@@ -222,7 +224,7 @@
     gap: 6px;
 }
 
-/*-------------EMPTY STATE-------------*/
+/*==========EMPTY STATE==========*/
 .ps-empty-state {
     padding: 2rem;
     text-align: center;
@@ -230,9 +232,7 @@
     color: var(--text-muted, #666);
 }
 
-/*==========================================
-    ADD / EDIT MODAL
-==========================================*/
+/*==========ADD / EDIT MODAL==========*/
 .ps-modal-overlay {
     position: fixed;
     inset: 0;
@@ -251,8 +251,7 @@
     to { opacity: 1; }
 }
 
-/* Shell is a flex column so the header and footer stay put and only the
-   field area scrolls — no more title sliding out of view. */
+/*==========MODAL SHELL==========*/
 .ps-modal {
     display: flex;
     flex-direction: column;
@@ -344,7 +343,7 @@
     flex: 1;
 }
 
-/* The only scrolling region. */
+/*==========SCROLL REGION==========*/
 .ps-modal-body {
     flex: 1;
     min-height: 0;
@@ -355,6 +354,10 @@
     gap: 1.35rem;
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) transparent;
+
+    /*==========FADE MASK==========*/
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
 }
 
 .ps-modal-body::-webkit-scrollbar {
@@ -432,7 +435,7 @@
     min-width: 0;
 }
 
-/* Full-bleed field that sits outside a two-column row. */
+/*==========FULL WIDTH FIELD==========*/
 .ps-form-group-wide {
     width: 100%;
 }
@@ -487,7 +490,7 @@
     color: var(--text-muted);
 }
 
-/* Pinned footer, with a hairline so content scrolling under it reads clearly. */
+/*==========MODAL FOOTER==========*/
 .ps-modal-actions {
     flex-shrink: 0;
     display: flex;
@@ -547,12 +550,10 @@
     }
 }
 
-/*==========================================
-    RESPONSIVENESS
-==========================================*/
+/*==========RESPONSIVENESS==========*/
 @media (max-width: 900px) {
     .ps-label-row-grid {
-        display: none; /* header collapses; cards use data-label instead */
+        display: none;
     }
 
     .ps-data-row-grid {

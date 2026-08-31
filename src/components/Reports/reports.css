@@ -9,7 +9,7 @@
     margin: 0;
 }
 
-/* ---------- TAB BAR ---------- */
+/*==========TAB BAR==========*/
 .ra-tabbar {
     display: flex;
     gap: 6px;
@@ -39,7 +39,7 @@
 }
 .ra-tab:hover:not(.active) { background: rgba(0,0,0,0.05); }
 
-/* ---------- PANEL HEADER (title + export, same spot every tab) ---------- */
+/*==========PANEL HEADER==========*/
 .ra-panel-header {
     display: flex;
     align-items: flex-start;
@@ -74,7 +74,7 @@
 }
 .ra-export-btn:hover { background: rgba(0,0,0,0.05); }
 
-/* ---------- FILTERS BAR ---------- */
+/*==========FILTERS BAR==========*/
 .ra-filters-bar {
     display: flex;
     flex-wrap: wrap;
@@ -130,7 +130,7 @@
     color: var(--btn-fill-text, #fff);
 }
 
-/* ---------- KPI CARDS ---------- */
+/*==========KPI CARDS==========*/
 .ra-kpi-row {
     display: flex;
     gap: 12px;
@@ -163,7 +163,7 @@
     margin-top: 3px;
 }
 
-/* ---------- CHART PLACEHOLDER ---------- */
+/*==========CHART CARD==========*/
 .ra-chart-card {
     background: var(--bg-card, #fff);
     border: 0.5px solid var(--border-color, rgba(0,0,0,0.15));
@@ -191,7 +191,7 @@
     font-size: 12px;
 }
 
-/* ---------- TABLE ---------- */
+/*==========TABLE==========*/
 .ra-table-card {
     background: var(--bg-card, #fff);
     border: 0.5px solid var(--border-color, rgba(0,0,0,0.15));
@@ -226,7 +226,7 @@
 .ra-trend-up { color: #1e8a5f; font-weight: 700; }
 .ra-trend-down { color: #c4432e; font-weight: 700; }
 
-/* ---------- STATUS BADGES ---------- */
+/*==========STATUS BADGES==========*/
 .ra-badge {
     display: inline-flex;
     align-items: center;
@@ -250,7 +250,7 @@
 .ra-badge-neutral { background: rgba(0,0,0,0.06); color: var(--text-muted, #888); }
 .ra-badge-neutral .ra-dot { background: var(--text-muted, #888); }
 
-/* ---------- SUPPLIER NOTE ---------- */
+/*==========SUPPLIER NOTE==========*/
 .ra-supplier-note {
     display: flex;
     align-items: center;

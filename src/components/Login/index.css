@@ -4,7 +4,8 @@
     box-sizing: border-box;
 }
 
-html, body #root{
+/*==========DOCUMENT==========*/
+html, body, #root {
     font-family: 'Poppins', sans-serif;
     height: 100%;
 }
@@ -13,20 +14,49 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: white;
+    overflow-x: hidden;
+    background: var(--bg-main, #ffffff);
 }
 
-/*-----Default Login page size-----*/
+/*==========SCROLLBAR==========*/
+html {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+body::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+body::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+body::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+    background-clip: content-box;
+}
+
+/*==========LOGIN PAGE WRAPPER==========*/
 .Login-page-wrapper {
     width: 100%;
     min-height: 100vh;
+    background-color: #ffffff;
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
 
-/*-----Login Division Box-----*/
+/*==========LOGIN BOX==========*/
 .Login-box {
     display: flex;
     width: min(95vw, 60rem);
@@ -38,7 +68,7 @@ body {
     background: #ffffff;
 }
 
-/*-----Left Side Design Division Box-----*/
+/*==========DESIGN SIDE==========*/
 .Design-side {
     width: 50%;
     min-width: 20rem;
@@ -79,8 +109,8 @@ body {
     color: rgba(255, 255, 255, 0.9);
 }
 
-/*-----Right Side Login Division Box-----*/
-/*-----WelcomeText-----*/
+/*==========LOGIN SIDE==========*/
+/*==========WELCOME TEXT==========*/
 .WelcomeText {
     text-align: left;
 }
@@ -99,7 +129,7 @@ body {
     max-width: 22.5rem;
 }
 
-/*-----LogIn Form-----*/
+/*==========LOGIN FORM==========*/
 .Login-side {
     width: 50%;
     min-width: 0;
@@ -202,7 +232,7 @@ body {
     padding: 0 1rem;
 }
 
-/* Left line */
+/*==========BUTTON LINES==========*/
 .Login-button span::before,
 .Login-button span::after {
     content: "";
@@ -214,19 +244,19 @@ body {
     transition: width 0.35s ease;
 }
 
-/* Left */
+/*==========LEFT LINE==========*/
 .Login-button span::before {
     right: 100%;
     margin-right: 0.5rem;
 }
 
-/* Right */
+/*==========RIGHT LINE==========*/
 .Login-button span::after {
     left: 100%;
     margin-left: 0.5rem;
 }
 
-/* Hover */
+/*==========BUTTON HOVER==========*/
 .Login-button:hover {
     color: #0d1b3e;
 }

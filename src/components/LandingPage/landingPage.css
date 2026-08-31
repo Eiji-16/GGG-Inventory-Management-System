@@ -22,7 +22,10 @@ body {
     line-height: 1.5;
     letter-spacing: 0.1px;
 }
-/*==========USED FOR DARK & LIGHT MODE==========*/
+
+
+
+/*==========DARK AND LIGHT MODE==========*/
 :root, [data-theme="light"] {
     --bg-main: #c9cacc;
     --bg-sidebar: #e0dbdb;
@@ -35,6 +38,10 @@ body {
     --icon-active-color: #0B1B33;
     --background-icon-active-color-theme: rgba(232, 197, 71, 0.12);
     --static-bg-color: #EEF2F7;
+    --fade-top: rgba(201, 202, 204, 0.95);
+    --fade-bottom: rgba(201, 202, 204, 0.95);
+    --scroll-thumb: rgba(11, 27, 51, 0.22);
+    --scroll-thumb-hover: rgba(11, 27, 51, 0.4);
 }
  
 [data-theme="dark"] {
@@ -50,9 +57,13 @@ body {
     --icon-active-color: #0B1426;
     --background-icon-active-color-theme: rgba(232, 197, 71, 0.14);
     --static-bg-color: #26385a;
+    --fade-top: rgba(22, 38, 79, 0.95);
+    --fade-bottom: rgba(31, 60, 134, 0.95);
+    --scroll-thumb: rgba(248, 250, 252, 0.22);
+    --scroll-thumb-hover: rgba(248, 250, 252, 0.42);
 }
 
-/*========== DARK MODE: MOON ICON GLOW (ISOLATED SPECIFICITY) ==========*/
+/*==========DARK MODE GLOW==========*/
 [data-theme="dark"] .siderbar-item button:hover .sidebar-icon {
     color: var(--accent);
     filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.65))
@@ -60,7 +71,7 @@ body {
     transform: rotate(-12deg) scale(1.08);
 }
 
-/*========== LIGHT MODE: SUN ICON GLOW (ISOLATED SPECIFICITY) ==========*/
+/*==========LIGHT MODE GLOW==========*/
 [data-theme="light"] .siderbar-item button:hover .sidebar-icon {
     color: var(--accent);
     filter: drop-shadow(0 0 6px rgba(11, 27, 51, 0.45))
@@ -68,7 +79,7 @@ body {
     transform: scale(1.12);
 }
 
-/*========== GLOBAL TRANSITION HOOKS FOR ALL SIDEBAR ICONS ==========*/
+/*==========SIDEBAR ICON TRANSITIONS==========*/
 .sidebar-icon {
     transition: filter 0.25s cubic-bezier(0.4, 0, 0.2, 1),
                 transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
@@ -76,7 +87,7 @@ body {
     will-change: filter, transform;
 }
 
-/*========== CLEAN RESET FOR THE INNER TOGGLE BUTTON PANEL ==========*/
+/*==========TOGGLE BUTTON RESET==========*/
 .siderbar-item button {
     background: transparent;
     border: none;
@@ -100,7 +111,7 @@ body {
     will-change: background-color;
 }
 
-/*==========SMOOTH THEME BACKGROUND TRANSITIONS==========*/
+/*==========THEME BACKGROUND TRANSITIONS==========*/
 .dashboard-page-wrapper,
 .dashboard-container-parent,
 .sidebar-menu,
@@ -333,7 +344,7 @@ body {
     box-sizing: border-box;
     flex-direction: column;
 }
-/*==========NAVBAR / PAGE TITLE AND ACTION BUTTONS==========*/
+/*==========NAVBAR==========*/
 .top-navbar {
     background-color: transparent;
     width: 100%;
@@ -457,6 +468,7 @@ body {
     padding-bottom: 0;
 }
 
+/*==========SCROLL FADE==========*/
 .main-content-window::before,
 .main-content-window::after {
   content: '';
@@ -470,16 +482,97 @@ body {
 
 .main-content-window::before {
   top: 0;
-  background: linear-gradient(180deg, rgba(11, 27, 51, 0.95), rgba(11, 27, 51, 0));
+  background: linear-gradient(180deg, var(--fade-top, rgba(11, 27, 51, 0.95)), transparent);
 }
 
 .main-content-window::after {
   bottom: 0;
-  background: linear-gradient(0deg, rgba(11, 27, 51, 0.95), rgba(11, 27, 51, 0));
+  background: linear-gradient(0deg, var(--fade-bottom, rgba(11, 27, 51, 0.95)), transparent);
 }
 
-.main-content-window::-webkit-scrollbar {
+/*==========TAB SCROLLBAR==========*/
+.main-content-window,
+.dashboard-scroll-container,
+.ps-modal-body,
+.sc-modal-body,
+.sc-history-body,
+.sc-table-scroll,
+.ac-modal-body,
+.ac-history-list,
+.ac-batch-product-list,
+.f-scroll-table,
+.pf-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+.main-content-window::-webkit-scrollbar,
+.dashboard-scroll-container::-webkit-scrollbar,
+.ps-modal-body::-webkit-scrollbar,
+.sc-modal-body::-webkit-scrollbar,
+.sc-history-body::-webkit-scrollbar,
+.sc-table-scroll::-webkit-scrollbar,
+.ac-modal-body::-webkit-scrollbar,
+.ac-history-list::-webkit-scrollbar,
+.ac-batch-product-list::-webkit-scrollbar,
+.f-scroll-table::-webkit-scrollbar,
+.pf-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+/*==========SCROLL TRACK==========*/
+.main-content-window::-webkit-scrollbar-track,
+.dashboard-scroll-container::-webkit-scrollbar-track,
+.ps-modal-body::-webkit-scrollbar-track,
+.sc-modal-body::-webkit-scrollbar-track,
+.sc-history-body::-webkit-scrollbar-track,
+.sc-table-scroll::-webkit-scrollbar-track,
+.ac-modal-body::-webkit-scrollbar-track,
+.ac-history-list::-webkit-scrollbar-track,
+.ac-batch-product-list::-webkit-scrollbar-track,
+.f-scroll-table::-webkit-scrollbar-track,
+.pf-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/*==========SCROLL THUMB==========*/
+.main-content-window::-webkit-scrollbar-thumb,
+.dashboard-scroll-container::-webkit-scrollbar-thumb,
+.ps-modal-body::-webkit-scrollbar-thumb,
+.sc-modal-body::-webkit-scrollbar-thumb,
+.sc-history-body::-webkit-scrollbar-thumb,
+.sc-table-scroll::-webkit-scrollbar-thumb,
+.ac-modal-body::-webkit-scrollbar-thumb,
+.ac-history-list::-webkit-scrollbar-thumb,
+.ac-batch-product-list::-webkit-scrollbar-thumb,
+.f-scroll-table::-webkit-scrollbar-thumb,
+.pf-scroll::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 999px;
+  border: none;
+}
+
+.main-content-window::-webkit-scrollbar-thumb:hover,
+.dashboard-scroll-container::-webkit-scrollbar-thumb:hover,
+.ps-modal-body::-webkit-scrollbar-thumb:hover,
+.sc-modal-body::-webkit-scrollbar-thumb:hover,
+.sc-history-body::-webkit-scrollbar-thumb:hover,
+.sc-table-scroll::-webkit-scrollbar-thumb:hover,
+.ac-modal-body::-webkit-scrollbar-thumb:hover,
+.ac-history-list::-webkit-scrollbar-thumb:hover,
+.ac-batch-product-list::-webkit-scrollbar-thumb:hover,
+.f-scroll-table::-webkit-scrollbar-thumb:hover,
+.pf-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
+
+/*==========NO SCROLL ARROWS==========*/
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-corner {
   display: none;
+  width: 0;
+  height: 0;
 }
 
-/*==========RESPONSIVENESS OF THE WEBSITE==========*/
+/*==========RESPONSIVENESS==========*/

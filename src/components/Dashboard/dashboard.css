@@ -1,4 +1,4 @@
-/* ─── ROOT ─────────────────────────────────────────────────── */
+/*==========ROOT==========*/
 .dashboard-content-view {
     width: 100%;
     height: 100%;
@@ -17,7 +17,7 @@
     --bg-card: #0B1B33;
 }
 
-/* ─── SCROLL CONTAINER ─────────────────────────────────────── */
+/*==========SCROLL CONTAINER==========*/
 
 .dashboard-scroll-container {
     width: 100%;
@@ -29,7 +29,7 @@
     scroll-behavior: smooth;
     scrollbar-width: none;
 
-    /* Fade mask at bottom so cards don't hard-cut */
+    /*==========FADE MASK==========*/
     -webkit-mask-image: linear-gradient(
         to bottom,
         transparent 0%,
@@ -46,7 +46,7 @@
     );
 }
 
-/* ─── GRID ─────────────────────────────────────────────────── */
+/*==========GRID==========*/
 .parent {
     display: grid;
     gap: 8px;
@@ -63,7 +63,7 @@
 
 
 
-/* ─── BASE CARD ────────────────────────────────────────────── */
+/*==========BASE CARD==========*/
 .card {
     border: 1px solid var(--border-color, rgba(0,0,0,0.15));
     background: var(--bg-card);
@@ -76,7 +76,7 @@
     box-sizing: border-box;
     overflow: hidden;
 
-    /* Slide-up entrance animation */
+    /*==========CARD ANIMATION==========*/
     animation: cardEnter 0.35s ease both;
 }
 
@@ -91,7 +91,7 @@
     }
 }
 
-/* Stagger delay per card */
+/*==========STAGGER DELAY==========*/
 .parent > .card:nth-child(1) { animation-delay: 0.00s; }
 .parent > .card:nth-child(2) { animation-delay: 0.04s; }
 .parent > .card:nth-child(3) { animation-delay: 0.08s; }
@@ -102,7 +102,7 @@
 .parent > .card:nth-child(8) { animation-delay: 0.28s; }
 .parent > .card:nth-child(9) { animation-delay: 0.32s; }
 
-/* ─── CARD PLACEMENTS — DESKTOP ────────────────────────────── */
+/*==========DESKTOP LAYOUT==========*/
 .salesAnalytics-card {
     grid-column: 1 / span 5;
     grid-row: 1 / span 2;
@@ -157,7 +157,7 @@
     min-height: 16rem;
 }
 
-/* ─── TABLET — 1024px ──────────────────────────────────────── */
+/*==========TABLET RESPONSIVENESS==========*/
 @media (max-width: 1024px) {
     .parent {
         grid-template-columns: repeat(4, 1fr);
@@ -218,7 +218,7 @@
     }
 }
 
-/* ─── MOBILE — 640px ───────────────────────────────────────── */
+/*==========MOBILE RESPONSIVENESS==========*/
 @media (max-width: 640px) {
     .parent {
         grid-template-columns: 1fr 1fr;
@@ -254,7 +254,7 @@
     }
 }
 
-/* ─── MOBILE SMALL — 400px ─────────────────────────────────── */
+/*==========SMALL MOBILE RESPONSIVENESS==========*/
 @media (max-width: 400px) {
     .parent {
         grid-template-columns: 1fr;

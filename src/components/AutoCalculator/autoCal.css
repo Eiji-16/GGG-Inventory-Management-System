@@ -1,10 +1,4 @@
-/* ============================================================
-   AutoCalculator — design system
-   Monochrome, hairline borders, pill buttons, compact type.
-   Uses --text-primary, --bg-card, --border-strong, --btn-fill-bg,
-   --btn-fill-text, --text-muted from the root theme already
-   defined in landingPage.css — no local re-declaration here.
-   ============================================================ */
+/*==========ROOT==========*/
 
 .ac-root {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
@@ -22,7 +16,7 @@
     border-radius: 10px;
 }
 
-/* ---------- HEADER ---------- */
+/*==========HEADER==========*/
 .ac-header {
     display: flex;
     align-items: center;
@@ -50,7 +44,7 @@
 }
 .ac-add-btn:hover { opacity: 0.8; }
 
-/* ---------- TABS ---------- */
+/*==========TABS==========*/
 .ac-tabs {
     display: flex;
     flex-wrap: wrap;
@@ -96,7 +90,7 @@
 .ac-tab-close:hover { background: rgba(0,0,0,0.18); }
 .ac-tab.active .ac-tab-close:hover { background: rgba(255,255,255,0.35); }
 
-/* ---------- SHARED FORM ELEMENTS ---------- */
+/*==========FORM ELEMENTS==========*/
 .ac-label {
     font-size: 11px;
     font-weight: 600;
@@ -125,7 +119,7 @@
 .ac-input::placeholder { color: var(--text-primary, #111); }
 .ac-input-sm { flex: 1; padding: 0.4rem 0.5rem; font-size: 11px; }
 
-/* ---------- CALCULATOR BODY ---------- */
+/*==========CALCULATOR BODY==========*/
 .ac-body {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -210,7 +204,7 @@
 }
 .ac-btn-reset:hover { background: rgba(0,0,0,0.05); }
 
-/* ---------- RESULT BOX ---------- */
+/*==========RESULT BOX==========*/
 .ac-result-box {
     border: 0.5px solid var(--border-strong, #111);
     border-radius: 0.5rem;
@@ -263,7 +257,7 @@
     margin-top: 6px;
 }
 
-/* ---------- MODALS ---------- */
+/*==========MODALS==========*/
 .ac-modal-overlay {
     position: fixed;
     inset: 0;
@@ -311,6 +305,10 @@
     display: flex;
     flex-direction: column;
     gap: 0.9rem;
+
+    /*==========FADE MASK==========*/
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
 }
 .ac-modal-footer {
     display: flex;
@@ -384,7 +382,7 @@
 }
 .ac-add-field-btn:hover { background: rgba(0,0,0,0.05); }
 
-/* ---------- HEADER ACTIONS (given) ---------- */
+/*==========HEADER ACTIONS==========*/
 .ac-header-actions {
     display: flex;
     gap: 6px;
@@ -404,8 +402,7 @@
 }
 .ac-icon-btn:hover { background: rgba(0,0,0,0.05); }
 
-/* Cross-tab jump — accented so the integration reads as a feature,
-   not just another toolbar action. */
+/*==========CROSS TAB LINK==========*/
 .ac-icon-btn-link {
     color: var(--accent, #E8C547);
     border-color: var(--accent, #E8C547);
@@ -415,7 +412,7 @@
     background: var(--background-icon-active-color-theme, rgba(232, 197, 71, 0.1));
 }
 
-/* Names where the auto-filled numbers come from. */
+/*==========SOURCE NOTE==========*/
 .ac-source-note {
     display: flex;
     align-items: center;
@@ -428,7 +425,7 @@
 
 .ac-source-note svg { flex-shrink: 0; }
 
-/* Confirms what a cross-tab jump carried over. */
+/*==========HANDOFF BANNER==========*/
 .ac-handoff-banner {
     display: flex;
     align-items: center;
@@ -455,7 +452,7 @@
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ---------- TOOLTIP (given) ---------- */
+/*==========TOOLTIP==========*/
 .ac-tooltip-wrapper {
     position: relative;
     display: inline-flex;
@@ -480,7 +477,7 @@
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
-/* ---------- PRODUCT SELECTOR (given) ---------- */
+/*==========PRODUCT SELECTOR==========*/
 .ac-product-selector {
     display: flex;
     flex-direction: column;
@@ -489,7 +486,7 @@
     max-width: 320px;
 }
 
-/* ---------- EXPORT (given) ---------- */
+/*==========EXPORT==========*/
 .ac-export-actions {
     display: flex;
     gap: 6px;
@@ -500,7 +497,7 @@
     gap: 4px;
 }
 
-/* ---------- HISTORY (given) ---------- */
+/*==========HISTORY==========*/
 .ac-modal-wide { max-width: 620px; }
 .ac-history-list {
     display: flex;
@@ -508,6 +505,10 @@
     gap: 10px;
     max-height: 400px;
     overflow-y: auto;
+
+    /*==========FADE MASK==========*/
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
 }
 .ac-history-item {
     border: 0.5px solid rgba(0,0,0,0.15);
@@ -538,7 +539,7 @@
 }
 .ac-history-result { font-size: 12px; }
 
-/* ---------- COMPARISON MODE (given) ---------- */
+/*==========COMPARISON MODE==========*/
 .ac-compare-wrapper {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -566,7 +567,7 @@
     margin-top: 8px;
 }
 
-/* ---------- BATCH COMPUTE (given) ---------- */
+/*==========BATCH COMPUTE==========*/
 .ac-batch-product-list {
     display: flex;
     flex-direction: column;
@@ -576,6 +577,10 @@
     border: 0.5px solid rgba(0,0,0,0.15);
     border-radius: 0.375rem;
     padding: 8px;
+
+    /*==========FADE MASK==========*/
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 1rem, black calc(100% - 1rem), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, black 1rem, black calc(100% - 1rem), transparent 100%);
 }
 .ac-batch-product-item {
     display: flex;
