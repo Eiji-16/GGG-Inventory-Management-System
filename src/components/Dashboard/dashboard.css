@@ -7,15 +7,8 @@
     box-sizing: border-box;
 }
 
-:root, [data-theme="light"] {
-    --text-primary: #0B1B33;
-    --bg-card: #F8FAFC;
-}
-
-[data-theme="dark"] {
-    --text-primary: #F8FAFC;
-    --bg-card: #0B1B33;
-}
+/*==========THEME==========*/
+/* Theme variables are owned by landingPage.css. Do not redeclare them here. */
 
 /*==========SCROLL CONTAINER==========*/
 
@@ -27,7 +20,26 @@
     padding: 10px;
     box-sizing: border-box;
     scroll-behavior: smooth;
+    /*==========FADE MASK==========*/
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 3%,
+        black 92%,
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 3%,
+        black 92%,
+        transparent 100%
+    );
 }
+
+
+
+
 
 /*==========GRID==========*/
 .parent {
@@ -51,7 +63,7 @@
     border: 1px solid var(--border-color, rgba(0,0,0,0.15));
     background: var(--bg-card);
     color: var(--text-primary);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    box-shadow: var(--shadow-card);
     border-radius: 10px;
     padding: 12px;
     font-size: 12px;

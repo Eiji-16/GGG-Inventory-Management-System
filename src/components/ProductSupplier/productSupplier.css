@@ -29,7 +29,7 @@
     gap: 1px;
     border-radius: 1rem;
     overflow: hidden;
-    border: 0.5px solid black;
+    border: 0.5px solid var(--border-strong);
 }
 
 .ps-search-wrapper input {
@@ -37,6 +37,7 @@
     border: none;
     font-size: 10px;
     background: transparent;
+    color: var(--text-primary);
 }
 
 .ps-add-btn{
@@ -47,7 +48,7 @@
     background-color: transparent;
     border-radius: 1rem;
     font-size: 10px;
-    border: 0.5px solid black;
+    border: 0.5px solid var(--border-strong);
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     color: var(--text-primary);
@@ -65,7 +66,7 @@
 
 /*==========LABEL BAR==========*/
 .ps-label-row-grid{
-    border: 0.5px solid black;
+    border: 0.5px solid var(--border-strong);
     border-top-right-radius: 0.5rem;
     border-top-left-radius: 0.5rem;
     background-color: transparent;
@@ -92,7 +93,7 @@
     align-items: center;
     justify-content: center;
     padding: 8px 6px;
-    border-right: 1px solid black;
+    border-right: 1px solid var(--hairline);
     min-width: 0;
     white-space: normal;
     overflow-wrap: break-word;
@@ -109,9 +110,9 @@
 .ps-data-table{
     background-color: transparent;
     justify-content: flex-start;
-    border-right: 1px solid black ;
-    border-left: 1px solid black;
-    border-bottom: 1px solid black;
+    border-right: 1px solid var(--border-strong);
+    border-left: 1px solid var(--border-strong);
+    border-bottom: 1px solid var(--border-strong);
     border-bottom-left-radius: 0.5rem;
     border-bottom-right-radius: 0.5rem;
     
@@ -125,7 +126,7 @@
     align-items: center;
     font-size: 13px;
     transition: background-color 0.2s ease;
-    border-bottom: 0.5px solid rgba(0, 0, 0, 0.15);
+    border-bottom: 0.5px solid var(--hairline);
 
         grid-template-columns:
         minmax(32px, 0.35fr)   /* Checkbox */
@@ -172,6 +173,25 @@
     overflow-wrap: anywhere;
     word-break: break-word;
     line-height: 1.35;
+}
+
+/*==========CLICKABLE ROW==========*/
+.ps-row-clickable {
+    cursor: pointer;
+}
+
+.ps-row-clickable:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 1.5px var(--background-icon-active-color);
+}
+
+.ps-cell-name {
+    font-weight: 600;
+}
+
+.ps-row-clickable:hover .ps-cell-name {
+    text-decoration: underline;
+    text-underline-offset: 2px;
 }
 
 /*==========CHECKBOX==========*/
@@ -481,6 +501,64 @@
     color: var(--text-muted);
 }
 
+/*==========DETAIL MODAL==========*/
+.ps-detail-modal {
+    width: min(94vw, 38rem);
+}
+
+.ps-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+}
+
+.ps-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.7rem;
+    background: var(--static-bg-color);
+}
+
+.ps-detail-item-wide {
+    grid-column: 1 / -1;
+}
+
+.ps-detail-label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.ps-detail-value {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+}
+
+.ps-detail-hint {
+    font-size: 0.65rem;
+    line-height: 1.35;
+    color: var(--text-muted);
+}
+
+.ps-detail-note {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+@media (max-width: 560px) {
+    .ps-detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /*==========MODAL FOOTER==========*/
 .ps-modal-actions {
     flex-shrink: 0;
@@ -552,7 +630,7 @@
         grid-template-columns: auto 1fr;
         row-gap: 6px;
         column-gap: 10px;
-        border: 0.5px solid black;
+        border: 0.5px solid var(--border-strong);
         border-radius: 0.6rem;
         margin-bottom: 10px;
         padding: 10px;

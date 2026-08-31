@@ -16,6 +16,7 @@
     overflow-x: auto;
     padding-bottom: 0.75rem;
     margin-bottom: 1.25rem;
+    padding-top: 20px;
     border-bottom: 0.5px solid var(--border-color, rgba(0,0,0,0.15));
 }
 .ra-tab {
@@ -36,7 +37,7 @@
     background: var(--btn-fill-bg, #111);
     color: var(--btn-fill-text, #fff);
 }
-.ra-tab:hover:not(.active) { background: rgba(0,0,0,0.05); }
+.ra-tab:hover:not(.active) { background: var(--overlay-soft); }
 
 /*==========PANEL HEADER==========*/
 .ra-panel-header {
@@ -71,7 +72,7 @@
     cursor: pointer;
     transition: background 0.15s;
 }
-.ra-export-btn:hover { background: rgba(0,0,0,0.05); }
+.ra-export-btn:hover { background: var(--background-icon-active-color-theme); }
 
 /*==========FILTERS BAR==========*/
 .ra-filters-bar {
@@ -197,6 +198,7 @@
     border-radius: 0.75rem;
     padding: 0.5rem 0.5rem 0.75rem;
     overflow-x: auto;
+    margin-bottom: 30px;
 }
 .ra-table {
     width: 100%;
@@ -220,7 +222,7 @@
     white-space: nowrap;
 }
 .ra-table tbody tr:last-child td { border-bottom: none; }
-.ra-table tbody tr:hover { background: rgba(0,0,0,0.02); }
+.ra-table tbody tr:hover { background: var(--background-icon-active-color-theme); }
 
 .ra-trend-up { color: #1e8a5f; font-weight: 700; }
 .ra-trend-down { color: #c4432e; font-weight: 700; }
@@ -246,7 +248,7 @@
 .ra-badge-bad { background: rgba(196,67,46,.12); color: #c4432e; }
 .ra-badge-bad .ra-dot { background: #c4432e; }
 
-.ra-badge-neutral { background: rgba(0,0,0,0.06); color: var(--text-muted, #888); }
+.ra-badge-neutral { background: var(--overlay-medium); color: var(--text-muted, #888); }
 .ra-badge-neutral .ra-dot { background: var(--text-muted, #888); }
 
 /*==========SUPPLIER NOTE==========*/
@@ -256,7 +258,7 @@
     gap: 8px;
     font-size: 12px;
     color: var(--text-muted, #888);
-    background: rgba(0,0,0,0.03);
+    background: var(--overlay-soft);
     border-radius: 0.5rem;
     padding: 0.6rem 0.8rem;
     margin-top: 0.9rem;

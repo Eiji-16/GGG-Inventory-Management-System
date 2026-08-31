@@ -27,28 +27,42 @@ body {
 
 /*==========DARK AND LIGHT MODE==========*/
 :root, [data-theme="light"] {
-    --bg-main: #c9cacc;
-    --bg-sidebar: #e0dbdb;
+    --bg-main: #F1F5FA;
+    --bg-sidebar: #FFFFFF;
     --bg-card: #FFFFFF;
     --text-primary: #0B1B33;
     --text-muted: #64748B;
-    --border-color: rgba(11, 27, 51, 0.08);
+    --border-color: rgba(11, 27, 51, 0.12);
     --text-sidebar-icon: #0B1B33;
     --background-icon-active-color: #E8C547;
     --icon-active-color: #0B1B33;
-    --background-icon-active-color-theme: rgba(232, 197, 71, 0.12);
+    --background-icon-active-color-theme: rgba(232, 197, 71, 0.16);
     --static-bg-color: #EEF2F7;
-    --fade-top: rgba(201, 202, 204, 0.95);
-    --fade-bottom: rgba(201, 202, 204, 0.95);
     --scroll-thumb: rgba(11, 27, 51, 0.22);
     --scroll-thumb-hover: rgba(11, 27, 51, 0.4);
+
+    /*==========ACCENTS==========*/
+    --accent: #E8C547;
+    --accent-low: #C4432E;
+    --accent-med: #C08A1E;
+    --accent-high: #1E8A5F;
+    --border-strong: rgba(11, 27, 51, 0.22);
+    --btn-fill-bg: #0B1B33;
+    --btn-fill-text: #FFFFFF;
+    --shadow-card: 0 1px 3px rgba(11, 27, 51, 0.08);
+    --shadow-hover: 0 8px 22px rgba(11, 27, 51, 0.14);
+
+    /*==========NEUTRAL OVERLAYS==========*/
+    --overlay-soft: rgba(11, 27, 51, 0.05);
+    --overlay-medium: rgba(11, 27, 51, 0.10);
+    --hairline: rgba(11, 27, 51, 0.15);
 }
  
 [data-theme="dark"] {
     color-scheme: dark;
     --bg-main: linear-gradient(180deg, #16264f 0%, #1f3c86 100%);
-    --bg-sidebar: #1a2a4d;
-    --bg-card: #1b2c4a;
+    --bg-sidebar: #16254A;
+    --bg-card: #16254A;
     --text-primary: #F8FAFC;
     --text-muted: #A7B4CC;
     --border-color: rgba(232, 197, 71, 0.18);
@@ -57,10 +71,24 @@ body {
     --icon-active-color: #0B1426;
     --background-icon-active-color-theme: rgba(232, 197, 71, 0.14);
     --static-bg-color: #26385a;
-    --fade-top: rgba(22, 38, 79, 0.95);
-    --fade-bottom: rgba(31, 60, 134, 0.95);
     --scroll-thumb: rgba(248, 250, 252, 0.22);
     --scroll-thumb-hover: rgba(248, 250, 252, 0.42);
+
+    /*==========ACCENTS==========*/
+    --accent: #E8C547;
+    --accent-low: #FF8A75;
+    --accent-med: #F0C05A;
+    --accent-high: #4ADE9B;
+    --border-strong: rgba(232, 197, 71, 0.38);
+    --btn-fill-bg: #E8C547;
+    --btn-fill-text: #0B1426;
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.28);
+    --shadow-hover: 0 8px 22px rgba(0, 0, 0, 0.38);
+
+    /*==========NEUTRAL OVERLAYS==========*/
+    --overlay-soft: rgba(248, 250, 252, 0.06);
+    --overlay-medium: rgba(248, 250, 252, 0.12);
+    --hairline: rgba(248, 250, 252, 0.14);
 }
 
 /*==========DARK MODE GLOW==========*/
@@ -228,7 +256,7 @@ body {
 }
 
 .sidebar-item:not(.active) button:hover {
-    background-color: rgba(247, 245, 245, 0.1) !important;
+    background-color: var(--background-icon-active-color-theme) !important;
 }
 
 .sidebar-item:not(.active) button:hover .sidebar-icon {
@@ -310,11 +338,11 @@ body {
 
 #log-out.sidebar-item button {
     background-color: transparent !important;
-    color: #ffffff;
+    color: var(--text-primary);
 }
 
 #log-out.sidebar-item .sidebar-icon {
-    color: #ffffff !important;
+    color: var(--text-primary) !important;
     stroke: var(--text-primary) !important;
 }
 
@@ -433,37 +461,13 @@ body {
   box-shadow: 0 0 6px rgba(239, 68, 68, 0.7);
 }
 
-.navbar-user-profile {
-  width: 2.2rem;
-  height: 2.2rem;
-  border-radius: 0.7rem;
-  background: var(--static-bg-color);
-  border: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out,
-              transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-}
-
-.navbar-user-profile:hover {
-  background: var(--background-icon-active-color-theme);
-  border-color: var(--background-icon-active-color);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-
-
 .main-content-window {
     position: relative;
     overflow-y: auto;
     overflow-x: hidden;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
-    height: calc(90vh - 4.5rem);
+    height: calc(90vh - 4rem);
     width: 100%;
     padding-bottom: 0;
 
@@ -482,6 +486,12 @@ body {
         black 92%,
         transparent 100%
     );
+}
+
+/*==========FADE MASK OPT-OUT==========*/
+.main-content-window.no-fade {
+    -webkit-mask-image: none;
+    mask-image: none;
 }
 
 /*==========TAB SCROLLBAR==========*/
@@ -582,6 +592,18 @@ body {
   display: none;
   width: 0;
   height: 0;
+}
+
+/*==========HIDDEN TAB SCROLLBAR==========*/
+.main-content-window {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.main-content-window::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 /*==========RESPONSIVENESS==========*/

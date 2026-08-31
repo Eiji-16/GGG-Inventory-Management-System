@@ -31,10 +31,6 @@
     -webkit-tap-highlight-color: transparent;
 }
 
-.f-mono {
-    font-family: 'IBM Plex Mono', monospace;
-}
-
 .f-app {
     min-height: 100%;
 }
@@ -45,71 +41,6 @@
     padding: 8px 0 20px;
 }
 
-
-/*==========TOPBAR==========*/
-
-.f-topbar {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-
-    margin-bottom: 22px;
-}
-
-.f-topbar h1 {
-    margin: 0 0 5px;
-
-    color: var(--text-primary);
-    font-size: 26px;
-    font-weight: 800;
-    letter-spacing: -0.5px;
-    line-height: 1.2;
-}
-
-.f-topbar p {
-    margin: 0;
-
-    color: var(--text-muted);
-    font-size: 13.5px;
-    line-height: 1.5;
-}
-
-.f-icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-
-    width: 40px;
-    height: 40px;
-
-    color: var(--text-primary);
-    background: var(--bg-card);
-
-    border: 1px solid var(--border-color);
-    border-radius: 1.25rem;
-    box-shadow: var(--shadow-card);
-
-    cursor: pointer;
-
-    transition:
-        transform 0.15s ease,
-        box-shadow 0.2s ease,
-        background 0.2s ease;
-}
-
-.f-icon-btn:hover {
-    box-shadow: var(--shadow-hover);
-    transform: translateY(-1px);
-}
-
-.f-icon-btn:active {
-    transform: scale(0.96);
-}
-
-.f-icon-btn svg {
-    width: 17px;
-    height: 17px;
-}
 
 
 /*==========CONTROLS BAR==========*/
@@ -884,20 +815,6 @@
 }
 
 
-/*==========FORMULA PANEL==========*/
-
-.f-add-formula-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
-
-    margin-top: 14px;
-    padding-top: 14px;
-
-    border-top: 1px dashed var(--border-color);
-}
-
-
 /*==========EMPTY STATE==========*/
 
 .f-empty-state {
@@ -968,11 +885,6 @@
 .f-summary-compact .f-summary-head h2 {
     margin: 0;
     font-size: 15px;
-}
-.f-summary-head-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
 }
 .f-summary-compact .f-summary-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1061,21 +973,6 @@
     line-height: 1.35;
 
     overflow-wrap: anywhere;
-}
-
-.f-summary-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-
-    margin-top: 20px;
-    padding-top: 15px;
-
-    color: var(--text-muted);
-
-    border-top: 1px solid var(--border-color);
 }
 
 

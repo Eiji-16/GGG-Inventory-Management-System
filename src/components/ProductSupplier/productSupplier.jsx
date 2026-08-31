@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, Edit, Trash2, X, Package } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, X, Package, Info } from 'lucide-react';
 
 import './productSupplier.css';
 
@@ -14,12 +14,24 @@ const emptyForm = {
   supplierInfo: '',
 };
 
+/* Detail Fields */
+const DETAIL_FIELDS = [
+  { key: 'id', label: 'Product ID', hint: 'System reference used across every tab' },
+  { key: 'name', label: 'Product Name', hint: 'Name shown in Stock Movement and forecasts', wide: true },
+  { key: 'category', label: 'Category', hint: 'Grouping used for reports' },
+  { key: 'brand', label: 'Brand', hint: 'Manufacturer of the item' },
+  { key: 'model', label: 'Model', hint: 'Manufacturer model or reference code' },
+  { key: 'unitMeasure', label: 'Unit Measure', hint: 'How quantity is counted for this item' },
+  { key: 'supplierInfo', label: 'Supplier Information', hint: 'Contacted when a reorder is raised', wide: true },
+];
+
 function ProductSupplier({ onNavigate }) {
   const [productsFromDatabase, setProductsFromDatabase] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit'
   const [formData, setFormData] = useState(emptyForm);
+  const [detailProduct, setDetailProduct] = useState(null);
 
   useEffect(() => {
     fetch('/productSupplier.json')
@@ -61,6 +73,17 @@ function ProductSupplier({ onNavigate }) {
   };
 
   const closeModal = () => setIsModalOpen(false);
+
+  /* Full Information Modal */
+  const openDetails = (product) => setDetailProduct(product);
+
+  const closeDetails = () => setDetailProduct(null);
+
+  const editFromDetails = () => {
+    const product = detailProduct;
+    closeDetails();
+    openEditModal(product);
+  };
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
@@ -129,11 +152,21 @@ function ProductSupplier({ onNavigate }) {
       <main className="ps-data-table">
         {productsFromDatabase.map((product) => (
           <div
-            className={`ps-data-row-grid ${selectedIds.has(product.id) ? 'is-selected' : ''}`}
+            className={`ps-data-row-grid ps-row-clickable ${selectedIds.has(product.id) ? 'is-selected' : ''}`}
             key={product.id}
             data-label-name={product.name}
+            role="button"
+            tabIndex={0}
+            title={`View full information for ${product.name}`}
+            onClick={() => openDetails(product)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openDetails(product);
+              }
+            }}
           >
-            <div className="ps-checkbox-cell">
+            <div className="ps-checkbox-cell" onClick={(e) => e.stopPropagation()}>
               <input
                 type="checkbox"
                 checked={selectedIds.has(product.id)}
@@ -142,13 +175,13 @@ function ProductSupplier({ onNavigate }) {
               />
             </div>
             <div className="ps-cell-text" data-label="Product ID">{product.id}</div>
-            <div className="ps-cell-text" data-label="Product Name" title={product.name}>{product.name}</div>
-            <div className="ps-cell-text" data-label="Category">{product.category}</div>
-            <div className="ps-cell-text" data-label="Brand">{product.brand}</div>
-            <div className="ps-cell-text" data-label="Model">{product.model}</div>
-            <div className="ps-cell-text" data-label="Unit Measure">{product.unitMeasure}</div>
-            <div className="ps-cell-text" data-label="Supplier Info" title={product.supplierInfo}>{product.supplierInfo}</div>
-            <div className="ps-action-cell-container" data-label="Actions">
+            <div className="ps-cell-text ps-cell-name" data-label="Product Name" title={product.name}>{product.name}</div>
+            <div className="ps-cell-text" data-label="Category">{product.category || '—'}</div>
+            <div className="ps-cell-text" data-label="Brand">{product.brand || '—'}</div>
+            <div className="ps-cell-text" data-label="Model">{product.model || '—'}</div>
+            <div className="ps-cell-text" data-label="Unit Measure">{product.unitMeasure || '—'}</div>
+            <div className="ps-cell-text" data-label="Supplier Info" title={product.supplierInfo}>{product.supplierInfo || '—'}</div>
+            <div className="ps-action-cell-container" data-label="Actions" onClick={(e) => e.stopPropagation()}>
               <button
                 className="ps-table-action-btn ps-edit-btn"
                 onClick={() => openEditModal(product)}
@@ -177,6 +210,72 @@ function ProductSupplier({ onNavigate }) {
           </div>
         )}
       </main>
+
+      {/* Full Information Modal */}
+      {detailProduct && createPortal(
+        <div className="ps-modal-overlay" onClick={closeDetails}>
+          <div
+            className="ps-modal ps-detail-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ps-detail-title"
+          >
+            <div className="ps-modal-header">
+              <div className="ps-modal-heading">
+                <span className="ps-modal-icon" aria-hidden="true">
+                  <Package size={18} />
+                </span>
+                <div className="ps-modal-titles">
+                  <h3 id="ps-detail-title">{detailProduct.name || 'Product'}</h3>
+                  <p className="ps-modal-subtitle">
+                    Full item specification and assigned supplier record.
+                  </p>
+                </div>
+              </div>
+              <button className="ps-modal-close-btn" onClick={closeDetails} type="button" aria-label="Close">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="ps-modal-body">
+              <div className="ps-modal-idtag">
+                <span className="ps-modal-idtag-label">Product ID</span>
+                <span className="ps-modal-idtag-value">{detailProduct.id}</span>
+              </div>
+
+              <div className="ps-detail-grid">
+                {DETAIL_FIELDS.map((field) => (
+                  <div
+                    className={`ps-detail-item${field.wide ? ' ps-detail-item-wide' : ''}`}
+                    key={field.key}
+                  >
+                    <span className="ps-detail-label">{field.label}</span>
+                    <span className="ps-detail-value">{detailProduct[field.key] || '—'}</span>
+                    <span className="ps-detail-hint">{field.hint}</span>
+                  </div>
+                ))}
+              </div>
+
+              <p className="ps-field-note ps-detail-note">
+                <Info size={12} />
+                Safety stock and reorder flags for this item live in Stock Control and are set by
+                the Super Admin under Settings → Advanced Options.
+              </p>
+            </div>
+
+            <div className="ps-modal-actions">
+              <button type="button" className="ps-modal-cancel-btn" onClick={closeDetails}>
+                Close
+              </button>
+              <button type="button" className="ps-modal-save-btn" onClick={editFromDetails}>
+                Edit Product
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Add / Edit Modal */}
       {isModalOpen && createPortal(

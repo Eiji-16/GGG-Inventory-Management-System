@@ -1,8 +1,4 @@
 import { useEffect, useState } from 'react';
-import {
-    AreaChart, Area, BarChart, Bar,
-    XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line
-} from 'recharts'; /* Charts Components */
 
 import {
   LayoutDashboard,
@@ -13,13 +9,12 @@ import {
   BarChart3,
   LogOut,
   Bell,
-  Menu,
   User,
-  Settings as SettingsIcon,
-  Heading6
+  Settings as SettingsIcon
 } from 'lucide-react'; /* Lucid Components */
 
 import './landingPage.css'; /* Landing Page CSS */
+import { SAFETY_STOCK_DEFAULTS } from '../../data/safetyStock'; /* Safety Stock Policy */
 import Dashboard from '../Dashboard/dashboard'; /* Dashboard content component */
 import ProductSupplier from '../ProductSupplier/productSupplier'; /* Product and Supplier content component */
 import AutoCalculator from '../AutoCalculator/autoCal'; /* Auto-Calculator content component */
@@ -30,12 +25,15 @@ import Settings from '../Settings/Settings'; /* Settings content component */
 import Profile from '../Profile/profile'; /* User Profile content component */
 
 // LandingPage.jsx
+const CURRENT_ROLE = 'Super Admin'; /* Replaced by the signed-in account role once auth is wired */
+
 function LandingPage({onLogout}) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* Action button for sidebar when zoomed or phone size */
   const [isDarkMode, setIsDarkMode] = useState(true); /* Default to dark theme */
   const [activeView, setActiveView] = useState('Dashboard'); /* To toggle active button */
   const [handoff, setHandoff] = useState(null); /* Payload passed between the 3 integrated tabs */
-  
+  const [safetyStock, setSafetyStock] = useState(SAFETY_STOCK_DEFAULTS); /* Super Admin owned safety stock policy */
+
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
@@ -175,15 +173,23 @@ function LandingPage({onLogout}) {
               </button>
             </div>
           </header>
-            <main className="main-content-window">
+            <main className={`main-content-window ${activeView === 'Auto-Calculator' ? 'no-fade' : ''}`}>
               {/* Content Views */}
               {activeView === 'Dashboard' && <Dashboard />}
               {activeView === 'Product-Supplier' && <ProductSupplier />}
-              {activeView === 'Stock' && <StockManagement onNavigate={handleNavigate} />}
+              {activeView === 'Stock' && <StockManagement onNavigate={handleNavigate} safetyStock={safetyStock} />}
               {activeView === 'Auto-Calculator' && <AutoCalculator onNavigate={handleNavigate} handoff={handoff} />}
               {activeView === 'Forecasting' && <SalesForecasting onNavigate={handleNavigate} />}
               {activeView === 'Reports' && <ReportAnalytics/>}
-              {activeView === 'Setting' && <Settings isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />}
+              {activeView === 'Setting' && (
+                <Settings
+                  isDarkMode={isDarkMode}
+                  onToggleTheme={toggleTheme}
+                  role={CURRENT_ROLE}
+                  safetyStock={safetyStock}
+                  onUpdateSafetyStock={setSafetyStock}
+                />
+              )}
               {activeView === 'Profile' && <Profile />}
             </main>
         </div>

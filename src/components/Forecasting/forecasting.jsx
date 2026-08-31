@@ -112,7 +112,7 @@ export default function DemandForecastDesign({ onNavigate }) {
   };
 
   return (
-    <div className="f-root" data-theme="dark">
+    <div className="f-root">
       <div className="f-app">
         <main className="f-main">
           <div className="f-grid">

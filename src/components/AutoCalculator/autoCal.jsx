@@ -238,35 +238,37 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
         </div>
       )}
 
-      {/* Product Selector */}
-      <div className="ac-product-selector">
-        <label className="ac-label">Auto-fill from Product</label>
-        <select className="ac-input" defaultValue="">
-          <option value="">— Select a product —</option>
-          {SAMPLE_PRODUCTS.map(p => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-        <p className="ac-source-note">
-          <Boxes size={11} />
-          Annual demand is derived from this product's Stock Movement records.
-        </p>
-      </div>
-
       {/* Calculator Body */}
       {!compareMode && (
         <div className="ac-body">
           <div className="ac-left">
-            <div className="ac-formula-info">
-              <div className="ac-formula-name">
-                {SAMPLE_FORMULA.fullName}
-                <span className="ac-tooltip-wrapper">
-                  <Info size={12} className="ac-tooltip-icon" />
-                </span>
+            <div className="ac-left-top">
+              <div className="ac-formula-info">
+                <div className="ac-formula-name">
+                  {SAMPLE_FORMULA.fullName}
+                  <span className="ac-tooltip-wrapper">
+                    <Info size={12} className="ac-tooltip-icon" />
+                  </span>
+                </div>
+                <div className="ac-formula-expr">
+                  <Calculator size={12} />
+                  <span>{SAMPLE_FORMULA.formula}</span>
+                </div>
               </div>
-              <div className="ac-formula-expr">
-                <Calculator size={12} />
-                <span>{SAMPLE_FORMULA.formula}</span>
+
+              {/* Product Selector */}
+              <div className="ac-product-selector">
+                <label className="ac-label">Auto-fill from Product</label>
+                <select className="ac-input" defaultValue="">
+                  <option value="">— Select a product —</option>
+                  {SAMPLE_PRODUCTS.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <p className="ac-source-note">
+                  <Boxes size={11} />
+                  Annual demand comes from Stock Movement records.
+                </p>
               </div>
             </div>
 

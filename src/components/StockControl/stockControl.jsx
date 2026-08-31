@@ -3,6 +3,13 @@ import { createPortal } from 'react-dom';
 import { Plus, Search, X, Edit, Trash2, AlertTriangle, Calculator, History, ArrowUpRight, ArrowDownRight, ClipboardList } from 'lucide-react';
 
 import './stockControl.css';
+import {
+  SAFETY_STOCK_DEFAULTS,
+  safetyPointFor,
+  stockStatusFor,
+  annualDemandFor,
+  STATUS_LABEL,
+} from '../../data/safetyStock'; /* Safety Stock Policy */
 
 const emptyForm = {
   date: '',
@@ -11,28 +18,9 @@ const emptyForm = {
   type: '',
   qty: '',
   remainingStock: '',
-  safetyLevel: '',
   notes: '',
   recordedBy: '',
 };
-
-/* Sample Reorder Alerts */
-const SAMPLE_ALERTS = [
-  {
-    productName: 'Premium Calfskin Band',
-    remainingStock: 8,
-    reorderPoint: 25,
-    annualDemand: 960,
-    urgency: 'Critical',
-  },
-  {
-    productName: 'Water-Resistant Diver Strap',
-    remainingStock: 38,
-    reorderPoint: 45,
-    annualDemand: 1240,
-    urgency: 'Low',
-  },
-];
 
 /* Signed Quantity */
 const signedQty = (row) => {
@@ -47,13 +35,12 @@ const MOVEMENT_TYPES = [
   { value: 'Adjustment', label: 'Adjustment', tone: 'adj' },
 ];
 
-function StockControl({ onNavigate }) {
+function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   const [stockFromDatabase, setStockFromDatabase] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
-  const [dismissedAlerts, setDismissedAlerts] = useState(new Set());
   const [historyProduct, setHistoryProduct] = useState(null);
 
   useEffect(() => {
@@ -105,14 +92,18 @@ function StockControl({ onNavigate }) {
     return base + signedQty(formData);
   }, [stockFromDatabase, formData, editIndex]);
 
-  const alerts = SAMPLE_ALERTS.filter((a) => !dismissedAlerts.has(a.productName));
-
-  const dismissAlert = (productName) =>
-    setDismissedAlerts((prev) => new Set(prev).add(productName));
+  /* Projected Safety Status */
+  const projectedStatus = projectedRemaining === null
+    ? null
+    : stockStatusFor({ ...formData, remainingStock: projectedRemaining }, safetyStock);
 
   /* Send To Auto Calculator */
-  const computeEoqFor = (alert) => {
-    if (onNavigate) onNavigate('Auto-Calculator', { product: alert.productName, annualDemand: alert.annualDemand });
+  const computeEoqFor = (row) => {
+    if (!onNavigate) return;
+    onNavigate('Auto-Calculator', {
+      product: row.productName,
+      annualDemand: annualDemandFor(row.productName, safetyStock),
+    });
   };
 
   const allSelected =
@@ -183,52 +174,6 @@ function StockControl({ onNavigate }) {
   return (
     <div className="sc-table-parent">
 
-      {/* Reorder alerts */}
-      {alerts.length > 0 && (
-        <div className="sc-alert-stack">
-          {alerts.map((alert) => (
-            <div
-              className={`sc-alert sc-alert-${alert.urgency.toLowerCase()}`}
-              key={alert.productName}
-              role="status"
-            >
-              <div className="sc-alert-icon">
-                <AlertTriangle size={15} />
-              </div>
-
-              <div className="sc-alert-text">
-                <div className="sc-alert-title">
-                  Reorder needed — {alert.productName}
-                  <span className="sc-urgency-badge">{alert.urgency}</span>
-                </div>
-                <div className="sc-alert-meta">
-                  {alert.remainingStock} units left · reorder point {alert.reorderPoint} ·
-                  {' '}{alert.reorderPoint - alert.remainingStock} below threshold
-                </div>
-              </div>
-
-              <button
-                type="button"
-                className="sc-alert-action"
-                onClick={() => computeEoqFor(alert)}
-                title="Open the Auto Calculator for this product"
-              >
-                <Calculator size={13} /> Compute EOQ
-              </button>
-
-              <button
-                type="button"
-                className="sc-alert-dismiss"
-                onClick={() => dismissAlert(alert.productName)}
-                aria-label={`Dismiss alert for ${alert.productName}`}
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Search bar */}
       <div className="sc-navigation-bar">
         <div className="sc-search-wrapper">
@@ -261,7 +206,7 @@ function StockControl({ onNavigate }) {
         <div>Type</div>
         <div>Qty</div>
         <div>Remaining Stock</div>
-        <div>Safety Level</div>
+        <div>Safety Stock</div>
         <div>Notes</div>
         <div>Recorded by</div>
         <div>Action</div>
@@ -269,9 +214,12 @@ function StockControl({ onNavigate }) {
 
       {/* Data table */}
       <main className="sc-data-table">
-        {stockFromDatabase.map((stock, index) => (
+        {stockFromDatabase.map((stock, index) => {
+          const status = stockStatusFor(stock, safetyStock);
+          const point = safetyPointFor(stock, safetyStock);
+          return (
           <div
-            className={`sc-data-row-grid ${selectedIds.has(index) ? 'is-selected' : ''}`}
+            className={`sc-data-row-grid ${status ? `sc-row-${status}` : ''} ${selectedIds.has(index) ? 'is-selected' : ''}`}
             key={index}
           >
             <div className="sc-checkbox-cell">
@@ -297,16 +245,32 @@ function StockControl({ onNavigate }) {
             <div className="sc-cell-text" data-label="Type">{stock.type}</div>
             <div className="sc-cell-text" data-label="Qty">{stock.qty}</div>
             <div className="sc-cell-text" data-label="Remaining Stock">{stock.remainingStock}</div>
-            <div className="sc-cell-text" data-label="Safety Level">
-              {stock.safetyLevel ? (
-                <span className={`sc-safety-badge sc-safety-${String(stock.safetyLevel).toLowerCase()}`}>
-                  {stock.safetyLevel}
+            <div className="sc-cell-text" data-label="Safety Stock">
+              {status ? (
+                <span
+                  className={`sc-safety-badge sc-safety-${status}`}
+                  title={`${stock.remainingStock} on hand · safety stock ${point} (set by Super Admin)`}
+                >
+                  {status !== 'healthy' && <AlertTriangle size={10} />}
+                  {STATUS_LABEL[status]}
+                  <small>≤{point}</small>
                 </span>
               ) : '—'}
             </div>
             <div className="sc-cell-text" data-label="Notes" title={stock.notes}>{stock.notes || '—'}</div>
             <div className="sc-cell-text" data-label="Recorded by">{stock.recordedBy}</div>
             <div className="sc-action-cell-container" data-label="Actions">
+              {status && status !== 'healthy' && (
+                <button
+                  className="sc-table-action-btn sc-eoq-btn"
+                  onClick={() => computeEoqFor(stock)}
+                  aria-label={`Compute EOQ for ${stock.productName}`}
+                  title={`Reorder needed — compute EOQ for ${stock.productName}`}
+                  type="button"
+                >
+                  <Calculator size={14} />
+                </button>
+              )}
               <button
                 className="sc-table-action-btn sc-history-btn"
                 onClick={() => openHistory(stock.productName)}
@@ -314,7 +278,7 @@ function StockControl({ onNavigate }) {
                 title="View movement history"
                 type="button"
               >
-                <History size={16} />
+                <History size={14} />
               </button>
               <button
                 className="sc-table-action-btn sc-edit-btn"
@@ -323,7 +287,7 @@ function StockControl({ onNavigate }) {
                 title="Edit Item"
                 type="button"
               >
-                <Edit size={16} />
+                <Edit size={14} />
               </button>
               <button
                 className="sc-table-action-btn sc-delete-btn"
@@ -332,11 +296,12 @@ function StockControl({ onNavigate }) {
                 title="Delete Item"
                 type="button"
               >
-                <Trash2 size={16} />
+                <Trash2 size={14} />
               </button>
             </div>
           </div>
-        ))}
+          );
+        })}
 
         {stockFromDatabase.length === 0 && (
           <div className="sc-empty-state">
@@ -478,6 +443,21 @@ function StockControl({ onNavigate }) {
                       </span>
                     )}
                   </div>
+
+                  {projectedStatus && (
+                    <div className="sc-status-preview" aria-live="polite">
+                      <span className={`sc-safety-badge sc-safety-${projectedStatus}`}>
+                        {projectedStatus !== 'healthy' && <AlertTriangle size={10} />}
+                        {STATUS_LABEL[projectedStatus]}
+                        <small>≤{safetyPointFor(formData, safetyStock)}</small>
+                      </span>
+                      <span className="sc-status-preview-note">
+                        {projectedStatus === 'healthy'
+                          ? 'This entry keeps the item above its safety stock.'
+                          : 'This entry puts the item at or below its safety stock — the row will be flagged and a Compute EOQ shortcut appears.'}
+                      </span>
+                    </div>
+                  )}
 
                   <div className="sc-form-group sc-form-group-wide">
                     <label htmlFor="notes">Notes</label>
