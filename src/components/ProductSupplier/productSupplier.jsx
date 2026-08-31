@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit, Trash2, X } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, X, Package } from 'lucide-react';
 
 import './productSupplier.css';
 
@@ -180,45 +180,122 @@ function ProductSupplier({ onNavigate }) {
       {/* Add / Edit Modal */}
       {isModalOpen && (
         <div className="ps-modal-overlay" onClick={closeModal}>
-          <div className="ps-modal" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="ps-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ps-modal-title"
+          >
             <div className="ps-modal-header">
-              <h3>{modalMode === 'add' ? 'Add Product' : 'Edit Product'}</h3>
+              <div className="ps-modal-heading">
+                <span className="ps-modal-icon" aria-hidden="true">
+                  <Package size={18} />
+                </span>
+                <div className="ps-modal-titles">
+                  <h3 id="ps-modal-title">{modalMode === 'add' ? 'Add Product' : 'Edit Product'}</h3>
+                  <p className="ps-modal-subtitle">
+                    {modalMode === 'add'
+                      ? 'Register a new item and the supplier it comes from.'
+                      : 'Update this item’s specifications or assigned supplier.'}
+                  </p>
+                </div>
+              </div>
               <button className="ps-modal-close-btn" onClick={closeModal} type="button" aria-label="Close">
                 <X size={16} />
               </button>
             </div>
 
             <form className="ps-modal-form" onSubmit={handleSave}>
-              <div className="ps-form-group">
-                <label htmlFor="name">Product Name</label>
-                <input id="name" name="name" value={formData.name} onChange={handleFormChange} required />
-              </div>
+              <div className="ps-modal-body">
+                {modalMode === 'edit' && formData.id && (
+                  <div className="ps-modal-idtag">
+                    <span className="ps-modal-idtag-label">Product ID</span>
+                    <span className="ps-modal-idtag-value">{formData.id}</span>
+                  </div>
+                )}
 
-              <div className="ps-form-row">
-                <div className="ps-form-group">
-                  <label htmlFor="category">Category</label>
-                  <input id="category" name="category" value={formData.category} onChange={handleFormChange} />
-                </div>
-                <div className="ps-form-group">
-                  <label htmlFor="brand">Brand</label>
-                  <input id="brand" name="brand" value={formData.brand} onChange={handleFormChange} />
-                </div>
-              </div>
+                <section className="ps-form-section">
+                  <h4 className="ps-form-section-title">Item specifications</h4>
 
-              <div className="ps-form-row">
-                <div className="ps-form-group">
-                  <label htmlFor="model">Model</label>
-                  <input id="model" name="model" value={formData.model} onChange={handleFormChange} />
-                </div>
-                <div className="ps-form-group">
-                  <label htmlFor="unitMeasure">Unit Measure</label>
-                  <input id="unitMeasure" name="unitMeasure" value={formData.unitMeasure} onChange={handleFormChange} />
-                </div>
-              </div>
+                  <div className="ps-form-group ps-form-group-wide">
+                    <label htmlFor="name">
+                      Product Name <span className="ps-required">*</span>
+                    </label>
+                    <input
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleFormChange}
+                      placeholder="e.g. Precision Steel Chronograph"
+                      required
+                    />
+                  </div>
 
-              <div className="ps-form-group">
-                <label htmlFor="supplierInfo">Supplier Information</label>
-                <input id="supplierInfo" name="supplierInfo" value={formData.supplierInfo} onChange={handleFormChange} />
+                  <div className="ps-form-row">
+                    <div className="ps-form-group">
+                      <label htmlFor="category">Category</label>
+                      <input
+                        id="category"
+                        name="category"
+                        value={formData.category}
+                        onChange={handleFormChange}
+                        placeholder="e.g. Timepieces"
+                      />
+                    </div>
+                    <div className="ps-form-group">
+                      <label htmlFor="brand">Brand</label>
+                      <input
+                        id="brand"
+                        name="brand"
+                        value={formData.brand}
+                        onChange={handleFormChange}
+                        placeholder="e.g. Seiko"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="ps-form-row">
+                    <div className="ps-form-group">
+                      <label htmlFor="model">Model</label>
+                      <input
+                        id="model"
+                        name="model"
+                        value={formData.model}
+                        onChange={handleFormChange}
+                        placeholder="e.g. SKX-007"
+                      />
+                    </div>
+                    <div className="ps-form-group">
+                      <label htmlFor="unitMeasure">Unit Measure</label>
+                      <input
+                        id="unitMeasure"
+                        name="unitMeasure"
+                        value={formData.unitMeasure}
+                        onChange={handleFormChange}
+                        placeholder="Units, Pairs, Boxes…"
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                <section className="ps-form-section">
+                  <h4 className="ps-form-section-title">Supplier</h4>
+
+                  <div className="ps-form-group ps-form-group-wide">
+                    <label htmlFor="supplierInfo">Supplier Information</label>
+                    <input
+                      id="supplierInfo"
+                      name="supplierInfo"
+                      value={formData.supplierInfo}
+                      onChange={handleFormChange}
+                      placeholder="Company name or contact"
+                    />
+                    <p className="ps-field-note">
+                      Used by Stock Movement and the Auto Calculator when a reorder is raised.
+                    </p>
+                  </div>
+                </section>
               </div>
 
               <div className="ps-modal-actions">

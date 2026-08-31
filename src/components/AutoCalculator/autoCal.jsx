@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, Calculator, History, Download, GitCompare, Info } from 'lucide-react';
+import { Plus, X, Calculator, History, Download, GitCompare, Info, TrendingUp, Boxes } from 'lucide-react';
 import './autoCal.css';
 
 /*
@@ -184,7 +184,7 @@ function BatchComputeModal({ onClose }) {
 }
 
 // ---------- Main Component ----------
-export default function AutoCalculatorDesign() {
+export default function AutoCalculatorDesign({ onNavigate, handoff }) {
   const [showModal, setShowModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
@@ -218,11 +218,30 @@ export default function AutoCalculatorDesign() {
           <button className="ac-icon-btn" onClick={() => setShowBatch(true)} title="Batch Compute">
             <Calculator size={13} /> Batch
           </button>
+          <button
+            className="ac-icon-btn ac-icon-btn-link"
+            onClick={() => onNavigate && onNavigate('Forecasting')}
+            title="Pull the forecasted demand from Sales Forecasting"
+          >
+            <TrendingUp size={13} /> Forecast Integration
+          </button>
           <button className="ac-add-btn" onClick={() => setShowModal(true)}>
             <Plus size={13} /> Add Formula
           </button>
         </div>
       </div>
+
+      {/* Arrived here from Stock Control or Forecasting — shows what was
+          handed over. Once inputs are state-bound this also fills them. */}
+      {handoff && (
+        <div className="ac-handoff-banner">
+          <TrendingUp size={13} />
+          <span>
+            Received <strong>{handoff.product}</strong> — annual demand{' '}
+            <strong>{Number(handoff.annualDemand).toLocaleString()} units/year</strong>
+          </span>
+        </div>
+      )}
 
       {/* Product Selector */}
       <div className="ac-product-selector">
@@ -233,6 +252,10 @@ export default function AutoCalculatorDesign() {
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
+        <p className="ac-source-note">
+          <Boxes size={11} />
+          Annual demand is derived from this product's Stock Movement records.
+        </p>
       </div>
 
       {/* Calculator Body */}

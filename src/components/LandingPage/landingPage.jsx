@@ -27,12 +27,14 @@ import SalesForecasting from '../Forecasting/forecasting'; /* Forecasting conten
 import ReportAnalytics from '../Reports/reports';/* Report content component */
 import StockManagement from '../StockControl/stockControl'; /* Stock Control content component */
 import Settings from '../Settings/Settings'; /* Settings content component (now owns the dark/light mode switch) */
+import Profile from '../Profile/profile'; /* User Profile content component */
 
 // LandingPage.jsx
 function LandingPage({onLogout}) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* Action button for sidebar when zoomed or phone size */
   const [isDarkMode, setIsDarkMode] = useState(true); /* Default to dark theme */
   const [activeView, setActiveView] = useState('Dashboard'); /* To toggle active button */
+  const [handoff, setHandoff] = useState(null); /* Payload passed between the 3 integrated tabs */
   
 
   useEffect(() => {
@@ -49,6 +51,15 @@ function LandingPage({onLogout}) {
     } else {
       console.log('Logging out...')
     }
+  };
+
+  /* Cross-tab hand-off. Switches the view and parks the payload so the
+     destination tab can pre-populate its inputs once the tabs read real
+     data — Stock Control → Auto Calculator, Forecasting ⇄ Auto Calculator. */
+  const handleNavigate = (view, payload = null) => {
+    setHandoff(payload);
+    setActiveView(view);
+    setIsSidebarOpen(false);
   };
   return (
     <div className="dashboard-page-wrapper">
@@ -67,37 +78,37 @@ function LandingPage({onLogout}) {
           
 {/* Menus  */}
           <li className={`sidebar-item ${activeView === 'Dashboard' ? 'active' : ''}`}>
-            <button onClick={() => {setActiveView('Dashboard'); setIsSidebarOpen(false); }}>
+            <button onClick={() => handleNavigate('Dashboard')}>
               <LayoutDashboard className="sidebar-icon" />
               <span className="sidebar-label">Dashboard</span>
             </button>
           </li>
           <li className={`sidebar-item ${activeView === 'Product-Supplier' ? 'active' : ''}`}>
-            <button onClick={() => {setActiveView('Product-Supplier'); setIsSidebarOpen(false); }}>
+            <button onClick={() => handleNavigate('Product-Supplier')}>
               <Users className="sidebar-icon" />
               <span className="sidebar-label"> Management </span>
             </button>
           </li>
           <li className={`sidebar-item ${activeView === 'Stock' ? 'active' : ''}`}>
-            <button onClick={() => {setActiveView('Stock'); setIsSidebarOpen(false); }}>
+            <button onClick={() => handleNavigate('Stock')}>
               <Boxes className="sidebar-icon" />
               <span className="sidebar-label">Stock Control</span>
             </button>
           </li>
           <li className={`sidebar-item ${activeView === 'Auto-Calculator' ? 'active' : ''}`}>
-            <button onClick={() => {setActiveView('Auto-Calculator'); setIsSidebarOpen(false); }}>
+            <button onClick={() => handleNavigate('Auto-Calculator')}>
               <Calculator className="sidebar-icon" />
               <span className="sidebar-label">Auto-Calculator Calculator</span>
             </button>
           </li>
           <li className={`sidebar-item ${activeView === 'Forecasting' ? 'active' : ''}`}>
-            <button onClick={() => {setActiveView('Forecasting'); setIsSidebarOpen(false); }}>
+            <button onClick={() => handleNavigate('Forecasting')}>
               <TrendingUp className="sidebar-icon" />
               <span className="sidebar-label">Forecasting</span>
             </button>
           </li>
           <li className={`sidebar-item ${activeView === 'Reports' ? 'active' : ''}`}>
-            <button onClick={() => {setActiveView('Reports'); setIsSidebarOpen(false); }}>
+            <button onClick={() => handleNavigate('Reports')}>
               <BarChart3 className="sidebar-icon" />
               <span className="sidebar-label">Reports</span>
             </button>
@@ -107,13 +118,13 @@ function LandingPage({onLogout}) {
         <div className="sidebar-footer-item">
             <div className = "sub-sidebar-footer-item">
               <div className={`siderbar-item ${activeView === 'Profile' ? 'active' : ''}`}>
-                <button onClick={() => {setActiveView('Profile'); setIsSidebarOpen(false); }} title="User Profile">
+                <button onClick={() => handleNavigate('Profile')} title="User Profile">
                   <User className="sidebar-icon"/>
                   <span className="sidebar-label">Profile</span>
                 </button>
               </div>
               <div className={`siderbar-item ${activeView === 'Setting' ? 'active' : ''}`}>
-                <button onClick={() => {setActiveView('Setting'); setIsSidebarOpen(false); }}>
+                <button onClick={() => handleNavigate('Setting')}>
                   <SettingsIcon className="sidebar-icon"/>
                   <span className="sidebar-label">Setting</span>
                 </button>
@@ -170,11 +181,12 @@ function LandingPage({onLogout}) {
               {/* ALL CONTENTS HERE!!!! */}
               {activeView === 'Dashboard' && <Dashboard />}
               {activeView === 'Product-Supplier' && <ProductSupplier />}
-              {activeView === 'Stock' && <StockManagement/>}
-              {activeView === 'Auto-Calculator' && <AutoCalculator/>}
-              {activeView === 'Forecasting' && <SalesForecasting/>}
+              {activeView === 'Stock' && <StockManagement onNavigate={handleNavigate} />}
+              {activeView === 'Auto-Calculator' && <AutoCalculator onNavigate={handleNavigate} handoff={handoff} />}
+              {activeView === 'Forecasting' && <SalesForecasting onNavigate={handleNavigate} />}
               {activeView === 'Reports' && <ReportAnalytics/>}
               {activeView === 'Setting' && <Settings isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />}
+              {activeView === 'Profile' && <Profile />}
             </main>
         </div>
       </div>

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, X, Edit, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Search, X, Edit, Trash2, AlertTriangle, Calculator, History, ArrowUpRight, ArrowDownRight, ClipboardList } from 'lucide-react';
 
 import './stockControl.css';
 
@@ -10,15 +10,59 @@ const emptyForm = {
   type: '',
   qty: '',
   remainingStock: '',
+  safetyLevel: '',
   notes: '',
   recordedBy: '',
 };
+
+/*
+  DESIGN-STAGE reorder alerts.
+
+  Per the spec these are generated on every Stock Out by comparing the
+  product's remaining stock against its reorder point in Firebase, with
+  urgency set by how far below the threshold it sits. Until that data
+  exists, these are sample rows so the alert UI and its quick action
+  into the Auto Calculator can be reviewed.
+*/
+const SAMPLE_ALERTS = [
+  {
+    productName: 'Premium Calfskin Band',
+    remainingStock: 8,
+    reorderPoint: 25,
+    annualDemand: 960,
+    urgency: 'Critical',
+  },
+  {
+    productName: 'Water-Resistant Diver Strap',
+    remainingStock: 38,
+    reorderPoint: 45,
+    annualDemand: 1240,
+    urgency: 'Low',
+  },
+];
+
+/* Stock In and Adjustment add to the balance, Stock Out subtracts. */
+const signedQty = (row) => {
+  const qty = Number(row.qty) || 0;
+  return row.type === 'Stock Out' ? -qty : qty;
+};
+
+/* Movement type is a three-way choice, so it reads better as a segmented
+   control than a dropdown — all options visible, colour-coded by effect. */
+const MOVEMENT_TYPES = [
+  { value: 'Stock In', label: 'Stock In', tone: 'in' },
+  { value: 'Stock Out', label: 'Stock Out', tone: 'out' },
+  { value: 'Adjustment', label: 'Adjustment', tone: 'adj' },
+];
 
 function StockControl({ onNavigate }) {
   const [stockFromDatabase, setStockFromDatabase] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editIndex, setEditIndex] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
+  const [dismissedAlerts, setDismissedAlerts] = useState(new Set());
+  const [historyProduct, setHistoryProduct] = useState(null);
 
   useEffect(() => {
     fetch('/stockControl.json')
@@ -26,6 +70,63 @@ function StockControl({ onNavigate }) {
       .then((data) => setStockFromDatabase(data))
       .catch((error) => console.error("Error reading your file:", error));
   }, []);
+
+  /* Per-product ledger. Every log row is grouped under its product, sorted
+     oldest first, then walked to build a running balance — the same idea as
+     an order history: each line shows what changed and what was left after. */
+  const ledgers = useMemo(() => {
+    const grouped = new Map();
+    stockFromDatabase.forEach((row, index) => {
+      const key = row.productName || '—';
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key).push({ ...row, index });
+    });
+
+    const result = new Map();
+    grouped.forEach((rows, key) => {
+      const ordered = [...rows].sort((a, b) => new Date(a.date) - new Date(b.date));
+      let balance = 0;
+      let totalIn = 0;
+      let totalOut = 0;
+
+      const movements = ordered.map((row) => {
+        const delta = signedQty(row);
+        balance += delta;
+        if (delta >= 0) totalIn += delta;
+        else totalOut += -delta;
+        return { ...row, delta, balance };
+      });
+
+      result.set(key, { movements, totalIn, totalOut, net: totalIn - totalOut, closing: balance });
+    });
+
+    return result;
+  }, [stockFromDatabase]);
+
+  const openHistory = (productName) => setHistoryProduct(productName || '—');
+  const activeLedger = historyProduct ? ledgers.get(historyProduct) : null;
+
+  /* Remaining stock is derived, never typed — it's the product's balance
+     before this entry, plus or minus the quantity being recorded. The row
+     under edit is excluded so re-saving it doesn't double-count. */
+  const projectedRemaining = useMemo(() => {
+    if (!formData.productName || !formData.type || formData.qty === '') return null;
+    const base = stockFromDatabase.reduce((sum, row, i) => (
+      i === editIndex || row.productName !== formData.productName ? sum : sum + signedQty(row)
+    ), 0);
+    return base + signedQty(formData);
+  }, [stockFromDatabase, formData, editIndex]);
+
+  const alerts = SAMPLE_ALERTS.filter((a) => !dismissedAlerts.has(a.productName));
+
+  const dismissAlert = (productName) =>
+    setDismissedAlerts((prev) => new Set(prev).add(productName));
+
+  /* Hands the flagged product off to the Auto Calculator. Navigation works
+     now; pre-populating demand needs the Firebase product record. */
+  const computeEoqFor = (alert) => {
+    if (onNavigate) onNavigate('Auto-Calculator', { product: alert.productName, annualDemand: alert.annualDemand });
+  };
 
   const allSelected =
     stockFromDatabase.length > 0 &&
@@ -49,10 +150,29 @@ function StockControl({ onNavigate }) {
 
   const openAddModal = () => {
     setFormData(emptyForm);
+    setEditIndex(null);
     setIsModalOpen(true);
   };
 
-  const closeModal = () => setIsModalOpen(false);
+  const openEditModal = (index) => {
+    setFormData({ ...emptyForm, ...stockFromDatabase[index] });
+    setEditIndex(index);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = (index) => {
+    setStockFromDatabase((prev) => prev.filter((_, i) => i !== index));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(index);
+      return next;
+    });
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditIndex(null);
+  };
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
@@ -61,12 +181,67 @@ function StockControl({ onNavigate }) {
 
   const handleSave = (e) => {
     e.preventDefault();
-    setStockFromDatabase((prev) => [...prev, formData]);
+    const entry = {
+      ...formData,
+      remainingStock: projectedRemaining === null ? formData.remainingStock : projectedRemaining,
+    };
+    setStockFromDatabase((prev) =>
+      editIndex === null
+        ? [...prev, entry]
+        : prev.map((row, i) => (i === editIndex ? entry : row))
+    );
     closeModal();
   };
 
   return (
     <div className="sc-table-parent">
+
+      {/* Reorder alerts — fired when a stock out drops remaining stock
+          below the product's reorder point. */}
+      {alerts.length > 0 && (
+        <div className="sc-alert-stack">
+          {alerts.map((alert) => (
+            <div
+              className={`sc-alert sc-alert-${alert.urgency.toLowerCase()}`}
+              key={alert.productName}
+              role="status"
+            >
+              <div className="sc-alert-icon">
+                <AlertTriangle size={15} />
+              </div>
+
+              <div className="sc-alert-text">
+                <div className="sc-alert-title">
+                  Reorder needed — {alert.productName}
+                  <span className="sc-urgency-badge">{alert.urgency}</span>
+                </div>
+                <div className="sc-alert-meta">
+                  {alert.remainingStock} units left · reorder point {alert.reorderPoint} ·
+                  {' '}{alert.reorderPoint - alert.remainingStock} below threshold
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="sc-alert-action"
+                onClick={() => computeEoqFor(alert)}
+                title="Open the Auto Calculator for this product"
+              >
+                <Calculator size={13} /> Compute EOQ
+              </button>
+
+              <button
+                type="button"
+                className="sc-alert-dismiss"
+                onClick={() => dismissAlert(alert.productName)}
+                aria-label={`Dismiss alert for ${alert.productName}`}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Search bar */}
       <div className="sc-navigation-bar">
@@ -120,18 +295,42 @@ function StockControl({ onNavigate }) {
               />
             </div>
             <div className="sc-cell-text" data-label="Date">{stock.date}</div>
-            <div className="sc-cell-text" data-label="Product Name" title={stock.productName}>{stock.productName}</div>
+            <div className="sc-cell-text" data-label="Product Name" title={stock.productName}>
+              <button
+                type="button"
+                className="sc-product-link"
+                onClick={() => openHistory(stock.productName)}
+                title={`View movement history for ${stock.productName}`}
+              >
+                {stock.productName}
+              </button>
+            </div>
             <div className="sc-cell-text" data-label="Category">{stock.category}</div>
             <div className="sc-cell-text" data-label="Type">{stock.type}</div>
             <div className="sc-cell-text" data-label="Qty">{stock.qty}</div>
             <div className="sc-cell-text" data-label="Remaining Stock">{stock.remainingStock}</div>
-            <div className="sc-cell-text" data-label="Safety Level">{stock.safetyLevel}</div>
+            <div className="sc-cell-text" data-label="Safety Level">
+              {stock.safetyLevel ? (
+                <span className={`sc-safety-badge sc-safety-${String(stock.safetyLevel).toLowerCase()}`}>
+                  {stock.safetyLevel}
+                </span>
+              ) : '—'}
+            </div>
             <div className="sc-cell-text" data-label="Notes" title={stock.notes}>{stock.notes || '—'}</div>
             <div className="sc-cell-text" data-label="Recorded by">{stock.recordedBy}</div>
             <div className="sc-action-cell-container" data-label="Actions">
               <button
+                className="sc-table-action-btn sc-history-btn"
+                onClick={() => openHistory(stock.productName)}
+                aria-label="View movement history"
+                title="View movement history"
+                type="button"
+              >
+                <History size={16} />
+              </button>
+              <button
                 className="sc-table-action-btn sc-edit-btn"
-                onClick={() => openEditModal(product)}
+                onClick={() => openEditModal(index)}
                 aria-label="Edit Item"
                 title="Edit Item"
                 type="button"
@@ -140,7 +339,7 @@ function StockControl({ onNavigate }) {
               </button>
               <button
                 className="sc-table-action-btn sc-delete-btn"
-                onClick={() => handleDelete(product.id)}
+                onClick={() => handleDelete(index)}
                 aria-label="Delete Item"
                 title="Delete Item"
                 type="button"
@@ -161,72 +360,239 @@ function StockControl({ onNavigate }) {
       {/* Add Item Modal */}
       {isModalOpen && (
         <div className="sc-modal-overlay" onClick={closeModal}>
-          <div className="sc-modal" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="sc-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sc-modal-title"
+          >
             <div className="sc-modal-header">
-              <h3>Add Stock Entry</h3>
+              <div className="sc-modal-heading">
+                <span className="sc-modal-icon" aria-hidden="true">
+                  <ClipboardList size={18} />
+                </span>
+                <div className="sc-modal-titles">
+                  <h3 id="sc-modal-title">{editIndex === null ? 'Add Stock Entry' : 'Edit Stock Entry'}</h3>
+                  <p className="sc-modal-subtitle">
+                    Every movement recalculates remaining stock and can trigger a reorder alert.
+                  </p>
+                </div>
+              </div>
               <button className="sc-modal-close-btn" onClick={closeModal} type="button" aria-label="Close">
                 <X size={16} />
               </button>
             </div>
 
             <form className="sc-modal-form" onSubmit={handleSave}>
-              <div className="sc-form-row">
-                <div className="sc-form-group">
-                  <label htmlFor="date">Date</label>
-                  <input id="date" name="date" type="date" value={formData.date} onChange={handleFormChange} required />
-                </div>
-                <div className="sc-form-group">
-                  <label htmlFor="type">Type</label>
-                  <select id="type" name="type" value={formData.type} onChange={handleFormChange} required>
-                    <option value="">Select type</option>
-                    <option value="Stock In">Stock In</option>
-                    <option value="Stock Out">Stock Out</option>
-                    <option value="Adjustment">Adjustment</option>
-                  </select>
-                </div>
-              </div>
+              <div className="sc-modal-body">
+                <section className="sc-form-section">
+                  <h4 className="sc-form-section-title">Movement</h4>
 
-              <div className="sc-form-group">
-                <label htmlFor="productName">Product Name</label>
-                <input id="productName" name="productName" value={formData.productName} onChange={handleFormChange} required />
-              </div>
+                  <div className="sc-form-group sc-form-group-wide">
+                    <span className="sc-form-label" id="sc-type-label">
+                      Type <span className="sc-required">*</span>
+                    </span>
+                    <div className="sc-segmented" role="group" aria-labelledby="sc-type-label">
+                      {MOVEMENT_TYPES.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`sc-segment sc-segment-${option.tone}${
+                            formData.type === option.value ? ' sc-segment-active' : ''
+                          }`}
+                          onClick={() => setFormData((prev) => ({ ...prev, type: option.value }))}
+                          aria-pressed={formData.type === option.value}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              <div className="sc-form-row">
-                <div className="sc-form-group">
-                  <label htmlFor="category">Category</label>
-                  <input id="category" name="category" value={formData.category} onChange={handleFormChange} />
-                </div>
-                <div className="sc-form-group">
-                  <label htmlFor="qty">Qty</label>
-                  <input id="qty" name="qty" type="number" value={formData.qty} onChange={handleFormChange} required />
-                </div>
-              </div>
+                  <div className="sc-form-row">
+                    <div className="sc-form-group">
+                      <label htmlFor="date">
+                        Date <span className="sc-required">*</span>
+                      </label>
+                      <input id="date" name="date" type="date" value={formData.date} onChange={handleFormChange} required />
+                    </div>
+                    <div className="sc-form-group">
+                      <label htmlFor="recordedBy">Recorded by</label>
+                      <input
+                        id="recordedBy"
+                        name="recordedBy"
+                        value={formData.recordedBy}
+                        onChange={handleFormChange}
+                        placeholder="Super Admin"
+                      />
+                    </div>
+                  </div>
+                </section>
 
-              <div className="sc-form-row">
-                <div className="sc-form-group">
-                  <label htmlFor="remainingStock">Remaining Stock</label>
-                  <input id="remainingStock" name="remainingStock" type="number" value={formData.remainingStock} onChange={handleFormChange} />
-                </div>
-                <div className="sc-form-group">
-                  <label htmlFor="recordedBy">Recorded by</label>
-                  <input id="recordedBy" name="recordedBy" value={formData.recordedBy} onChange={handleFormChange} />
-                </div>
-              </div>
+                <section className="sc-form-section">
+                  <h4 className="sc-form-section-title">Item</h4>
 
-              <div className="sc-form-group">
-                <label htmlFor="notes">Notes</label>
-                <input id="notes" name="notes" value={formData.notes} onChange={handleFormChange} />
+                  <div className="sc-form-group sc-form-group-wide">
+                    <label htmlFor="productName">
+                      Product Name <span className="sc-required">*</span>
+                    </label>
+                    <input
+                      id="productName"
+                      name="productName"
+                      value={formData.productName}
+                      onChange={handleFormChange}
+                      placeholder="e.g. Precision Steel Chronograph"
+                      required
+                    />
+                  </div>
+
+                  <div className="sc-form-row">
+                    <div className="sc-form-group">
+                      <label htmlFor="category">Category</label>
+                      <input
+                        id="category"
+                        name="category"
+                        value={formData.category}
+                        onChange={handleFormChange}
+                        placeholder="e.g. Timepieces"
+                      />
+                    </div>
+                    <div className="sc-form-group">
+                      <label htmlFor="qty">
+                        Qty <span className="sc-required">*</span>
+                      </label>
+                      <input id="qty" name="qty" type="number" min="0" value={formData.qty} onChange={handleFormChange} required />
+                    </div>
+                  </div>
+                </section>
+
+                <section className="sc-form-section">
+                  <h4 className="sc-form-section-title">Result</h4>
+
+                  {/* Derived, never typed — shown as an outcome card so it reads
+                      as the consequence of the entry above. */}
+                  <div className="sc-computed-field" aria-live="polite">
+                    <div className="sc-computed-copy">
+                      <span className="sc-computed-label">Remaining Stock</span>
+                      {projectedRemaining === null ? (
+                        <span className="sc-computed-empty">Pick a product, type and qty to compute</span>
+                      ) : (
+                        <span className="sc-computed-note">
+                          Computed from this product’s previous movements
+                        </span>
+                      )}
+                    </div>
+                    {projectedRemaining !== null && (
+                      <span className="sc-computed-value">
+                        {projectedRemaining}
+                        <small>units</small>
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="sc-form-group sc-form-group-wide">
+                    <label htmlFor="notes">Notes</label>
+                    <input
+                      id="notes"
+                      name="notes"
+                      value={formData.notes}
+                      onChange={handleFormChange}
+                      placeholder="Delivery reference, sales batch, reason for adjustment…"
+                    />
+                  </div>
+                </section>
               </div>
 
               <div className="sc-modal-actions">
                 <button type="button" className="sc-modal-cancel-btn" onClick={closeModal}>
                   Cancel
                 </button>
-                <button type="submit" className="sc-modal-save-btn">
-                  Add Entry
+                <button type="submit" className="sc-modal-save-btn" disabled={!formData.type}>
+                  {editIndex === null ? 'Add Entry' : 'Save Changes'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Per-product movement history — every stock in, stock out and
+          adjustment for one item, oldest first, with the balance it left
+          behind. Same read as an order history in a shopping app. */}
+      {historyProduct && (
+        <div className="sc-modal-overlay" onClick={() => setHistoryProduct(null)}>
+          <div className="sc-history-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="sc-modal-header">
+              <div>
+                <h3>Movement History</h3>
+                <p className="sc-history-product">{historyProduct}</p>
+              </div>
+              <button
+                className="sc-modal-close-btn"
+                onClick={() => setHistoryProduct(null)}
+                type="button"
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="sc-history-summary">
+              <div className="sc-history-stat">
+                <span className="sc-history-stat-label">Total In</span>
+                <span className="sc-history-stat-value sc-in">+{activeLedger?.totalIn ?? 0}</span>
+              </div>
+              <div className="sc-history-stat">
+                <span className="sc-history-stat-label">Total Out</span>
+                <span className="sc-history-stat-value sc-out">−{activeLedger?.totalOut ?? 0}</span>
+              </div>
+              <div className="sc-history-stat">
+                <span className="sc-history-stat-label">Net Change</span>
+                <span className="sc-history-stat-value">
+                  {(activeLedger?.net ?? 0) >= 0 ? '+' : '−'}{Math.abs(activeLedger?.net ?? 0)}
+                </span>
+              </div>
+              <div className="sc-history-stat">
+                <span className="sc-history-stat-label">On Hand</span>
+                <span className="sc-history-stat-value sc-history-closing">
+                  {activeLedger?.closing ?? 0}
+                </span>
+              </div>
+            </div>
+
+            <div className="sc-history-body">
+              {activeLedger && activeLedger.movements.length > 0 ? (
+                <ol className="sc-history-list">
+                  {activeLedger.movements.map((move, i) => (
+                    <li className="sc-history-item" key={`${move.index}-${i}`}>
+                      <span className={`sc-history-dir ${move.delta >= 0 ? 'sc-in' : 'sc-out'}`}>
+                        {move.delta >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                      </span>
+
+                      <div className="sc-history-main">
+                        <div className="sc-history-top">
+                          <span className="sc-history-type">{move.type || 'Movement'}</span>
+                          <span className="sc-history-date">{move.date || '—'}</span>
+                        </div>
+                        <div className="sc-history-meta">
+                          {move.recordedBy ? `Recorded by ${move.recordedBy}` : 'Recorded by —'}
+                          {move.notes ? ` · ${move.notes}` : ''}
+                        </div>
+                      </div>
+
+                      <div className="sc-history-numbers">
+                        <span className={`sc-history-delta ${move.delta >= 0 ? 'sc-in' : 'sc-out'}`}>
+                          {move.delta >= 0 ? '+' : '−'}{Math.abs(move.delta)}
+                        </span>
+                        <span className="sc-history-balance">balance {move.balance}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <div className="sc-empty-state">NO MOVEMENTS RECORDED FOR THIS ITEM YET.</div>
+              )}
+            </div>
           </div>
         </div>
       )}

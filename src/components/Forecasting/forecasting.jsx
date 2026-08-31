@@ -47,7 +47,17 @@ const FileIcon = () => (
   </svg>
 );
 
-export default function DemandForecastDesign() {
+const CalculatorIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="4" y="2" width="16" height="20" rx="2" />
+    <line x1="8" y1="6" x2="16" y2="6" /><line x1="8" y1="11" x2="8" y2="11" />
+    <line x1="12" y1="11" x2="12" y2="11" /><line x1="16" y1="11" x2="16" y2="11" />
+    <line x1="8" y1="15" x2="8" y2="15" /><line x1="12" y1="15" x2="12" y2="15" />
+    <line x1="16" y1="15" x2="16" y2="18" />
+  </svg>
+);
+
+export default function DemandForecastDesign({ onNavigate }) {
   const [seasonalOn, setSeasonalOn] = useState(true);
   const [customEvents, setCustomEvents] = useState([]);
   const [event, setEvent] = useState('Christmas');
@@ -75,6 +85,20 @@ export default function DemandForecastDesign() {
 
   const isCustomChoice = event === '__add__';
   const eventOptions = [...BUILT_IN_EVENTS, ...customEvents];
+
+  /* The forecast is per-period; EOQ needs annual demand, so scale it up. */
+  const annualFromForecast = Math.round(Number(adjustedDemand) * 12);
+
+  /* Hands the forecasted demand to the Auto Calculator's EOQ input.
+     Navigation works now; the hand-off payload needs Firebase. */
+  const computeEoqFromForecast = () => {
+    if (onNavigate) {
+      onNavigate('Auto-Calculator', {
+        product: SAMPLE_PRODUCT.name,
+        annualDemand: annualFromForecast,
+      });
+    }
+  };
 
   const applySuggestion = () => {
     if (suggestedPct != null) setAdjustment(suggestedPct);
@@ -177,6 +201,20 @@ export default function DemandForecastDesign() {
                   <div className="f-val">{adjustedDemand} <small>units</small></div>
                 </div>
               </div>
+
+              {/* Cross-tab hand-off — drives EOQ from predicted demand
+                  rather than past demand alone. */}
+              <button
+                type="button"
+                className="f-btn f-btn-link f-eoq-handoff"
+                onClick={computeEoqFromForecast}
+                title="Send this forecast to the Auto Calculator as annual demand"
+              >
+                <CalculatorIcon /> Compute EOQ from Forecast
+              </button>
+              <p className="f-handoff-note">
+                Sends {annualFromForecast.toLocaleString()} units/year as annual demand (D)
+              </p>
             </div>
 
             {/* ── 4 · ACTUAL vs FORECASTED DEMAND ─────────────────── */}
