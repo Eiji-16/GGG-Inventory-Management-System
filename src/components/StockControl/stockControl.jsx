@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Plus, Search, X, Edit, Trash2, AlertTriangle, Calculator, History, ArrowUpRight, ArrowDownRight, ClipboardList } from 'lucide-react';
 
 import './stockControl.css';
@@ -346,7 +347,7 @@ function StockControl({ onNavigate }) {
       </div>
 
       {/* Add Item Modal */}
-      {isModalOpen && (
+      {isModalOpen && createPortal(
         <div className="sc-modal-overlay" onClick={closeModal}>
           <div
             className="sc-modal"
@@ -501,10 +502,11 @@ function StockControl({ onNavigate }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       {/* Movement history panel */}
-      {historyProduct && (
+      {historyProduct && createPortal(
         <div className="sc-modal-overlay" onClick={() => setHistoryProduct(null)}>
           <div className="sc-history-panel" onClick={(e) => e.stopPropagation()}>
             <div className="sc-modal-header">
@@ -579,7 +581,8 @@ function StockControl({ onNavigate }) {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

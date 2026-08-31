@@ -466,28 +466,22 @@ body {
     height: calc(90vh - 4.5rem);
     width: 100%;
     padding-bottom: 0;
-}
 
-/*==========SCROLL FADE==========*/
-.main-content-window::before,
-.main-content-window::after {
-  content: '';
-  position: sticky;
-  pointer-events: none;
-  left: 0;
-  right: 0;
-  height: 3rem;
-  z-index: 2;
-}
-
-.main-content-window::before {
-  top: 0;
-  background: linear-gradient(180deg, var(--fade-top, rgba(11, 27, 51, 0.95)), transparent);
-}
-
-.main-content-window::after {
-  bottom: 0;
-  background: linear-gradient(0deg, var(--fade-bottom, rgba(11, 27, 51, 0.95)), transparent);
+    /*==========FADE MASK==========*/
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 3%,
+        black 92%,
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 3%,
+        black 92%,
+        transparent 100%
+    );
 }
 
 /*==========TAB SCROLLBAR==========*/
@@ -501,7 +495,8 @@ body {
 .ac-history-list,
 .ac-batch-product-list,
 .f-scroll-table,
-.pf-scroll {
+.pf-scroll,
+.ra-tabbar {
   scrollbar-width: thin;
   scrollbar-color: var(--scroll-thumb) transparent;
 }
@@ -516,7 +511,8 @@ body {
 .ac-history-list::-webkit-scrollbar,
 .ac-batch-product-list::-webkit-scrollbar,
 .f-scroll-table::-webkit-scrollbar,
-.pf-scroll::-webkit-scrollbar {
+.pf-scroll::-webkit-scrollbar,
+.ra-tabbar::-webkit-scrollbar {
   width: 5px;
   height: 5px;
 }
@@ -532,7 +528,8 @@ body {
 .ac-history-list::-webkit-scrollbar-track,
 .ac-batch-product-list::-webkit-scrollbar-track,
 .f-scroll-table::-webkit-scrollbar-track,
-.pf-scroll::-webkit-scrollbar-track {
+.pf-scroll::-webkit-scrollbar-track,
+.ra-tabbar::-webkit-scrollbar-track {
   background: transparent;
 }
 
@@ -547,7 +544,8 @@ body {
 .ac-history-list::-webkit-scrollbar-thumb,
 .ac-batch-product-list::-webkit-scrollbar-thumb,
 .f-scroll-table::-webkit-scrollbar-thumb,
-.pf-scroll::-webkit-scrollbar-thumb {
+.pf-scroll::-webkit-scrollbar-thumb,
+.ra-tabbar::-webkit-scrollbar-thumb {
   background: var(--scroll-thumb);
   border-radius: 999px;
   border: none;
@@ -563,13 +561,24 @@ body {
 .ac-history-list::-webkit-scrollbar-thumb:hover,
 .ac-batch-product-list::-webkit-scrollbar-thumb:hover,
 .f-scroll-table::-webkit-scrollbar-thumb:hover,
-.pf-scroll::-webkit-scrollbar-thumb:hover {
+.pf-scroll::-webkit-scrollbar-thumb:hover,
+.ra-tabbar::-webkit-scrollbar-thumb:hover {
   background: var(--scroll-thumb-hover);
 }
 
 /*==========NO SCROLL ARROWS==========*/
-::-webkit-scrollbar-button,
-::-webkit-scrollbar-corner {
+.main-content-window::-webkit-scrollbar-button,
+.dashboard-scroll-container::-webkit-scrollbar-button,
+.ps-modal-body::-webkit-scrollbar-button,
+.sc-modal-body::-webkit-scrollbar-button,
+.sc-history-body::-webkit-scrollbar-button,
+.sc-table-scroll::-webkit-scrollbar-button,
+.ac-modal-body::-webkit-scrollbar-button,
+.ac-history-list::-webkit-scrollbar-button,
+.ac-batch-product-list::-webkit-scrollbar-button,
+.f-scroll-table::-webkit-scrollbar-button,
+.pf-scroll::-webkit-scrollbar-button,
+.ra-tabbar::-webkit-scrollbar-button {
   display: none;
   width: 0;
   height: 0;

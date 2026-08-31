@@ -18,31 +18,17 @@ body {
     background: var(--bg-main, #ffffff);
 }
 
-/*==========SCROLLBAR==========*/
+/*==========HIDDEN MAIN SCROLLBAR==========*/
 html {
-    scrollbar-width: thin;
-    scrollbar-color: var(--border-color) transparent;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
+html::-webkit-scrollbar,
 body::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-body::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-body::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 999px;
-    border: 2px solid transparent;
-    background-clip: content-box;
-}
-
-body::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
-    background-clip: content-box;
+    width: 0;
+    height: 0;
+    display: none;
 }
 
 /*==========LOGIN PAGE WRAPPER==========*/

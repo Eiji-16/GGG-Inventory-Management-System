@@ -280,11 +280,21 @@
     overflow-y: auto;
 
     /*==========FADE MASK==========*/
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 3%,
+        black 92%,
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 3%,
+        black 92%,
+        transparent 100%
+    );
 }
-
-.pf-scroll::-webkit-scrollbar { display: none; }
 
 /*==========RESPONSIVENESS==========*/
 @media (max-width: 1100px) {

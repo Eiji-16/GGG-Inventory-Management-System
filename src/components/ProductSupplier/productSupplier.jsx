@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, Plus, Edit, Trash2, X, Package } from 'lucide-react';
 
 import './productSupplier.css';
@@ -178,7 +179,7 @@ function ProductSupplier({ onNavigate }) {
       </main>
 
       {/* Add / Edit Modal */}
-      {isModalOpen && (
+      {isModalOpen && createPortal(
         <div className="ps-modal-overlay" onClick={closeModal}>
           <div
             className="ps-modal"
@@ -308,7 +309,8 @@ function ProductSupplier({ onNavigate }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

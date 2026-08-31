@@ -5,7 +5,6 @@
     color: var(--text-primary, #111);
     background: var(--bg-card, #fff);
     font-size: 13px;
-
     margin: 0 auto;
     padding: 1.25rem;
     width: 100%;
@@ -15,6 +14,8 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     border-radius: 10px;
 }
+
+
 
 /*==========HEADER==========*/
 .ac-header {
@@ -307,8 +308,20 @@
     gap: 0.9rem;
 
     /*==========FADE MASK==========*/
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 3%,
+        black 1%,
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 3%,
+        black 92%,
+        transparent 100%
+    );
 }
 .ac-modal-footer {
     display: flex;
@@ -507,8 +520,20 @@
     overflow-y: auto;
 
     /*==========FADE MASK==========*/
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 3%,
+        black 92%,
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 3%,
+        black 92%,
+        transparent 100%
+    );
 }
 .ac-history-item {
     border: 0.5px solid rgba(0,0,0,0.15);
@@ -579,8 +604,20 @@
     padding: 8px;
 
     /*==========FADE MASK==========*/
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 1rem, black calc(100% - 1rem), transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0, black 1rem, black calc(100% - 1rem), transparent 100%);
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 3%,
+        black 92%,
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 3%,
+        black 92%,
+        transparent 100%
+    );
 }
 .ac-batch-product-item {
     display: flex;

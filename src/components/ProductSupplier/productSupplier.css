@@ -72,7 +72,8 @@
     justify-content: flex-start;
     display: grid;
     text-align: center;
-    align-items: center;
+    align-items: stretch;
+    overflow: hidden;
     font-size: 14px;
         grid-template-columns:
         minmax(32px, 0.35fr)   /* Checkbox */
@@ -352,32 +353,22 @@
     display: flex;
     flex-direction: column;
     gap: 1.35rem;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border-color) transparent;
 
     /*==========FADE MASK==========*/
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 1.25rem), transparent 100%);
-}
-
-.ps-modal-body::-webkit-scrollbar {
-    width: 8px;
-}
-
-.ps-modal-body::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.ps-modal-body::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 999px;
-    border: 2px solid transparent;
-    background-clip: content-box;
-}
-
-.ps-modal-body::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
-    background-clip: content-box;
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 3%,
+        black 92%,
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 3%,
+        black 92%,
+        transparent 100%
+    );
 }
 
 .ps-modal-idtag {

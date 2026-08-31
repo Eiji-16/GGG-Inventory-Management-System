@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Plus, X, Calculator, History, Download, GitCompare, Info, TrendingUp, Boxes } from 'lucide-react';
 import './autoCal.css';
 
@@ -31,7 +32,7 @@ const SAMPLE_HISTORY = [
 
 /* Add Formula Modal */
 function AddFormulaModal({ onClose }) {
-  return (
+  return createPortal(
     <div className="ac-modal-overlay" onClick={onClose}>
       <div className="ac-modal" onClick={e => e.stopPropagation()}>
         <div className="ac-modal-header">
@@ -74,13 +75,14 @@ function AddFormulaModal({ onClose }) {
           <button className="ac-btn-save" onClick={onClose}>Save Formula</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
 /* History Panel */
 function HistoryPanel({ onClose }) {
-  return (
+  return createPortal(
     <div className="ac-modal-overlay" onClick={onClose}>
       <div className="ac-modal ac-modal-wide" onClick={e => e.stopPropagation()}>
         <div className="ac-modal-header">
@@ -111,7 +113,8 @@ function HistoryPanel({ onClose }) {
           <button className="ac-btn-cancel" onClick={onClose}>Clear History</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -127,7 +130,7 @@ function BatchComputeModal({ onClose }) {
     });
   }
 
-  return (
+  return createPortal(
     <div className="ac-modal-overlay" onClick={onClose}>
       <div className="ac-modal ac-modal-wide" onClick={e => e.stopPropagation()}>
         <div className="ac-modal-header">
@@ -171,7 +174,8 @@ function BatchComputeModal({ onClose }) {
           </table>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

@@ -616,8 +616,16 @@
     border-radius: 0.9rem;
 
     /*==========FADE MASK==========*/
-    -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 1.1rem), transparent 100%);
-    mask-image: linear-gradient(to bottom, black calc(100% - 1.1rem), transparent 100%);
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        black 92%,
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        black 92%,
+        transparent 100%
+    );
 }
 
 .f-hist {
