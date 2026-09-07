@@ -481,7 +481,7 @@ body {
     );
     mask-image: linear-gradient(
         to bottom,
-        transparent 0%,
+        transparent 10%,
         black 0.2%,
         black 99.8%,
         transparent 100%
