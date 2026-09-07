@@ -4,6 +4,8 @@ import { Search, Plus, Edit, Trash2, X, Package, Info } from 'lucide-react';
 
 import './productSupplier.css';
 
+
+
 const emptyForm = {
   id: '',
   name: '',
@@ -13,6 +15,8 @@ const emptyForm = {
   unitMeasure: '',
   supplierInfo: '',
 };
+
+/*--------------------------------------------------Sample data's--------------------------------------------------*/
 
 /* Detail Fields */
 const DETAIL_FIELDS = [
@@ -111,7 +115,7 @@ function ProductSupplier({ onNavigate }) {
       return next;
     });
   };
-
+/*--------------------------------------------------Sample data's End--------------------------------------------------*/
   return (
     <div className="ps-table-parent">
       {/* Search bar */}

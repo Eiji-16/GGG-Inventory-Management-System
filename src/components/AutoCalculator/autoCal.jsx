@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Plus, X, Calculator, History, Download, GitCompare, Info, TrendingUp, Boxes } from 'lucide-react';
 import './autoCal.css';
 
-/* Sample Data */
+/*--------------------------------------------------Sample data's--------------------------------------------------*/
 
 const SAMPLE_FORMULA = {
   name: 'EOQ',
@@ -29,7 +29,7 @@ const SAMPLE_HISTORY = [
   { formulaName: 'EOQ', inputs: { demand: 1200, orderCost: 500, holdingCost: 50 }, result: '109.54', unit: 'units', date: '8/23/2026, 10:14 AM' },
   { formulaName: 'ROP', inputs: { dailyDemand: 20, leadTime: 7, safetyStock: 30 }, result: '170.00', unit: 'units', date: '8/22/2026, 4:02 PM' },
 ];
-
+/*--------------------------------------------------Sample data's End--------------------------------------------------*/
 /* Add Formula Modal */
 function AddFormulaModal({ onClose }) {
   return createPortal(

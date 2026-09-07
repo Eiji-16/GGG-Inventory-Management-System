@@ -20,21 +20,7 @@
     padding: 10px;
     box-sizing: border-box;
     scroll-behavior: smooth;
-    /*==========FADE MASK==========*/
-    -webkit-mask-image: linear-gradient(
-        to bottom,
-        transparent 0%,
-        black 3%,
-        black 92%,
-        transparent 100%
-    );
-    mask-image: linear-gradient(
-        to bottom,
-        transparent 0%,
-        black 3%,
-        black 92%,
-        transparent 100%
-    );
+    
 }
 
 

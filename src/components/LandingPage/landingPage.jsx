@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-
 import {
   LayoutDashboard,
   Users,
@@ -25,14 +24,14 @@ import Settings from '../Settings/Settings'; /* Settings content component */
 import Profile from '../Profile/profile'; /* User Profile content component */
 
 // LandingPage.jsx
-const CURRENT_ROLE = 'Super Admin'; /* Replaced by the signed-in account role once auth is wired */
+const CURRENT_ROLE = 'Super Admin'; /* Replaced by the signed-in account role once auth is wired and when database is created */
 
 function LandingPage({onLogout}) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* Action button for sidebar when zoomed or phone size */
-  const [isDarkMode, setIsDarkMode] = useState(true); /* Default to dark theme */
-  const [activeView, setActiveView] = useState('Dashboard'); /* To toggle active button */
+  const [isDarkMode, setIsDarkMode] = useState(true); /* Default to dark theme (For future this should be save on what user last used) */
+  const [activeView, setActiveView] = useState('Dashboard'); /* To toggle active button (default landing page)*/
   const [handoff, setHandoff] = useState(null); /* Payload passed between the 3 integrated tabs */
-  const [safetyStock, setSafetyStock] = useState(SAFETY_STOCK_DEFAULTS); /* Super Admin owned safety stock policy */
+  const [safetyStock, setSafetyStock] = useState(SAFETY_STOCK_DEFAULTS); /* Super Admin owned safety stock policy (only super admin can access this feature)*/
 
 
   useEffect(() => {

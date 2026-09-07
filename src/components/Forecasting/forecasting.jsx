@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import './forecasting.css';
 
+
+/*--------------------------------------------------Sample data's--------------------------------------------------*/
 const SAMPLE_PRODUCT = {
   id: 'PRD-9402',
   name: 'Precision Steel Chronograph',
@@ -110,7 +112,7 @@ export default function DemandForecastDesign({ onNavigate }) {
     setEvent(name);
     setNewEventName('');
   };
-
+/*--------------------------------------------------Sample data's End--------------------------------------------------*/
   return (
     <div className="f-root">
       <div className="f-app">

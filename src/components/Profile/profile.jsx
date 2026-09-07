@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import './profile.css';
 
-/* Sample User */
+/*--------------------------------------------------Sample data's--------------------------------------------------*/
 const SAMPLE_USER = {
   fullName: 'Wrenz AJ Aquino',
   username: 'wrenzaj',
@@ -83,7 +83,7 @@ export default function Profile() {
     setDraft((prev) => ({ ...prev, [key]: e.target.value }));
 
   const permissions = ROLE_MATRIX[user.role] ?? [];
-
+/*--------------------------------------------------Sample data's End--------------------------------------------------*/
   return (
     <div className="pf-root">
       <div className="pf-grid">

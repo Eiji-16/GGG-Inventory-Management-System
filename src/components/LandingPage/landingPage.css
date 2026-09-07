@@ -474,16 +474,16 @@ body {
     /*==========FADE MASK==========*/
     -webkit-mask-image: linear-gradient(
         to bottom,
-        transparent 0%,
-        black 3%,
-        black 92%,
-        transparent 100%
+        transparent 10%,
+        black 0.2%,
+        black 99.8%,
+        transparent 0%
     );
     mask-image: linear-gradient(
         to bottom,
         transparent 0%,
-        black 3%,
-        black 92%,
+        black 0.2%,
+        black 99.8%,
         transparent 100%
     );
 }

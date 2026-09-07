@@ -1,6 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Search, X, Edit, Trash2, AlertTriangle, Calculator, History, ArrowUpRight, ArrowDownRight, ClipboardList } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  X,
+  Edit,
+  Trash2,
+  AlertTriangle,
+  Calculator,
+  History,
+  ArrowUpRight,
+  ArrowDownRight,
+  ClipboardList } from 'lucide-react';
 
 import './stockControl.css';
 import {
@@ -11,6 +22,7 @@ import {
   STATUS_LABEL,
 } from '../../data/safetyStock'; /* Safety Stock Policy */
 
+/*--------------------------------------------------Sample data's--------------------------------------------------*/
 const emptyForm = {
   date: '',
   productName: '',
@@ -170,7 +182,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
     );
     closeModal();
   };
-
+/*--------------------------------------------------Sample data's End--------------------------------------------------*/
   return (
     <div className="sc-table-parent">
 
