@@ -123,7 +123,7 @@ function StockMovementTab() {
           </div>
           <div className="r-toggle-group">
             <button className="active">Week</button>
-            <button>Month</button>
+            <button>Months</button>
             <button>Year</button>
           </div>
         </div>
