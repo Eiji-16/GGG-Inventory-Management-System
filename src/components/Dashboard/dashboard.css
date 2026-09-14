@@ -11,7 +11,6 @@
 /* Theme variables are owned by landingPage.css. Do not redeclare them here. */
 
 /*==========SCROLL CONTAINER==========*/
-
 .dashboard-scroll-container {
     width: 100%;
     height: 100%;
@@ -20,12 +19,7 @@
     padding: 10px;
     box-sizing: border-box;
     scroll-behavior: smooth;
-    
 }
-
-
-
-
 
 /*==========GRID==========*/
 .parent {
@@ -39,10 +33,7 @@
     scrollbar-width: none;
     overflow-x: auto;
     overflow-y: hidden;
-
 }
-
-
 
 /*==========BASE CARD==========*/
 .card {
@@ -56,6 +47,12 @@
     font-weight: 500;
     box-sizing: border-box;
     overflow: hidden;
+    position: relative;
+
+    /*==========CARD AS FLEX COLUMN==========*/
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 
     /*==========CARD ANIMATION==========*/
     animation: cardEnter 0.35s ease both;
@@ -83,23 +80,508 @@
 .parent > .card:nth-child(8) { animation-delay: 0.28s; }
 .parent > .card:nth-child(9) { animation-delay: 0.32s; }
 
+/*==========CLICKABLE CARD==========*/
+.db-clickable {
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.db-clickable:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+    border-color: var(--border-strong);
+}
+
+.db-clickable:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+/*==========CARD HEAD==========*/
+.db-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.db-card-titles {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.db-card-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.db-card-sub {
+    font-size: 10.5px;
+    color: var(--text-muted);
+    line-height: 1.2;
+}
+
+/*==========OPEN AFFORDANCE ARROW==========*/
+.db-open-arrow {
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted);
+    opacity: 0.5;
+    flex-shrink: 0;
+    transition: opacity 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.db-clickable:hover .db-open-arrow {
+    opacity: 1;
+    color: var(--accent);
+    transform: translate(1px, -1px);
+}
+
+/*==========SEGMENT TOGGLE==========*/
+.db-seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    background: var(--static-bg-color);
+    border-radius: 999px;
+    flex-shrink: 0;
+}
+
+.db-seg .db-seg-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.db-seg .db-seg-btn.active {
+    background: var(--background-icon-active-color);
+    color: var(--icon-active-color);
+}
+
+/*==========DELTA PILL==========*/
+.db-delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 10.5px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.db-delta-up { color: var(--accent-high); }
+.db-delta-down { color: var(--accent-low); }
+
+/*==========METRIC BLOCK==========*/
+.db-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.db-metric-label {
+    font-size: 9.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.db-metric-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/*==========HERO (SALES ANALYTICS)==========*/
+.db-hero-plot {
+    flex: 1;
+    min-height: 90px;
+    width: 100%;
+}
+
+.db-hero-svg {
+    width: 100%;
+    height: 100%;
+    min-height: 90px;
+    display: block;
+}
+
+.db-hero-xaxis {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9.5px;
+    color: var(--text-muted);
+    padding: 0 6px;
+    margin-top: 2px;
+}
+
+.db-hero-foot {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-top: 2px;
+}
+
+.db-hero-foot .db-open-arrow {
+    margin-left: auto;
+}
+
+/*==========STAT CARDS==========*/
+.db-stat-value {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.1;
+}
+
+.db-stat-sub {
+    font-size: 10.5px;
+    color: var(--text-muted);
+    margin-top: -4px;
+}
+
+.db-spark-wrap {
+    flex: 1;
+    min-height: 34px;
+    margin-top: auto;
+}
+
+.db-spark-svg {
+    width: 100%;
+    height: 100%;
+    min-height: 34px;
+    display: block;
+}
+
+/*==========STACKED SEGMENT BAR==========*/
+.db-catalog-total {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.1;
+}
+
+.db-catalog-total span {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.db-stack-bar {
+    display: flex;
+    width: 100%;
+    height: 12px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--static-bg-color);
+    margin: 2px 0;
+}
+
+.db-stack-bar-sm { height: 8px; }
+
+.db-stack-seg {
+    height: 100%;
+    display: block;
+}
+
+/*==========LEGEND==========*/
+.db-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.db-legend-col {
+    flex-direction: column;
+    gap: 5px;
+    align-items: flex-start;
+}
+
+.db-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.db-legend-item i {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+/*==========REGIONAL (GLOBE)==========*/
+.db-donut-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-height: 0;
+}
+
+.db-globe {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.db-globe-svg {
+    width: 104px;
+    height: 104px;
+    display: block;
+}
+
+.db-globe-cap {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.db-globe-cap i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent-high);
+    box-shadow: 0 0 5px var(--accent-high);
+    flex-shrink: 0;
+}
+
+.db-globe-pulse {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: dbGlobePulse 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes dbGlobePulse {
+    0%   { transform: scale(0.45); opacity: 0.75; }
+    70%  { transform: scale(1.7);  opacity: 0; }
+    100% { transform: scale(1.7);  opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .db-globe-pulse { animation: none; opacity: 0.55; }
+}
+
+/*==========GAUGE (EOQ)==========*/
+.db-gauge-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.db-gauge-svg {
+    width: 120px;
+    height: 74px;
+    flex-shrink: 0;
+}
+
+.db-gauge-value {
+    fill: var(--text-primary);
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.db-gauge-label {
+    fill: var(--text-muted);
+    font-size: 8.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.db-gauge-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/*==========COLUMN CHART (ORDERS)==========*/
+.db-col-chart {
+    flex: 1;
+    min-height: 56px;
+    margin-top: 4px;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.db-col-item {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.db-col-bar-wrap {
+    flex: 1;
+    width: 100%;
+    min-height: 24px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.db-col-bar {
+    display: block;
+    width: 100%;
+    max-width: 20px;
+    min-height: 3px;
+    background: var(--accent);
+    opacity: 0.45;
+    border-radius: 4px 4px 0 0;
+}
+
+.db-col-bar-max {
+    opacity: 1;
+}
+
+.db-col-label {
+    font-size: 9px;
+    color: var(--text-muted);
+    line-height: 1;
+}
+
+/*==========RANKING BARS (PRODUCT SALES)==========*/
+.db-rank {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    flex: 1;
+    justify-content: center;
+    margin-top: 2px;
+}
+
+.db-rank-row {
+    display: grid;
+    grid-template-columns: 96px 1fr 34px;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.db-rank-name {
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.db-rank-track {
+    height: 8px;
+    width: 100%;
+    background: var(--static-bg-color);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.db-rank-fill {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-high));
+    border-radius: 999px;
+}
+
+.db-rank-val {
+    text-align: right;
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 10.5px;
+}
+
+/*==========ALERT LIST (STOCK ALERTS)==========*/
+.db-alert-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    margin-top: 2px;
+}
+
+.db-alert-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: var(--overlay-soft);
+    border-left: 3px solid transparent;
+    font-size: 11px;
+}
+
+.db-alert-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.db-alert-name {
+    color: var(--text-primary);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.db-alert-qty {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.db-alert-out { border-left-color: var(--accent-low); }
+.db-alert-out .db-alert-dot { background: var(--accent-low); }
+.db-alert-out .db-alert-qty { color: var(--accent-low); }
+
+.db-alert-low { border-left-color: var(--accent-med); }
+.db-alert-low .db-alert-dot { background: var(--accent-med); }
+
+.db-alert-reorder { border-left-color: var(--accent); }
+.db-alert-reorder .db-alert-dot { background: var(--accent); }
+
 /*==========DESKTOP LAYOUT==========*/
 .salesAnalytics-card {
     grid-column: 1 / span 5;
     grid-row: 1 / span 2;
-    min-height: 14rem;
+    min-height: 15rem;
 }
 
 .catalogStatus-card {
     grid-column: 6 / span 2;
     grid-row: 1;
-    min-height: 6rem;
+    min-height: 7.5rem;
 }
 
 .totalRevenue-card {
     grid-column: 6 / span 2;
     grid-row: 2;
-    min-height: 6rem;
+    min-height: 7.5rem;
 }
 
 .regionalBreakdown-card {
@@ -147,55 +629,55 @@
     .salesAnalytics-card {
         grid-column: 1 / span 4;
         grid-row: 1;
-        min-height: 12rem;
+        min-height: 13rem;
     }
 
     .catalogStatus-card {
         grid-column: 1 / span 2;
         grid-row: 2;
-        min-height: 7rem;
+        min-height: 8rem;
     }
 
     .totalRevenue-card {
         grid-column: 3 / span 2;
         grid-row: 2;
-        min-height: 7rem;
+        min-height: 8rem;
     }
 
     .regionalBreakdown-card {
         grid-column: 1 / span 2;
         grid-row: 3;
-        min-height: 9rem;
+        min-height: 10rem;
     }
 
     .eoqActivity-card {
         grid-column: 3 / span 2;
         grid-row: 3;
-        min-height: 9rem;
+        min-height: 10rem;
     }
 
     .totalOrder-card {
         grid-column: 1 / span 2;
         grid-row: 4;
-        min-height: 7rem;
+        min-height: 10rem;
     }
 
     .totalCustomer-card {
         grid-column: 3 / span 2;
         grid-row: 4;
-        min-height: 7rem;
+        min-height: 10rem;
     }
 
     .productSales-card {
         grid-column: 1 / span 2;
         grid-row: 5;
-        min-height: 14rem;
+        min-height: 15rem;
     }
 
     .lowStockalerts-card {
         grid-column: 3 / span 2;
         grid-row: 5;
-        min-height: 14rem;
+        min-height: 15rem;
     }
 }
 
@@ -208,7 +690,7 @@
     .salesAnalytics-card {
         grid-column: 1 / span 2;
         grid-row: auto;
-        min-height: 10rem;
+        min-height: 12rem;
     }
 
     .catalogStatus-card,
@@ -217,21 +699,21 @@
     .totalCustomer-card {
         grid-column: span 1;
         grid-row: auto;
-        min-height: 6rem;
+        min-height: 8rem;
     }
 
     .regionalBreakdown-card,
     .eoqActivity-card {
-        grid-column: span 1;
+        grid-column: 1 / span 2;
         grid-row: auto;
-        min-height: 8rem;
+        min-height: 9rem;
     }
 
     .productSales-card,
     .lowStockalerts-card {
         grid-column: 1 / span 2;
         grid-row: auto;
-        min-height: 12rem;
+        min-height: 13rem;
     }
 }
 
@@ -252,6 +734,6 @@
     .lowStockalerts-card {
         grid-column: 1;
         grid-row: auto;
-        min-height: 8rem;
+        min-height: 9rem;
     }
 }

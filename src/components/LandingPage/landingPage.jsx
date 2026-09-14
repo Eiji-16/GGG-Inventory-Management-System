@@ -174,7 +174,7 @@ function LandingPage({onLogout}) {
           </header>
             <main className={`main-content-window ${activeView === 'Auto-Calculator' ? 'no-fade' : ''}`}>
               {/* Content Views */}
-              {activeView === 'Dashboard' && <Dashboard />}
+              {activeView === 'Dashboard' && <Dashboard onNavigate={handleNavigate} />}
               {activeView === 'Product-Supplier' && <ProductSupplier />}
               {activeView === 'Stock' && <StockManagement onNavigate={handleNavigate} safetyStock={safetyStock} />}
               {activeView === 'Auto-Calculator' && <AutoCalculator onNavigate={handleNavigate} handoff={handoff} />}
