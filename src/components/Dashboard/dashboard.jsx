@@ -152,9 +152,10 @@ function Dashboard({ onNavigate }) {
   const heroPeak = Math.max(...s.values);
   const gridYs = [0, 1, 2, 3].map((i) => 16 + ((HERO_H - 28) * i) / 3);
 
-  /*==========REGIONAL (GLOBE) COMPUTED==========*/
-  /* Domestic share = every region except Intl — this is what the globe highlights. */
+  /*==========REGIONAL (FLAT MAP) COMPUTED==========*/
   const domesticPct = REGIONS.filter((r) => r.name !== 'Intl').reduce((a, s) => a + s.pct, 0);
+  /* PH dot: lon=122, lat=12 → x=(122+180)/360*1000=838, y=(90-12)/180*500=217 */
+  const phDot = [838, 217];
 
   /*==========GAUGE (EOQ) COMPUTED==========*/
   const GX = 60, GY = 60, GR = 46;
@@ -172,22 +173,25 @@ function Dashboard({ onNavigate }) {
         <div className="parent">
 
           {/* Sales Analytics */}
-          <div {...cardNav('Reports')} className="salesAnalytics-card card db-clickable">
+          <div className="salesAnalytics-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
                 <span className="db-card-title">Sales Analytics</span>
                 <span className="db-card-sub">Revenue trend · view in Reports</span>
               </div>
-              <div className="db-seg" onClick={(e) => e.stopPropagation()}>
-                {['Week', 'Month', 'Year'].map((r) => (
-                  <button
-                    key={r}
-                    className={`db-seg-btn ${range === r ? 'active' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); setRange(r); }}
-                  >
-                    {r}
-                  </button>
-                ))}
+              <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+                <div className="db-seg">
+                  {['Week', 'Month', 'Year'].map((r) => (
+                    <button
+                      key={r}
+                      className={`db-seg-btn ${range === r ? 'active' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setRange(r); }}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <button className="db-open-arrow-btn" onClick={() => go('Reports')} aria-label="Open in Reports" type="button"><OpenArrow /></button>
               </div>
             </div>
 
@@ -228,12 +232,12 @@ function Dashboard({ onNavigate }) {
           </div>
 
           {/* Catalog Status */}
-          <div {...cardNav('Product-Supplier')} className="catalogStatus-card card db-clickable">
+          <div className="catalogStatus-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
                 <span className="db-card-title">Catalog Status</span>
               </div>
-              <OpenArrow />
+              <button className="db-open-arrow-btn" onClick={() => go('Product-Supplier')} aria-label="Open in Product-Supplier" type="button"><OpenArrow /></button>
             </div>
             <div className="db-catalog-total">{fmt(CATALOG.total)} <span>SKUs</span></div>
             <div className="db-stack-bar">
@@ -262,72 +266,78 @@ function Dashboard({ onNavigate }) {
             </div>
           </div>
 
-          {/* Regional Breakdown */}
-          <div {...cardNav('Reports')} className="regionalBreakdown-card card db-clickable">
+          {/* Regional Breakdown — orthographic globe */}
+          {/* Regional Breakdown - flat world map */}
+          <div className="regionalBreakdown-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
                 <span className="db-card-title">Regional Breakdown</span>
-                <span className="db-card-sub">Where sales come from</span>
+                <span className="db-card-sub">Geography-based sales</span>
               </div>
-              <OpenArrow />
+              <button className="db-open-arrow-btn" onClick={() => go('Reports')} aria-label="Open in Reports" type="button"><OpenArrow /></button>
             </div>
-            <div className="db-donut-row">
-              <div className="db-globe">
-                <svg className="db-globe-svg" viewBox="0 0 120 120" role="img" aria-label={`Philippines accounts for ${Math.round(domesticPct * 100)}% of sales`}>
-                  <defs>
-                    <radialGradient id="dbGlobeFill" cx="38%" cy="30%" r="80%">
-                      <stop offset="0%" stopColor="var(--accent-high)" stopOpacity="0.30" />
-                      <stop offset="55%" stopColor="var(--accent)" stopOpacity="0.10" />
-                      <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.02" />
-                    </radialGradient>
-                    <clipPath id="dbGlobeClip"><circle cx="60" cy="60" r="52" /></clipPath>
-                  </defs>
-
-                  {/* sphere */}
-                  <circle cx="60" cy="60" r="52" fill="url(#dbGlobeFill)" stroke="var(--border-strong)" strokeWidth="1.4" />
-
-                  {/* graticule (lat/long grid), clipped to the sphere */}
-                  <g clipPath="url(#dbGlobeClip)" fill="none" stroke="var(--hairline)" strokeWidth="1" vectorEffect="non-scaling-stroke">
-                    <line x1="8" y1="60" x2="112" y2="60" />
-                    <line x1="60" y1="8" x2="60" y2="112" />
-                    <ellipse cx="60" cy="60" rx="52" ry="24" />
-                    <ellipse cx="60" cy="60" rx="26" ry="52" />
-                    <path d="M 14 40 Q 60 32 106 40" />
-                    <path d="M 14 80 Q 60 88 106 80" />
-                  </g>
-
-                  {/* highlighted Philippines: soft halo, archipelago, pulse marker */}
-                  <g clipPath="url(#dbGlobeClip)">
-                    <ellipse cx="73" cy="54" rx="13" ry="15" fill="var(--accent)" opacity="0.14" />
-                    <g fill="var(--accent-high)">
-                      <ellipse cx="72.5" cy="45.5" rx="3.3" ry="6" transform="rotate(-18 72.5 45.5)" />
-                      <circle cx="71" cy="54.5" r="1.5" />
-                      <circle cx="74.6" cy="55.4" r="1.3" />
-                      <circle cx="72.6" cy="57.8" r="1.4" />
-                      <circle cx="69.2" cy="56.6" r="1.1" />
-                      <ellipse cx="75.6" cy="63.6" rx="4.1" ry="3.4" transform="rotate(12 75.6 63.6)" />
-                    </g>
-                    <circle className="db-globe-pulse" cx="73" cy="54" r="9" fill="none" stroke="var(--accent-high)" strokeWidth="1.6" />
-                  </g>
-                </svg>
-                <span className="db-globe-cap"><i />Philippines {Math.round(domesticPct * 100)}%</span>
-              </div>
-              <div className="db-legend db-legend-col">
-                {REGIONS.map((seg, i) => (
-                  <span key={i} className="db-legend-item"><i style={{ background: seg.color }} />{seg.name} {Math.round(seg.pct * 100)}%</span>
-                ))}
-              </div>
+            <div className="db-map-wrap">
+              <svg className="db-map-svg" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet" aria-label={`Philippines ${Math.round(domesticPct * 100)}% of sales`}>
+                {/* continents — hand-drawn pixel paths */}
+                <g fill="var(--text-muted)" fillOpacity="0.28" stroke="var(--bg-card)" strokeWidth="2" strokeLinejoin="round">
+                  {/* Greenland */}
+                  <path d="M 200,18 L 222,14 L 248,16 L 262,26 L 268,40 L 260,56 L 244,64 L 224,60 L 208,48 L 198,34 Z" />
+                  {/* North America */}
+                  <path d="M 108,68 L 138,58 L 172,54 L 200,60 L 222,72 L 238,88 L 244,106 L 240,126 L 228,144 L 218,160 L 210,178 L 198,196 L 188,212 L 178,228 L 172,240 L 162,248 L 150,250 L 140,244 L 132,232 L 122,220 L 112,206 L 104,190 L 96,174 L 90,156 L 86,138 L 84,120 L 86,102 L 92,86 Z" />
+                  {/* Central America */}
+                  <path d="M 150,250 L 162,248 L 170,256 L 172,266 L 166,272 L 158,268 L 152,260 Z" />
+                  {/* South America */}
+                  <path d="M 180,272 L 200,262 L 222,258 L 244,264 L 260,278 L 268,298 L 270,320 L 264,344 L 252,366 L 236,386 L 218,402 L 200,412 L 184,408 L 172,394 L 164,374 L 160,350 L 160,326 L 164,304 L 172,286 Z" />
+                  {/* Europe */}
+                  <path d="M 448,60 L 468,56 L 490,58 L 504,68 L 506,82 L 498,94 L 484,100 L 470,98 L 456,90 L 446,78 Z" />
+                  {/* Scandinavia */}
+                  <path d="M 472,38 L 488,32 L 500,38 L 502,52 L 492,60 L 478,58 L 468,50 Z" />
+                  {/* Africa */}
+                  <path d="M 452,140 L 476,132 L 502,130 L 524,136 L 540,152 L 548,172 L 548,196 L 542,222 L 530,248 L 514,272 L 496,294 L 478,308 L 460,310 L 444,300 L 432,280 L 426,256 L 424,230 L 426,204 L 432,180 L 440,160 Z" />
+                  {/* Asia main */}
+                  <path d="M 510,56 L 548,48 L 590,44 L 636,46 L 678,50 L 714,58 L 742,68 L 760,82 L 766,98 L 758,114 L 740,126 L 716,132 L 688,134 L 658,130 L 628,122 L 598,114 L 570,108 L 546,104 L 526,100 L 514,90 L 508,76 Z" />
+                  {/* Middle East */}
+                  <path d="M 528,136 L 554,128 L 578,132 L 592,148 L 590,166 L 574,176 L 554,172 L 538,160 L 528,148 Z" />
+                  {/* India */}
+                  <path d="M 604,148 L 626,142 L 644,150 L 650,168 L 648,190 L 638,210 L 622,226 L 608,224 L 598,208 L 594,188 L 596,168 Z" />
+                  {/* Southeast Asia */}
+                  <path d="M 686,160 L 710,154 L 730,162 L 738,178 L 732,194 L 714,202 L 694,198 L 680,184 L 678,170 Z" />
+                  {/* Japan */}
+                  <path d="M 780,90 L 794,84 L 804,90 L 806,104 L 798,114 L 784,112 L 776,102 Z" />
+                  {/* Indonesia */}
+                  <path d="M 716,234 L 738,228 L 758,232 L 770,244 L 764,256 L 744,260 L 722,254 L 710,244 Z" />
+                  {/* Australia */}
+                  <path d="M 780,300 L 820,288 L 860,290 L 892,304 L 908,324 L 908,350 L 894,372 L 870,386 L 840,390 L 810,382 L 784,364 L 768,340 L 764,316 Z" />
+                  {/* New Zealand */}
+                  <path d="M 920,360 L 932,354 L 940,362 L 936,374 L 924,376 L 916,368 Z" />
+                </g>
+                {/* Philippines highlighted */}
+                <g fill="var(--accent-high)" fillOpacity="0.9" stroke="var(--bg-card)" strokeWidth="1.5">
+                  <path d="M 828,196 L 838,190 L 848,196 L 850,210 L 842,218 L 830,216 L 824,206 Z" />
+                  <path d="M 834,220 L 846,216 L 854,224 L 852,236 L 842,240 L 832,234 Z" />
+                  <path d="M 826,238 L 838,234 L 848,242 L 846,252 L 836,256 L 824,248 Z" />
+                </g>
+                {/* pulse dot */}
+                <circle cx={phDot[0]} cy={phDot[1]} r="7" fill="var(--accent-high)" opacity="0.95" />
+                <circle className="db-globe-pulse" cx={phDot[0]} cy={phDot[1]} r="14" fill="none" stroke="var(--accent-high)" strokeWidth="2" />
+              </svg>
+              <span className="db-globe-cap"><i />PH {Math.round(domesticPct * 100)}% of sales</span>
+            </div>
+            <div className="db-legend db-legend-col" style={{marginTop:'4px'}}>
+              {REGIONS.map((seg, i) => (
+                <span key={i} className="db-legend-item"><i style={{ background: seg.color }} />{seg.name} {Math.round(seg.pct * 100)}%</span>
+              ))}
             </div>
           </div>
 
           {/* EOQ Activity */}
-          <div {...cardNav('Auto-Calculator')} className="eoqActivity-card card db-clickable">
+          <div className="eoqActivity-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
                 <span className="db-card-title">EOQ Activity</span>
                 <span className="db-card-sub">Order optimization</span>
               </div>
-              <OpenArrow />
+              <button className="db-open-arrow-btn" onClick={() => go('Auto-Calculator')} aria-label="Open in Auto-Calculator" type="button"><OpenArrow /></button>
             </div>
             <div className="db-gauge-row">
               <svg className="db-gauge-svg" viewBox="0 0 120 74" aria-hidden="true">
@@ -374,13 +384,13 @@ function Dashboard({ onNavigate }) {
           </div>
 
           {/* Product Sales */}
-          <div {...cardNav('Forecasting')} className="productSales-card card db-clickable">
+          <div className="productSales-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
                 <span className="db-card-title">Product Sales</span>
                 <span className="db-card-sub">Top movers · project in Forecasting</span>
               </div>
-              <OpenArrow />
+              <button className="db-open-arrow-btn" onClick={() => go('Forecasting')} aria-label="Open in Forecasting" type="button"><OpenArrow /></button>
             </div>
             <div className="db-rank">
               {TOP_PRODUCTS.map((p, i) => (
@@ -396,13 +406,13 @@ function Dashboard({ onNavigate }) {
           </div>
 
           {/* Stock Alerts */}
-          <div {...cardNav('Stock')} className="lowStockalerts-card card db-clickable">
+          <div className="lowStockalerts-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
                 <span className="db-card-title">Stock Alerts</span>
                 <span className="db-card-sub">{alertTotal} items need attention</span>
               </div>
-              <OpenArrow />
+              <button className="db-open-arrow-btn" onClick={() => go('Stock')} aria-label="Open in Stock" type="button"><OpenArrow /></button>
             </div>
             <div className="db-stack-bar db-stack-bar-sm">
               <span className="db-stack-seg" style={{ width: `${(ALERT_SUMMARY.out / alertTotal) * 100}%`, background: 'var(--accent-low)' }} />

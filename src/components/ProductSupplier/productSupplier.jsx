@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Plus, Edit, Trash2, X, Package, Info } from 'lucide-react';
 
@@ -30,8 +30,10 @@ const DETAIL_FIELDS = [
 ];
 
 function ProductSupplier({ onNavigate }) {
+  const PAGE_SIZE = 10;
   const [productsFromDatabase, setProductsFromDatabase] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [cursor, setCursor] = useState(0); // index of first visible item
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit'
   const [formData, setFormData] = useState(emptyForm);
@@ -44,15 +46,51 @@ function ProductSupplier({ onNavigate }) {
       .catch((error) => console.error('Error reading your file:', error));
   }, []);
 
+  const total = productsFromDatabase.length;
+  const safeCursor = total === 0 ? 0 : Math.min(cursor, total - 1);
+  // snap cursor to the start of its page so it's always a clean multiple of PAGE_SIZE
+  const pageCursor = Math.floor(safeCursor / PAGE_SIZE) * PAGE_SIZE;
+  const visibleProducts = productsFromDatabase.slice(pageCursor, pageCursor + PAGE_SIZE);
+  const hasNext = pageCursor + PAGE_SIZE < total;
+  const hasPrev = pageCursor > 0;
+  const pageLabel = total === 0
+    ? 'No items'
+    : `${pageCursor + 1}–${Math.min(pageCursor + PAGE_SIZE, total)} of ${total}`;
+
+  const tableRef = useRef(null);
+
+  /* scroll the landing-page window back to top whenever the page changes */
+  useEffect(() => {
+    const win = document.querySelector('.main-content-window');
+    if (win) win.scrollTop = 0;
+  }, [cursor]);
+
+  const goNext = () => {
+    if (!hasNext) return;
+    setCursor(pageCursor + PAGE_SIZE);
+  };
+  const goPrev = () => {
+    if (!hasPrev) return;
+    setCursor(Math.max(0, pageCursor - PAGE_SIZE));
+  };
+
   const allSelected =
-    productsFromDatabase.length > 0 &&
-    selectedIds.size === productsFromDatabase.length;
+    visibleProducts.length > 0 &&
+    visibleProducts.every((p) => selectedIds.has(p.id));
 
   const toggleSelectAll = () => {
     if (allSelected) {
-      setSelectedIds(new Set());
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        visibleProducts.forEach((p) => next.delete(p.id));
+        return next;
+      });
     } else {
-      setSelectedIds(new Set(productsFromDatabase.map((p) => p.id)));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        visibleProducts.forEach((p) => next.add(p.id));
+        return next;
+      });
     }
   };
 
@@ -108,7 +146,15 @@ function ProductSupplier({ onNavigate }) {
   };
 
   const handleDelete = (id) => {
-    setProductsFromDatabase((prev) => prev.filter((p) => p.id !== id));
+    setProductsFromDatabase((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      // if the current page becomes empty after delete, step back one page
+      const newPageCursor = Math.floor(cursor / PAGE_SIZE) * PAGE_SIZE;
+      if (newPageCursor >= next.length && newPageCursor > 0) {
+        setCursor(Math.max(0, newPageCursor - PAGE_SIZE));
+      }
+      return next;
+    });
     setSelectedIds((prev) => {
       const next = new Set(prev);
       next.delete(id);
@@ -153,11 +199,11 @@ function ProductSupplier({ onNavigate }) {
       </div>
 
       {/* Data-tables */}
-      <main className="ps-data-table">
-        {productsFromDatabase.map((product) => (
+      <main className="ps-data-table" ref={tableRef}>
+        {visibleProducts.map((product, idx) => (
           <div
             className={`ps-data-row-grid ps-row-clickable ${selectedIds.has(product.id) ? 'is-selected' : ''}`}
-            key={product.id}
+            key={pageCursor + idx}
             data-label-name={product.name}
             role="button"
             tabIndex={0}
@@ -208,12 +254,35 @@ function ProductSupplier({ onNavigate }) {
           </div>
         ))}
 
-        {productsFromDatabase.length === 0 && (
+        {visibleProducts.length === 0 && (
           <div className="ps-empty-state">
             LOADING INVENTORY DATABASES OR NO LOGS RECORDED...
           </div>
         )}
       </main>
+
+      {/* Pagination bar - cursor-based */}
+      {total > PAGE_SIZE && (
+        <div className="ps-pagination">
+          <button
+            className="ps-page-pill"
+            onClick={goPrev}
+            disabled={!hasPrev}
+            aria-label="Previous page"
+          >
+            ‹
+          </button>
+          <span className="ps-page-label">{pageLabel}</span>
+          <button
+            className="ps-page-pill"
+            onClick={goNext}
+            disabled={!hasNext}
+            aria-label="Next page"
+          >
+            ›
+          </button>
+        </div>
+      )}
 
       {/* Full Information Modal */}
       {detailProduct && createPortal(
