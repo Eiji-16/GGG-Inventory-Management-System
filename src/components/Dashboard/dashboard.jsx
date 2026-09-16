@@ -152,10 +152,28 @@ function Dashboard({ onNavigate }) {
   const heroPeak = Math.max(...s.values);
   const gridYs = [0, 1, 2, 3].map((i) => 16 + ((HERO_H - 28) * i) / 3);
 
-  /*==========REGIONAL (FLAT MAP) COMPUTED==========*/
+  /*==========REGIONAL (DONUT) COMPUTED==========*/
   const domesticPct = REGIONS.filter((r) => r.name !== 'Intl').reduce((a, s) => a + s.pct, 0);
-  /* PH dot: lon=122, lat=12 → x=(122+180)/360*1000=838, y=(90-12)/180*500=217 */
-  const phDot = [838, 217];
+  const DONUT_CX = 60, DONUT_CY = 60, DONUT_R = 46, DONUT_INNER = 26;
+  function buildDonut(segments) {
+    let angle = -Math.PI / 2;
+    return segments.map((seg) => {
+      const sweep = seg.pct * 2 * Math.PI;
+      const x1 = DONUT_CX + DONUT_R * Math.cos(angle);
+      const y1 = DONUT_CY + DONUT_R * Math.sin(angle);
+      const x2 = DONUT_CX + DONUT_R * Math.cos(angle + sweep);
+      const y2 = DONUT_CY + DONUT_R * Math.sin(angle + sweep);
+      const ix1 = DONUT_CX + DONUT_INNER * Math.cos(angle + sweep);
+      const iy1 = DONUT_CY + DONUT_INNER * Math.sin(angle + sweep);
+      const ix2 = DONUT_CX + DONUT_INNER * Math.cos(angle);
+      const iy2 = DONUT_CY + DONUT_INNER * Math.sin(angle);
+      const large = sweep > Math.PI ? 1 : 0;
+      const d = `M ${x1.toFixed(2)},${y1.toFixed(2)} A ${DONUT_R},${DONUT_R} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} L ${ix1.toFixed(2)},${iy1.toFixed(2)} A ${DONUT_INNER},${DONUT_INNER} 0 ${large},0 ${ix2.toFixed(2)},${iy2.toFixed(2)} Z`;
+      angle += sweep;
+      return { ...seg, d };
+    });
+  }
+  const donutData = buildDonut(REGIONS);
 
   /*==========GAUGE (EOQ) COMPUTED==========*/
   const GX = 60, GY = 60, GR = 46;
@@ -276,65 +294,27 @@ function Dashboard({ onNavigate }) {
               </div>
               <button className="db-open-arrow-btn" onClick={() => go('Reports')} aria-label="Open in Reports" type="button"><OpenArrow /></button>
             </div>
-            <div className="db-map-wrap">
-              <svg className="db-map-svg" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet" aria-label={`Philippines ${Math.round(domesticPct * 100)}% of sales`}>
-                {/* continents — hand-drawn pixel paths */}
-                <g fill="var(--text-muted)" fillOpacity="0.28" stroke="var(--bg-card)" strokeWidth="2" strokeLinejoin="round">
-                  {/* Greenland */}
-                  <path d="M 200,18 L 222,14 L 248,16 L 262,26 L 268,40 L 260,56 L 244,64 L 224,60 L 208,48 L 198,34 Z" />
-                  {/* North America */}
-                  <path d="M 108,68 L 138,58 L 172,54 L 200,60 L 222,72 L 238,88 L 244,106 L 240,126 L 228,144 L 218,160 L 210,178 L 198,196 L 188,212 L 178,228 L 172,240 L 162,248 L 150,250 L 140,244 L 132,232 L 122,220 L 112,206 L 104,190 L 96,174 L 90,156 L 86,138 L 84,120 L 86,102 L 92,86 Z" />
-                  {/* Central America */}
-                  <path d="M 150,250 L 162,248 L 170,256 L 172,266 L 166,272 L 158,268 L 152,260 Z" />
-                  {/* South America */}
-                  <path d="M 180,272 L 200,262 L 222,258 L 244,264 L 260,278 L 268,298 L 270,320 L 264,344 L 252,366 L 236,386 L 218,402 L 200,412 L 184,408 L 172,394 L 164,374 L 160,350 L 160,326 L 164,304 L 172,286 Z" />
-                  {/* Europe */}
-                  <path d="M 448,60 L 468,56 L 490,58 L 504,68 L 506,82 L 498,94 L 484,100 L 470,98 L 456,90 L 446,78 Z" />
-                  {/* Scandinavia */}
-                  <path d="M 472,38 L 488,32 L 500,38 L 502,52 L 492,60 L 478,58 L 468,50 Z" />
-                  {/* Africa */}
-                  <path d="M 452,140 L 476,132 L 502,130 L 524,136 L 540,152 L 548,172 L 548,196 L 542,222 L 530,248 L 514,272 L 496,294 L 478,308 L 460,310 L 444,300 L 432,280 L 426,256 L 424,230 L 426,204 L 432,180 L 440,160 Z" />
-                  {/* Asia main */}
-                  <path d="M 510,56 L 548,48 L 590,44 L 636,46 L 678,50 L 714,58 L 742,68 L 760,82 L 766,98 L 758,114 L 740,126 L 716,132 L 688,134 L 658,130 L 628,122 L 598,114 L 570,108 L 546,104 L 526,100 L 514,90 L 508,76 Z" />
-                  {/* Middle East */}
-                  <path d="M 528,136 L 554,128 L 578,132 L 592,148 L 590,166 L 574,176 L 554,172 L 538,160 L 528,148 Z" />
-                  {/* India */}
-                  <path d="M 604,148 L 626,142 L 644,150 L 650,168 L 648,190 L 638,210 L 622,226 L 608,224 L 598,208 L 594,188 L 596,168 Z" />
-                  {/* Southeast Asia */}
-                  <path d="M 686,160 L 710,154 L 730,162 L 738,178 L 732,194 L 714,202 L 694,198 L 680,184 L 678,170 Z" />
-                  {/* Japan */}
-                  <path d="M 780,90 L 794,84 L 804,90 L 806,104 L 798,114 L 784,112 L 776,102 Z" />
-                  {/* Indonesia */}
-                  <path d="M 716,234 L 738,228 L 758,232 L 770,244 L 764,256 L 744,260 L 722,254 L 710,244 Z" />
-                  {/* Australia */}
-                  <path d="M 780,300 L 820,288 L 860,290 L 892,304 L 908,324 L 908,350 L 894,372 L 870,386 L 840,390 L 810,382 L 784,364 L 768,340 L 764,316 Z" />
-                  {/* New Zealand */}
-                  <path d="M 920,360 L 932,354 L 940,362 L 936,374 L 924,376 L 916,368 Z" />
-                </g>
-                {/* Philippines highlighted */}
-                <g fill="var(--accent-high)" fillOpacity="0.9" stroke="var(--bg-card)" strokeWidth="1.5">
-                  <path d="M 828,196 L 838,190 L 848,196 L 850,210 L 842,218 L 830,216 L 824,206 Z" />
-                  <path d="M 834,220 L 846,216 L 854,224 L 852,236 L 842,240 L 832,234 Z" />
-                  <path d="M 826,238 L 838,234 L 848,242 L 846,252 L 836,256 L 824,248 Z" />
-                </g>
-                {/* pulse dot */}
-                <circle cx={phDot[0]} cy={phDot[1]} r="7" fill="var(--accent-high)" opacity="0.95" />
-                <circle className="db-globe-pulse" cx={phDot[0]} cy={phDot[1]} r="14" fill="none" stroke="var(--accent-high)" strokeWidth="2" />
+            <div className="db-donut-row">
+              <svg className="db-donut-svg" viewBox="0 0 120 120" aria-label="Regional sales breakdown">
+                {donutData.map((seg, i) => (
+                  <path key={i} d={seg.d} fill={seg.color} opacity="0.92" />
+                ))}
+                <text x={DONUT_CX} y={DONUT_CY + 0} className="db-donut-center-val" textAnchor="middle" dominantBaseline="middle">{Math.round(domesticPct * 100)}%</text>
+                <text x={DONUT_CX} y={DONUT_CY + 18} className="db-donut-center-label" textAnchor="middle">local</text>
               </svg>
-              <span className="db-globe-cap"><i />PH {Math.round(domesticPct * 100)}% of sales</span>
-            </div>
-            <div className="db-legend db-legend-col" style={{marginTop:'4px'}}>
-              {REGIONS.map((seg, i) => (
-                <span key={i} className="db-legend-item"><i style={{ background: seg.color }} />{seg.name} {Math.round(seg.pct * 100)}%</span>
-              ))}
+              <div className="db-legend db-legend-col">
+                {REGIONS.map((seg, i) => (
+                  <span key={i} className="db-legend-item"><i style={{ background: seg.color }} />{seg.name} {Math.round(seg.pct * 100)}%</span>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* EOQ Activity */}
+          {/* Calculation Activity */}
           <div className="eoqActivity-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
-                <span className="db-card-title">EOQ Activity</span>
+                <span className="db-card-title">Calculation Activity</span>
                 <span className="db-card-sub">Order optimization</span>
               </div>
               <button className="db-open-arrow-btn" onClick={() => go('Auto-Calculator')} aria-label="Open in Auto-Calculator" type="button"><OpenArrow /></button>

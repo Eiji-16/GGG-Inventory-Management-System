@@ -350,7 +350,7 @@
     flex-shrink: 0;
 }
 
-/*==========REGIONAL (FLAT MAP)==========*/
+/*==========REGIONAL (DONUT)==========*/
 .db-donut-row {
     display: flex;
     align-items: center;
@@ -359,55 +359,23 @@
     min-height: 0;
 }
 
-.db-map-wrap {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: 1;
-    min-width: 0;
-}
-
-.db-map-svg {
-    width: 100%;
-    height: auto;
-    display: block;
-    border-radius: 4px;
-}
-
-.db-globe-cap {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--text-primary);
-    white-space: nowrap;
-}
-
-.db-globe-cap i {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--accent-high);
-    box-shadow: 0 0 5px var(--accent-high);
+.db-donut-svg {
+    width: 120px;
+    height: 120px;
     flex-shrink: 0;
-    display: inline-block;
 }
 
-.db-globe-pulse {
-    transform-box: fill-box;
-    transform-origin: center;
-    animation: dbGlobePulse 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+.db-donut-center-val {
+    fill: var(--text-primary);
+    font-size: 16px;
+    font-weight: 800;
 }
 
-@keyframes dbGlobePulse {
-    0%   { transform: scale(0.45); opacity: 0.75; }
-    70%  { transform: scale(1.7);  opacity: 0; }
-    100% { transform: scale(1.7);  opacity: 0; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .db-globe-pulse { animation: none; opacity: 0.55; }
+.db-donut-center-label {
+    fill: var(--text-muted);
+    font-size: 8.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 /*==========GAUGE (EOQ)==========*/

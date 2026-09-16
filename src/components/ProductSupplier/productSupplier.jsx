@@ -172,6 +172,20 @@ function ProductSupplier({ onNavigate }) {
             <Search size={12} className="ps-search-icon" />
           </form>
         </div>
+        {selectedIds.size > 0 && (
+          <button
+            className="ps-add-btn ps-delete-selected-btn"
+            onClick={() => {
+              selectedIds.forEach(id => handleDelete(id));
+              setSelectedIds(new Set());
+            }}
+            type="button"
+            title={`Delete ${selectedIds.size} selected`}
+          >
+            <p>Delete ({selectedIds.size})</p>
+            <Trash2 size={12} />
+          </button>
+        )}
         <button className="ps-add-btn" onClick={openAddModal} type="button">
           <p>Add</p>
           <Plus size={12} className="ps-add-icon" />

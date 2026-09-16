@@ -194,6 +194,21 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
             <Search size={12} className="sc-search-icon" />
           </form>
         </div>
+        {selectedIds.size > 0 && (
+          <button
+            className="sc-add-btn sc-delete-selected-btn"
+            onClick={() => {
+              const indices = Array.from(selectedIds).sort((a, b) => b - a);
+              indices.forEach(i => handleDelete(i));
+              setSelectedIds(new Set());
+            }}
+            type="button"
+            title={`Delete ${selectedIds.size} selected`}
+          >
+            <p>Delete ({selectedIds.size})</p>
+            <Trash2 size={12} />
+          </button>
+        )}
         <button className="sc-add-btn" onClick={openAddModal} type="button">
           <p>Add Item</p>
           <Plus size={12} className="sc-add-icon" />

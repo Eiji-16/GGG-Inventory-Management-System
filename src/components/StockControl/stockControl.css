@@ -116,6 +116,16 @@
     transform: scale(0.96);
 }
 
+.sc-delete-selected-btn {
+    border-color: #ff4d4d;
+    color: #ff4d4d;
+}
+
+.sc-delete-selected-btn:hover {
+    background-color: rgba(255, 77, 77, 0.1) !important;
+    border-color: #ff4d4d;
+}
+
 /*==========TABLE SCROLL==========*/
 .sc-table-scroll {
     width: 100%;
