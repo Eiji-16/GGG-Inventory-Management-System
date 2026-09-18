@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Download, Search } from 'lucide-react';
 import './reports.css';
 
+/* TABS — labels for the report tab bar (display order). Pairs 1:1 with TAB_COMPONENTS below.
+   BACKEND: each report tab will hit its own endpoint, e.g. GET /api/reports/stock-summary. */
 const TABS = [
   'Stock Summary',
   'Stock Movement',
@@ -12,13 +14,34 @@ const TABS = [
   'Reorder Point Report',
 ];
 
+/* Serialize the report table inside this panel to CSV and download it (front-end only).
+   Walks up from the Export button to the panel, grabs its .r-table and reads the cells. */
+const exportPanelCsv = (btn, title) => {
+  const panel = btn.closest('.r-panel-header')?.parentElement;
+  const table = panel?.querySelector('.r-table');
+  if (!table) return;
+  const escape = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+  const rows = Array.from(table.querySelectorAll('tr')).map((tr) =>
+    Array.from(tr.querySelectorAll('th,td'))
+      .map((cell) => escape(cell.innerText.trim()))
+      .join(',')
+  );
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${title.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
 const PanelHeader = ({ title, subtitle }) => (
   <div className="r-panel-header">
     <div className="r-panel-title">
       <h2>{title}</h2>
       <p>{subtitle}</p>
     </div>
-    <button className="r-export-btn">
+    <button className="r-export-btn" type="button" onClick={(e) => exportPanelCsv(e.currentTarget, title)}>
       <Download size={13} /> Export
     </button>
   </div>
@@ -270,6 +293,8 @@ function ReorderPointReportTab() {
   );
 }
 
+/* TAB_COMPONENTS — the component rendered for each tab; index matches TABS above.
+   Data is currently hardcoded inside each tab component; wire to the report endpoints later. */
 const TAB_COMPONENTS = [
   StockSummaryTab,
   StockMovementTab,

@@ -3,6 +3,8 @@ import './forecasting.css';
 
 
 /*--------------------------------------------------Sample data's--------------------------------------------------*/
+/* SAMPLE_PRODUCT — the product currently being forecast (header cards + summary).
+   BACKEND: GET /api/products/:id → one row from `products`; `stock` = latest balance from `stock_movements`. */
 const SAMPLE_PRODUCT = {
   id: 'PRD-9402',
   name: 'Precision Steel Chronograph',
@@ -11,6 +13,8 @@ const SAMPLE_PRODUCT = {
   stock: 42,
 };
 
+/* SAMPLE_HISTORY — monthly units-sold history that feeds the chart and the moving-average forecast.
+   BACKEND: GET /api/sales/history?product_id= → rows from `sales_history` ordered by period. */
 const SAMPLE_HISTORY = [
   { period: 'Jan', units: 18 },
   { period: 'Feb', units: 22 },
@@ -26,16 +30,34 @@ const SAMPLE_HISTORY = [
   { period: 'Dec', units: 38 },
 ];
 
-/* Base Forecast */
+/* BASE_FORECAST — predicted demand for next period before seasonal adjustment.
+   BACKEND: computed server-side (or client-side) from SAMPLE_HISTORY using the chosen formula. */
 const BASE_FORECAST = 32.1;
 
-/* Event Months */
+/* EVENT_MONTHS — maps each seasonal event to the months it covers, used to suggest an uplift %.
+   Static business rule — no backend needed unless events become user-configurable. */
 const EVENT_MONTHS = {
   Christmas: ['Nov', 'Dec'],
   Summer: ['Jun', 'Jul', 'Aug'],
   'Back to School': ['Aug', 'Sep'],
 };
+/* BUILT_IN_EVENTS — default seasonal events shown in the dropdown before any custom ones. */
 const BUILT_IN_EVENTS = ['Christmas', 'Summer', 'Back to School'];
+/* BUILT_IN_FORMULAS — default forecasting methods shown in the Formula dropdown. */
+const BUILT_IN_FORMULAS = [
+  'Simple Moving Average',
+  'Weighted Moving Average',
+  'Exponential Smoothing',
+  'Linear Trend Regression',
+];
+
+/* FORMULA_NOTES — one-line plain-English description shown under the Formula Used tag. */
+const FORMULA_NOTES = {
+  'Simple Moving Average': 'Averages the most recent periods equally.',
+  'Weighted Moving Average': 'Averages recent periods but weights the newest ones more heavily.',
+  'Exponential Smoothing': 'Weights all past periods, decaying smoothly toward older data.',
+  'Linear Trend Regression': 'Fits a straight trend line through the history and projects it forward.',
+};
 
 const SearchIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -66,10 +88,62 @@ export default function DemandForecastDesign({ onNavigate }) {
   const [adjustment, setAdjustment] = useState(35);
   const [newEventName, setNewEventName] = useState('');
 
+  /* Chosen forecasting method + the computed base forecast (starts at the sample value). */
+  const [formula, setFormula] = useState('Weighted Moving Average');
+  const [baseForecast, setBaseForecast] = useState(BASE_FORECAST);
+  /* Custom formulas added at runtime via "Add custom formula" (front-end only). */
+  const [customFormulas, setCustomFormulas] = useState([]);
+  const [showAddFormula, setShowAddFormula] = useState(false);
+  const [newFormulaName, setNewFormulaName] = useState('');
+
   const overallAvg = useMemo(
     () => SAMPLE_HISTORY.reduce((s, r) => s + r.units, 0) / SAMPLE_HISTORY.length,
     []
   );
+
+  /* Compute Forecast — runs the chosen method over SAMPLE_HISTORY (front-end math). */
+  const computeForecast = () => {
+    const units = SAMPLE_HISTORY.map(r => r.units);
+    const n = units.length;
+    if (n === 0) return;
+    let f;
+    if (formula === 'Simple Moving Average') {
+      const w = Math.min(3, n);
+      f = units.slice(-w).reduce((s, u) => s + u, 0) / w;
+    } else if (formula === 'Weighted Moving Average') {
+      const w = Math.min(3, n);
+      const recent = units.slice(-w);
+      const weights = recent.map((_, i) => i + 1); // newest weighted most
+      const wsum = weights.reduce((s, x) => s + x, 0);
+      f = recent.reduce((s, u, i) => s + u * weights[i], 0) / wsum;
+    } else if (formula === 'Exponential Smoothing') {
+      const alpha = 0.5;
+      f = units[0];
+      for (let i = 1; i < n; i++) f = alpha * units[i] + (1 - alpha) * f;
+    } else if (formula === 'Linear Trend Regression') {
+      const xs = units.map((_, i) => i + 1);
+      const xMean = xs.reduce((s, x) => s + x, 0) / n;
+      const yMean = units.reduce((s, y) => s + y, 0) / n;
+      const num = xs.reduce((s, x, i) => s + (x - xMean) * (units[i] - yMean), 0);
+      const den = xs.reduce((s, x) => s + (x - xMean) ** 2, 0) || 1;
+      const slope = num / den;
+      const intercept = yMean - slope * xMean;
+      f = slope * (n + 1) + intercept;
+    } else {
+      // custom formula → fall back to overall average
+      f = overallAvg;
+    }
+    setBaseForecast(Number(f.toFixed(1)));
+  };
+
+  const addCustomFormula = () => {
+    const name = newFormulaName.trim();
+    if (!name || customFormulas.includes(name) || BUILT_IN_FORMULAS.includes(name)) return;
+    setCustomFormulas(prev => [...prev, name]);
+    setFormula(name);
+    setNewFormulaName('');
+    setShowAddFormula(false);
+  };
 
   /* Suggested Uplift */
   const suggestedPct = useMemo(() => {
@@ -82,8 +156,34 @@ export default function DemandForecastDesign({ onNavigate }) {
   }, [event, overallAvg]);
 
   const effectivePct = seasonalOn ? Number(adjustment) || 0 : 0;
-  const adjustedDemand = (BASE_FORECAST * (1 + effectivePct / 100)).toFixed(1);
+  const adjustedDemand = (baseForecast * (1 + effectivePct / 100)).toFixed(1);
   const pctLabel = `${effectivePct >= 0 ? '+' : ''}${effectivePct}%`;
+
+  /* Export the forecast + history to a CSV file (front-end only; opens in Excel). */
+  const exportCsv = () => {
+    const escape = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+    const rows = [
+      ['Forecast Summary', ''],
+      ['Product', SAMPLE_PRODUCT.name],
+      ['Formula', formula],
+      ['Base forecast', baseForecast],
+      ['Seasonal event', seasonalOn ? event : 'none'],
+      ['Adjustment %', `${effectivePct}%`],
+      ['Adjusted demand', adjustedDemand],
+      ['Annual demand', annualFromForecast],
+      ['', ''],
+      ['Period', 'Units sold'],
+      ...SAMPLE_HISTORY.map(r => [r.period, r.units]),
+    ];
+    const csv = rows.map(r => r.map(escape).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `forecast-${SAMPLE_PRODUCT.id}-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const isCustomChoice = event === '__add__';
   const eventOptions = [...BUILT_IN_EVENTS, ...customEvents];
@@ -147,17 +247,15 @@ export default function DemandForecastDesign({ onNavigate }) {
 
               <div className="f-field" style={{ minWidth: 190 }}>
                 <label>Formula</label>
-                <select defaultValue="Weighted Moving Average">
-                  <option>Simple Moving Average</option>
-                  <option>Weighted Moving Average</option>
-                  <option>Exponential Smoothing</option>
-                  <option>Linear Trend Regression</option>
+                <select value={formula} onChange={(e) => setFormula(e.target.value)}>
+                  {BUILT_IN_FORMULAS.map((f) => (<option key={f}>{f}</option>))}
+                  {customFormulas.map((f) => (<option key={f}>{f}</option>))}
                 </select>
               </div>
 
               <div className="f-field">
                 <label>&nbsp;</label>
-                <button className="f-btn f-btn-primary">Compute Forecast</button>
+                <button className="f-btn f-btn-primary" onClick={computeForecast}>Compute Forecast</button>
               </div>
             </div>
 
@@ -193,7 +291,7 @@ export default function DemandForecastDesign({ onNavigate }) {
                 </span>
               </div>
               <div className="f-result-big">
-                <div className="f-num">{BASE_FORECAST}</div>
+                <div className="f-num">{baseForecast}</div>
                 <div className="f-lbl">Predicted demand — next month</div>
               </div>
               <div className="f-stat-row">
@@ -230,10 +328,10 @@ export default function DemandForecastDesign({ onNavigate }) {
             <div className="f-card f-area-export">
               <h3>Export</h3>
               <div className="f-download-actions">
-                <button className="f-btn f-btn-ghost f-btn-sm">
+                <button className="f-btn f-btn-ghost f-btn-sm" onClick={exportCsv} type="button">
                   <FileIcon /> Excel
                 </button>
-                <button className="f-btn f-btn-ghost f-btn-sm">
+                <button className="f-btn f-btn-ghost f-btn-sm" onClick={() => window.print()} type="button">
                   <FileIcon /> PDF
                 </button>
               </div>
@@ -360,7 +458,7 @@ export default function DemandForecastDesign({ onNavigate }) {
                 </div>
                 <div className="f-summary-item">
                   <div className="f-lbl">Forecasted</div>
-                  <div className="f-val">{BASE_FORECAST} units</div>
+                  <div className="f-val">{baseForecast} units</div>
                 </div>
                 <div className="f-summary-item">
                   <div className="f-lbl">Adjusted</div>
@@ -372,7 +470,7 @@ export default function DemandForecastDesign({ onNavigate }) {
                 </div>
                 <div className="f-summary-item">
                   <div className="f-lbl">Formula</div>
-                  <div className="f-val">Weighted MA</div>
+                  <div className="f-val">{formula}</div>
                 </div>
                 <div className="f-summary-item">
                   <div className="f-lbl">Period</div>
@@ -392,13 +490,44 @@ export default function DemandForecastDesign({ onNavigate }) {
             {/* Formula Used */}
             <div className="f-card f-area-formula">
               <h3>Formula Used</h3>
-              <span className="f-formula-tag">Weighted Moving Average</span>
+              <span className="f-formula-tag">{formula}</span>
               <p className="f-sub" style={{ margin: '10px 0 0' }}>
-                Averages recent periods but weights the newest ones more heavily.
+                {FORMULA_NOTES[formula] || 'Custom method — falls back to the overall average until defined on the backend.'}
               </p>
-              <button className="f-btn f-btn-ghost f-btn-sm" style={{ marginTop: 10 }}>
-                + Add custom formula
-              </button>
+
+              {!showAddFormula ? (
+                <button
+                  className="f-btn f-btn-ghost f-btn-sm"
+                  style={{ marginTop: 10 }}
+                  type="button"
+                  onClick={() => setShowAddFormula(true)}
+                >
+                  + Add custom formula
+                </button>
+              ) : (
+                <div className="f-field" style={{ marginTop: 10 }}>
+                  <label>New formula name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Holt-Winters"
+                    value={newFormulaName}
+                    onChange={(e) => setNewFormulaName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') addCustomFormula(); }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button className="f-btn f-btn-primary f-btn-sm" type="button" onClick={addCustomFormula}>
+                      Add
+                    </button>
+                    <button
+                      className="f-btn f-btn-ghost f-btn-sm"
+                      type="button"
+                      onClick={() => { setShowAddFormula(false); setNewFormulaName(''); }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
           </div>

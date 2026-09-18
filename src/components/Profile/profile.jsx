@@ -16,6 +16,8 @@ import {
 import './profile.css';
 
 /*--------------------------------------------------Sample data's--------------------------------------------------*/
+/* SAMPLE_USER — the signed-in account shown on the profile page.
+   BACKEND: GET /api/auth/me → one row from the `users` table. */
 const SAMPLE_USER = {
   fullName: 'Wrenz AJ Aquino',
   username: 'wrenzaj',
@@ -26,7 +28,8 @@ const SAMPLE_USER = {
   lastLogin: 'Today · 08:42 AM',
 };
 
-/* Role Matrix */
+/* ROLE_MATRIX — what each role is allowed to do, shown as a permissions list.
+   Static reference describing the app's access rules; no backend needed unless roles become editable. */
 const ROLE_MATRIX = {
   'Super Admin': [
     'Full access to every module',
@@ -43,7 +46,8 @@ const ROLE_MATRIX = {
   ],
 };
 
-/* Recent Activity */
+/* RECENT_ACTIVITY — the user's latest actions across the app (audit trail feed).
+   BACKEND: GET /api/activity?user= → rows from an `activity_logs` table, newest first. */
 const RECENT_ACTIVITY = [
   { icon: Boxes, label: 'Recorded stock out — 12 units', meta: 'Precision Steel Chronograph · 2h ago' },
   { icon: TrendingUp, label: 'Computed forecast — next month', meta: 'Weighted Moving Average · 5h ago' },
@@ -51,6 +55,7 @@ const RECENT_ACTIVITY = [
   { icon: Boxes, label: 'Recorded stock in — 60 units', meta: 'Water-Resistant Diver Strap · Yesterday' },
 ];
 
+/* initialsOf — derives up-to-2-letter avatar initials from a full name (pure UI helper, no data source). */
 const initialsOf = (name) =>
   name
     .split(' ')

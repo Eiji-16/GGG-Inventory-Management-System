@@ -20,39 +20,64 @@
 }
 
 /*==========SEARCH FIELD SCOPE==========*/
-.ps-search-wrapper form {
-    min-width: 10rem;
-    min-height: 28px;
-    align-items: center;
-    padding: 0.25rem 0.5rem;
-    background-color: transparent;
-    display: flex;
-    gap: 1px;
-    border-radius: 1rem;
-    overflow: hidden;
-    border: 0.5px solid var(--border-strong);
+.ps-search-wrapper {
+    margin-right: auto;
 }
 
-.ps-search-wrapper input {
+.ps-search-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 12rem;
+    padding: 0.3rem 0.65rem;
+    background-color: transparent;
+    border-radius: 0.6rem;
+    border: 1px solid var(--border-strong);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.ps-search-box:focus-within {
+    border-color: var(--accent, #E8C547);
+    box-shadow: 0 0 0 3px rgba(232, 197, 71, 0.14);
+}
+
+.ps-search-box .ps-search-icon {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.ps-search-box input {
     outline: none;
     border: none;
-    font-size: 10px;
+    font-size: 12px;
     background: transparent;
     color: var(--text-primary);
+    width: 100%;
+    font-family: inherit;
 }
 
 .ps-add-btn{
-    padding: 0.25rem 0.5rem;
+    padding: 0.4rem 0.75rem;
     align-items: center;
     display: inline-flex;
-    gap: 6px;
+    gap: 5px;
     background-color: transparent;
-    border-radius: 1rem;
-    font-size: 10px;
-    border: 0.5px solid var(--border-strong);
+    border-radius: 0.6rem;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid var(--border-strong);
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     color: var(--text-primary);
+}
+
+.ps-add-btn p {
+    margin: 0;
+}
+
+.ps-add-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 .ps-delete-selected-btn {
@@ -60,134 +85,102 @@
     color: #ff4d4d;
 }
 
-.ps-delete-selected-btn:hover {
+.ps-delete-selected-btn:hover:not(:disabled) {
     background-color: rgba(255, 77, 77, 0.1) !important;
     border-color: #ff4d4d;
 }
 
-.ps-add-btn:hover {
+.ps-add-btn:hover:not(:disabled) {
     background-color: var(--background-icon-active-color-theme) !important;
     border-color: var(--accent, #E8C547);
     transform: translateY(-1px);
 }
 
-.ps-add-btn:active {
+.ps-add-btn:active:not(:disabled) {
     transform: scale(0.96);
 }
 
-/*==========LABEL BAR==========*/
-.ps-label-row-grid{
-    border: 0.5px solid var(--border-strong);
-    border-top-right-radius: 0.5rem;
-    border-top-left-radius: 0.5rem;
-    background-color: transparent;
-    justify-content: flex-start;
-    display: grid;
-    text-align: center;
-    align-items: stretch;
-    overflow: hidden;
-    font-size: 14px;
-        grid-template-columns:
-        minmax(32px, 0.35fr)   /* Checkbox */
-        minmax(90px, 0.8fr)     /* Product ID */
-        minmax(150px, 2fr)     /* Product Name */
-        minmax(95px, 1fr)       /* Category */
-        minmax(90px, 1fr)       /* Brand */
-        minmax(100px, 1.1fr)   /* Model */
-        minmax(110px, 1fr)      /* Unit Measure */
-        minmax(150px, 2fr)     /* Supplier Information */
-        minmax(80px, 0.8fr);    /* Action */
+.ps-add-btn-primary {
+    background-color: var(--background-icon-active-color, #E8C547);
+    border-color: var(--background-icon-active-color, #E8C547);
+    color: var(--icon-active-color, #0B1B33);
 }
 
-.ps-label-row-grid > div {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px 6px;
-    border-right: 1px solid var(--hairline);
-    min-width: 0;
-    white-space: normal;
-    overflow-wrap: break-word;
-    text-align: center;
-    line-height: 1.25;
-    font-weight: 600;
+.ps-add-btn-primary:hover:not(:disabled) {
+    filter: brightness(1.08);
+    background-color: var(--background-icon-active-color, #E8C547) !important;
 }
 
-.ps-label-row-grid > div:last-child{
-    border-right: none;
+/*==========TABLE SCROLL==========*/
+.ps-table-scroll {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--border-strong);
+    border-radius: 0.7rem;
+    background: var(--bg-card);
 }
 
-/*==========DATA TABLE==========*/
-.ps-data-table {
-    background-color: transparent;
-    border-right: 1px solid var(--border-strong);
-    border-left: 1px solid var(--border-strong);
-    border-bottom: 1px solid var(--border-strong);
-    border-bottom-left-radius: 0.5rem;
-    border-bottom-right-radius: 0.5rem;
-    display: block;
-}
-
-.ps-data-row-grid {
-    background-color: transparent;
-    justify-content: flex-start;
-    display: grid;
-    text-align: center;
-    align-items: center;
+/*==========SEMANTIC TABLE==========*/
+.ps-table {
+    width: 100%;
+    border-collapse: collapse;
     font-size: 13px;
-    transition: background-color 0.2s ease;
-    border-bottom: 0.5px solid var(--hairline);
-
-        grid-template-columns:
-        minmax(32px, 0.35fr)   /* Checkbox */
-        minmax(80px, 0.8fr)     /* Product ID */
-        minmax(150px, 2fr)     /* Product Name */
-        minmax(95px, 1fr)       /* Category */
-        minmax(90px, 1fr)       /* Brand */
-        minmax(100px, 1.1fr)   /* Model */
-        minmax(100px, 1fr)      /* Unit Measure */
-        minmax(150px, 2fr)     /* Supplier Information */
-        minmax(80px, 0.8fr);    /* Action */
+    color: var(--text-primary);
 }
 
-.ps-data-row-grid:last-child {
+.ps-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--static-bg-color, var(--bg-card));
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 11px 10px;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border-strong);
+}
+
+.ps-table th.ps-th-left {
+    text-align: left;
+}
+
+.ps-table tbody td {
+    padding: 11px 10px;
+    text-align: center;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--hairline);
+    line-height: 1.4;
+}
+
+.ps-table tbody tr:last-child td {
     border-bottom: none;
 }
 
-.ps-data-row-grid:hover {
-    background-color: var(--background-icon-active-color-theme) !important;
+.ps-table tbody tr {
+    transition: background-color 0.15s ease;
 }
 
-.ps-data-row-grid.is-selected {
-    background-color: var(--background-icon-active-color-theme) !important;
-}
+.ps-td-left { text-align: left; }
+.ps-td-nowrap { white-space: nowrap; }
+.ps-td-muted { color: var(--text-muted); }
 
-.ps-data-row-grid > div:last-child {
-    border-right: none;
-}
-
-.ps-data-row-grid > div {
-    padding: 10px 4px;
-    box-sizing: border-box;
-    height: 100%;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.ps-cell-text {
-    width: 100%;
-    text-align: center;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-    line-height: 1.35;
-}
+.ps-th-check, .ps-td-check { width: 36px; }
 
 /*==========CLICKABLE ROW==========*/
 .ps-row-clickable {
     cursor: pointer;
+}
+
+.ps-row-clickable:hover {
+    background-color: var(--background-icon-active-color-theme) !important;
+}
+
+.ps-row-clickable.is-selected {
+    background-color: var(--background-icon-active-color-theme) !important;
 }
 
 .ps-row-clickable:focus-visible {
@@ -205,7 +198,7 @@
 }
 
 /*==========CHECKBOX==========*/
-.ps-checkbox-cell input[type="checkbox"] {
+.ps-table input[type="checkbox"] {
     width: 14px;
     height: 14px;
     cursor: pointer;
@@ -257,9 +250,9 @@
 
 /*==========EMPTY STATE==========*/
 .ps-empty-state {
-    padding: 2rem;
+    padding: 2.5rem 1rem !important;
     text-align: center;
-    font-size: 12px;
+    font-size: 12.5px;
     color: var(--text-muted, #666);
 }
 
@@ -511,6 +504,65 @@
     color: var(--text-muted);
 }
 
+/*==========DELETE CONFIRMATION==========*/
+.ps-confirm-modal {
+    width: min(94vw, 24rem);
+    max-height: none;
+}
+
+.ps-confirm-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.6rem;
+    padding: 1.6rem 1.5rem 1.2rem;
+}
+
+.ps-confirm-icon {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 999px;
+    background: rgba(255, 77, 77, 0.12);
+    color: #ff4d4d;
+}
+
+.ps-confirm-title {
+    margin: 0;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+}
+
+.ps-confirm-text {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+.ps-confirm-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.6rem 1.2rem;
+    border-radius: 0.7rem;
+    font-size: 0.85rem;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: #ff4d4d;
+    color: #fff;
+    transition: all 0.2s ease;
+}
+
+.ps-confirm-delete-btn:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+}
+
 /*==========DETAIL MODAL==========*/
 .ps-detail-modal {
     width: min(94vw, 38rem);
@@ -630,42 +682,11 @@
 }
 
 /*==========RESPONSIVENESS==========*/
+/* On narrow screens the table keeps its shape and scrolls horizontally
+   inside .ps-table-scroll instead of collapsing into cards. */
 @media (max-width: 900px) {
-    .ps-label-row-grid {
-        display: none;
-    }
-
-    .ps-data-row-grid {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        row-gap: 6px;
-        column-gap: 10px;
-        border: 0.5px solid var(--border-strong);
-        border-radius: 0.6rem;
-        margin-bottom: 10px;
-        padding: 10px;
-    }
-
-    .ps-data-row-grid > div {
-        justify-content: flex-start;
-        padding: 4px 0;
-    }
-
-    .ps-cell-text::before,
-    .ps-action-cell-container::before {
-        content: attr(data-label);
-        font-weight: 600;
-        font-size: 9px;
-        text-transform: uppercase;
-        color: var(--text-muted);
-        margin-right: 6px;
-        min-width: 90px;
-        display: inline-block;
-    }
-
-    .ps-checkbox-cell {
-        grid-column: 1 / -1;
-        justify-content: flex-start !important;
+    .ps-table {
+        min-width: 820px;
     }
 }
 

@@ -4,6 +4,10 @@ import { Plus, X, Calculator, History, Download, GitCompare, Info, TrendingUp, B
 import './autoCal.css';
 
 /*--------------------------------------------------Sample data--------------------------------------------------*/
+/* SAMPLE_FORMULA — definition of the currently selected formula (default EOQ).
+   Drives the field labels, formula expression and math on screen.
+   BACKEND: GET /api/formulas/:id → row from the `formulas` table.
+   `fields` describes the inputs the user must fill for this formula. */
 const SAMPLE_FORMULA = {
   name: 'EOQ',
   fullName: 'Economic Order Quantity',
@@ -16,8 +20,12 @@ const SAMPLE_FORMULA = {
   ],
 };
 
+/* SAMPLE_PRODUCTS — products the user can auto-fill demand from (dropdown + batch compute).
+   BACKEND: GET /api/products → `products` joined with `safety_stock` for annualDemand. */
 const SAMPLE_PRODUCTS = [];
 
+/* SAMPLE_HISTORY — past calculations shown in the History panel.
+   BACKEND: GET /api/calculations → rows from `calculation_logs` for the current user. */
 const SAMPLE_HISTORY = [];
 /*--------------------------------------------------Sample data end--------------------------------------------------*/
 
@@ -108,7 +116,35 @@ function CostChart({ demand, orderCost, holdingCost, eoq }) {
 }
 
 /* ===== MODALS ===== */
-function AddFormulaModal({ onClose }) {
+function AddFormulaModal({ onClose, onSave }) {
+  const [form, setForm] = useState({ name: '', fullName: '', description: '', formula: '' });
+  const [fields, setFields] = useState([{ label: '', key: '', unit: '' }]);
+
+  const setField = (key) => (e) => setForm(prev => ({ ...prev, [key]: e.target.value }));
+
+  const updateFieldRow = (i, key, value) =>
+    setFields(prev => prev.map((row, idx) => (idx === i ? { ...row, [key]: value } : row)));
+
+  const addFieldRow = () => setFields(prev => [...prev, { label: '', key: '', unit: '' }]);
+  const removeFieldRow = (i) => setFields(prev => prev.filter((_, idx) => idx !== i));
+
+  const canSave = form.name.trim() && form.fullName.trim() &&
+    fields.some(f => f.label.trim() && f.key.trim());
+
+  const save = () => {
+    if (!canSave) return;
+    onSave({
+      name: form.name.trim(),
+      fullName: form.fullName.trim(),
+      description: form.description.trim(),
+      formula: form.formula.trim() || '—',
+      fields: fields
+        .filter(f => f.label.trim() && f.key.trim())
+        .map(f => ({ key: f.key.trim(), label: f.label.trim(), unit: f.unit.trim(), placeholder: '' })),
+      custom: true,
+    });
+  };
+
   return createPortal(
     <div className="ac-modal-overlay" onClick={onClose}>
       <div className="ac-modal" onClick={e => e.stopPropagation()}>
@@ -119,35 +155,40 @@ function AddFormulaModal({ onClose }) {
         <div className="ac-modal-body">
           <div className="ac-field-group">
             <label className="ac-label">Short Name <span className="ac-required">*</span></label>
-            <input className="ac-input" placeholder="" />
+            <input className="ac-input" value={form.name} onChange={setField('name')} placeholder="e.g. ROP" />
           </div>
           <div className="ac-field-group">
             <label className="ac-label">Full Name <span className="ac-required">*</span></label>
-            <input className="ac-input" placeholder="" />
+            <input className="ac-input" value={form.fullName} onChange={setField('fullName')} placeholder="e.g. Reorder Point" />
           </div>
           <div className="ac-field-group">
             <label className="ac-label">Description</label>
-            <input className="ac-input" placeholder="" />
+            <input className="ac-input" value={form.description} onChange={setField('description')} placeholder="What this formula computes" />
           </div>
           <div className="ac-field-group">
             <label className="ac-label">Formula Expression</label>
-            <input className="ac-input" placeholder="" />
+            <input className="ac-input" value={form.formula} onChange={setField('formula')} placeholder="e.g. d × L + SS" />
           </div>
           <div className="ac-field-group">
             <label className="ac-label">Input Fields <span className="ac-required">*</span></label>
             <div className="ac-fields-list">
-              <div className="ac-field-row">
-                <input className="ac-input ac-input-sm" placeholder="" />
-                <input className="ac-input ac-input-sm" placeholder="" />
-                <input className="ac-input ac-input-sm" placeholder="" />
-              </div>
+              {fields.map((row, i) => (
+                <div className="ac-field-row" key={i}>
+                  <input className="ac-input ac-input-sm" value={row.label} onChange={e => updateFieldRow(i, 'label', e.target.value)} placeholder="Label" />
+                  <input className="ac-input ac-input-sm" value={row.key} onChange={e => updateFieldRow(i, 'key', e.target.value)} placeholder="key" />
+                  <input className="ac-input ac-input-sm" value={row.unit} onChange={e => updateFieldRow(i, 'unit', e.target.value)} placeholder="unit" />
+                  {fields.length > 1 && (
+                    <button className="ac-modal-close" type="button" onClick={() => removeFieldRow(i)} title="Remove field"><X size={12} /></button>
+                  )}
+                </div>
+              ))}
             </div>
-            <button className="ac-add-field-btn"><Plus size={12} /> Add Field</button>
+            <button className="ac-add-field-btn" type="button" onClick={addFieldRow}><Plus size={12} /> Add Field</button>
           </div>
         </div>
         <div className="ac-modal-footer">
           <button className="ac-btn-cancel" onClick={onClose}>Cancel</button>
-          <button className="ac-btn-save" onClick={onClose}>Save Formula</button>
+          <button className="ac-btn-save" onClick={save} disabled={!canSave}>Save Formula</button>
         </div>
       </div>
     </div>,
@@ -155,7 +196,7 @@ function AddFormulaModal({ onClose }) {
   );
 }
 
-function HistoryPanel({ onClose }) {
+function HistoryPanel({ onClose, history, onClear }) {
   return createPortal(
     <div className="ac-modal-overlay" onClick={onClose}>
       <div className="ac-modal ac-modal-wide" onClick={e => e.stopPropagation()}>
@@ -164,25 +205,31 @@ function HistoryPanel({ onClose }) {
           <button className="ac-modal-close" onClick={onClose}><X size={14} /></button>
         </div>
         <div className="ac-modal-body">
-          <div className="ac-history-list">
-            {SAMPLE_HISTORY.map((h, i) => (
-              <div className="ac-history-item" key={i}>
-                <div className="ac-history-top">
-                  <span className="ac-history-formula">{h.formulaName}</span>
-                  <span className="ac-history-date">{h.date}</span>
+          {history.length === 0 ? (
+            <p className="ac-source-note" style={{ textAlign: 'center', padding: '20px 0' }}>
+              No calculations yet. Compute an EOQ and it will be logged here.
+            </p>
+          ) : (
+            <div className="ac-history-list">
+              {history.map((h, i) => (
+                <div className="ac-history-item" key={i}>
+                  <div className="ac-history-top">
+                    <span className="ac-history-formula">{h.formulaName}</span>
+                    <span className="ac-history-date">{h.date}</span>
+                  </div>
+                  <div className="ac-history-inputs">
+                    {Object.entries(h.inputs).map(([k, v]) => (
+                      <span key={k} className="ac-history-input-chip">{k}: {v}</span>
+                    ))}
+                  </div>
+                  <div className="ac-history-result">Result: <strong>{h.result} {h.unit}</strong></div>
                 </div>
-                <div className="ac-history-inputs">
-                  {Object.entries(h.inputs).map(([k, v]) => (
-                    <span key={k} className="ac-history-input-chip">{k}: {v}</span>
-                  ))}
-                </div>
-                <div className="ac-history-result">Result: <strong>{h.result} {h.unit}</strong></div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
         <div className="ac-modal-footer">
-          <button className="ac-btn-cancel" onClick={onClose}>Clear History</button>
+          <button className="ac-btn-cancel" onClick={onClear} disabled={history.length === 0}>Clear History</button>
         </div>
       </div>
     </div>,
@@ -192,9 +239,31 @@ function HistoryPanel({ onClose }) {
 
 function BatchComputeModal({ onClose }) {
   const [selected, setSelected] = useState(new Set());
+  const [batchS, setBatchS] = useState('');
+  const [batchH, setBatchH] = useState('');
+  const [results, setResults] = useState(null);
+
   function toggleProduct(id) {
     setSelected(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+    setResults(null);
   }
+
+  const S = parseFloat(batchS);
+  const H = parseFloat(batchH);
+  const canCompute = selected.size > 0 && S > 0 && H > 0;
+
+  const runBatch = () => {
+    if (!canCompute) return;
+    const rows = SAMPLE_PRODUCTS
+      .filter(p => selected.has(p.id))
+      .map(p => {
+        const D = Number(p.demand) || 0;
+        const eoq = D > 0 ? Math.sqrt((2 * D * S) / H) : 0;
+        return { name: p.name, eoq };
+      });
+    setResults(rows);
+  };
+
   return createPortal(
     <div className="ac-modal-overlay" onClick={onClose}>
       <div className="ac-modal ac-modal-wide" onClick={e => e.stopPropagation()}>
@@ -206,6 +275,9 @@ function BatchComputeModal({ onClose }) {
           <div className="ac-field-group">
             <label className="ac-label">Select Products</label>
             <div className="ac-batch-product-list">
+              {SAMPLE_PRODUCTS.length === 0 && (
+                <p className="ac-source-note">No products available yet. Products come from the Product &amp; Supplier tab.</p>
+              )}
               {SAMPLE_PRODUCTS.map(p => (
                 <label key={p.id} className="ac-batch-product-item">
                   <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleProduct(p.id)} />
@@ -216,21 +288,27 @@ function BatchComputeModal({ onClose }) {
           </div>
           <div className="ac-input-group">
             <label className="ac-label">Ordering Cost (S) (applied to all)</label>
-            <input className="ac-input" type="number" placeholder="" />
+            <input className="ac-input" type="number" min="0" value={batchS} onChange={e => { setBatchS(e.target.value); setResults(null); }} />
           </div>
           <div className="ac-input-group">
             <label className="ac-label">Holding Cost (H) (applied to all)</label>
-            <input className="ac-input" type="number" placeholder="" />
+            <input className="ac-input" type="number" min="0" value={batchH} onChange={e => { setBatchH(e.target.value); setResults(null); }} />
           </div>
-          <button className="ac-btn-compute" disabled={selected.size === 0}>
+          <button className="ac-btn-compute" disabled={!canCompute} onClick={runBatch}>
             Compute {selected.size} Product{selected.size !== 1 ? 's' : ''}
           </button>
           <table className="ac-batch-table">
-            <thead><tr><th>Product</th><th>Result</th></tr></thead>
+            <thead><tr><th>Product</th><th>EOQ Result</th></tr></thead>
             <tbody>
-              {selected.size === 0 && (
-                <tr><td colSpan="2" style={{textAlign:'center', color:'var(--text-muted)', padding:'12px', fontSize:'11px'}}>Select products and click Compute to see results.</td></tr>
+              {!results && (
+                <tr><td colSpan="2" style={{textAlign:'center', color:'var(--text-muted)', padding:'12px', fontSize:'11px'}}>Select products, enter S and H, then click Compute.</td></tr>
               )}
+              {results && results.map((r, i) => (
+                <tr key={i}>
+                  <td>{r.name}</td>
+                  <td><strong>{r.eoq.toFixed(2)}</strong> units</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -250,6 +328,12 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
   const [inputs, setInputs] = useState({ demand: '', orderCost: '', holdingCost: '' });
   const [errors, setErrors] = useState({});
   const [result, setResult] = useState(null); // null = not yet computed
+
+  /* customFormulas — formulas added at runtime via the Add Formula modal (front-end only,
+     kept in memory until a backend /api/formulas exists). Rendered as extra closable tabs. */
+  const [customFormulas, setCustomFormulas] = useState([]);
+  /* history — every successful compute is logged here and shown in the History panel. */
+  const [history, setHistory] = useState(SAMPLE_HISTORY);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -280,6 +364,18 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
     const cycleLength    = 365 / ordersPerYear;
 
     setResult({ eoq, annualOrdering, annualHolding, totalCost, ordersPerYear, cycleLength, D, S, H });
+
+    /* log this run to history (newest first) */
+    setHistory(prev => [
+      {
+        formulaName: 'EOQ',
+        date: new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }),
+        inputs: { D, S, H },
+        result: eoq.toFixed(2),
+        unit: 'units',
+      },
+      ...prev,
+    ]);
   };
 
   const handleReset = () => {
@@ -291,6 +387,70 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
   const fmtCur = (v) => `₱${v.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const fmtNum = (v, d = 2) => v.toLocaleString('en-PH', { minimumFractionDigits: d, maximumFractionDigits: d });
 
+  /* Export the current result to a CSV file (front-end only). */
+  const exportCsv = () => {
+    if (!result) return;
+    const rows = [
+      ['Metric', 'Value'],
+      ['Annual Demand (D)', result.D],
+      ['Ordering Cost (S)', result.S],
+      ['Holding Cost (H)', result.H],
+      ['Economic Order Quantity (EOQ)', result.eoq.toFixed(2)],
+      ['Annual Ordering Cost', result.annualOrdering.toFixed(2)],
+      ['Annual Holding Cost', result.annualHolding.toFixed(2)],
+      ['Total Annual Cost', result.totalCost.toFixed(2)],
+      ['Orders per Year', result.ordersPerYear.toFixed(2)],
+      ['Order Cycle Length (days)', result.cycleLength.toFixed(2)],
+    ];
+    const escape = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+    const csv = rows.map(r => r.map(escape).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `eoq-result-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  /* "PDF" export uses the browser print dialog (Save as PDF) — front-end only, no library. */
+  const exportPdf = () => {
+    if (!result) return;
+    window.print();
+  };
+
+  /* Save a custom formula from the modal into in-memory state and open it as a tab. */
+  const handleSaveFormula = (formula) => {
+    setCustomFormulas(prev => [...prev, formula]);
+    setShowModal(false);
+  };
+
+  const closeCustomFormula = (name) => {
+    setCustomFormulas(prev => prev.filter(f => f.name !== name));
+  };
+
+  /* Compare mode — side-by-side EOQ (A) vs Reorder Point (B). */
+  const [compareA, setCompareA] = useState({ demand: '', orderCost: '', holdingCost: '' });
+  const [compareB, setCompareB] = useState({ daily: '', lead: '', safety: '' });
+  const [resultA, setResultA] = useState(null);
+  const [resultB, setResultB] = useState(null);
+
+  const computeCompareA = () => {
+    const D = parseFloat(compareA.demand);
+    const S = parseFloat(compareA.orderCost);
+    const H = parseFloat(compareA.holdingCost);
+    if (!(D > 0 && S > 0 && H > 0)) { setResultA(null); return; }
+    setResultA(Math.sqrt((2 * D * S) / H));
+  };
+
+  const computeCompareB = () => {
+    const d = parseFloat(compareB.daily);
+    const L = parseFloat(compareB.lead);
+    const SS = parseFloat(compareB.safety) || 0;
+    if (!(d > 0 && L > 0)) { setResultB(null); return; }
+    setResultB(d * L + SS);
+  };
+
   return (
     <div className="ac-root">
 
@@ -299,10 +459,14 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
         <div className="ac-header-left">
           <div className="ac-tabs">
             <div className="ac-tab active"><button className="ac-tab-btn">EOQ</button></div>
-            <div className="ac-tab">
-              <button className="ac-tab-btn">ROP</button>
-              <button className="ac-tab-close"><X size={10} /></button>
-            </div>
+            {customFormulas.map((f) => (
+              <div className="ac-tab" key={f.name}>
+                <button className="ac-tab-btn" title={f.fullName}>{f.name}</button>
+                <button className="ac-tab-close" onClick={() => closeCustomFormula(f.name)} title={`Remove ${f.name}`}>
+                  <X size={10} />
+                </button>
+              </div>
+            ))}
           </div>
         </div>
         <div className="ac-header-actions">
@@ -397,8 +561,8 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
                 )}
                 <div className="ac-result-divider" />
                 <div className="ac-export-actions">
-                  <button className="ac-btn-reset ac-export-btn"><Download size={12} /> Export CSV</button>
-                  <button className="ac-btn-reset ac-export-btn"><Download size={12} /> Export PDF</button>
+                  <button className="ac-btn-reset ac-export-btn" onClick={exportCsv} disabled={!result} type="button"><Download size={12} /> Export CSV</button>
+                  <button className="ac-btn-reset ac-export-btn" onClick={exportPdf} disabled={!result} type="button"><Download size={12} /> Export PDF</button>
                 </div>
               </div>
             </div>
@@ -462,49 +626,62 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
       {/* Comparison Mode */}
       {compareMode && (
         <div className="ac-compare-wrapper">
+          {/* A: EOQ */}
           <div className="ac-compare-col">
             <div className="ac-compare-select-row">
               <label className="ac-label">Formula A</label>
-              <select className="ac-input" defaultValue="eoq">
-                <option value="eoq">EOQ</option><option value="rop">ROP</option>
+              <select className="ac-input" value="eoq" disabled>
+                <option value="eoq">EOQ</option>
               </select>
             </div>
             {SAMPLE_FORMULA.fields.map(field => (
               <div className="ac-input-group" key={field.key}>
                 <label className="ac-label">{field.label}</label>
-                <input className="ac-input" type="number" placeholder={field.placeholder} />
+                <input
+                  className="ac-input"
+                  type="number"
+                  min="0"
+                  value={compareA[field.key]}
+                  onChange={e => setCompareA(prev => ({ ...prev, [field.key]: e.target.value }))}
+                />
               </div>
             ))}
-            <button className="ac-btn-compute">Compute A</button>
-            <div className="ac-compare-result">—</div>
+            <button className="ac-btn-compute" onClick={computeCompareA}>Compute A</button>
+            <div className="ac-compare-result">
+              {resultA == null ? '—' : <>{fmtNum(resultA)} <small>units (EOQ)</small></>}
+            </div>
           </div>
+
+          {/* B: ROP */}
           <div className="ac-compare-col">
             <div className="ac-compare-select-row">
               <label className="ac-label">Formula B</label>
-              <select className="ac-input" defaultValue="rop">
-                <option value="eoq">EOQ</option><option value="rop">ROP</option>
+              <select className="ac-input" value="rop" disabled>
+                <option value="rop">ROP</option>
               </select>
             </div>
             <div className="ac-input-group">
               <label className="ac-label">Daily Demand (d)</label>
-              <input className="ac-input" type="number" placeholder="" />
+              <input className="ac-input" type="number" min="0" value={compareB.daily} onChange={e => setCompareB(prev => ({ ...prev, daily: e.target.value }))} />
             </div>
             <div className="ac-input-group">
               <label className="ac-label">Lead Time (L)</label>
-              <input className="ac-input" type="number" placeholder="" />
+              <input className="ac-input" type="number" min="0" value={compareB.lead} onChange={e => setCompareB(prev => ({ ...prev, lead: e.target.value }))} />
             </div>
             <div className="ac-input-group">
               <label className="ac-label">Safety Stock (SS)</label>
-              <input className="ac-input" type="number" placeholder="" />
+              <input className="ac-input" type="number" min="0" value={compareB.safety} onChange={e => setCompareB(prev => ({ ...prev, safety: e.target.value }))} />
             </div>
-            <button className="ac-btn-compute">Compute B</button>
-            <div className="ac-compare-result">—</div>
+            <button className="ac-btn-compute" onClick={computeCompareB}>Compute B</button>
+            <div className="ac-compare-result">
+              {resultB == null ? '—' : <>{fmtNum(resultB)} <small>units (ROP)</small></>}
+            </div>
           </div>
         </div>
       )}
 
-      {showModal   && <AddFormulaModal  onClose={() => setShowModal(false)}   />}
-      {showHistory && <HistoryPanel     onClose={() => setShowHistory(false)} />}
+      {showModal   && <AddFormulaModal  onClose={() => setShowModal(false)} onSave={handleSaveFormula} />}
+      {showHistory && <HistoryPanel     onClose={() => setShowHistory(false)} history={history} onClear={() => setHistory([])} />}
       {showBatch   && <BatchComputeModal onClose={() => setShowBatch(false)}   />}
     </div>
   );

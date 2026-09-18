@@ -15,7 +15,8 @@ import {
 import './settings.css';
 import { SAFETY_STOCK_DEFAULTS, DEFAULT_SAFETY_STOCK } from '../../data/safetyStock';
 
-/* Blank Policy Row */
+/* emptyEntry — blank row for adding a new safety-stock policy (product + threshold + yearly demand).
+   BACKEND: this is the POST body sent to /api/safety-stock; it writes to the `safety_stock` table. */
 const emptyEntry = { productName: '', safetyStock: '', annualDemand: '' };
 
 function Settings({

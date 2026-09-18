@@ -4,12 +4,17 @@ import './dashboard.css';
 /*==========SAMPLE DATA==========*/
 /* Placeholder figures for a watch/timepiece store. Replaced by API data once the backend is wired. */
 
+/* SALES — sales trend for the hero line chart (Week/Month/Year toggle).
+   BACKEND: GET /api/sales/summary?range=week|month|year → aggregated from `sales_history` table.
+   `delta` = % change vs the previous period. */
 const SALES = {
   Week:  { labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], values: [42, 55, 47, 63, 72, 90, 81], delta: 12.4 },
   Month: { labels: ['1', '5', '10', '15', '20', '25', '30'],           values: [210, 260, 240, 300, 330, 360, 410], delta: 8.1 },
   Year:  { labels: ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'], values: [820, 760, 910, 880, 1020, 1150, 1080, 1240, 1190, 1320, 1450, 1610], delta: 23.6 },
 };
 
+/* REGIONS — share of sales per geographic region for the donut chart.
+   BACKEND: GET /api/sales/by-region → `sales_history` grouped by region. `pct` must sum to 1.0. */
 const REGIONS = [
   { name: 'NCR',      pct: 0.38, color: 'var(--accent)' },
   { name: 'Luzon',    pct: 0.24, color: 'var(--accent-high)' },
@@ -18,12 +23,20 @@ const REGIONS = [
   { name: 'Intl',     pct: 0.07, color: 'var(--text-muted)' },
 ];
 
+/* CATALOG — inventory count summary for the Catalog Status card.
+   BACKEND: GET /api/products/status → COUNT of `products` split by stock level (in/low/out). */
 const CATALOG = { total: 2148, inStock: 1806, low: 262, out: 80 };
 
+/* REVENUE — total revenue KPI + sparkline.
+   BACKEND: GET /api/sales/revenue → SUM of sales amounts; `spark` = last N periods for the mini chart. */
 const REVENUE = { value: 1284500, delta: 18.2, spark: [52, 58, 55, 63, 60, 71, 68, 79, 86] };
 
+/* ORDERS — total orders KPI + weekly bar chart.
+   BACKEND: GET /api/orders/summary → COUNT of orders; `bars` = orders per day of the week. */
 const ORDERS = { value: 3472, delta: 6.4, labels: ['M', 'T', 'W', 'T', 'F', 'S', 'S'], bars: [38, 52, 44, 61, 49, 72, 80] };
 
+/* TOP_PRODUCTS — best-selling items ranked by units sold.
+   BACKEND: GET /api/products/top-sellers → `sales_history` grouped by product, ordered by units DESC. */
 const TOP_PRODUCTS = [
   { name: 'Chrono Steel 42',   units: 328 },
   { name: 'Classic Rose Gold', units: 274 },
@@ -32,16 +45,26 @@ const TOP_PRODUCTS = [
   { name: 'Skeleton Auto',     units: 156 },
 ];
 
+/* ALERTS — individual low/out/reorder stock warnings shown in the Stock Alerts card.
+   BACKEND: GET /api/stock/alerts → `stock_movements` latest balance vs `safety_stock` policy.
+   `level` = out | low | reorder; `qty` = units remaining. */
 const ALERTS = [
   { name: 'Diver Pro 300m',    level: 'out',     qty: 0 },
   { name: 'Chrono Steel 42',   level: 'low',     qty: 6 },
   { name: 'Pilot 44 Bronze',   level: 'low',     qty: 9 },
   { name: 'Classic Rose Gold', level: 'reorder', qty: 14 },
 ];
+/* ALERT_SUMMARY — count of items in each alert level, for the stacked summary bar.
+   BACKEND: same endpoint as ALERTS, returned as totals per level. */
 const ALERT_SUMMARY = { out: 8, low: 23, reorder: 41 };
 
+/* CUSTOMERS — total active customers KPI + sparkline.
+   BACKEND: GET /api/customers/summary → COUNT of customers; `spark` = trend over recent periods. */
 const CUSTOMERS = { value: 1946, delta: 4.7, spark: [120, 135, 128, 150, 162, 158, 175, 188, 201] };
 
+/* EOQ — Auto Calculator activity summary shown as a gauge.
+   BACKEND: GET /api/calculations/summary → derived from `calculation_logs`.
+   `rate` = share of optimized orders (0–1); `calcsThisWeek` = count; `avgOrderQty` = mean EOQ result. */
 const EOQ = { rate: 0.82, calcsThisWeek: 37, avgOrderQty: 145 };
 
 /*==========CHART MATH HELPERS==========*/

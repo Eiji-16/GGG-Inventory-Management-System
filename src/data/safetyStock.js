@@ -1,9 +1,15 @@
 /* Safety Stock Policy */
 /* Owned by the Super Admin. Editable only from Settings → Advanced. */
 
+/* DEFAULT_SAFETY_STOCK — fallback safety-stock level for any product not in the policy below.
+   BACKEND: a single config value; store in a `settings` table or app config. */
 export const DEFAULT_SAFETY_STOCK = 20;
 
-/* Seed Policy */
+/* SAFETY_STOCK_DEFAULTS — per-product policy: the reorder threshold and yearly demand.
+   This is the shared data authority — Stock Control reads it for alerts, and the Auto Calculator
+   pulls annualDemand from it during the EOQ handoff.
+   BACKEND: GET /api/safety-stock → the `safety_stock` table keyed by product.
+   Keys are product names now; switch to product_id once products have real IDs. */
 export const SAFETY_STOCK_DEFAULTS = {
   'Premium Calfskin Band': { safetyStock: 25, annualDemand: 960 },
   'Water-Resistant Diver Strap': { safetyStock: 45, annualDemand: 1240 },

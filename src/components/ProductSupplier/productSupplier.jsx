@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, Edit, Trash2, X, Package, Info } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, X, Package, Info, Download, AlertTriangle } from 'lucide-react';
 
 import './productSupplier.css';
 
 
 
+/* emptyForm — blank shape for the Add/Edit Product modal. One key per product column.
+   BACKEND: this object is the POST/PUT body sent to /api/products. */
 const emptyForm = {
   id: '',
   name: '',
@@ -18,7 +20,9 @@ const emptyForm = {
 
 /*--------------------------------------------------Sample data's--------------------------------------------------*/
 
-/* Detail Fields */
+/* DETAIL_FIELDS — drives the read-only "Full Information" modal: which product fields to show,
+   their labels and helper hints. `wide: true` makes a field span the full row.
+   BACKEND: each `key` maps to a column returned by GET /api/products/:id. */
 const DETAIL_FIELDS = [
   { key: 'id', label: 'Product ID', hint: 'System reference used across every tab' },
   { key: 'name', label: 'Product Name', hint: 'Name shown in Stock Movement and forecasts', wide: true },
@@ -38,6 +42,10 @@ function ProductSupplier({ onNavigate }) {
   const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit'
   const [formData, setFormData] = useState(emptyForm);
   const [detailProduct, setDetailProduct] = useState(null);
+  const [query, setQuery] = useState(''); // live text typed in the search bar (client-side filter)
+  /* confirmTarget — pending delete awaiting confirmation.
+     { type: 'single', product } for one row, or { type: 'bulk', ids } for the selection. */
+  const [confirmTarget, setConfirmTarget] = useState(null);
 
   useEffect(() => {
     fetch('/productSupplier.json')
@@ -46,11 +54,26 @@ function ProductSupplier({ onNavigate }) {
       .catch((error) => console.error('Error reading your file:', error));
   }, []);
 
-  const total = productsFromDatabase.length;
+  /* Products narrowed by the search box; pagination runs over this filtered list. */
+  const filteredProducts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return productsFromDatabase;
+    return productsFromDatabase.filter((p) =>
+      [p.id, p.name, p.category, p.brand, p.model, p.unitMeasure, p.supplierInfo]
+        .some((field) => String(field ?? '').toLowerCase().includes(q))
+    );
+  }, [productsFromDatabase, query]);
+
+  /* reset to the first page whenever the search text changes */
+  useEffect(() => {
+    setCursor(0);
+  }, [query]);
+
+  const total = filteredProducts.length;
   const safeCursor = total === 0 ? 0 : Math.min(cursor, total - 1);
   // snap cursor to the start of its page so it's always a clean multiple of PAGE_SIZE
   const pageCursor = Math.floor(safeCursor / PAGE_SIZE) * PAGE_SIZE;
-  const visibleProducts = productsFromDatabase.slice(pageCursor, pageCursor + PAGE_SIZE);
+  const visibleProducts = filteredProducts.slice(pageCursor, pageCursor + PAGE_SIZE);
   const hasNext = pageCursor + PAGE_SIZE < total;
   const hasPrev = pageCursor > 0;
   const pageLabel = total === 0
@@ -161,24 +184,75 @@ function ProductSupplier({ onNavigate }) {
       return next;
     });
   };
+
+  /* Ask before deleting — a single row or the whole selection. */
+  const requestDeleteSingle = (product) => setConfirmTarget({ type: 'single', product });
+  const requestDeleteBulk = () => {
+    if (selectedIds.size === 0) return;
+    setConfirmTarget({ type: 'bulk', ids: Array.from(selectedIds) });
+  };
+
+  const confirmDelete = () => {
+    if (!confirmTarget) return;
+    if (confirmTarget.type === 'single') {
+      handleDelete(confirmTarget.product.id);
+    } else {
+      confirmTarget.ids.forEach((id) => handleDelete(id));
+      setSelectedIds(new Set());
+    }
+    setConfirmTarget(null);
+  };
+
+  /* Export the filtered product list to a CSV file (front-end only, no backend). */
+  const exportCsv = () => {
+    if (filteredProducts.length === 0) return;
+    const headers = ['Product ID', 'Product Name', 'Category', 'Brand', 'Model', 'Unit Measure', 'Supplier Information'];
+    const escape = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+    const lines = [
+      headers.join(','),
+      ...filteredProducts.map((p) =>
+        [p.id, p.name, p.category, p.brand, p.model, p.unitMeasure, p.supplierInfo].map(escape).join(',')
+      ),
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `products-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 /*--------------------------------------------------Sample data's End--------------------------------------------------*/
   return (
     <div className="ps-table-parent">
       {/* Search bar */}
       <div className="ps-navigation-bar">
         <div className="ps-search-wrapper">
-          <form action="/search-result" method="get">
-            <input type="search" placeholder="Search..." name="search-bar" id="search-input" />
-            <Search size={12} className="ps-search-icon" />
-          </form>
+          <div className="ps-search-box">
+            <Search size={13} className="ps-search-icon" />
+            <input
+              type="search"
+              placeholder="Search products…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search products"
+            />
+          </div>
         </div>
+        <button
+          className="ps-add-btn"
+          onClick={exportCsv}
+          type="button"
+          disabled={filteredProducts.length === 0}
+          title="Export the current list to CSV"
+        >
+          <p>Export</p>
+          <Download size={12} />
+        </button>
         {selectedIds.size > 0 && (
           <button
             className="ps-add-btn ps-delete-selected-btn"
-            onClick={() => {
-              selectedIds.forEach(id => handleDelete(id));
-              setSelectedIds(new Set());
-            }}
+            onClick={requestDeleteBulk}
             type="button"
             title={`Delete ${selectedIds.size} selected`}
           >
@@ -186,94 +260,102 @@ function ProductSupplier({ onNavigate }) {
             <Trash2 size={12} />
           </button>
         )}
-        <button className="ps-add-btn" onClick={openAddModal} type="button">
+        <button className="ps-add-btn ps-add-btn-primary" onClick={openAddModal} type="button">
           <p>Add</p>
           <Plus size={12} className="ps-add-icon" />
         </button>
       </div>
 
-      {/* Label bar */}
-      <div className="ps-label-row-grid">
-        <div className="ps-checkbox-cell">
-          <input
-            type="checkbox"
-            checked={allSelected}
-            onChange={toggleSelectAll}
-            aria-label="Select all rows"
-          />
-        </div>
-        <div>Product ID</div>
-        <div>Product Name</div>
-        <div>Category</div>
-        <div>Brand</div>
-        <div>Model</div>
-        <div>Unit Measure</div>
-        <div>Supplier Information</div>
-        <div>Actions</div>
+      {/* Data table */}
+      <div className="ps-table-scroll" ref={tableRef}>
+        <table className="ps-table">
+          <thead>
+            <tr>
+              <th className="ps-th-check">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  aria-label="Select all rows"
+                />
+              </th>
+              <th>Product ID</th>
+              <th className="ps-th-left">Product Name</th>
+              <th>Category</th>
+              <th>Brand</th>
+              <th>Model</th>
+              <th>Unit Measure</th>
+              <th className="ps-th-left">Supplier Information</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleProducts.map((product, idx) => (
+              <tr
+                className={`ps-row-clickable ${selectedIds.has(product.id) ? 'is-selected' : ''}`}
+                key={pageCursor + idx}
+                title={`View full information for ${product.name}`}
+                onClick={() => openDetails(product)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openDetails(product);
+                  }
+                }}
+                tabIndex={0}
+              >
+                <td className="ps-td-check" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(product.id)}
+                    onChange={() => toggleSelectRow(product.id)}
+                    aria-label={`Select ${product.name}`}
+                  />
+                </td>
+                <td className="ps-td-nowrap ps-td-muted">{product.id}</td>
+                <td className="ps-td-left ps-cell-name" title={product.name}>{product.name}</td>
+                <td>{product.category || '—'}</td>
+                <td>{product.brand || '—'}</td>
+                <td>{product.model || '—'}</td>
+                <td>{product.unitMeasure || '—'}</td>
+                <td className="ps-td-left ps-td-muted" title={product.supplierInfo}>{product.supplierInfo || '—'}</td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  <div className="ps-action-cell-container">
+                    <button
+                      className="ps-table-action-btn ps-edit-btn"
+                      onClick={() => openEditModal(product)}
+                      aria-label="Edit Item"
+                      title="Edit Item"
+                      type="button"
+                    >
+                      <Edit size={16} />
+                    </button>
+                    <button
+                      className="ps-table-action-btn ps-delete-btn"
+                      onClick={() => requestDeleteSingle(product)}
+                      aria-label="Delete Item"
+                      title="Delete Item"
+                      type="button"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+
+            {visibleProducts.length === 0 && (
+              <tr>
+                <td colSpan={9} className="ps-empty-state">
+                  {productsFromDatabase.length === 0
+                    ? 'No products registered yet. Click “Add” to register one.'
+                    : 'No products match your search.'}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
-
-      {/* Data-tables */}
-      <main className="ps-data-table" ref={tableRef}>
-        {visibleProducts.map((product, idx) => (
-          <div
-            className={`ps-data-row-grid ps-row-clickable ${selectedIds.has(product.id) ? 'is-selected' : ''}`}
-            key={pageCursor + idx}
-            data-label-name={product.name}
-            role="button"
-            tabIndex={0}
-            title={`View full information for ${product.name}`}
-            onClick={() => openDetails(product)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                openDetails(product);
-              }
-            }}
-          >
-            <div className="ps-checkbox-cell" onClick={(e) => e.stopPropagation()}>
-              <input
-                type="checkbox"
-                checked={selectedIds.has(product.id)}
-                onChange={() => toggleSelectRow(product.id)}
-                aria-label={`Select ${product.name}`}
-              />
-            </div>
-            <div className="ps-cell-text" data-label="Product ID">{product.id}</div>
-            <div className="ps-cell-text ps-cell-name" data-label="Product Name" title={product.name}>{product.name}</div>
-            <div className="ps-cell-text" data-label="Category">{product.category || '—'}</div>
-            <div className="ps-cell-text" data-label="Brand">{product.brand || '—'}</div>
-            <div className="ps-cell-text" data-label="Model">{product.model || '—'}</div>
-            <div className="ps-cell-text" data-label="Unit Measure">{product.unitMeasure || '—'}</div>
-            <div className="ps-cell-text" data-label="Supplier Info" title={product.supplierInfo}>{product.supplierInfo || '—'}</div>
-            <div className="ps-action-cell-container" data-label="Actions" onClick={(e) => e.stopPropagation()}>
-              <button
-                className="ps-table-action-btn ps-edit-btn"
-                onClick={() => openEditModal(product)}
-                aria-label="Edit Item"
-                title="Edit Item"
-                type="button"
-              >
-                <Edit size={16} />
-              </button>
-              <button
-                className="ps-table-action-btn ps-delete-btn"
-                onClick={() => handleDelete(product.id)}
-                aria-label="Delete Item"
-                title="Delete Item"
-                type="button"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </div>
-        ))}
-
-        {visibleProducts.length === 0 && (
-          <div className="ps-empty-state">
-            LOADING INVENTORY DATABASES OR NO LOGS RECORDED...
-          </div>
-        )}
-      </main>
 
       {/* Pagination bar - cursor-based */}
       {total > PAGE_SIZE && (
@@ -494,6 +576,47 @@ function ProductSupplier({ onNavigate }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Delete confirmation */}
+      {confirmTarget && createPortal(
+        <div className="ps-modal-overlay" onClick={() => setConfirmTarget(null)}>
+          <div
+            className="ps-modal ps-confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="ps-confirm-title"
+          >
+            <div className="ps-confirm-body">
+              <span className="ps-confirm-icon" aria-hidden="true">
+                <AlertTriangle size={22} />
+              </span>
+              <h3 id="ps-confirm-title" className="ps-confirm-title">
+                {confirmTarget.type === 'single'
+                  ? 'Delete this item?'
+                  : `Delete ${confirmTarget.ids.length} item${confirmTarget.ids.length !== 1 ? 's' : ''}?`}
+              </h3>
+              <p className="ps-confirm-text">
+                {confirmTarget.type === 'single' ? (
+                  <>You’re about to delete <strong>{confirmTarget.product.name || 'this product'}</strong>. </>
+                ) : (
+                  <>You’re about to delete the selected products. </>
+                )}
+                This can’t be undone.
+              </p>
+            </div>
+            <div className="ps-modal-actions">
+              <button type="button" className="ps-modal-cancel-btn" onClick={() => setConfirmTarget(null)}>
+                Cancel
+              </button>
+              <button type="button" className="ps-confirm-delete-btn" onClick={confirmDelete}>
+                <Trash2 size={14} /> Delete
+              </button>
+            </div>
           </div>
         </div>,
         document.body
