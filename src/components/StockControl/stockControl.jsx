@@ -356,8 +356,8 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                       aria-label={`Select entry ${index}`}
                     />
                   </td>
-                  <td className="sc-td-nowrap">{stock.date}</td>
-                  <td className="sc-td-left" title={stock.productName}>
+                  <td className="sc-td-nowrap" data-label="Date">{stock.date}</td>
+                  <td className="sc-td-left sc-cell-name" data-label="Product" title={stock.productName}>
                     <button
                       type="button"
                       className="sc-product-link"
@@ -367,15 +367,15 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                       {stock.productName}
                     </button>
                   </td>
-                  <td>{stock.category || '—'}</td>
-                  <td>
+                  <td data-label="Category">{stock.category || '—'}</td>
+                  <td data-label="Type">
                     <span className={`sc-type-pill sc-type-${(stock.type || '').replace(/\s+/g, '').toLowerCase()}`}>
                       {stock.type || '—'}
                     </span>
                   </td>
-                  <td className="sc-td-nowrap">{stock.qty}</td>
-                  <td className="sc-td-nowrap sc-td-strong">{stock.remainingStock}</td>
-                  <td>
+                  <td className="sc-td-nowrap" data-label="Qty">{stock.qty}</td>
+                  <td className="sc-td-nowrap sc-td-strong" data-label="Remaining">{stock.remainingStock}</td>
+                  <td data-label="Safety Stock">
                     {status ? (
                       <span
                         className={`sc-safety-badge sc-safety-${status}`}
@@ -387,9 +387,9 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                       </span>
                     ) : '—'}
                   </td>
-                  <td className="sc-td-left sc-td-muted" title={stock.notes}>{stock.notes || '—'}</td>
-                  <td>{stock.recordedBy || '—'}</td>
-                  <td>
+                  <td className="sc-td-left sc-td-muted" data-label="Notes" title={stock.notes}>{stock.notes || '—'}</td>
+                  <td data-label="Recorded by">{stock.recordedBy || '—'}</td>
+                  <td className="sc-td-actions" data-label="Actions">
                     <div className="sc-action-cell-container">
                       {status && status !== 'healthy' && (
                         <button

@@ -217,9 +217,10 @@
     background: var(--btn-fill-bg, #111);
     color: var(--btn-fill-text, #fff);
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, transform 0.15s ease;
 }
 .ac-btn-compute:hover { opacity: 0.85; }
+.ac-btn-compute:active:not(:disabled) { transform: scale(0.97); }
 .ac-btn-compute:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .ac-btn-reset {

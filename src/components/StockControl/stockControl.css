@@ -1035,11 +1035,136 @@
 }
 
 /*==========RESPONSIVENESS==========*/
-/* On narrow screens the table keeps its shape and scrolls horizontally
-   inside .sc-table-scroll, so no column collapsing is needed. */
-@media (max-width: 900px) {
+/* Tablet: keep the table shape but scroll horizontally. */
+@media (max-width: 900px) and (min-width: 641px) {
     .sc-table {
         min-width: 900px;
+    }
+}
+
+/* ==========MOBILE CARD LIST==========
+   On phones each stock-movement row becomes a card: cells show their column
+   name (data-label) beside the value, and the EOQ/History/Edit/Delete actions
+   sit pinned at the bottom of the card. No horizontal scrolling. */
+@media (max-width: 640px) {
+    .sc-table-scroll {
+        border: none;
+        background: transparent;
+        overflow: visible;
+    }
+
+    .sc-table {
+        min-width: 0;
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 13px;
+    }
+
+    .sc-table thead {
+        display: none;
+    }
+
+    .sc-table tbody,
+    .sc-table tr,
+    .sc-table td {
+        display: block;
+        width: 100%;
+    }
+
+    /* Each row → a card. Preserve the status tint as a left border accent. */
+    .sc-table tbody tr {
+        background: var(--bg-card);
+        border: 1px solid var(--border-strong);
+        border-radius: 0.8rem;
+        padding: 0.35rem 0.9rem;
+        margin-bottom: 0.7rem;
+        box-shadow: var(--shadow-card);
+    }
+
+    .sc-table tbody tr.sc-row-low { border-left: 3px solid var(--accent-low); }
+    .sc-table tbody tr.sc-row-warning { border-left: 3px solid var(--accent-med); }
+    .sc-table tbody tr.sc-row-healthy { border-left: 3px solid var(--accent-high); }
+
+    /* Each cell → labelled row. */
+    .sc-table tbody td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        text-align: right;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--hairline);
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .sc-table tbody td::before {
+        content: attr(data-label);
+        flex: 0 0 auto;
+        margin-right: 0.75rem;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        text-align: left;
+    }
+
+    /* Product name is the card headline. */
+    .sc-table tbody td.sc-cell-name {
+        font-size: 14.5px;
+        font-weight: 700;
+    }
+
+    .sc-table tbody td.sc-cell-name .sc-product-link {
+        font-size: inherit;
+        font-weight: inherit;
+        text-align: right;
+    }
+
+    /* Checkbox to the corner. */
+    .sc-table tbody td.sc-td-check {
+        justify-content: flex-end;
+        padding-top: 0.15rem;
+        border-bottom: none;
+    }
+
+    .sc-table tbody td.sc-td-check::before {
+        content: "Select";
+        margin-right: auto;
+    }
+
+    /* Actions pinned at the card foot. */
+    .sc-table tbody td.sc-td-actions {
+        border-bottom: none;
+        padding-top: 0.6rem;
+    }
+
+    .sc-table tbody td.sc-td-actions::before {
+        content: "";
+        margin: 0;
+    }
+
+    .sc-action-cell-container {
+        width: 100%;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    .sc-table-action-btn {
+        padding: 8px;
+        border: 1px solid var(--border-strong) !important;
+        border-radius: 0.6rem;
+    }
+
+    .sc-empty-state {
+        border: 1px dashed var(--border-strong);
+        border-radius: 0.8rem;
+    }
+
+    .sc-empty-state::before {
+        content: none;
     }
 }
 

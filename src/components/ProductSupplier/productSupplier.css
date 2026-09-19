@@ -682,11 +682,136 @@
 }
 
 /*==========RESPONSIVENESS==========*/
-/* On narrow screens the table keeps its shape and scrolls horizontally
-   inside .ps-table-scroll instead of collapsing into cards. */
-@media (max-width: 900px) {
+/* Tablet: keep the table shape but let it scroll horizontally. */
+@media (max-width: 900px) and (min-width: 641px) {
     .ps-table {
-        min-width: 820px;
+        min-width: 760px;
+    }
+}
+
+/* ==========MOBILE CARD LIST==========
+   On phones the table stops being a wide horizontal scroll and each row
+   becomes a self-contained card: every cell shows its column name (via the
+   data-label attribute) beside its value, and the Edit/Delete actions sit
+   pinned at the bottom of the card. Clean, tappable, no sideways scrolling. */
+@media (max-width: 640px) {
+    /* Drop the scroll frame styling — cards stack in normal flow. */
+    .ps-table-scroll {
+        border: none;
+        background: transparent;
+        overflow: visible;
+    }
+
+    .ps-table {
+        min-width: 0;
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 13px;
+    }
+
+    /* Hide the header row — labels come from data-label instead. */
+    .ps-table thead {
+        display: none;
+    }
+
+    .ps-table tbody,
+    .ps-table tr,
+    .ps-table td {
+        display: block;
+        width: 100%;
+    }
+
+    /* Each row → a card. */
+    .ps-table tbody tr {
+        background: var(--bg-card);
+        border: 1px solid var(--border-strong);
+        border-radius: 0.8rem;
+        padding: 0.35rem 0.9rem;
+        margin-bottom: 0.7rem;
+        box-shadow: var(--shadow-card);
+    }
+
+    .ps-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Each cell → a labelled row inside the card. */
+    .ps-table tbody td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        text-align: right;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--hairline);
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    /* The column name, pulled from data-label. */
+    .ps-table tbody td::before {
+        content: attr(data-label);
+        flex: 0 0 auto;
+        margin-right: 0.75rem;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        text-align: left;
+    }
+
+    /* Product name gets emphasis as the card's headline. */
+    .ps-table tbody td.ps-cell-name {
+        font-size: 14.5px;
+        font-weight: 700;
+    }
+
+    /* Checkbox cell: pull it to the top-right corner of the card. */
+    .ps-table tbody td.ps-td-check {
+        justify-content: flex-end;
+        padding-top: 0.15rem;
+        border-bottom: none;
+    }
+
+    .ps-table tbody td.ps-td-check::before {
+        content: "Select";
+        margin-right: auto;
+    }
+
+    /* Actions row: buttons pinned, full-width, at the card foot. */
+    .ps-table tbody td.ps-td-actions {
+        border-bottom: none;
+        padding-top: 0.6rem;
+    }
+
+    .ps-table tbody td.ps-td-actions::before {
+        content: "";
+        margin: 0;
+    }
+
+    .ps-action-cell-container {
+        width: 100%;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    /* Make the action buttons bigger tap targets on mobile. */
+    .ps-table-action-btn {
+        padding: 8px;
+        border: 1px solid var(--border-strong) !important;
+        border-radius: 0.6rem;
+    }
+
+    /* Empty state spans the full card width naturally. */
+    .ps-empty-state {
+        border: 1px dashed var(--border-strong);
+        border-radius: 0.8rem;
+    }
+
+    .ps-empty-state::before {
+        content: none;
     }
 }
 

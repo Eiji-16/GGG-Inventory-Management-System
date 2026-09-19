@@ -70,9 +70,10 @@
     background: transparent;
     color: var(--text-primary, #111);
     cursor: pointer;
-    transition: background 0.15s;
+    transition: background 0.15s, transform 0.15s ease;
 }
 .r-export-btn:hover { background: var(--background-icon-active-color-theme); }
+.r-export-btn:active { transform: scale(0.96); }
 
 /*==========FILTERS BAR==========*/
 .r-filters-bar {
@@ -247,6 +248,47 @@
 
 .r-badge-bad { background: rgba(196,67,46,.12); color: #c4432e; }
 .r-badge-bad .r-dot { background: #c4432e; }
+
+/*==========RESPONSIVENESS==========*/
+@media (max-width: 640px) {
+    /* Stack the panel title above its export button. */
+    .r-panel-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.6rem;
+    }
+
+    .r-export-btn {
+        align-self: flex-start;
+    }
+
+    /* Two KPI cards per row instead of forcing one wide column. */
+    .r-kpi-card {
+        flex: 1 1 calc(50% - 12px);
+        min-width: 130px;
+    }
+
+    /* Filter inputs stretch to full width so they don't overflow. */
+    .r-filter-field {
+        flex: 1 1 100%;
+    }
+
+    .r-filter-field input,
+    .r-filter-field select {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 400px) {
+    .r-kpi-card {
+        flex-basis: 100%;
+    }
+
+    .r-kpi-card .r-kpi-value {
+        font-size: 21px;
+    }
+}
 
 .r-badge-neutral { background: var(--overlay-medium); color: var(--text-muted, #888); }
 .r-badge-neutral .r-dot { background: var(--text-muted, #888); }

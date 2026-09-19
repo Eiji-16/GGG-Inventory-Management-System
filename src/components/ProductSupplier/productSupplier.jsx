@@ -312,14 +312,14 @@ function ProductSupplier({ onNavigate }) {
                     aria-label={`Select ${product.name}`}
                   />
                 </td>
-                <td className="ps-td-nowrap ps-td-muted">{product.id}</td>
-                <td className="ps-td-left ps-cell-name" title={product.name}>{product.name}</td>
-                <td>{product.category || '—'}</td>
-                <td>{product.brand || '—'}</td>
-                <td>{product.model || '—'}</td>
-                <td>{product.unitMeasure || '—'}</td>
-                <td className="ps-td-left ps-td-muted" title={product.supplierInfo}>{product.supplierInfo || '—'}</td>
-                <td onClick={(e) => e.stopPropagation()}>
+                <td className="ps-td-nowrap ps-td-muted" data-label="Product ID">{product.id}</td>
+                <td className="ps-td-left ps-cell-name" data-label="Product Name" title={product.name}>{product.name}</td>
+                <td data-label="Category">{product.category || '—'}</td>
+                <td data-label="Brand">{product.brand || '—'}</td>
+                <td data-label="Model">{product.model || '—'}</td>
+                <td data-label="Unit Measure">{product.unitMeasure || '—'}</td>
+                <td className="ps-td-left ps-td-muted" data-label="Supplier" title={product.supplierInfo}>{product.supplierInfo || '—'}</td>
+                <td className="ps-td-actions" data-label="Actions" onClick={(e) => e.stopPropagation()}>
                   <div className="ps-action-cell-container">
                     <button
                       className="ps-table-action-btn ps-edit-btn"

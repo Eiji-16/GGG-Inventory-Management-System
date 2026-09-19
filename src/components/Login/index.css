@@ -243,3 +243,81 @@ body::-webkit-scrollbar {
     width: min(200%, 5rem);
     min-width: 1.5rem;
 }
+
+/*==========RESPONSIVENESS==========*/
+/* Small laptops / tablets — ease the form padding. */
+@media (max-width: 900px) {
+    .Login-side {
+        padding: 3rem 2.5rem;
+    }
+
+    .Design-overlay {
+        padding: 2rem;
+    }
+
+    .Design-overlay h1 {
+        font-size: 1.6rem;
+    }
+}
+
+/* Phones — stack the panels, drop the decorative side to a compact banner. */
+@media (max-width: 720px) {
+    .Login-page-wrapper {
+        padding: 1rem;
+    }
+
+    .Login-box {
+        flex-direction: column;
+        width: min(100%, 30rem);
+        min-height: 0;
+    }
+
+    .Design-side,
+    .Login-side {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .Design-side {
+        min-height: 8rem;
+        padding: 1.5rem 0;
+    }
+
+    .Design-overlay {
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    .Design-overlay h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .Design-overlay p {
+        max-width: none;
+    }
+
+    .Login-side {
+        padding: 2rem 1.5rem;
+        gap: 1.25rem;
+    }
+
+    .WelcomeText h2 {
+        font-size: 1.6rem;
+    }
+}
+
+/* Very small phones. */
+@media (max-width: 380px) {
+    .Login-side {
+        padding: 1.5rem 1.1rem;
+    }
+
+    .WelcomeText h2 {
+        font-size: 1.4rem;
+    }
+
+    .Login-button {
+        font-size: 17px;
+    }
+}

@@ -15,6 +15,8 @@ import {
   Info,
   Check,
   User,
+  Menu,
+  X,
   Settings as SettingsIcon
 } from 'lucide-react'; /* Lucid Components */
 
@@ -30,8 +32,6 @@ import Settings from '../Settings/Settings'; /* Settings content component */
 import Profile from '../Profile/profile'; /* User Profile content component */
 
 // LandingPage.jsx
-/* CURRENT_ROLE — the signed-in user's role; gates access to Super-Admin-only features (e.g. safety stock).
-   BACKEND: comes from the authenticated session — GET /api/auth/me → `users.role`. Hardcoded for now. */
 const CURRENT_ROLE = 'Super Admin'; /* Replaced by the signed-in account role once auth is wired and when database is created */
 
 /* INITIAL_NOTIFICATIONS — the notification feed shown in the bell dropdown.
@@ -66,6 +66,7 @@ function LandingPage({onLogout}) {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  /* Darkmode Function */
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
@@ -113,20 +114,33 @@ function LandingPage({onLogout}) {
     setIsSidebarOpen(false);
   };
   return (
-    <div className="dashboard-page-wrapper">
+
+    <div className="dashboard-page-wrapper"> {/* Whole Foundation */}
       <div className="dashboard-container-parent">
+        {/* Backdrop — only visible on mobile when the drawer is open; tap to close */}
+        {isSidebarOpen && (
+          <div className="sidebar-backdrop" onClick={() => setIsSidebarOpen(false)} aria-hidden="true" />
+        )}
         <aside className={`sidebar-body ${isSidebarOpen ? 'open' : ''}`}>
-  {/* Sidebar Navigation */}
+{/* Sidebar Navigation */}
   <ul className="sidebar-menu">
-      <div className="sidebar-item">
+      <div className="sidebar-item sidebar-logo-row">
         <span id="sidebar-logo">
-          {/* Logo Icon */}
+{/* Logo Icon */}
           A
           </span>
+        {/* Close button — only visible inside the mobile drawer */}
+        <button
+          className="sidebar-close-btn"
+          aria-label="Close menu"
+          onClick={() => setIsSidebarOpen(false)}
+        >
+          <X size={18} />
+        </button>
       </div>
-        
-{/* Logo */}
-          
+
+
+
 {/* Menus */}
           <li className={`sidebar-item ${activeView === 'Dashboard' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Dashboard')}>
@@ -149,7 +163,7 @@ function LandingPage({onLogout}) {
           <li className={`sidebar-item ${activeView === 'Auto-Calculator' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Auto-Calculator')}>
               <Calculator className="sidebar-icon" />
-              <span className="sidebar-label">Auto-Calculator Calculator</span>
+              <span className="sidebar-label">Auto-Calculator</span>
             </button>
           </li>
           <li className={`sidebar-item ${activeView === 'Forecasting' ? 'active' : ''}`}>
@@ -165,6 +179,8 @@ function LandingPage({onLogout}) {
             </button>
           </li>
         </ul>
+
+
  {/* Logout Button */}
         <div className="sidebar-footer-item">
             <div className = "sub-sidebar-footer-item">
@@ -181,22 +197,35 @@ function LandingPage({onLogout}) {
                 </button>
               </div>
             </div>
-            
+
             <div className = "sub-sidebar-footer-item-logout">
               <div id="log-out" className="sidebar-item">
                 <button onClick={handleLogout}>
                   <LogOut className="sidebar-icon" />
+                  <span className="sidebar-label">Logout</span>
                 </button>
               </div>
             </div>
         </div>
       </aside>
-{/* Main Wrapper */}
 
+
+
+
+{/* Main Wrapper = THIS WHERE THE WRAPPER AND CONTENT WILL BE PUT */}
         <div className="main-wrapper">
           <header className="top-navbar">
             <div className="top-navbar-left-side">
-              
+              {/* Hamburger — only shows on mobile; opens the sidebar drawer */}
+              <button
+                className="navbar-menu-toggle"
+                aria-label="Open menu"
+                aria-expanded={isSidebarOpen}
+                onClick={() => setIsSidebarOpen((open) => !open)}
+              >
+                <Menu size={18} />
+              </button>
+
               <div className="page-title-row">
                 <p>
                   {activeView === 'Dashboard' && 'Dashboard Overview'}
