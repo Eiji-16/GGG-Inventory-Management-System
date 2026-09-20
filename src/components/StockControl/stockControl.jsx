@@ -16,6 +16,7 @@ import {
   PlusCircle,
   Pencil,
   Clock,
+  ArrowUpDown,
   ClipboardList } from 'lucide-react';
 
 import './stockControl.css';
@@ -64,10 +65,15 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   const [formData, setFormData] = useState(emptyForm);
   const [historyProduct, setHistoryProduct] = useState(null);
   const [query, setQuery] = useState(''); /* live text typed in the search bar (client-side filter) */
+  const [sortBy, setSortBy] = useState('date-desc'); /* how the table is ordered */
   const [showActivity, setShowActivity] = useState(false); /* right-side transaction-history drawer */
   /* activityLog — running audit trail of every change (add / edit / delete / bulk delete).
      Front-end only for now; a backend would persist this to an `activity_logs` table. */
   const [activityLog, setActivityLog] = useState([]);
+  /* productOptions — the catalogue from Product & Supplier, used to populate the
+     Product Name dropdown so you can only record movements for products that
+     actually exist (no typos, no orphaned entries). */
+  const [productOptions, setProductOptions] = useState([]);
 
   /* Append one entry to the audit trail (newest first). */
   const logActivity = (action, product, detail) => {
@@ -83,12 +89,39 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
     ]);
   };
 
+  /* Load the movement ledger from the real database (GET /api/stock-movements).
+     Newest first from the server. */
   useEffect(() => {
-    fetch('/stockControl.json')
-      .then((response) => response.json())
+    fetch('/api/stock-movements', { headers: { Accept: 'application/json' } })
+      .then((response) => {
+        if (!response.ok) throw new Error(`GET /api/stock-movements failed (${response.status})`);
+        return response.json();
+      })
       .then((data) => setStockFromDatabase(data))
-      .catch((error) => console.error("Error reading your file:", error));
+      .catch((error) => console.error('Could not load stock movements:', error));
   }, []);
+
+  /* Load the product catalogue for the Product Name dropdown. */
+  useEffect(() => {
+    fetch('/api/products', { headers: { Accept: 'application/json' } })
+      .then((response) => {
+        if (!response.ok) throw new Error(`GET /api/products failed (${response.status})`);
+        return response.json();
+      })
+      .then((data) => setProductOptions(data))
+      .catch((error) => console.error('Could not load products for dropdown:', error));
+  }, []);
+
+  /* Picking a product from the dropdown fills in its category automatically. */
+  const handleProductSelect = (e) => {
+    const name = e.target.value;
+    const picked = productOptions.find((p) => p.name === name);
+    setFormData((prev) => ({
+      ...prev,
+      productName: name,
+      category: picked ? (picked.category || '') : prev.category,
+    }));
+  };
 
   /* Product Ledgers */
   const ledgers = useMemo(() => {
@@ -150,13 +183,46 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
      index so selection, edit and delete still line up with stockFromDatabase. */
   const visibleRows = useMemo(() => {
     const withIndex = stockFromDatabase.map((row, index) => ({ row, index }));
+
     const q = query.trim().toLowerCase();
-    if (!q) return withIndex;
-    return withIndex.filter(({ row }) =>
-      [row.productName, row.category, row.type, row.notes, row.recordedBy, row.date]
-        .some((field) => String(field || '').toLowerCase().includes(q))
-    );
-  }, [stockFromDatabase, query]);
+    const filtered = !q
+      ? withIndex
+      : withIndex.filter(({ row }) =>
+          [row.productName, row.category, row.type, row.notes, row.recordedBy, row.date]
+            .some((field) => String(field || '').toLowerCase().includes(q))
+        );
+
+    // Sort a COPY so the original order (and each row's real index) is preserved.
+    const sorted = [...filtered];
+    const byText = (a, b) => String(a || '').localeCompare(String(b || ''));
+    const byDate = (a, b) => new Date(a || 0) - new Date(b || 0);
+    const byNum = (a, b) => (Number(a) || 0) - (Number(b) || 0);
+
+    switch (sortBy) {
+      case 'date-asc':
+        sorted.sort((a, b) => byDate(a.row.date, b.row.date));
+        break;
+      case 'date-desc':
+        sorted.sort((a, b) => byDate(b.row.date, a.row.date));
+        break;
+      case 'product-asc':
+        sorted.sort((a, b) => byText(a.row.productName, b.row.productName));
+        break;
+      case 'product-desc':
+        sorted.sort((a, b) => byText(b.row.productName, a.row.productName));
+        break;
+      case 'remaining-asc':
+        sorted.sort((a, b) => byNum(a.row.remainingStock, b.row.remainingStock));
+        break;
+      case 'remaining-desc':
+        sorted.sort((a, b) => byNum(b.row.remainingStock, a.row.remainingStock));
+        break;
+      default:
+        break;
+    }
+
+    return sorted;
+  }, [stockFromDatabase, query, sortBy]);
 
   /* Export the currently visible rows to a CSV file (front-end only, no backend). */
   const exportCsv = () => {
@@ -238,23 +304,58 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    const entry = {
-      ...formData,
-      remainingStock: projectedRemaining === null ? formData.remainingStock : projectedRemaining,
-    };
-    if (editIndex === null) {
-      logActivity('add', entry.productName, `${entry.type || 'Movement'} of ${entry.qty || 0} unit(s) → remaining ${entry.remainingStock}`);
-    } else {
+
+    // The ledger is append-only in the database (a movement is a historical
+    // fact), so editing an existing row is kept local-only for now. New entries
+    // are saved to the database, which recomputes the product's on-hand balance.
+    if (editIndex !== null) {
+      const entry = {
+        ...formData,
+        remainingStock: projectedRemaining === null ? formData.remainingStock : projectedRemaining,
+      };
       logActivity('edit', entry.productName, `Updated ${entry.type || 'entry'} — qty ${entry.qty || 0}, remaining ${entry.remainingStock}`);
+      setStockFromDatabase((prev) => prev.map((row, i) => (i === editIndex ? entry : row)));
+      closeModal();
+      return;
     }
-    setStockFromDatabase((prev) =>
-      editIndex === null
-        ? [...prev, entry]
-        : prev.map((row, i) => (i === editIndex ? entry : row))
-    );
-    closeModal();
+
+    // The API accepts Stock In / Stock Out. "Adjustment" is treated as a
+    // positive correction, so it's sent as Stock In (matching signedQty above).
+    const apiType = formData.type === 'Stock Out' ? 'Stock Out' : 'Stock In';
+
+    const payload = {
+      productName: formData.productName,
+      type: apiType,
+      qty: Number(formData.qty) || 0,
+      notes: formData.notes || null,
+      recordedBy: formData.recordedBy || null,
+      date: formData.date || null,
+    };
+
+    try {
+      const response = await fetch('/api/stock-movements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.status === 422 || response.status === 404) {
+        alert(`"${formData.productName}" isn't in your product list yet. Add it under Product & Supplier first, then record its stock movement.`);
+        return;
+      }
+      if (!response.ok) throw new Error(`Save failed (${response.status})`);
+
+      const saved = await response.json(); // includes server-computed remainingStock
+      logActivity('add', saved.productName, `${saved.type || 'Movement'} of ${saved.qty || 0} unit(s) → remaining ${saved.remainingStock}`);
+      // Prepend so the newest movement shows first, matching the server order.
+      setStockFromDatabase((prev) => [saved, ...prev]);
+      closeModal();
+    } catch (error) {
+      console.error('Could not save stock movement:', error);
+      alert('Sorry — that stock entry could not be saved. Check the server is running and try again.');
+    }
   };
 /*--------------------------------------------------Sample data's End--------------------------------------------------*/
   return (
@@ -273,6 +374,23 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
               aria-label="Search stock movements"
             />
           </div>
+        </div>
+        <div className="sc-sort-wrapper">
+          <ArrowUpDown size={12} className="sc-sort-icon" aria-hidden="true" />
+          <select
+            className="sc-sort-select"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            aria-label="Sort movements"
+            title="Sort the table"
+          >
+            <option value="date-desc">Date (newest first)</option>
+            <option value="date-asc">Date (oldest first)</option>
+            <option value="product-asc">Product (A–Z)</option>
+            <option value="product-desc">Product (Z–A)</option>
+            <option value="remaining-desc">Remaining (high–low)</option>
+            <option value="remaining-asc">Remaining (low–high)</option>
+          </select>
         </div>
         <button
           className="sc-add-btn"
@@ -528,14 +646,24 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                     <label htmlFor="productName">
                       Product Name <span className="sc-required">*</span>
                     </label>
-                    <input
+                    <select
                       id="productName"
                       name="productName"
                       value={formData.productName}
-                      onChange={handleFormChange}
-                      placeholder="e.g. Precision Steel Chronograph"
+                      onChange={handleProductSelect}
                       required
-                    />
+                    >
+                      <option value="" disabled hidden>
+                        {productOptions.length === 0
+                          ? 'No products yet — add one under Product & Supplier'
+                          : 'Select a product…'}
+                      </option>
+                      {productOptions.map((p) => (
+                        <option key={p.id} value={p.name}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="sc-form-row">
@@ -546,7 +674,8 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                         name="category"
                         value={formData.category}
                         onChange={handleFormChange}
-                        placeholder="e.g. Timepieces"
+                        placeholder="Auto-filled from the selected product"
+                        readOnly
                       />
                     </div>
                     <div className="sc-form-group">

@@ -1,11 +1,11 @@
 {
-  "resources/js/app.jsx": {
-    "file": "assets/app-DYPbZV3l.js",
-    "name": "app",
-    "src": "resources/js/app.jsx",
+  "src/layouts/App.jsx": {
+    "file": "assets/App-Cq6DbTCO.js",
+    "name": "App",
+    "src": "src/layouts/App.jsx",
     "isEntry": true,
     "css": [
-      "assets/app-Ck_YsxLh.css"
+      "assets/App-BZNeou_9.css"
     ]
   }
 }

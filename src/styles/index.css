@@ -1,0 +1,38 @@
+/* ==========================================================================
+   Global base styles — loaded once by resources/views/welcome.blade.php via
+   @vite. Component-specific styles live in each component's own .css file.
+   Keep this file minimal: resets + app-shell base only, so it never fights
+   the component styles or the theme tokens declared in landingPage.css.
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    /* Theme tokens come from landingPage.css ([data-theme] on <html>). Fall
+       back to a neutral light background before the React tree mounts so there
+       is no flash of an unstyled black/white screen. */
+    background: var(--bg-main, #f1f5fa);
+    color: var(--text-primary, #0b1b33);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* Let the React root fill the viewport so the app shell can manage its own
+   layout/scroll instead of the body scrolling. */
+#root {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+}

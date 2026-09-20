@@ -47,11 +47,16 @@ function ProductSupplier({ onNavigate }) {
      { type: 'single', product } for one row, or { type: 'bulk', ids } for the selection. */
   const [confirmTarget, setConfirmTarget] = useState(null);
 
+  /* Load products from the real database (GET /api/products). Falls back to an
+     empty list if the request fails so the table still renders. */
   useEffect(() => {
-    fetch('/productSupplier.json')
-      .then((response) => response.json())
+    fetch('/api/products', { headers: { Accept: 'application/json' } })
+      .then((response) => {
+        if (!response.ok) throw new Error(`GET /api/products failed (${response.status})`);
+        return response.json();
+      })
       .then((data) => setProductsFromDatabase(data))
-      .catch((error) => console.error('Error reading your file:', error));
+      .catch((error) => console.error('Could not load products:', error));
   }, []);
 
   /* Products narrowed by the search box; pagination runs over this filtered list. */
@@ -155,20 +160,60 @@ function ProductSupplier({ onNavigate }) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = (e) => {
+  /* Save to the database. Add -> POST /api/products, Edit -> PUT /api/products/{code}.
+     The form has one "supplierInfo" field; the API stores supplier name + contact
+     separately, so we send it as supplierName. */
+  const handleSave = async (e) => {
     e.preventDefault();
-    if (modalMode === 'add') {
-      const newProduct = { ...formData, id: formData.id || Date.now() };
-      setProductsFromDatabase((prev) => [...prev, newProduct]);
-    } else {
+
+    const payload = {
+      name: formData.name,
+      category: formData.category,
+      brand: formData.brand,
+      model: formData.model,
+      unitMeasure: formData.unitMeasure,
+      supplierName: formData.supplierInfo || null,
+    };
+
+    try {
+      const isAdd = modalMode === 'add';
+      const url = isAdd ? '/api/products' : `/api/products/${formData.id}`;
+      const response = await fetch(url, {
+        method: isAdd ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) throw new Error(`Save failed (${response.status})`);
+      const saved = await response.json(); // product in frontend shape, id = code
+
       setProductsFromDatabase((prev) =>
-        prev.map((p) => (p.id === formData.id ? formData : p))
+        isAdd
+          ? [...prev, saved]
+          : prev.map((p) => (p.id === saved.id ? saved : p))
       );
+      closeModal();
+    } catch (error) {
+      console.error('Could not save product:', error);
+      alert('Sorry — that product could not be saved. Check the server is running and try again.');
     }
-    closeModal();
   };
 
-  const handleDelete = (id) => {
+  /* Remove from the database first (DELETE /api/products/{code}), then from the
+     screen. If the server call fails we keep the row so the UI stays truthful. */
+  const handleDelete = async (id) => {
+    try {
+      const response = await fetch(`/api/products/${id}`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) throw new Error(`Delete failed (${response.status})`);
+    } catch (error) {
+      console.error('Could not delete product:', error);
+      alert('Sorry — that product could not be deleted. Check the server is running and try again.');
+      return;
+    }
+
     setProductsFromDatabase((prev) => {
       const next = prev.filter((p) => p.id !== id);
       // if the current page becomes empty after delete, step back one page
