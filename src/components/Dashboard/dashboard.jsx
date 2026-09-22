@@ -2,19 +2,16 @@ import React, { useState } from 'react';
 import './dashboard.css';
 
 /*==========SAMPLE DATA==========*/
-/* Placeholder figures for a watch/timepiece store. Replaced by API data once the backend is wired. */
 
-/* SALES — sales trend for the hero line chart (Week/Month/Year toggle).
-   BACKEND: GET /api/sales/summary?range=week|month|year → aggregated from `sales_history` table.
-   `delta` = % change vs the previous period. */
+
+{/* ===== SALES SAMPLES ===== */}
 const SALES = {
   Week:  { labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], values: [42, 55, 47, 63, 72, 90, 81], delta: 12.4 },
   Month: { labels: ['1', '5', '10', '15', '20', '25', '30'],           values: [210, 260, 240, 300, 330, 360, 410], delta: 8.1 },
   Year:  { labels: ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'], values: [820, 760, 910, 880, 1020, 1150, 1080, 1240, 1190, 1320, 1450, 1610], delta: 23.6 },
 };
 
-/* REGIONS — share of sales per geographic region for the donut chart.
-   BACKEND: GET /api/sales/by-region → `sales_history` grouped by region. `pct` must sum to 1.0. */
+{/* ===== REGION SAMPLE DATA ===== */}
 const REGIONS = [
   { name: 'NCR',      pct: 0.38, color: 'var(--accent)' },
   { name: 'Luzon',    pct: 0.24, color: 'var(--accent-high)' },
@@ -23,20 +20,16 @@ const REGIONS = [
   { name: 'Intl',     pct: 0.07, color: 'var(--text-muted)' },
 ];
 
-/* CATALOG — inventory count summary for the Catalog Status card.
-   BACKEND: GET /api/products/status → COUNT of `products` split by stock level (in/low/out). */
+{/* ===== SAMPLE CATALOG ===== */}
 const CATALOG = { total: 2148, inStock: 1806, low: 262, out: 80 };
 
-/* REVENUE — total revenue KPI + sparkline.
-   BACKEND: GET /api/sales/revenue → SUM of sales amounts; `spark` = last N periods for the mini chart. */
+{/* ===== SAMPLE REVENUE ===== */}
 const REVENUE = { value: 1284500, delta: 18.2, spark: [52, 58, 55, 63, 60, 71, 68, 79, 86] };
 
-/* ORDERS — total orders KPI + weekly bar chart.
-   BACKEND: GET /api/orders/summary → COUNT of orders; `bars` = orders per day of the week. */
+{/* ===== SAMPLE ORDERS ===== */}
 const ORDERS = { value: 3472, delta: 6.4, labels: ['M', 'T', 'W', 'T', 'F', 'S', 'S'], bars: [38, 52, 44, 61, 49, 72, 80] };
 
-/* TOP_PRODUCTS — best-selling items ranked by units sold.
-   BACKEND: GET /api/products/top-sellers → `sales_history` grouped by product, ordered by units DESC. */
+{/* ===== SAMPLE TOP PRODUCTS ===== */}
 const TOP_PRODUCTS = [
   { name: 'Chrono Steel 42',   units: 328 },
   { name: 'Classic Rose Gold', units: 274 },
@@ -45,26 +38,20 @@ const TOP_PRODUCTS = [
   { name: 'Skeleton Auto',     units: 156 },
 ];
 
-/* ALERTS — individual low/out/reorder stock warnings shown in the Stock Alerts card.
-   BACKEND: GET /api/stock/alerts → `stock_movements` latest balance vs `safety_stock` policy.
-   `level` = out | low | reorder; `qty` = units remaining. */
+{/* ===== SAMPLE ALERTS  ===== */}
 const ALERTS = [
   { name: 'Diver Pro 300m',    level: 'out',     qty: 0 },
   { name: 'Chrono Steel 42',   level: 'low',     qty: 6 },
   { name: 'Pilot 44 Bronze',   level: 'low',     qty: 9 },
   { name: 'Classic Rose Gold', level: 'reorder', qty: 14 },
 ];
-/* ALERT_SUMMARY — count of items in each alert level, for the stacked summary bar.
-   BACKEND: same endpoint as ALERTS, returned as totals per level. */
+{/* ===== ALERT SUMMARY ===== */}
 const ALERT_SUMMARY = { out: 8, low: 23, reorder: 41 };
 
-/* CUSTOMERS — total active customers KPI + sparkline.
-   BACKEND: GET /api/customers/summary → COUNT of customers; `spark` = trend over recent periods. */
+{/* ===== SAMPLE CUSTOMERS ===== */}
 const CUSTOMERS = { value: 1946, delta: 4.7, spark: [120, 135, 128, 150, 162, 158, 175, 188, 201] };
 
-/* EOQ — Auto Calculator activity summary shown as a gauge.
-   BACKEND: GET /api/calculations/summary → derived from `calculation_logs`.
-   `rate` = share of optimized orders (0–1); `calcsThisWeek` = count; `avgOrderQty` = mean EOQ result. */
+{/* ===== SAMPLE FORMULA USED(EOQ) ===== */}
 const EOQ = { rate: 0.82, calcsThisWeek: 37, avgOrderQty: 145 };
 
 /*==========CHART MATH HELPERS==========*/
@@ -113,7 +100,7 @@ function arcPath(cx, cy, r, startDeg, endDeg) {
   return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
 }
 
-/*==========SPARKLINE (reused mini area chart)==========*/
+{/* ===== SPARKLINE FUNCTION ===== */}
 function Sparkline({ values, stroke = 'var(--accent)', gid }) {
   const W = 120, H = 40;
   const pts = scalePoints(values, W, H, 3, 5, 5);
@@ -133,7 +120,7 @@ function Sparkline({ values, stroke = 'var(--accent)', gid }) {
   );
 }
 
-/*==========DELTA PILL==========*/
+{/* ===== DELTA PILL FUNCTION ===== */}
 function Delta({ value }) {
   const up = value >= 0;
   return (
@@ -143,7 +130,7 @@ function Delta({ value }) {
   );
 }
 
-/*==========OPEN AFFORDANCE ARROW==========*/
+{/* ===== FUNCTION FOR ARROW BUTTON ON KPI CARDS ===== */}
 const OpenArrow = () => (
   <svg className="db-open-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M7 17L17 7" /><path d="M8 7h9v9" />
@@ -164,6 +151,8 @@ function Dashboard({ onNavigate }) {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(tab); }
     },
   });
+
+{/* ===== CHARTS SAMPLE DATA ===== */}
 
   /*==========HERO (SALES ANALYTICS) COMPUTED==========*/
   const s = SALES[range];
@@ -209,11 +198,13 @@ function Dashboard({ onNavigate }) {
   const alertTotal = ALERT_SUMMARY.out + ALERT_SUMMARY.low + ALERT_SUMMARY.reorder;
 
   return (
+    
     <main className="dashboard-content-view">
+      {/* ===== ACTUAL FRONT END KPI CARDS DESIGN ===== */}
       <div className="dashboard-scroll-container">
         <div className="parent">
 
-          {/* Sales Analytics */}
+          {/* ===== SALES ANALYTICS ===== */}
           <div className="salesAnalytics-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
@@ -272,7 +263,7 @@ function Dashboard({ onNavigate }) {
             </div>
           </div>
 
-          {/* Catalog Status */}
+          {/* ===== CATALOG STATUS ===== */}
           <div className="catalogStatus-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
@@ -293,7 +284,7 @@ function Dashboard({ onNavigate }) {
             </div>
           </div>
 
-          {/* Total Revenue */}
+          {/* ===== TOTAL REVENUE ===== */}
           <div className="totalRevenue-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
@@ -307,8 +298,7 @@ function Dashboard({ onNavigate }) {
             </div>
           </div>
 
-          {/* Regional Breakdown — orthographic globe */}
-          {/* Regional Breakdown - flat world map */}
+          {/* ===== REGIONAL BREAKDOWN ===== */}
           <div className="regionalBreakdown-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
@@ -333,7 +323,7 @@ function Dashboard({ onNavigate }) {
             </div>
           </div>
 
-          {/* Calculation Activity */}
+          {/* ===== CALCULATOR ACTIVITY ===== */}
           <div className="eoqActivity-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
@@ -362,7 +352,7 @@ function Dashboard({ onNavigate }) {
             </div>
           </div>
 
-          {/* Total Order */}
+          {/* ===== TOTAL ORDER ===== */}
           <div className="totalOrder-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
@@ -386,7 +376,7 @@ function Dashboard({ onNavigate }) {
             </div>
           </div>
 
-          {/* Product Sales */}
+          {/* ===== PRODUCT SALES ===== */}
           <div className="productSales-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
@@ -408,7 +398,7 @@ function Dashboard({ onNavigate }) {
             </div>
           </div>
 
-          {/* Stock Alerts */}
+          {/* ===== STOCK ALERTS ===== */}
           <div className="lowStockalerts-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
@@ -433,7 +423,7 @@ function Dashboard({ onNavigate }) {
             </div>
           </div>
 
-          {/* Total Customers */}
+          {/* ===== TOTAL CUSTOMERS ===== */}
           <div className="totalCustomer-card card">
             <div className="db-card-head">
               <div className="db-card-titles">

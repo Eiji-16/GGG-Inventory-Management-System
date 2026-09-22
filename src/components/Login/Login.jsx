@@ -1,6 +1,6 @@
 import './index.css';
 
-/* samplepic — static path to the login page's side/hero image (public/image folder). Pure asset, no backend. */
+/* ===== LOGIN IMAGE ===== */
 const samplepic = "/image/sample.jpg";
 
 function Login({ onLogin }) {

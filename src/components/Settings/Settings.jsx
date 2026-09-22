@@ -15,8 +15,7 @@ import {
 import './settings.css';
 import { SAFETY_STOCK_DEFAULTS, DEFAULT_SAFETY_STOCK } from '../../data/safetyStock';
 
-/* emptyEntry — blank row for adding a new safety-stock policy (product + threshold + yearly demand).
-   BACKEND: this is the POST body sent to /api/safety-stock; it writes to the `safety_stock` table. */
+/* ===== EMPTY POLICY ===== */
 const emptyEntry = { productName: '', safetyStock: '', annualDemand: '' };
 
 function Settings({
@@ -44,7 +43,7 @@ function Settings({
     [draft, safetyStock]
   );
 
-  /* Mask Confidential Value */
+  /* ===== HIDE VALUE ===== */
   const show = (value) => (revealed ? value : '•••');
 
   const editRow = (productName, field, value) => {
@@ -91,7 +90,7 @@ function Settings({
   return (
     <div className="s-container">
 
-      {/* Appearance */}
+      {/* ===== APPEARANCE ===== */}
       <div className="s-card">
         <div className="s-row">
           <div className="s-row-info">
@@ -118,7 +117,7 @@ function Settings({
         </div>
       </div>
 
-      {/* Advanced Options */}
+      {/* ===== ADVANCED OPTIONS ===== */}
       <div className={`s-card s-card-advanced${advancedOpen ? ' is-open' : ''}`}>
         <button
           type="button"
@@ -221,7 +220,7 @@ function Settings({
                 </div>
               )}
 
-              {/* New Policy Row */}
+              {/* ===== NEW POLICY ===== */}
               <div className="s-policy-row s-policy-row-new">
                 <input
                   value={newEntry.productName}

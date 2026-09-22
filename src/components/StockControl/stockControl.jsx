@@ -26,11 +26,10 @@ import {
   stockStatusFor,
   annualDemandFor,
   STATUS_LABEL,
-} from '../../data/safetyStock'; /* Safety Stock Policy */
+} from '../../data/safetyStock'; /* ===== SAFETY STOCK ===== */
 
-/*--------------------------------------------------Sample data's--------------------------------------------------*/
-/* emptyForm — blank shape for the Add/Edit Stock Entry modal. One key per column.
-   BACKEND: this object is the POST/PUT body sent to /api/stock-movements. */
+/* ===== STOCK DATA ===== */
+/* ===== EMPTY FORM ===== */
 const emptyForm = {
   date: '',
   productName: '',
@@ -42,15 +41,13 @@ const emptyForm = {
   recordedBy: '',
 };
 
-/* signedQty — turns a movement into a +/- number so balances can be summed.
-   Stock Out is negative; Stock In and Adjustment are positive. Used to compute remaining stock. */
+/* ===== SIGNED QTY ===== */
 const signedQty = (row) => {
   const qty = Number(row.qty) || 0;
   return row.type === 'Stock Out' ? -qty : qty;
 };
 
-/* MOVEMENT_TYPES — the three kinds of stock movement, used for the Type toggle in the modal.
-   BACKEND: store the `value` string in the `stock_movements.type` column. */
+/* ===== MOVEMENT TYPES ===== */
 const MOVEMENT_TYPES = [
   { value: 'Stock In', label: 'Stock In', tone: 'in' },
   { value: 'Stock Out', label: 'Stock Out', tone: 'out' },
@@ -64,23 +61,20 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   const [editIndex, setEditIndex] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
   const [historyProduct, setHistoryProduct] = useState(null);
-  const [query, setQuery] = useState(''); /* live text typed in the search bar (client-side filter) */
-  const [sortBy, setSortBy] = useState('date-desc'); /* how the table is ordered */
-  const [showActivity, setShowActivity] = useState(false); /* right-side transaction-history drawer */
-  /* activityLog — running audit trail of every change (add / edit / delete / bulk delete).
-     Front-end only for now; a backend would persist this to an `activity_logs` table. */
+    const [query, setQuery] = useState(''); /* ===== SEARCH ===== */
+    const [sortBy, setSortBy] = useState('date-desc'); /* ===== SORT ===== */
+    const [showActivity, setShowActivity] = useState(false); /* ===== ACTIVITY ===== */
+    /* ===== ACTIVITY LOG ===== */
   const [activityLog, setActivityLog] = useState([]);
-  /* productOptions — the catalogue from Product & Supplier, used to populate the
-     Product Name dropdown so you can only record movements for products that
-     actually exist (no typos, no orphaned entries). */
+    /* ===== PRODUCT LIST ===== */
   const [productOptions, setProductOptions] = useState([]);
 
-  /* Append one entry to the audit trail (newest first). */
+    /* ===== LOG CHANGE ===== */
   const logActivity = (action, product, detail) => {
     setActivityLog((prev) => [
       {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        action,          // 'add' | 'edit' | 'delete' | 'bulk-delete'
+        action,          /* ===== ACTION ===== */
         product,
         detail,
         time: new Date(),
@@ -89,8 +83,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
     ]);
   };
 
-  /* Load the movement ledger from the real database (GET /api/stock-movements).
-     Newest first from the server. */
+  /* ===== LOAD MOVEMENTS ===== */
   useEffect(() => {
     fetch('/api/stock-movements', { headers: { Accept: 'application/json' } })
       .then((response) => {
@@ -101,7 +94,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
       .catch((error) => console.error('Could not load stock movements:', error));
   }, []);
 
-  /* Load the product catalogue for the Product Name dropdown. */
+  /* ===== LOAD PRODUCTS ===== */
   useEffect(() => {
     fetch('/api/products', { headers: { Accept: 'application/json' } })
       .then((response) => {
@@ -112,7 +105,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
       .catch((error) => console.error('Could not load products for dropdown:', error));
   }, []);
 
-  /* Picking a product from the dropdown fills in its category automatically. */
+  /* ===== PICK PRODUCT ===== */
   const handleProductSelect = (e) => {
     const name = e.target.value;
     const picked = productOptions.find((p) => p.name === name);
@@ -123,7 +116,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
     }));
   };
 
-  /* Product Ledgers */
+  /* ===== PRODUCT LEDGERS ===== */
   const ledgers = useMemo(() => {
     const grouped = new Map();
     stockFromDatabase.forEach((row, index) => {
@@ -156,7 +149,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   const openHistory = (productName) => setHistoryProduct(productName || '—');
   const activeLedger = historyProduct ? ledgers.get(historyProduct) : null;
 
-  /* Projected Remaining Stock */
+  /* ===== PROJECTED STOCK ===== */
   const projectedRemaining = useMemo(() => {
     if (!formData.productName || !formData.type || formData.qty === '') return null;
     const base = stockFromDatabase.reduce((sum, row, i) => (
@@ -165,12 +158,12 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
     return base + signedQty(formData);
   }, [stockFromDatabase, formData, editIndex]);
 
-  /* Projected Safety Status */
+  /* ===== PROJECTED STATUS ===== */
   const projectedStatus = projectedRemaining === null
     ? null
     : stockStatusFor({ ...formData, remainingStock: projectedRemaining }, safetyStock);
 
-  /* Send To Auto Calculator */
+  /* ===== SEND TO CALCULATOR ===== */
   const computeEoqFor = (row) => {
     if (!onNavigate) return;
     onNavigate('Auto-Calculator', {
@@ -179,8 +172,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
     });
   };
 
-  /* Visible rows — filtered by the search box but each item keeps its ORIGINAL
-     index so selection, edit and delete still line up with stockFromDatabase. */
+  /* ===== VISIBLE ROWS ===== */
   const visibleRows = useMemo(() => {
     const withIndex = stockFromDatabase.map((row, index) => ({ row, index }));
 
@@ -192,7 +184,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
             .some((field) => String(field || '').toLowerCase().includes(q))
         );
 
-    // Sort a COPY so the original order (and each row's real index) is preserved.
+    /* ===== SORT COPY ===== */
     const sorted = [...filtered];
     const byText = (a, b) => String(a || '').localeCompare(String(b || ''));
     const byDate = (a, b) => new Date(a || 0) - new Date(b || 0);
@@ -224,7 +216,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
     return sorted;
   }, [stockFromDatabase, query, sortBy]);
 
-  /* Export the currently visible rows to a CSV file (front-end only, no backend). */
+  /* ===== EXPORT CSV ===== */
   const exportCsv = () => {
     if (visibleRows.length === 0) return;
     const headers = ['Date', 'Product Name', 'Category', 'Type', 'Qty', 'Remaining Stock', 'Notes', 'Recorded By'];
@@ -307,9 +299,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   const handleSave = async (e) => {
     e.preventDefault();
 
-    // The ledger is append-only in the database (a movement is a historical
-    // fact), so editing an existing row is kept local-only for now. New entries
-    // are saved to the database, which recomputes the product's on-hand balance.
+    /* ===== EDIT ENTRY ===== */
     if (editIndex !== null) {
       const entry = {
         ...formData,
@@ -321,8 +311,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
       return;
     }
 
-    // The API accepts Stock In / Stock Out. "Adjustment" is treated as a
-    // positive correction, so it's sent as Stock In (matching signedQty above).
+    /* ===== SAVE ENTRY ===== */
     const apiType = formData.type === 'Stock Out' ? 'Stock Out' : 'Stock In';
 
     const payload = {
@@ -347,9 +336,9 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
       }
       if (!response.ok) throw new Error(`Save failed (${response.status})`);
 
-      const saved = await response.json(); // includes server-computed remainingStock
+      const saved = await response.json(); /* ===== SAVED STOCK ===== */
       logActivity('add', saved.productName, `${saved.type || 'Movement'} of ${saved.qty || 0} unit(s) → remaining ${saved.remainingStock}`);
-      // Prepend so the newest movement shows first, matching the server order.
+      /* ===== NEWEST FIRST ===== */
       setStockFromDatabase((prev) => [saved, ...prev]);
       closeModal();
     } catch (error) {
@@ -357,11 +346,11 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
       alert('Sorry — that stock entry could not be saved. Check the server is running and try again.');
     }
   };
-/*--------------------------------------------------Sample data's End--------------------------------------------------*/
+/* ===== STOCK DATA END ===== */
   return (
     <div className="sc-table-parent">
 
-      {/* Search bar */}
+      {/* ===== SEARCH BAR ===== */}
       <div className="sc-navigation-bar">
         <div className="sc-search-wrapper">
           <div className="sc-search-box">
@@ -432,7 +421,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
         </button>
       </div>
 
-      {/* Table */}
+      {/* ===== TABLE ===== */}
       <div className="sc-table-scroll">
         <table className="sc-table">
           <thead>
@@ -566,7 +555,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
         </table>
       </div>
 
-      {/* Add Item Modal */}
+      {/* ===== ADD ITEM MODAL ===== */}
       {isModalOpen && createPortal(
         <div className="sc-modal-overlay" onClick={closeModal}>
           <div
@@ -690,7 +679,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                 <section className="sc-form-section">
                   <h4 className="sc-form-section-title">Result</h4>
 
-                  {/* Computed remaining stock */}
+                  {/* ===== REMAINING STOCK ===== */}
                   <div className="sc-computed-field" aria-live="polite">
                     <div className="sc-computed-copy">
                       <span className="sc-computed-label">Remaining Stock</span>
@@ -751,7 +740,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
         </div>,
         document.body
       )}
-      {/* Movement history panel */}
+      {/* ===== MOVEMENT HISTORY ===== */}
       {historyProduct && createPortal(
         <div className="sc-modal-overlay" onClick={() => setHistoryProduct(null)}>
           <div className="sc-history-panel" onClick={(e) => e.stopPropagation()}>
@@ -831,7 +820,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
         document.body
       )}
 
-      {/* Transaction & activity history drawer (right side, 30–40% of screen) */}
+      {/* ===== ACTIVITY DRAWER ===== */}
       {showActivity && createPortal(
         <div className="sc-drawer-overlay" onClick={() => setShowActivity(false)}>
           <aside

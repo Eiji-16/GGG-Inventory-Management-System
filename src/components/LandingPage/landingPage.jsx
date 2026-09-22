@@ -18,25 +18,23 @@ import {
   Menu,
   X,
   Settings as SettingsIcon
-} from 'lucide-react'; /* Lucid Components */
+} from 'lucide-react'; /* ===== ICONS ===== */
 
-import './landingPage.css'; /* Landing Page CSS */
-import { SAFETY_STOCK_DEFAULTS } from '../../data/safetyStock'; /* Safety Stock Policy */
-import Dashboard from '../Dashboard/dashboard'; /* Dashboard content component */
-import ProductSupplier from '../ProductSupplier/productSupplier'; /* Product and Supplier content component */
-import AutoCalculator from '../AutoCalculator/autoCal'; /* Auto-Calculator content component */
-import SalesForecasting from '../Forecasting/forecasting'; /* Forecasting content component */
-import ReportAnalytics from '../Reports/reports';/* Report content component */
-import StockManagement from '../StockControl/stockControl'; /* Stock Control content component */
-import Settings from '../Settings/Settings'; /* Settings content component */
-import Profile from '../Profile/profile'; /* User Profile content component */
+import './landingPage.css'; /* ===== STYLES ===== */
+import { SAFETY_STOCK_DEFAULTS } from '../../data/safetyStock'; /* ===== POLICY ===== */
+import Dashboard from '../Dashboard/dashboard'; /* ===== DASHBOARD ===== */
+import ProductSupplier from '../ProductSupplier/productSupplier'; /* ===== PRODUCTS ===== */
+import AutoCalculator from '../AutoCalculator/autoCal'; /* ===== CALCULATOR ===== */
+import SalesForecasting from '../Forecasting/forecasting'; /* ===== FORECASTING ===== */
+import ReportAnalytics from '../Reports/reports'; /* ===== REPORTS ===== */
+import StockManagement from '../StockControl/stockControl'; /* ===== STOCK ===== */
+import Settings from '../Settings/Settings'; /* ===== SETTINGS ===== */
+import Profile from '../Profile/profile'; /* ===== PROFILE ===== */
 
-// LandingPage.jsx
-const CURRENT_ROLE = 'Super Admin'; /* Replaced by the signed-in account role once auth is wired and when database is created */
+/* ===== ROLE ===== */
+const CURRENT_ROLE = 'Super Admin';
 
-/* INITIAL_NOTIFICATIONS — the notification feed shown in the bell dropdown.
-   `type` picks the icon/colour; `view` (optional) is the tab the item jumps to when clicked.
-   BACKEND: GET /api/notifications → rows generated from reorder flags, forecasts, activity, etc. */
+/* ===== NOTIFICATIONS ===== */
 const INITIAL_NOTIFICATIONS = [
   { id: 1, type: 'critical', title: 'Sapphire Crystal Glass Face is below safety stock', meta: '8 on hand · reorder point 20', time: '10 min ago', view: 'Stock', read: false },
   { id: 2, type: 'warning', title: 'Automatic Movement Caliber running low', meta: '15 on hand · watch level', time: '1 hour ago', view: 'Stock', read: false },
@@ -45,7 +43,7 @@ const INITIAL_NOTIFICATIONS = [
   { id: 5, type: 'info', title: 'Weekly report is available to export', meta: 'Reports & Analytics', time: '2 days ago', view: 'Reports', read: true },
 ];
 
-/* NOTIF_ICONS — maps each notification type to its icon + colour class. */
+/* ===== NOTIFICATION ICONS ===== */
 const NOTIF_ICONS = {
   critical: { Icon: AlertTriangle, cls: 'notif-ic-critical' },
   warning:  { Icon: AlertTriangle, cls: 'notif-ic-warning' },
@@ -55,23 +53,23 @@ const NOTIF_ICONS = {
 };
 
 function LandingPage({onLogout}) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* Action button for sidebar when zoomed or phone size */
-  const [isDarkMode, setIsDarkMode] = useState(true); /* Default to dark theme (For future this should be save on what user last used) */
-  const [activeView, setActiveView] = useState('Dashboard'); /* To toggle active button (default landing page)*/
-  const [handoff, setHandoff] = useState(null); /* Payload passed between the 3 integrated tabs */
-  const [safetyStock, setSafetyStock] = useState(SAFETY_STOCK_DEFAULTS); /* Super Admin owned safety stock policy (only super admin can access this feature)*/
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS); /* Notification feed for the bell dropdown */
-  const [isNotifOpen, setIsNotifOpen] = useState(false); /* Whether the notification box is open */
-  const notifRef = useRef(null); /* Wrapper ref so a click outside closes the box */
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* ===== SIDEBAR ===== */
+  const [isDarkMode, setIsDarkMode] = useState(true); /* ===== THEME ===== */
+  const [activeView, setActiveView] = useState('Dashboard'); /* ===== ACTIVE VIEW ===== */
+  const [handoff, setHandoff] = useState(null); /* ===== HANDOFF ===== */
+  const [safetyStock, setSafetyStock] = useState(SAFETY_STOCK_DEFAULTS); /* ===== SAFETY STOCK ===== */
+  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS); /* ===== NOTIFICATION STATE ===== */
+  const [isNotifOpen, setIsNotifOpen] = useState(false); /* ===== NOTIFICATION MENU ===== */
+  const notifRef = useRef(null); /* ===== NOTIFICATION REF ===== */
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  /* Darkmode Function */
+  /* ===== THEME EFFECT ===== */
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
-  /* Close the notification box when clicking anywhere outside it. */
+  /* ===== OUTSIDE CLICK ===== */
   useEffect(() => {
     if (!isNotifOpen) return;
     const handleClickOutside = (e) => {
@@ -86,7 +84,7 @@ function LandingPage({onLogout}) {
   const markAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   const clearNotifications = () => setNotifications([]);
 
-  /* Open a notification: mark it read, and jump to its tab if it has one. */
+  /* ===== OPEN NOTIFICATION ===== */
   const openNotification = (notif) => {
     setNotifications((prev) => prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n)));
     if (notif.view) {
@@ -107,7 +105,7 @@ function LandingPage({onLogout}) {
     }
   };
 
-  /* Cross Tab Handoff */
+  /* ===== NAVIGATION ===== */
   const handleNavigate = (view, payload = null) => {
     setHandoff(payload);
     setActiveView(view);
@@ -115,21 +113,21 @@ function LandingPage({onLogout}) {
   };
   return (
 
-    <div className="dashboard-page-wrapper"> {/* Whole Foundation */}
+    <div className="dashboard-page-wrapper"> {/* ===== PAGE WRAPPER ===== */}
       <div className="dashboard-container-parent">
-        {/* Backdrop — only visible on mobile when the drawer is open; tap to close */}
+        {/* ===== SIDEBAR BACKDROP ===== */}
         {isSidebarOpen && (
           <div className="sidebar-backdrop" onClick={() => setIsSidebarOpen(false)} aria-hidden="true" />
         )}
         <aside className={`sidebar-body ${isSidebarOpen ? 'open' : ''}`}>
-{/* Sidebar Navigation */}
+{/* ===== SIDEBAR NAVIGATION ===== */}
   <ul className="sidebar-menu">
       <div className="sidebar-item sidebar-logo-row">
         <span id="sidebar-logo">
-{/* Logo Icon */}
+{/* ===== LOGO ===== */}
           A
           </span>
-        {/* Close button — only visible inside the mobile drawer */}
+        {/* ===== CLOSE BUTTON ===== */}
         <button
           className="sidebar-close-btn"
           aria-label="Close menu"
@@ -141,7 +139,7 @@ function LandingPage({onLogout}) {
 
 
 
-{/* Menus */}
+{/* ===== MENUS ===== */}
           <li className={`sidebar-item ${activeView === 'Dashboard' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Dashboard')}>
               <LayoutDashboard className="sidebar-icon" />
@@ -181,7 +179,7 @@ function LandingPage({onLogout}) {
         </ul>
 
 
- {/* Logout Button */}
+ {/* ===== FOOTER ===== */}
         <div className="sidebar-footer-item">
             <div className = "sub-sidebar-footer-item">
               <div className={`siderbar-item ${activeView === 'Profile' ? 'active' : ''}`}>
@@ -212,11 +210,11 @@ function LandingPage({onLogout}) {
 
 
 
-{/* Main Wrapper = THIS WHERE THE WRAPPER AND CONTENT WILL BE PUT */}
+{/* ===== MAIN WRAPPER ===== */}
         <div className="main-wrapper">
           <header className="top-navbar">
             <div className="top-navbar-left-side">
-              {/* Hamburger — only shows on mobile; opens the sidebar drawer */}
+              {/* ===== MENU BUTTON ===== */}
               <button
                 className="navbar-menu-toggle"
                 aria-label="Open menu"
@@ -325,7 +323,7 @@ function LandingPage({onLogout}) {
             </div>
           </header>
             <main className={`main-content-window ${activeView === 'Auto-Calculator' ? 'no-fade' : ''}`}>
-              {/* Content Views */}
+              {/* ===== CONTENT VIEWS ===== */}
               {activeView === 'Dashboard' && <Dashboard onNavigate={handleNavigate} />}
               {activeView === 'Product-Supplier' && <ProductSupplier />}
               {activeView === 'Stock' && <StockManagement onNavigate={handleNavigate} safetyStock={safetyStock} />}

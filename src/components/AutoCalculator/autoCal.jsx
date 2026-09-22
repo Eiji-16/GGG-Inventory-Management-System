@@ -4,10 +4,8 @@ import { Plus, X, Calculator, History, Download, GitCompare, Info, TrendingUp, B
 import './autoCal.css';
 
 /*--------------------------------------------------Sample data--------------------------------------------------*/
-/* SAMPLE_FORMULA — definition of the currently selected formula (default EOQ).
-   Drives the field labels, formula expression and math on screen.
-   BACKEND: GET /api/formulas/:id → row from the `formulas` table.
-   `fields` describes the inputs the user must fill for this formula. */
+/* SAMPLE_FORMULA — definition of the currently selected formula (default EOQ). */
+   
 const SAMPLE_FORMULA = {
   name: 'EOQ',
   fullName: 'Economic Order Quantity',
@@ -20,14 +18,14 @@ const SAMPLE_FORMULA = {
   ],
 };
 
-/* SAMPLE_PRODUCTS — products the user can auto-fill demand from (dropdown + batch compute).
-   BACKEND: GET /api/products → `products` joined with `safety_stock` for annualDemand. */
+/* ===== SAMPLE_PRODUCTS — products the user can auto-fill demand from (dropdown + batch compute). ===== */
+   
 const SAMPLE_PRODUCTS = [];
 
-/* SAMPLE_HISTORY — past calculations shown in the History panel.
-   BACKEND: GET /api/calculations → rows from `calculation_logs` for the current user. */
+/* ===== SAMPLE_HISTORY — past calculations shown in the History panel. ===== */
+   
 const SAMPLE_HISTORY = [];
-/*--------------------------------------------------Sample data end--------------------------------------------------*/
+
 
 /* ===== COST CHART ===== */
 function CostChart({ demand, orderCost, holdingCost, eoq }) {
@@ -70,8 +68,13 @@ function CostChart({ demand, orderCost, holdingCost, eoq }) {
   }));
 
   const fmt = v => v >= 1000 ? `₱${(v/1000).toFixed(1)}k` : `₱${Math.round(v)}`;
+/*--------------------------------------------------Sample data end--------------------------------------------------*/
+
 
   return (
+
+  /* ===== SAMPLE LINE GRAPH FOR EOQ FORMULA ===== */
+
     <svg viewBox={`0 0 ${W} ${H}`} className="ac-chart-svg" aria-label="EOQ cost curve chart">
       {/* grid lines */}
       {yTicks.map((t, i) => (
@@ -115,7 +118,7 @@ function CostChart({ demand, orderCost, holdingCost, eoq }) {
   );
 }
 
-/* ===== MODALS ===== */
+/* ===== FUNCTION FOR MODALS ===== */
 function AddFormulaModal({ onClose, onSave }) {
   const [form, setForm] = useState({ name: '', fullName: '', description: '', formula: '' });
   const [fields, setFields] = useState([{ label: '', key: '', unit: '' }]);
@@ -145,6 +148,8 @@ function AddFormulaModal({ onClose, onSave }) {
     });
   };
 
+
+/* ===== MODALS FRONTEND ===== */
   return createPortal(
     <div className="ac-modal-overlay" onClick={onClose}>
       <div className="ac-modal" onClick={e => e.stopPropagation()}>
@@ -196,6 +201,7 @@ function AddFormulaModal({ onClose, onSave }) {
   );
 }
 
+/* ===== HISTORY SIDE PANEL ===== */
 function HistoryPanel({ onClose, history, onClear }) {
   return createPortal(
     <div className="ac-modal-overlay" onClick={onClose}>
@@ -237,6 +243,8 @@ function HistoryPanel({ onClose, history, onClear }) {
   );
 }
 
+
+/* ===== BATCH COMPUTATION FUNCTION ===== */
 function BatchComputeModal({ onClose }) {
   const [selected, setSelected] = useState(new Set());
   const [batchS, setBatchS] = useState('');
@@ -264,6 +272,7 @@ function BatchComputeModal({ onClose }) {
     setResults(rows);
   };
 
+  /* ===== BATCH COMPUTATION FRONTEND ===== */
   return createPortal(
     <div className="ac-modal-overlay" onClick={onClose}>
       <div className="ac-modal ac-modal-wide" onClick={e => e.stopPropagation()}>
@@ -329,10 +338,10 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
   const [errors, setErrors] = useState({});
   const [result, setResult] = useState(null); // null = not yet computed
 
-  /* customFormulas — formulas added at runtime via the Add Formula modal (front-end only,
-     kept in memory until a backend /api/formulas exists). Rendered as extra closable tabs. */
+  /* ===== ADD FORMULA MODAL ===== */
   const [customFormulas, setCustomFormulas] = useState([]);
-  /* history — every successful compute is logged here and shown in the History panel. */
+
+  /* ===== HISTORY MODAL FOR FORMULA ===== */
   const [history, setHistory] = useState(SAMPLE_HISTORY);
 
   const handleInputChange = (e) => {
@@ -365,7 +374,7 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
 
     setResult({ eoq, annualOrdering, annualHolding, totalCost, ordersPerYear, cycleLength, D, S, H });
 
-    /* log this run to history (newest first) */
+    /* ===== HISTORY ADD FUNCTION ===== */
     setHistory(prev => [
       {
         formulaName: 'EOQ',
@@ -413,13 +422,13 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
     URL.revokeObjectURL(url);
   };
 
-  /* "PDF" export uses the browser print dialog (Save as PDF) — front-end only, no library. */
+  /* ===== PDF EXPORT (STILL NEED SOME ADJUSTMENT) ===== */
   const exportPdf = () => {
     if (!result) return;
     window.print();
   };
 
-  /* Save a custom formula from the modal into in-memory state and open it as a tab. */
+  /* ===== SAVE FORMULA ===== */
   const handleSaveFormula = (formula) => {
     setCustomFormulas(prev => [...prev, formula]);
     setShowModal(false);
@@ -453,7 +462,7 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
 
   return (
     <div className="ac-root">
-
+{/* ===== ACTUAL FRONT END DESIGN ===== */}
       {/* Header */}
       <div className="ac-header">
         <div className="ac-header-left">
@@ -480,7 +489,7 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
         </div>
       </div>
 
-      {/* Handoff Banner */}
+      {/* ===== HANDOFF BANNER ===== */}
       {handoff && (
         <div className="ac-handoff-banner">
           <TrendingUp size={13} />
@@ -488,7 +497,7 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
         </div>
       )}
 
-      {/* Calculator Body */}
+      {/* ===== CALCULATOR BODY ===== */}
       {!compareMode && (
         <>
           <div className="ac-body">
@@ -568,7 +577,7 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
             </div>
           </div>
 
-          {/* BOTTOM: cost analysis (shown after compute) */}
+          {/* ===== COST ANALYSIS WHERE THE COMPUTATION SHOWS ===== */}
           {result && (
             <div className="ac-analysis">
               {/* Cost breakdown chart */}
@@ -623,7 +632,7 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
         </>
       )}
 
-      {/* Comparison Mode */}
+      {/* ===== COMPARISON MODE ===== */}
       {compareMode && (
         <div className="ac-compare-wrapper">
           {/* A: EOQ */}

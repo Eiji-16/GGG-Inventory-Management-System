@@ -15,9 +15,7 @@ import {
 } from 'lucide-react';
 import './profile.css';
 
-/*--------------------------------------------------Sample data's--------------------------------------------------*/
-/* SAMPLE_USER — the signed-in account shown on the profile page.
-   BACKEND: GET /api/auth/me → one row from the `users` table. */
+/* ===== USER DATA ===== */
 const SAMPLE_USER = {
   fullName: 'Wrenz AJ Aquino',
   username: 'wrenzaj',
@@ -28,8 +26,7 @@ const SAMPLE_USER = {
   lastLogin: 'Today · 08:42 AM',
 };
 
-/* ROLE_MATRIX — what each role is allowed to do, shown as a permissions list.
-   Static reference describing the app's access rules; no backend needed unless roles become editable. */
+/* ===== ROLE DATA ===== */
 const ROLE_MATRIX = {
   'Super Admin': [
     'Full access to every module',
@@ -46,8 +43,7 @@ const ROLE_MATRIX = {
   ],
 };
 
-/* RECENT_ACTIVITY — the user's latest actions across the app (audit trail feed).
-   BACKEND: GET /api/activity?user= → rows from an `activity_logs` table, newest first. */
+/* ===== RECENT ACTIVITY ===== */
 const RECENT_ACTIVITY = [
   { icon: Boxes, label: 'Recorded stock out — 12 units', meta: 'Precision Steel Chronograph · 2h ago' },
   { icon: TrendingUp, label: 'Computed forecast — next month', meta: 'Weighted Moving Average · 5h ago' },
@@ -55,7 +51,7 @@ const RECENT_ACTIVITY = [
   { icon: Boxes, label: 'Recorded stock in — 60 units', meta: 'Water-Resistant Diver Strap · Yesterday' },
 ];
 
-/* initialsOf — derives up-to-2-letter avatar initials from a full name (pure UI helper, no data source). */
+/* ===== AVATAR INITIALS ===== */
 const initialsOf = (name) =>
   name
     .split(' ')
@@ -88,12 +84,12 @@ export default function Profile() {
     setDraft((prev) => ({ ...prev, [key]: e.target.value }));
 
   const permissions = ROLE_MATRIX[user.role] ?? [];
-/*--------------------------------------------------Sample data's End--------------------------------------------------*/
+/* ===== PROFILE DATA END ===== */
   return (
     <div className="pf-root">
       <div className="pf-grid">
 
-        {/* Identity */}
+        {/* ===== IDENTITY ===== */}
         <section className="pf-card pf-area-identity">
           <div className="pf-avatar">{initialsOf(user.fullName)}</div>
           <div className="pf-identity-text">
@@ -121,7 +117,7 @@ export default function Profile() {
           )}
         </section>
 
-        {/* Account Details */}
+        {/* ===== ACCOUNT DETAILS ===== */}
         <section className="pf-card pf-area-details">
           <h3>Account Details</h3>
           <p className="pf-sub">Contact information tied to this account</p>
@@ -178,7 +174,7 @@ export default function Profile() {
           </div>
         </section>
 
-        {/* Role And Permissions */}
+        {/* ===== ROLE ACCESS ===== */}
         <section className="pf-card pf-area-permissions">
           <h3>Role &amp; Permissions</h3>
           <p className="pf-sub">What a {user.role} can do in this system</p>
@@ -192,7 +188,7 @@ export default function Profile() {
           </ul>
         </section>
 
-        {/* Security */}
+        {/* ===== SECURITY ===== */}
         <section className="pf-card pf-area-security">
           <h3>Security</h3>
           <p className="pf-sub">Keep this account protected</p>
@@ -206,7 +202,7 @@ export default function Profile() {
           </div>
         </section>
 
-        {/* Recent Activity */}
+        {/* ===== RECENT ACTIVITY ===== */}
         <section className="pf-card pf-area-activity">
           <h3>Recent Activity</h3>
           <p className="pf-sub">Actions recorded under this account</p>

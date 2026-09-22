@@ -6,8 +6,7 @@ import './productSupplier.css';
 
 
 
-/* emptyForm — blank shape for the Add/Edit Product modal. One key per product column.
-   BACKEND: this object is the POST/PUT body sent to /api/products. */
+/* ===== EMPTY FORM ===== */
 const emptyForm = {
   id: '',
   name: '',
@@ -18,11 +17,9 @@ const emptyForm = {
   supplierInfo: '',
 };
 
-/*--------------------------------------------------Sample data's--------------------------------------------------*/
+/* ===== PRODUCT DATA ===== */
 
-/* DETAIL_FIELDS — drives the read-only "Full Information" modal: which product fields to show,
-   their labels and helper hints. `wide: true` makes a field span the full row.
-   BACKEND: each `key` maps to a column returned by GET /api/products/:id. */
+/* ===== DETAIL FIELDS ===== */
 const DETAIL_FIELDS = [
   { key: 'id', label: 'Product ID', hint: 'System reference used across every tab' },
   { key: 'name', label: 'Product Name', hint: 'Name shown in Stock Movement and forecasts', wide: true },
@@ -37,18 +34,16 @@ function ProductSupplier({ onNavigate }) {
   const PAGE_SIZE = 10;
   const [productsFromDatabase, setProductsFromDatabase] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
-  const [cursor, setCursor] = useState(0); // index of first visible item
+  const [cursor, setCursor] = useState(0); /* ===== PAGE START ===== */
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit'
+  const [modalMode, setModalMode] = useState('add'); /* ===== MODAL MODE ===== */
   const [formData, setFormData] = useState(emptyForm);
   const [detailProduct, setDetailProduct] = useState(null);
-  const [query, setQuery] = useState(''); // live text typed in the search bar (client-side filter)
-  /* confirmTarget — pending delete awaiting confirmation.
-     { type: 'single', product } for one row, or { type: 'bulk', ids } for the selection. */
+  const [query, setQuery] = useState(''); /* ===== SEARCH ===== */
+  /* ===== DELETE TARGET ===== */
   const [confirmTarget, setConfirmTarget] = useState(null);
 
-  /* Load products from the real database (GET /api/products). Falls back to an
-     empty list if the request fails so the table still renders. */
+  /* ===== LOAD PRODUCTS ===== */
   useEffect(() => {
     fetch('/api/products', { headers: { Accept: 'application/json' } })
       .then((response) => {
@@ -59,7 +54,7 @@ function ProductSupplier({ onNavigate }) {
       .catch((error) => console.error('Could not load products:', error));
   }, []);
 
-  /* Products narrowed by the search box; pagination runs over this filtered list. */
+  /* ===== FILTER PRODUCTS ===== */
   const filteredProducts = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return productsFromDatabase;
@@ -69,14 +64,14 @@ function ProductSupplier({ onNavigate }) {
     );
   }, [productsFromDatabase, query]);
 
-  /* reset to the first page whenever the search text changes */
+  /* ===== RESET PAGE ===== */
   useEffect(() => {
     setCursor(0);
   }, [query]);
 
   const total = filteredProducts.length;
   const safeCursor = total === 0 ? 0 : Math.min(cursor, total - 1);
-  // snap cursor to the start of its page so it's always a clean multiple of PAGE_SIZE
+  /* ===== PAGE START ===== */
   const pageCursor = Math.floor(safeCursor / PAGE_SIZE) * PAGE_SIZE;
   const visibleProducts = filteredProducts.slice(pageCursor, pageCursor + PAGE_SIZE);
   const hasNext = pageCursor + PAGE_SIZE < total;
@@ -87,7 +82,7 @@ function ProductSupplier({ onNavigate }) {
 
   const tableRef = useRef(null);
 
-  /* scroll the landing-page window back to top whenever the page changes */
+  /* ===== RESET SCROLL ===== */
   useEffect(() => {
     const win = document.querySelector('.main-content-window');
     if (win) win.scrollTop = 0;
@@ -144,7 +139,7 @@ function ProductSupplier({ onNavigate }) {
 
   const closeModal = () => setIsModalOpen(false);
 
-  /* Full Information Modal */
+  /* ===== DETAILS MODAL ===== */
   const openDetails = (product) => setDetailProduct(product);
 
   const closeDetails = () => setDetailProduct(null);
@@ -160,9 +155,7 @@ function ProductSupplier({ onNavigate }) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  /* Save to the database. Add -> POST /api/products, Edit -> PUT /api/products/{code}.
-     The form has one "supplierInfo" field; the API stores supplier name + contact
-     separately, so we send it as supplierName. */
+  /* ===== SAVE PRODUCT ===== */
   const handleSave = async (e) => {
     e.preventDefault();
 
@@ -185,7 +178,7 @@ function ProductSupplier({ onNavigate }) {
       });
 
       if (!response.ok) throw new Error(`Save failed (${response.status})`);
-      const saved = await response.json(); // product in frontend shape, id = code
+      const saved = await response.json(); /* ===== SAVED PRODUCT ===== */
 
       setProductsFromDatabase((prev) =>
         isAdd
@@ -199,8 +192,7 @@ function ProductSupplier({ onNavigate }) {
     }
   };
 
-  /* Remove from the database first (DELETE /api/products/{code}), then from the
-     screen. If the server call fails we keep the row so the UI stays truthful. */
+  /* ===== DELETE PRODUCT ===== */
   const handleDelete = async (id) => {
     try {
       const response = await fetch(`/api/products/${id}`, {
@@ -216,7 +208,7 @@ function ProductSupplier({ onNavigate }) {
 
     setProductsFromDatabase((prev) => {
       const next = prev.filter((p) => p.id !== id);
-      // if the current page becomes empty after delete, step back one page
+      /* ===== PREVIOUS PAGE ===== */
       const newPageCursor = Math.floor(cursor / PAGE_SIZE) * PAGE_SIZE;
       if (newPageCursor >= next.length && newPageCursor > 0) {
         setCursor(Math.max(0, newPageCursor - PAGE_SIZE));
@@ -230,7 +222,7 @@ function ProductSupplier({ onNavigate }) {
     });
   };
 
-  /* Ask before deleting — a single row or the whole selection. */
+  /* ===== DELETE CHECK ===== */
   const requestDeleteSingle = (product) => setConfirmTarget({ type: 'single', product });
   const requestDeleteBulk = () => {
     if (selectedIds.size === 0) return;
@@ -248,7 +240,7 @@ function ProductSupplier({ onNavigate }) {
     setConfirmTarget(null);
   };
 
-  /* Export the filtered product list to a CSV file (front-end only, no backend). */
+  /* ===== EXPORT CSV ===== */
   const exportCsv = () => {
     if (filteredProducts.length === 0) return;
     const headers = ['Product ID', 'Product Name', 'Category', 'Brand', 'Model', 'Unit Measure', 'Supplier Information'];
@@ -267,10 +259,10 @@ function ProductSupplier({ onNavigate }) {
     link.click();
     URL.revokeObjectURL(url);
   };
-/*--------------------------------------------------Sample data's End--------------------------------------------------*/
+/* ===== PRODUCT DATA END ===== */
   return (
     <div className="ps-table-parent">
-      {/* Search bar */}
+      {/* ===== SEARCH BAR ===== */}
       <div className="ps-navigation-bar">
         <div className="ps-search-wrapper">
           <div className="ps-search-box">
@@ -311,7 +303,7 @@ function ProductSupplier({ onNavigate }) {
         </button>
       </div>
 
-      {/* Data table */}
+      {/* ===== TABLE ===== */}
       <div className="ps-table-scroll" ref={tableRef}>
         <table className="ps-table">
           <thead>
@@ -402,7 +394,7 @@ function ProductSupplier({ onNavigate }) {
         </table>
       </div>
 
-      {/* Pagination bar - cursor-based */}
+      {/* ===== PAGE BAR ===== */}
       {total > PAGE_SIZE && (
         <div className="ps-pagination">
           <button
@@ -425,7 +417,7 @@ function ProductSupplier({ onNavigate }) {
         </div>
       )}
 
-      {/* Full Information Modal */}
+      {/* ===== DETAILS MODAL ===== */}
       {detailProduct && createPortal(
         <div className="ps-modal-overlay" onClick={closeDetails}>
           <div
@@ -491,7 +483,7 @@ function ProductSupplier({ onNavigate }) {
         document.body
       )}
 
-      {/* Add / Edit Modal */}
+      {/* ===== ADD EDIT MODAL ===== */}
       {isModalOpen && createPortal(
         <div className="ps-modal-overlay" onClick={closeModal}>
           <div
@@ -626,7 +618,7 @@ function ProductSupplier({ onNavigate }) {
         document.body
       )}
 
-      {/* Delete confirmation */}
+      {/* ===== DELETE CHECK ===== */}
       {confirmTarget && createPortal(
         <div className="ps-modal-overlay" onClick={() => setConfirmTarget(null)}>
           <div
