@@ -284,7 +284,7 @@ function ReorderPointReportTab() {
           </tbody>
         </table>
         <div className="r-supplier-note">
-          📋 This report is formatted for direct export and hand-off to your supplier.
+          
         </div>
       </div>
     </div>
