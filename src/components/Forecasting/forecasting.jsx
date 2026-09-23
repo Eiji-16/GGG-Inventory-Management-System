@@ -77,9 +77,10 @@ export default function DemandForecastDesign({ onNavigate }) {
   const [adjustment, setAdjustment] = useState(35);
   const [newEventName, setNewEventName] = useState('');
 
-  const [formula, setFormula] = useState('Weighted Moving Average');
+  const [formula, setFormula] = useState('');
   const [baseForecast, setBaseForecast] = useState(BASE_FORECAST);
   const [hasComputed, setHasComputed] = useState(false);
+  const [computeMsg, setComputeMsg] = useState('');
   const [customFormulas, setCustomFormulas] = useState([]);
   const [showAddFormula, setShowAddFormula] = useState(false);
   const [newFormulaName, setNewFormulaName] = useState('');
@@ -93,7 +94,12 @@ export default function DemandForecastDesign({ onNavigate }) {
   const computeForecast = () => {
     const units = SAMPLE_HISTORY.map(r => r.units);
     const n = units.length;
-    if (n === 0) return;
+    /* Nothing to compute yet — no formula chosen or no sales data. */
+    if (!formula || n === 0) {
+      setHasComputed(false);
+      setComputeMsg('There is no computation to compute yet — select a formula and add sales data first.');
+      return;
+    }
     let f;
     if (formula === 'Simple Moving Average') {
       const w = Math.min(3, n);
@@ -122,6 +128,7 @@ export default function DemandForecastDesign({ onNavigate }) {
     }
     setBaseForecast(Number(f.toFixed(1)));
     setHasComputed(true);
+    setComputeMsg('');
   };
 
   const addCustomFormula = () => {
@@ -307,7 +314,7 @@ export default function DemandForecastDesign({ onNavigate }) {
                   </p>
                 </>
               ) : (
-                <div className="f-result-placeholder">Forecast result will appear here.</div>
+                <div className="f-result-placeholder">{computeMsg || 'Forecast result will appear here.'}</div>
               )}
             </div>
 

@@ -113,7 +113,7 @@ function CostChart({ demand, orderCost, holdingCost, eoq }) {
         <text x="178" y="4" className="ac-chart-legend">Holding Cost</text>
       </g>
       {/* axis labels */}
-      <text x={PAD.l + iW / 2} y={H - 1} className="ac-chart-axis-label" textAnchor="middle">Order Quantity (units)</text>
+      <text x={PAD.l + iW / 2} y={H - 0} className="ac-chart-axis-label" textAnchor="middle">Order Quantity (units)</text>
     </svg>
   );
 }
@@ -396,7 +396,7 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
   const fmtCur = (v) => `₱${v.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const fmtNum = (v, d = 2) => v.toLocaleString('en-PH', { minimumFractionDigits: d, maximumFractionDigits: d });
 
-  /* Export the current result to a CSV file (front-end only). */
+  /* ===== CSV EXPORT ===== */
   const exportCsv = () => {
     if (!result) return;
     const rows = [

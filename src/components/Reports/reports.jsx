@@ -284,7 +284,7 @@ function ReorderPointReportTab() {
           </tbody>
         </table>
         <div className="r-supplier-note">
-          
+          NOTE: 
         </div>
       </div>
     </div>
