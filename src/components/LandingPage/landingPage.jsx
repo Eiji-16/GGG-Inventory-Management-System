@@ -43,7 +43,7 @@ const INITIAL_NOTIFICATIONS = [
   { id: 5, type: 'info', title: 'Weekly report is available to export', meta: 'Reports & Analytics', time: '2 days ago', view: 'Reports', read: true },
 ];
 
-/* ===== NOTIFICATION ICONS ===== */
+/* ===== NOTIFICATION ICONS & SAMPLE DATA ===== */
 const NOTIF_ICONS = {
   critical: { Icon: AlertTriangle, cls: 'notif-ic-critical' },
   warning:  { Icon: AlertTriangle, cls: 'notif-ic-warning' },
@@ -248,6 +248,8 @@ function LandingPage({onLogout}) {
                 </p>
               </div>
             </div>
+
+            {/* ===== NOTIFICATION BUTTON ===== */}
             <div className = "top-navbar-right-side">
               <div className="notif-wrapper" ref={notifRef}>
                 <button

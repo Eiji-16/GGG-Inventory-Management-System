@@ -726,6 +726,21 @@
     display: block;
     overflow: visible;
 }
+/*=====CHART PLACEHOLDER (before compute)=====*/
+.ac-chart-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 140px;
+    border: 1px dashed var(--hairline);
+    border-radius: 0.5rem;
+    color: var(--text-muted);
+    font-size: 11px;
+    text-align: center;
+    padding: 1rem;
+}
 .ac-chart-tick {
     font-size: 9px;
     fill: var(--text-muted);

@@ -28,7 +28,8 @@ import {
   STATUS_LABEL,
 } from '../../data/safetyStock'; /* ===== SAFETY STOCK ===== */
 
-/* ===== STOCK DATA ===== */
+/* ===== STOCK DATA (Not applied yet) ===== */
+
 /* ===== EMPTY FORM ===== */
 const emptyForm = {
   date: '',
@@ -364,6 +365,8 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
             />
           </div>
         </div>
+
+        {/* ===== HISTORY SIDE PANEL ===== NOT DONE YET
         <div className="sc-sort-wrapper">
           <ArrowUpDown size={12} className="sc-sort-icon" aria-hidden="true" />
           <select
@@ -381,6 +384,8 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
             <option value="remaining-asc">Remaining (low–high)</option>
           </select>
         </div>
+        */}
+
         <button
           className="sc-add-btn"
           onClick={exportCsv}

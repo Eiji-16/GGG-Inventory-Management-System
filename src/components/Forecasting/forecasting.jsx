@@ -2,9 +2,7 @@ import React, { useMemo, useState } from 'react';
 import './forecasting.css';
 
 
-/*--------------------------------------------------Sample data's--------------------------------------------------*/
-/* SAMPLE_PRODUCT — the product currently being forecast (header cards + summary).
-   BACKEND: GET /api/products/:id → one row from `products`; `stock` = latest balance from `stock_movements`. */
+/* ===== PRODUCT DATA ===== */
 const SAMPLE_PRODUCT = {
   id: 'PRD-9402',
   name: 'Precision Steel Chronograph',
@@ -13,8 +11,6 @@ const SAMPLE_PRODUCT = {
   stock: 42,
 };
 
-/* SAMPLE_HISTORY — monthly units-sold history that feeds the chart and the moving-average forecast.
-   BACKEND: GET /api/sales/history?product_id= → rows from `sales_history` ordered by period. */
 const SAMPLE_HISTORY = [
   { period: 'Jan', units: 18 },
   { period: 'Feb', units: 22 },
@@ -30,20 +26,14 @@ const SAMPLE_HISTORY = [
   { period: 'Dec', units: 38 },
 ];
 
-/* BASE_FORECAST — predicted demand for next period before seasonal adjustment.
-   BACKEND: computed server-side (or client-side) from SAMPLE_HISTORY using the chosen formula. */
 const BASE_FORECAST = 32.1;
 
-/* EVENT_MONTHS — maps each seasonal event to the months it covers, used to suggest an uplift %.
-   Static business rule — no backend needed unless events become user-configurable. */
 const EVENT_MONTHS = {
   Christmas: ['Nov', 'Dec'],
   Summer: ['Jun', 'Jul', 'Aug'],
   'Back to School': ['Aug', 'Sep'],
 };
-/* BUILT_IN_EVENTS — default seasonal events shown in the dropdown before any custom ones. */
 const BUILT_IN_EVENTS = ['Christmas', 'Summer', 'Back to School'];
-/* BUILT_IN_FORMULAS — default forecasting methods shown in the Formula dropdown. */
 const BUILT_IN_FORMULAS = [
   'Simple Moving Average',
   'Weighted Moving Average',
@@ -51,7 +41,6 @@ const BUILT_IN_FORMULAS = [
   'Linear Trend Regression',
 ];
 
-/* FORMULA_NOTES — one-line plain-English description shown under the Formula Used tag. */
 const FORMULA_NOTES = {
   'Simple Moving Average': 'Averages the most recent periods equally.',
   'Weighted Moving Average': 'Averages recent periods but weights the newest ones more heavily.',
@@ -88,10 +77,9 @@ export default function DemandForecastDesign({ onNavigate }) {
   const [adjustment, setAdjustment] = useState(35);
   const [newEventName, setNewEventName] = useState('');
 
-  /* Chosen forecasting method + the computed base forecast (starts at the sample value). */
   const [formula, setFormula] = useState('Weighted Moving Average');
   const [baseForecast, setBaseForecast] = useState(BASE_FORECAST);
-  /* Custom formulas added at runtime via "Add custom formula" (front-end only). */
+  const [hasComputed, setHasComputed] = useState(false);
   const [customFormulas, setCustomFormulas] = useState([]);
   const [showAddFormula, setShowAddFormula] = useState(false);
   const [newFormulaName, setNewFormulaName] = useState('');
@@ -101,7 +89,7 @@ export default function DemandForecastDesign({ onNavigate }) {
     []
   );
 
-  /* Compute Forecast — runs the chosen method over SAMPLE_HISTORY (front-end math). */
+  /* ===== FORECAST CALCULATION ===== */
   const computeForecast = () => {
     const units = SAMPLE_HISTORY.map(r => r.units);
     const n = units.length;
@@ -113,7 +101,7 @@ export default function DemandForecastDesign({ onNavigate }) {
     } else if (formula === 'Weighted Moving Average') {
       const w = Math.min(3, n);
       const recent = units.slice(-w);
-      const weights = recent.map((_, i) => i + 1); // newest weighted most
+      const weights = recent.map((_, i) => i + 1);
       const wsum = weights.reduce((s, x) => s + x, 0);
       f = recent.reduce((s, u, i) => s + u * weights[i], 0) / wsum;
     } else if (formula === 'Exponential Smoothing') {
@@ -130,10 +118,10 @@ export default function DemandForecastDesign({ onNavigate }) {
       const intercept = yMean - slope * xMean;
       f = slope * (n + 1) + intercept;
     } else {
-      // custom formula → fall back to overall average
       f = overallAvg;
     }
     setBaseForecast(Number(f.toFixed(1)));
+    setHasComputed(true);
   };
 
   const addCustomFormula = () => {
@@ -145,10 +133,10 @@ export default function DemandForecastDesign({ onNavigate }) {
     setShowAddFormula(false);
   };
 
-  /* Suggested Uplift */
+  /* ===== SEASONAL SUGGESTION ===== */
   const suggestedPct = useMemo(() => {
     const months = EVENT_MONTHS[event];
-    if (!months) return null; // No History Mapping
+    if (!months) return null;
     const rows = SAMPLE_HISTORY.filter((r) => months.includes(r.period));
     if (!rows.length) return null;
     const eventAvg = rows.reduce((s, r) => s + r.units, 0) / rows.length;
@@ -159,7 +147,7 @@ export default function DemandForecastDesign({ onNavigate }) {
   const adjustedDemand = (baseForecast * (1 + effectivePct / 100)).toFixed(1);
   const pctLabel = `${effectivePct >= 0 ? '+' : ''}${effectivePct}%`;
 
-  /* Export the forecast + history to a CSV file (front-end only; opens in Excel). */
+  /* ===== EXPORT DATA ===== */
   const exportCsv = () => {
     const escape = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
     const rows = [
@@ -188,10 +176,10 @@ export default function DemandForecastDesign({ onNavigate }) {
   const isCustomChoice = event === '__add__';
   const eventOptions = [...BUILT_IN_EVENTS, ...customEvents];
 
-  /* Annual Demand */
+  /* ===== ANNUAL DEMAND ===== */
   const annualFromForecast = Math.round(Number(adjustedDemand) * 12);
 
-  /* EOQ Hand-off */
+  /* ===== EOQ CALCULATION ===== */
   const computeEoqFromForecast = () => {
     if (onNavigate) {
       onNavigate('Auto-Calculator', {
@@ -212,14 +200,13 @@ export default function DemandForecastDesign({ onNavigate }) {
     setEvent(name);
     setNewEventName('');
   };
-/*--------------------------------------------------Sample data's End--------------------------------------------------*/
   return (
     <div className="f-root">
       <div className="f-app">
         <main className="f-main">
           <div className="f-grid">
 
-            {/* Controls Bar */}
+            {/* ===== FORECAST CONTROLS ===== */}
             <div className="f-controls-bar f-area-controls">
               <div className="f-field f-grow f-search-wrap">
                 <label>Search product</label>
@@ -248,7 +235,7 @@ export default function DemandForecastDesign({ onNavigate }) {
               <div className="f-field" style={{ minWidth: 190 }}>
                 <label>Formula</label>
                 <select value={formula} onChange={(e) => setFormula(e.target.value)}>
-                  {BUILT_IN_FORMULAS.map((f) => (<option key={f}>{f}</option>))}
+                  <option value="">EOQ</option>
                   {customFormulas.map((f) => (<option key={f}>{f}</option>))}
                 </select>
               </div>
@@ -259,7 +246,7 @@ export default function DemandForecastDesign({ onNavigate }) {
               </div>
             </div>
 
-            {/* Product Card */}
+            {/* ===== PRODUCT OVERVIEW ===== */}
             <div className="f-card f-area-product">
               <h3>{SAMPLE_PRODUCT.name}</h3>
               <p className="f-sub">
@@ -281,41 +268,50 @@ export default function DemandForecastDesign({ onNavigate }) {
               </div>
             </div>
 
-            {/* Forecast Result */}
+            {/* ===== FORECAST RESULT ===== */}
             <div className="f-card f-area-result">
               <div className="f-card-head">
                 <h3>Forecast Result</h3>
-                <span className="f-confidence-pill f-conf-High">
-                  <span className="f-dot" />
-                  <span>High</span>
-                </span>
-              </div>
-              <div className="f-result-big">
-                <div className="f-num">{baseForecast}</div>
-                <div className="f-lbl">Predicted demand — next month</div>
-              </div>
-              <div className="f-stat-row">
-                <div className="f-stat-box">
-                  <div className="f-lbl">Adjusted for season</div>
-                  <div className="f-val">{adjustedDemand} <small>units</small></div>
-                </div>
+                {hasComputed && (
+                  <span className="f-confidence-pill f-conf-High">
+                    <span className="f-dot" />
+                    <span>High</span>
+                  </span>
+                )}
               </div>
 
-              {/* EOQ Hand-off */}
-              <button
-                type="button"
-                className="f-btn f-btn-link f-eoq-handoff"
-                onClick={computeEoqFromForecast}
-                title="Send this forecast to the Auto Calculator as annual demand"
-              >
-                <CalculatorIcon /> Compute EOQ from Forecast
-              </button>
-              <p className="f-handoff-note">
-                Sends {annualFromForecast.toLocaleString()} units/year as annual demand (D)
-              </p>
+              {hasComputed ? (
+                <>
+                  <div className="f-result-big">
+                    <div className="f-num">{baseForecast}</div>
+                    <div className="f-lbl">Predicted demand — next month</div>
+                  </div>
+                  <div className="f-stat-row">
+                    <div className="f-stat-box">
+                      <div className="f-lbl">Adjusted for season</div>
+                      <div className="f-val">{adjustedDemand} <small>units</small></div>
+                    </div>
+                  </div>
+
+                  {/* ===== EOQ CALCULATION ===== */}
+                  <button
+                    type="button"
+                    className="f-btn f-btn-link f-eoq-handoff"
+                    onClick={computeEoqFromForecast}
+                    title="Send this forecast to the Auto Calculator as annual demand"
+                  >
+                    <CalculatorIcon /> Compute EOQ from Forecast
+                  </button>
+                  <p className="f-handoff-note">
+                    Sends {annualFromForecast.toLocaleString()} units/year as annual demand (D)
+                  </p>
+                </>
+              ) : (
+                <div className="f-result-placeholder">Forecast result will appear here.</div>
+              )}
             </div>
 
-            {/* Demand Chart */}
+            {/* ===== DEMAND CHART ===== */}
             <div className="f-card f-area-chart">
               <h3>Actual vs. Forecasted Demand</h3>
               <p className="f-sub">Historical units sold, with the projected next period</p>
@@ -324,7 +320,7 @@ export default function DemandForecastDesign({ onNavigate }) {
               </div>
             </div>
 
-            {/* Export */}
+            {/* ===== EXPORT OPTIONS ===== */}
             <div className="f-card f-area-export">
               <h3>Export</h3>
               <div className="f-download-actions">
@@ -337,7 +333,7 @@ export default function DemandForecastDesign({ onNavigate }) {
               </div>
             </div>
 
-            {/* Seasonal Adjustment */}
+            {/* ===== SEASONAL ADJUSTMENT ===== */}
             <div className="f-card f-area-seasonal">
               <div className="f-toggle-row">
                 <div>
@@ -421,7 +417,7 @@ export default function DemandForecastDesign({ onNavigate }) {
               )}
             </div>
 
-            {/* Historical Sales */}
+            {/* ===== SALES HISTORY ===== */}
             <div className="f-card f-area-history">
               <h3>Historical Sales Data</h3>
               <p className="f-sub">Auto-loaded from the selected product's sales history</p>
@@ -437,7 +433,7 @@ export default function DemandForecastDesign({ onNavigate }) {
               </div>
             </div>
 
-            {/* Output Summary */}
+            {/* ===== FORECAST SUMMARY ===== */}
             <section className="f-summary-card f-summary-compact f-area-summary">
               <div className="f-summary-head">
                 <div className="f-summary-title">
@@ -478,7 +474,7 @@ export default function DemandForecastDesign({ onNavigate }) {
                 </div>
               </div>
             </section>
-            {/* Suggested Reorder */}
+            {/* ===== REORDER SUGGESTION ===== */}
             <div className="f-card f-area-reorder">
               <h3>Suggested Reorder Quantity</h3>
               <div className="f-reorder-figure">
@@ -487,7 +483,7 @@ export default function DemandForecastDesign({ onNavigate }) {
               </div>
             </div>
 
-            {/* Formula Used */}
+            {/* ===== FORMULA DETAILS ===== */}
             <div className="f-card f-area-formula">
               <h3>Formula Used</h3>
               <span className="f-formula-tag">{formula}</span>

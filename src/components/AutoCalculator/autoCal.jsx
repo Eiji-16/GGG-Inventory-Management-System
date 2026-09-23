@@ -468,10 +468,12 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
         <div className="ac-header-left">
           <div className="ac-tabs">
             <div className="ac-tab active"><button className="ac-tab-btn">EOQ</button></div>
+            <div className="ac-tab active"><button className="ac-tab-btn">OTHER SAMPLE FORMULAS...</button></div>
             {customFormulas.map((f) => (
               <div className="ac-tab" key={f.name}>
                 <button className="ac-tab-btn" title={f.fullName}>{f.name}</button>
                 <button className="ac-tab-close" onClick={() => closeCustomFormula(f.name)} title={`Remove ${f.name}`}>
+                  
                   <X size={10} />
                 </button>
               </div>
@@ -577,58 +579,63 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
             </div>
           </div>
 
-          {/* ===== COST ANALYSIS WHERE THE COMPUTATION SHOWS ===== */}
-          {result && (
-            <div className="ac-analysis">
-              {/* Cost breakdown chart */}
-              <div className="ac-analysis-chart-card">
-                <div className="ac-analysis-card-head">
-                  <span className="ac-analysis-title">Cost Curve Analysis</span>
-                  <span className="ac-analysis-sub">Minimum total cost occurs at EOQ</span>
-                </div>
+          {/* ===== COST ANALYSIS ===== */}
+          <div className="ac-analysis">
+            {/* Cost breakdown chart */}
+            <div className="ac-analysis-chart-card">
+              <div className="ac-analysis-card-head">
+                <span className="ac-analysis-title">Cost Curve Analysis</span>
+                <span className="ac-analysis-sub">Minimum total cost occurs at EOQ</span>
+              </div>
+              {result ? (
                 <CostChart
                   demand={result.D}
                   orderCost={result.S}
                   holdingCost={result.H}
                   eoq={result.eoq}
                 />
-              </div>
+              ) : (
+                <div className="ac-chart-placeholder">
+                  <TrendingUp size={20} />
+                  <span>Enter values and compute to see the cost curve.</span>
+                </div>
+              )}
+            </div>
 
-              {/* Derived metrics */}
-              <div className="ac-metrics-grid">
-                <div className="ac-metric-card">
-                  <span className="ac-metric-label">Annual Ordering Cost</span>
-                  <span className="ac-metric-value">{fmtCur(result.annualOrdering)}</span>
-                  <span className="ac-metric-note">(D ÷ EOQ) × S</span>
-                </div>
-                <div className="ac-metric-card">
-                  <span className="ac-metric-label">Annual Holding Cost</span>
-                  <span className="ac-metric-value">{fmtCur(result.annualHolding)}</span>
-                  <span className="ac-metric-note">(EOQ ÷ 2) × H</span>
-                </div>
-                <div className="ac-metric-card ac-metric-card-accent">
-                  <span className="ac-metric-label">Total Annual Cost</span>
-                  <span className="ac-metric-value">{fmtCur(result.totalCost)}</span>
-                  <span className="ac-metric-note">Ordering + Holding</span>
-                </div>
-                <div className="ac-metric-card">
-                  <span className="ac-metric-label">Orders per Year</span>
-                  <span className="ac-metric-value">{fmtNum(result.ordersPerYear, 1)}</span>
-                  <span className="ac-metric-note">D ÷ EOQ</span>
-                </div>
-                <div className="ac-metric-card">
-                  <span className="ac-metric-label">Order Cycle Length</span>
-                  <span className="ac-metric-value">{fmtNum(result.cycleLength, 1)} days</span>
-                  <span className="ac-metric-note">365 ÷ orders/year</span>
-                </div>
-                <div className="ac-metric-card">
-                  <span className="ac-metric-label">EOQ</span>
-                  <span className="ac-metric-value">{fmtNum(result.eoq)} units</span>
-                  <span className="ac-metric-note">√(2 × {result.D} × {result.S} ÷ {result.H})</span>
-                </div>
+            {/* Derived metrics */}
+            <div className="ac-metrics-grid">
+              <div className="ac-metric-card">
+                <span className="ac-metric-label">Annual Ordering Cost</span>
+                <span className="ac-metric-value">{result ? fmtCur(result.annualOrdering) : '—'}</span>
+                <span className="ac-metric-note">(D ÷ EOQ) × S</span>
+              </div>
+              <div className="ac-metric-card">
+                <span className="ac-metric-label">Annual Holding Cost</span>
+                <span className="ac-metric-value">{result ? fmtCur(result.annualHolding) : '—'}</span>
+                <span className="ac-metric-note">(EOQ ÷ 2) × H</span>
+              </div>
+              <div className="ac-metric-card ac-metric-card-accent">
+                <span className="ac-metric-label">Total Annual Cost</span>
+                <span className="ac-metric-value">{result ? fmtCur(result.totalCost) : '—'}</span>
+                <span className="ac-metric-note">Ordering + Holding</span>
+              </div>
+              <div className="ac-metric-card">
+                <span className="ac-metric-label">Orders per Year</span>
+                <span className="ac-metric-value">{result ? fmtNum(result.ordersPerYear, 1) : '—'}</span>
+                <span className="ac-metric-note">D ÷ EOQ</span>
+              </div>
+              <div className="ac-metric-card">
+                <span className="ac-metric-label">Order Cycle Length</span>
+                <span className="ac-metric-value">{result ? `${fmtNum(result.cycleLength, 1)} days` : '—'}</span>
+                <span className="ac-metric-note">365 ÷ orders/year</span>
+              </div>
+              <div className="ac-metric-card">
+                <span className="ac-metric-label">EOQ</span>
+                <span className="ac-metric-value">{result ? `${fmtNum(result.eoq)} units` : '—'}</span>
+                <span className="ac-metric-note">{result ? `√(2 × ${result.D} × ${result.S} ÷ ${result.H})` : '√(2DS ÷ H)'}</span>
               </div>
             </div>
-          )}
+          </div>
         </>
       )}
 

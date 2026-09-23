@@ -60,7 +60,7 @@ body {
  
 [data-theme="dark"] {
     color-scheme: dark;
-    --bg-main: linear-gradient(180deg, #16264f 0%, #1f3c86 100%);
+    --bg-main: linear-gradient(180deg, #263252 0%, #1f3c86 100%);
     --bg-sidebar: #16254A;
     --bg-card: #16254A;
     --text-primary: #F8FAFC;
@@ -825,6 +825,7 @@ body {
 .ac-batch-product-list,
 .f-scroll-table,
 .pf-scroll,
+.notif-box-list,
 .ra-tabbar {
   scrollbar-width: thin;
   scrollbar-color: var(--scroll-thumb) transparent;
@@ -841,6 +842,7 @@ body {
 .ac-batch-product-list::-webkit-scrollbar,
 .f-scroll-table::-webkit-scrollbar,
 .pf-scroll::-webkit-scrollbar,
+.notif-box-list::-webkit-scrollbar,
 .ra-tabbar::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -858,6 +860,7 @@ body {
 .ac-batch-product-list::-webkit-scrollbar-track,
 .f-scroll-table::-webkit-scrollbar-track,
 .pf-scroll::-webkit-scrollbar-track,
+.notif-box-list::-webkit-scrollbar-track,
 .ra-tabbar::-webkit-scrollbar-track {
   background: transparent;
 }
@@ -874,6 +877,7 @@ body {
 .ac-batch-product-list::-webkit-scrollbar-thumb,
 .f-scroll-table::-webkit-scrollbar-thumb,
 .pf-scroll::-webkit-scrollbar-thumb,
+.notif-box-list::-webkit-scrollbar-thumb,
 .ra-tabbar::-webkit-scrollbar-thumb {
   background: var(--scroll-thumb);
   border-radius: 999px;
@@ -891,6 +895,7 @@ body {
 .ac-batch-product-list::-webkit-scrollbar-thumb:hover,
 .f-scroll-table::-webkit-scrollbar-thumb:hover,
 .pf-scroll::-webkit-scrollbar-thumb:hover,
+.notif-box-list::-webkit-scrollbar-thumb:hover,
 .ra-tabbar::-webkit-scrollbar-thumb:hover {
   background: var(--scroll-thumb-hover);
 }
@@ -907,6 +912,7 @@ body {
 .ac-batch-product-list::-webkit-scrollbar-button,
 .f-scroll-table::-webkit-scrollbar-button,
 .pf-scroll::-webkit-scrollbar-button,
+.notif-box-list::-webkit-scrollbar-button,
 .ra-tabbar::-webkit-scrollbar-button {
   display: none;
   width: 0;
