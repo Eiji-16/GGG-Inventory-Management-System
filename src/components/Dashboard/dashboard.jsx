@@ -208,7 +208,7 @@ function Dashboard({ onNavigate }) {
           <div className="salesAnalytics-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
-                <span className="db-card-title">Sales Analytics</span>
+                <span className="db-card-title">Sales Analytic</span>
                 <span className="db-card-sub">Revenue trend · view in Reports</span>
               </div>
               <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
