@@ -15,6 +15,7 @@ import {
   Info,
   Check,
   User,
+  UsersRound,
   Menu,
   X,
   Settings as SettingsIcon
@@ -30,6 +31,7 @@ import ReportAnalytics from '../Reports/reports'; /* ===== REPORTS ===== */
 import StockManagement from '../StockControl/stockControl'; /* ===== STOCK ===== */
 import Settings from '../Settings/Settings'; /* ===== SETTINGS ===== */
 import Profile from '../Profile/profile'; /* ===== PROFILE ===== */
+import Staffs from '../Staffs/staffs'; /* ===== STAFFS ===== */
 
 /* ===== ROLE ===== */
 const CURRENT_ROLE = 'Super Admin';
@@ -182,6 +184,13 @@ function LandingPage({onLogout}) {
  {/* ===== FOOTER ===== */}
         <div className="sidebar-footer-item">
             <div className = "sub-sidebar-footer-item">
+
+              <div className={`siderbar-item ${activeView === 'Staffs' ? 'active' : ''}`}>
+                <button onClick={() => handleNavigate('Staffs')} title="Staff-list">
+                  <UsersRound className="sidebar-icon"/>
+                  <span className="sidebar-label">Staffs</span>
+                </button>
+              </div>
               <div className={`siderbar-item ${activeView === 'Profile' ? 'active' : ''}`}>
                 <button onClick={() => handleNavigate('Profile')} title="User Profile">
                   <User className="sidebar-icon"/>
@@ -232,6 +241,8 @@ function LandingPage({onLogout}) {
                   {activeView === 'Auto-Calculator' && 'Auto Calculator'}
                   {activeView === 'Forecasting' && 'Sales Forecasting'}
                   {activeView === 'Reports' && 'Reports & Analytics'}
+
+                  {activeView === 'Staffs' && 'Staffs'}
                   {activeView === 'Setting' && 'Settings'}
                   {activeView === 'Profile' && 'User Profile'}
                 </p>
@@ -243,6 +254,8 @@ function LandingPage({onLogout}) {
                   {activeView === 'Auto-Calculator' && 'Optimize product order sizes and minimize supplier carrying costs'}
                   {activeView === 'Forecasting' && 'Analyze historical trends to project future inventory demand'}
                   {activeView === 'Reports' && 'Review inventory performance, optimization metrics, and forecasting trends'}
+
+                  {activeView === 'Staffs' && 'Manage staffs'}
                   {activeView === 'Setting' && 'Manage your workspace preferences'}
                   {activeView === 'Profile' && 'View and manage your account details'}
                 </p>
@@ -331,6 +344,8 @@ function LandingPage({onLogout}) {
               {activeView === 'Stock' && <StockManagement onNavigate={handleNavigate} safetyStock={safetyStock} />}
               {activeView === 'Auto-Calculator' && <AutoCalculator onNavigate={handleNavigate} handoff={handoff} />}
               {activeView === 'Forecasting' && <SalesForecasting onNavigate={handleNavigate} />}
+
+              {activeView === 'Staffs' && <Staffs currentRole={CURRENT_ROLE} />}
               {activeView === 'Reports' && <ReportAnalytics/>}
               {activeView === 'Setting' && (
                 <Settings

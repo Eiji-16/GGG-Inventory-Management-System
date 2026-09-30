@@ -18,7 +18,7 @@
 .s-card {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 1rem;
+    border-radius: 8px;
     padding: 1rem 1.25rem;
 }
 
@@ -192,7 +192,7 @@
     padding: 0.35rem 0.75rem;
     font-size: 11px;
     font-weight: 600;
-    border-radius: 0.7rem;
+    border-radius: 8px;
     cursor: pointer;
     white-space: nowrap;
     transition: opacity 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
@@ -287,7 +287,7 @@
     font: inherit;
     font-size: 11.5px;
     padding: 4px 6px;
-    border-radius: 0.45rem;
+    border-radius: 8px;
     border: 1px solid var(--border-color);
     background: var(--bg-card);
     color: var(--text-primary);
@@ -311,7 +311,7 @@
     justify-content: center;
     width: 24px;
     height: 24px;
-    border-radius: 0.5rem;
+    border-radius: 8px;
     border: 1px solid var(--border-color);
     background: transparent;
     color: var(--text-muted);

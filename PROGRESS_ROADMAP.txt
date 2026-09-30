@@ -1,0 +1,45 @@
+========================================================================
+GGG INVENTORY MANAGEMENT SYSTEM - PROGRESS ROADMAP
+========================================================================
+Planned / backlog features. Newest planning notes at the top.
+(For changes already made, see CHANGES_HISTORY.txt.)
+
+------------------------------------------------------------------------
+2026-09-30  -  FROM TECH CRITIQUE CONSULTATION
+------------------------------------------------------------------------
+These items were raised by the panel during the tech critique. Not yet
+built - captured here so they shape the next rounds of work.
+
+1. DASHBOARD - STAFF COUNT + MORE KPIs
+   - Add an "overall staff count" KPI card to the Dashboard.
+   - Leave space in that area for additional KPIs/metrics later.
+
+2. PRODUCT & SUPPLIER + STOCK CONTROL - PHOTO + VARIANCE
+   - Add a product photo / image field to each item.
+   - Show item / stock variance (expected on-hand vs. actual on-hand)
+     so discrepancies are visible in Stock Control.
+
+3. FORMULA LIST - FULL NAMES, NO ACRONYMS
+   - List the whole name of each formula instead of an acronym
+     (e.g., "Economic Order Quantity" rather than "EOQ").
+   - Applies to the formula dropdowns/lists in Forecasting and the
+     Auto Calculator.
+
+4. MULTI-ROLE ACCESS (FUTURE-PROOF)
+   - Roles: Staff, Admin, Super Admin.
+   - Each role has a minimum/maximum access level per tab
+     (a permission matrix / role-based access control).
+   - Ties into the planned Laravel Sanctum authentication phase.
+
+5. CUSTOMIZABLE COLOR PALETTE
+   - Let users pick their own theme colors (color-palette preference).
+   - Note: theme variables currently live in
+     src/components/LandingPage/landingPage.css.
+
+------------------------------------------------------------------------
+STATUS KEY
+------------------------------------------------------------------------
+[ ] not started   [~] in progress   [x] done
+All five items above are currently: [ ] not started.
+
+========================================================================

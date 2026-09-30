@@ -56,7 +56,7 @@
 
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 0.9rem;
+    border-radius: 8px;
     box-shadow: var(--shadow-card);
 }
 
@@ -122,7 +122,7 @@
     background: var(--static-bg-color);
 
     border: 1px solid var(--border-color);
-    border-radius: 1.25rem;
+    border-radius: 8px;
     outline: none;
 
     transition:
@@ -173,7 +173,7 @@
 
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 1.25rem;
+    border-radius: 8px;
     box-shadow: var(--shadow-hover);
 }
 
@@ -221,7 +221,7 @@
     font-weight: 800;
 
     border: 1px solid transparent;
-    border-radius: 1.25rem;
+    border-radius: 8px;
 
     cursor: pointer;
 
@@ -268,7 +268,7 @@
     padding: 7px 11px;
 
     font-size: 12px;
-    border-radius: 1.25rem;
+    border-radius: 8px;
 }
 
 /*==========CROSS-TAB HAND-OFF==========*/
@@ -277,7 +277,7 @@
     min-height: 34px;
     padding: 7px 12px;
     font-size: 12px;
-    border-radius: 1.25rem;
+    border-radius: 8px;
     color: var(--accent, #E8C547);
     background: transparent;
     border-color: var(--accent, #E8C547);
@@ -330,7 +330,7 @@
 
     background: rgba(196, 67, 46, 0.10);
     border: 1px solid rgba(196, 67, 46, 0.28);
-    border-radius: 1.25rem;
+    border-radius: 8px;
 }
 
 .f-warning-banner svg {
@@ -400,7 +400,7 @@
 
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 0.9rem;
+    border-radius: 8px;
     box-shadow: var(--shadow-card);
 
     transition:
@@ -452,7 +452,7 @@
 
     background: var(--static-bg-color);
     border: 1px solid transparent;
-    border-radius: 1.25rem;
+    border-radius: 8px;
 
     transition:
         background 0.2s ease,
@@ -503,7 +503,7 @@
 
     margin-top: 4px;
 
-    border-radius: 0.9rem;
+    border-radius: 8px;
 }
 
 .f-chart-placeholder {
@@ -517,7 +517,7 @@
     font-size: 12.5px;
 
     border: 1px dashed var(--border-color);
-    border-radius: 0.9rem;
+    border-radius: 8px;
 }
 
 .f-chart-wrap canvas {
@@ -534,7 +534,7 @@
     overflow-y: auto;
 
     border: 1px solid var(--border-color);
-    border-radius: 0.9rem;
+    border-radius: 8px;
 
     /*==========FADE MASK==========*/
     -webkit-mask-image: linear-gradient(
@@ -775,7 +775,7 @@
     min-height: 120px;
     padding: 1rem;
     border: 1px dashed var(--border-color, rgba(255,255,255,0.15));
-    border-radius: 0.9rem;
+    border-radius: 8px;
     color: var(--text-muted);
     font-size: 12px;
     text-align: center;
@@ -866,14 +866,14 @@
 
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 1.25rem;
+    border-radius: 8px;
     box-shadow: var(--shadow-card);
 }
 
 /*==========COMPACT SUMMARY==========*/
 .f-summary-compact {
     padding: 14px 18px;
-    border-radius: 0.9rem;
+    border-radius: 8px;
 }
 .f-summary-compact .f-summary-head {
     margin-bottom: 12px;
@@ -1105,7 +1105,7 @@
 
     .f-card {
         padding: 16px;
-        border-radius: 1.25rem;
+        border-radius: 8px;
     }
 
     .f-controls-bar {
@@ -1122,7 +1122,7 @@
 
     .f-summary-card {
         padding: 18px;
-        border-radius: 1.25rem;
+        border-radius: 8px;
     }
 
     .f-summary-grid {

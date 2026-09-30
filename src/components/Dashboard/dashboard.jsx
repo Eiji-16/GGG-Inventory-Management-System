@@ -51,6 +51,9 @@ const ALERT_SUMMARY = { out: 8, low: 23, reorder: 41 };
 {/* ===== SAMPLE CUSTOMERS ===== */}
 const CUSTOMERS = { value: 1946, delta: 4.7, spark: [120, 135, 128, 150, 162, 158, 175, 188, 201] };
 
+{/* ===== SAMPLE STAFF ===== */}
+const STAFF = { total: 12, superAdmin: 1, admin: 2, staff: 9 };
+
 {/* ===== SAMPLE FORMULA USED(EOQ) ===== */}
 const EOQ = { rate: 0.82, calcsThisWeek: 37, avgOrderQty: 145 };
 
@@ -435,6 +438,28 @@ function Dashboard({ onNavigate }) {
             <div className="db-stat-sub">Active buyers this quarter</div>
             <div className="db-spark-wrap">
               <Sparkline values={CUSTOMERS.spark} stroke="var(--accent)" gid="dbCustGrad" />
+            </div>
+          </div>
+
+          {/* ===== TOTAL STAFF ===== */}
+          <div className="totalStaff-card card">
+            <div className="db-card-head">
+              <div className="db-card-titles">
+                <span className="db-card-title">Total Staff</span>
+              </div>
+              <button className="db-open-arrow-btn" onClick={() => go('Staffs')} aria-label="Open in Staffs" type="button"><OpenArrow /></button>
+            </div>
+            <div className="db-stat-value">{fmt(STAFF.total)}</div>
+            <div className="db-stat-sub">Across all roles</div>
+            <div className="db-stack-bar db-stack-bar-sm">
+              <span className="db-stack-seg" style={{ width: `${(STAFF.superAdmin / STAFF.total) * 100}%`, background: 'var(--accent)' }} />
+              <span className="db-stack-seg" style={{ width: `${(STAFF.admin / STAFF.total) * 100}%`, background: 'var(--accent-high)' }} />
+              <span className="db-stack-seg" style={{ width: `${(STAFF.staff / STAFF.total) * 100}%`, background: 'var(--accent-med)' }} />
+            </div>
+            <div className="db-legend db-legend-col">
+              <span className="db-legend-item"><i style={{ background: 'var(--accent)' }} />Super Admin {STAFF.superAdmin}</span>
+              <span className="db-legend-item"><i style={{ background: 'var(--accent-high)' }} />Admin {STAFF.admin}</span>
+              <span className="db-legend-item"><i style={{ background: 'var(--accent-med)' }} />Staff {STAFF.staff}</span>
             </div>
           </div>
 

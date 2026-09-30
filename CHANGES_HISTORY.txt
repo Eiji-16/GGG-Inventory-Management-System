@@ -1,0 +1,98 @@
+========================================================================
+GGG INVENTORY MANAGEMENT SYSTEM - CHANGE HISTORY
+========================================================================
+This file records notable changes made to the system.
+Newest entries are at the top.
+
+------------------------------------------------------------------------
+2026-09-30
+------------------------------------------------------------------------
+
+UI / STYLING
+- Border radius standardized: all KPI cards and content boxes now use
+  border-radius: 8px for a soft, uniform look.
+  (First tried 3px, but that read too sharp, so it was softened to 8px.)
+  Files touched:
+    * Dashboard/dashboard.css        .card (10px -> 3px)
+    * Reports/reports.css            .r-kpi-card, .r-chart-card,
+                                     .r-table-card, .r-filters-bar,
+                                     .r-chart-placeholder, .r-supplier-note
+    * Forecasting/forecasting.css    .f-card, .f-stat-box, .f-summary-card,
+                                     .f-summary-compact, .f-controls-bar,
+                                     .f-chart-wrap, .f-chart-placeholder,
+                                     .f-scroll-table, .f-result-placeholder
+                                     (incl. mobile media-query variants)
+    * AutoCalculator/autoCal.css     .ac-root, .ac-result-box,
+                                     .ac-analysis-chart-card, .ac-metric-card,
+                                     .ac-compare-col, .ac-result-hint,
+                                     .ac-history-item, .ac-chart-placeholder,
+                                     .ac-batch-product-list, .ac-formula-expr
+    * Settings/settings.css          .s-card
+    * StockControl/stockControl.css  .sc-table-parent, .sc-table-scroll,
+                                     .sc-computed-field, .sc-status-preview,
+                                     .sc-history-panel, mobile card rows
+    * ProductSupplier/productSupplier.css
+                                     .ps-table-parent, .ps-table-scroll,
+                                     .ps-detail-item, mobile card rows
+- Buttons and inputs set to border-radius: 8px to match the cards
+  (search fields, dropdowns/selects, text inputs, and action buttons such
+  as Compute Forecast, Add, Save, Cancel, Reset, Export, and the small
+  table action / open buttons). Applied across Dashboard, Reports,
+  Forecasting, Auto Calculator, Settings, Stock Control, and
+  Product & Supplier.
+  Left unchanged on purpose: full-pill toggles/badges/status pills (999px),
+  segmented controls, circular icons and dots (50%), and modal/dialog
+  shells.
+
+DIAGRAMS (saved in F:\laragon)
+- Created ggg-system-flowchart.svg - system flow: Start -> Login ->
+  validation -> Dashboard -> modules -> Laravel API -> MySQL.
+- Created ggg-system-flowchart-detailed.svg - detailed navigation and
+  data-flow diagram (gray dashed = navigation; gold solid = data handoff).
+- Corrected the cross-tab data-flow direction: Stock Control (reorder
+  demand) AND Sales Forecasting (forecast demand) both feed an annual
+  demand figure INTO the Auto Calculator, which computes the EOQ. The
+  Auto Calculator does not push data back out to those tabs.
+
+FORECASTING TAB
+- Removed card/box hover effects for a calmer, static layout.
+- Emptied the built-in formula dropdown options (dropdown kept, default
+  selection is blank) so no formula is pre-assumed.
+- Forecast result now shows a placeholder instead of a fabricated number.
+- Added a guard so nothing is computed when there is no data / no formula
+  selected (no more fake output).
+
+AUTO CALCULATOR TAB
+- Cost-curve analysis section is now always visible, showing a placeholder
+  state until a calculation is actually run.
+- Added a chart placeholder (.ac-chart-placeholder).
+- Metric values display dashes/placeholders before a computation happens.
+
+NOTIFICATIONS
+- Notification list now uses a thin scrollbar.
+
+------------------------------------------------------------------------
+BACKEND (Laravel + MySQL) - current state
+------------------------------------------------------------------------
+- Models: User, Supplier, Product, StockMovement, SafetyStock, SalesHistory.
+- Migrations: users, cache, jobs, suppliers, products, stock_movements,
+  safety_stock, sales_history. Seeders: InventorySeeder, DatabaseSeeder.
+- API routes (routes/api.php), all currently UNAUTHENTICATED (Sanctum auth
+  is a planned later phase):
+    * GET/POST/PUT/PATCH/DELETE  /api/products (+ /{code})
+    * apiResource               /api/suppliers
+    * GET/POST                  /api/stock-movements
+    * GET/POST/DELETE           /api/sales-history (GET accepts ?product=)
+- ProductController returns the frontend JSON shape (id = product code) and
+  joins safetyStock (safety_stock + annual_demand) so the Auto Calculator
+  can auto-fill demand.
+- StockMovementController records Stock In/Out inside a DB transaction with
+  a row lock (lockForUpdate) and recomputes products.stock_on_hand in the
+  same transaction so the balance can never drift.
+
+FRONTEND WIRING STATUS
+- Wired to the API:  Product & Supplier, Stock Control.
+- NOT yet wired:     Forecasting (still uses sample history),
+                     Auto Calculator (receives handoff prop, no fetch yet).
+
+========================================================================

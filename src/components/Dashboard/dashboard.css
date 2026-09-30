@@ -41,7 +41,7 @@
     background: var(--bg-card);
     color: var(--text-primary);
     box-shadow: var(--shadow-card);
-    border-radius: 10px;
+    border-radius: 8px;
     padding: 12px;
     font-size: 12px;
     font-weight: 500;
@@ -79,6 +79,7 @@
 .parent > .card:nth-child(7) { animation-delay: 0.24s; }
 .parent > .card:nth-child(8) { animation-delay: 0.28s; }
 .parent > .card:nth-child(9) { animation-delay: 0.32s; }
+.parent > .card:nth-child(10) { animation-delay: 0.36s; }
 
 /*==========CLICKABLE CARD==========*/
 .db-clickable {
@@ -142,7 +143,7 @@
     border: none;
     padding: 2px;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -609,7 +610,13 @@
 }
 
 .totalCustomer-card {
-    grid-column: 6 / span 2;
+    grid-column: 6 / span 1;
+    grid-row: 4;
+    min-height: 16rem;
+}
+
+.totalStaff-card {
+    grid-column: 7 / span 1;
     grid-row: 4;
     min-height: 16rem;
 }
@@ -657,7 +664,13 @@
     }
 
     .totalCustomer-card {
-        grid-column: 3 / span 2;
+        grid-column: 3 / span 1;
+        grid-row: 4;
+        min-height: 10rem;
+    }
+
+    .totalStaff-card {
+        grid-column: 4 / span 1;
         grid-row: 4;
         min-height: 10rem;
     }
@@ -690,7 +703,8 @@
     .catalogStatus-card,
     .totalRevenue-card,
     .totalOrder-card,
-    .totalCustomer-card {
+    .totalCustomer-card,
+    .totalStaff-card {
         grid-column: span 1;
         grid-row: auto;
         min-height: 8rem;
@@ -722,6 +736,7 @@
     .totalRevenue-card,
     .totalOrder-card,
     .totalCustomer-card,
+    .totalStaff-card,
     .regionalBreakdown-card,
     .eoqActivity-card,
     .productSales-card,
