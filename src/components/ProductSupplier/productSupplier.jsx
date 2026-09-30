@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, Edit, Trash2, X, Package, Info, Download, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, X, Package, Info, Download, AlertTriangle, Image as ImageIcon } from 'lucide-react';
 
 import './productSupplier.css';
 
@@ -14,6 +14,7 @@ const emptyForm = {
   brand: '',
   model: '',
   unitMeasure: '',
+  image: '',
   supplierInfo: '',
 };
 
@@ -166,6 +167,7 @@ function ProductSupplier({ onNavigate }) {
       model: formData.model,
       unitMeasure: formData.unitMeasure,
       supplierName: formData.supplierInfo || null,
+      image: formData.image || null, /* backend ignores until an image column exists */
     };
 
     try {
@@ -180,10 +182,12 @@ function ProductSupplier({ onNavigate }) {
       if (!response.ok) throw new Error(`Save failed (${response.status})`);
       const saved = await response.json(); /* ===== SAVED PRODUCT ===== */
 
+      /* Merge the image client-side so the photo shows this session; the API
+         doesn't persist it yet (no image column), so it won't survive a reload. */
       setProductsFromDatabase((prev) =>
         isAdd
-          ? [...prev, saved]
-          : prev.map((p) => (p.id === saved.id ? saved : p))
+          ? [...prev, { ...saved, image: formData.image }]
+          : prev.map((p) => (p.id === saved.id ? { ...saved, image: formData.image } : p))
       );
       closeModal();
     } catch (error) {
@@ -350,7 +354,16 @@ function ProductSupplier({ onNavigate }) {
                   />
                 </td>
                 <td className="ps-td-nowrap ps-td-muted" data-label="Product ID">{product.id}</td>
-                <td className="ps-td-left ps-cell-name" data-label="Product Name" title={product.name}>{product.name}</td>
+                <td className="ps-td-left ps-cell-name" data-label="Product Name" title={product.name}>
+                  <span className="ps-name-cell">
+                    {product.image ? (
+                      <img className="ps-thumb" src={product.image} alt="" loading="lazy" />
+                    ) : (
+                      <span className="ps-thumb ps-thumb-empty" aria-hidden="true"><Package size={13} /></span>
+                    )}
+                    <span className="ps-name-text">{product.name}</span>
+                  </span>
+                </td>
                 <td data-label="Category">{product.category || '—'}</td>
                 <td data-label="Brand">{product.brand || '—'}</td>
                 <td data-label="Model">{product.model || '—'}</td>
@@ -449,6 +462,17 @@ function ProductSupplier({ onNavigate }) {
                 <span className="ps-modal-idtag-label">Product ID</span>
                 <span className="ps-modal-idtag-value">{detailProduct.id}</span>
               </div>
+
+              {detailProduct.image ? (
+                <div className="ps-detail-photo">
+                  <img src={detailProduct.image} alt={detailProduct.name || 'Product photo'} />
+                </div>
+              ) : (
+                <div className="ps-detail-photo ps-detail-photo-empty">
+                  <Package size={26} />
+                  <span>No photo on file</span>
+                </div>
+              )}
 
               <div className="ps-detail-grid">
                 {DETAIL_FIELDS.map((field) => (
@@ -581,6 +605,31 @@ function ProductSupplier({ onNavigate }) {
                         onChange={handleFormChange}
                         placeholder="Units, Pairs, Boxes…"
                       />
+                    </div>
+                  </div>
+
+                  <div className="ps-form-group ps-form-group-wide">
+                    <label htmlFor="image">Product Photo</label>
+                    <div className="ps-photo-field">
+                      <div className="ps-photo-preview">
+                        {formData.image ? (
+                          <img src={formData.image} alt="Preview" />
+                        ) : (
+                          <span className="ps-photo-empty" aria-hidden="true"><ImageIcon size={20} /></span>
+                        )}
+                      </div>
+                      <div className="ps-photo-input">
+                        <input
+                          id="image"
+                          name="image"
+                          value={formData.image}
+                          onChange={handleFormChange}
+                          placeholder="Paste an image URL…"
+                        />
+                        <p className="ps-field-note">
+                          Mock for now — real photo upload &amp; storage arrives with the backend image field.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </section>

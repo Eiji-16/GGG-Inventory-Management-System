@@ -5,6 +5,56 @@ This file records notable changes made to the system.
 Newest entries are at the top.
 
 ------------------------------------------------------------------------
+2026-09-30  (features from tech-critique roadmap)
+------------------------------------------------------------------------
+
+STAFFS TAB (new)
+- Added the Staffs tab (src/components/Staffs/staffs.jsx + staff.css).
+  KPI strip (total / active / admins-and-up), search, and a staff table
+  with role badges (Staff / Admin / Super Admin) and status. Sample data
+  for now (not yet wired to the API).
+- Fixed the wiring in landingPage.jsx:
+    * import path was ../Staffs/staff -> ../Staffs/staffs (file is staffs.jsx)
+    * activeView checks were 'Staff' (singular) but the nav sets 'Staffs';
+      aligned the render + header subtitle to 'Staffs'.
+    * sidebar icon now UsersRound (was falling back to User because
+      UsersRound was never imported).
+- Row actions menu (kebab) is Super-Admin-only and renders through a
+  React portal to document.body so it is never clipped by the
+  transformed/overflow content area. Demote / deactivate are blocked on
+  the last remaining Super Admin.
+- DECISION: role promotion is Super-Admin-only. To be enforced server-side
+  once Sanctum auth lands (UI gating is cosmetic until then); add an audit
+  log and a "last Super Admin" guard.
+
+DASHBOARD
+- Split the Total Customers card in half (vertical cut) and added a
+  Total Staff KPI card beside it, with a role-breakdown mini stacked bar
+  (Super Admin / Admin / Staff). Its corner arrow opens the Staffs tab.
+  Grid updated across all four breakpoints.
+
+PRODUCT & SUPPLIER
+- Product photo: image field (URL + live preview) in the Add/Edit form,
+  a thumbnail in the table name cell, and a photo block in the detail
+  modal. MOCK: the API has no image column yet, so the image is merged
+  client-side (shows this session, won't survive a reload).
+
+STOCK CONTROL
+- Read-only product thumbnail next to the product name (looked up from the
+  product master; icon fallback when no photo).
+- Variance via the Adjustment movement type: enter a Counted quantity,
+  the form shows Variance (counted - on hand) and sets Remaining = counted.
+  New "Variance" table column (+/- , shown only for Adjustment rows).
+  MOCK: Adjustment saves client-side (the API has no adjustment endpoint
+  yet); Stock In/Out still persist through the API. signedQty + the history
+  ledger now understand Adjustment (delta = variance).
+
+UI / STYLING (radius)
+- Softened the earlier 3px radius to 8px on cards, boxes, buttons and
+  inputs across the app (5-10px target, "not too sharp"). Full pills
+  (999px), circles (50%), and segmented toggles left as-is.
+
+------------------------------------------------------------------------
 2026-09-30
 ------------------------------------------------------------------------
 

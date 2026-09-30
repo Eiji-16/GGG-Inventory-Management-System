@@ -434,6 +434,73 @@
     color: var(--text-muted);
 }
 
+/*==========VARIANCE (ADJUSTMENT)==========*/
+.sc-variance-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    padding: 0.85rem 1rem;
+    border: 1px dashed var(--border-color);
+    border-radius: 8px;
+    background: var(--static-bg-color);
+}
+
+.sc-variance-value {
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    flex-shrink: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text-primary);
+}
+
+.sc-variance-value small {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.sc-variance-cell {
+    font-weight: 700;
+}
+
+.sc-field-hint {
+    display: block;
+    margin-top: 0.3rem;
+    font-size: 0.66rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
+/*==========PRODUCT THUMBNAIL (read-only)==========*/
+.sc-name-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.sc-thumb {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--static-bg-color);
+}
+
+.sc-thumb-empty {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+}
+
 /*==========STATUS PREVIEW==========*/
 .sc-status-preview {
     display: flex;

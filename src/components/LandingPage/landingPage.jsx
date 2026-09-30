@@ -15,9 +15,9 @@ import {
   Info,
   Check,
   User,
-  UsersRound,
   Menu,
   X,
+  UsersRound,
   Settings as SettingsIcon
 } from 'lucide-react'; /* ===== ICONS ===== */
 
@@ -345,7 +345,7 @@ function LandingPage({onLogout}) {
               {activeView === 'Auto-Calculator' && <AutoCalculator onNavigate={handleNavigate} handoff={handoff} />}
               {activeView === 'Forecasting' && <SalesForecasting onNavigate={handleNavigate} />}
 
-              {activeView === 'Staffs' && <Staffs currentRole={CURRENT_ROLE} />}
+              {activeView === 'Staffs' && <Staffs />}
               {activeView === 'Reports' && <ReportAnalytics/>}
               {activeView === 'Setting' && (
                 <Settings

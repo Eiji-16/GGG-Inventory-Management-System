@@ -17,7 +17,8 @@ import {
   Pencil,
   Clock,
   ArrowUpDown,
-  ClipboardList } from 'lucide-react';
+  ClipboardList,
+  Package } from 'lucide-react';
 
 import './stockControl.css';
 import {
@@ -44,6 +45,8 @@ const emptyForm = {
 
 /* ===== SIGNED QTY ===== */
 const signedQty = (row) => {
+  /* An adjustment carries its own signed delta (the variance). */
+  if (row.type === 'Adjustment') return Number(row.variance) || 0;
   const qty = Number(row.qty) || 0;
   return row.type === 'Stock Out' ? -qty : qty;
 };
@@ -150,14 +153,34 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   const openHistory = (productName) => setHistoryProduct(productName || '—');
   const activeLedger = historyProduct ? ledgers.get(historyProduct) : null;
 
+  /* ===== PRODUCT PHOTO LOOKUP (read-only, from the product master) ===== */
+  const productImageByName = useMemo(() => {
+    const map = new Map();
+    productOptions.forEach((p) => map.set(p.name, p.image));
+    return map;
+  }, [productOptions]);
+
+  /* ===== CURRENT ON HAND (for this product, excluding the row being edited) ===== */
+  const currentOnHand = useMemo(() => (
+    stockFromDatabase.reduce((sum, row, i) => (
+      i === editIndex || row.productName !== formData.productName ? sum : sum + signedQty(row)
+    ), 0)
+  ), [stockFromDatabase, formData.productName, editIndex]);
+
+  const isAdjustment = formData.type === 'Adjustment';
+
+  /* ===== VARIANCE (Adjustment only: counted − on hand) ===== */
+  const variance = isAdjustment && formData.qty !== ''
+    ? (Number(formData.qty) || 0) - currentOnHand
+    : null;
+
   /* ===== PROJECTED STOCK ===== */
   const projectedRemaining = useMemo(() => {
     if (!formData.productName || !formData.type || formData.qty === '') return null;
-    const base = stockFromDatabase.reduce((sum, row, i) => (
-      i === editIndex || row.productName !== formData.productName ? sum : sum + signedQty(row)
-    ), 0);
-    return base + signedQty(formData);
-  }, [stockFromDatabase, formData, editIndex]);
+    /* An adjustment sets on-hand to the counted quantity outright. */
+    if (formData.type === 'Adjustment') return Number(formData.qty) || 0;
+    return currentOnHand + signedQty(formData);
+  }, [currentOnHand, formData]);
 
   /* ===== PROJECTED STATUS ===== */
   const projectedStatus = projectedRemaining === null
@@ -299,6 +322,31 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
+
+    /* ===== ADJUSTMENT (stock count) — client-side until the API supports it ===== */
+    if (formData.type === 'Adjustment') {
+      const counted = Number(formData.qty) || 0;
+      const varc = counted - currentOnHand;
+      const entry = {
+        ...formData,
+        type: 'Adjustment',
+        qty: counted,
+        variance: varc,
+        remainingStock: counted,
+      };
+      logActivity(
+        editIndex !== null ? 'edit' : 'add',
+        entry.productName,
+        `Stock count — counted ${counted}, variance ${varc >= 0 ? '+' : '−'}${Math.abs(varc)} → on hand ${counted}`
+      );
+      setStockFromDatabase((prev) =>
+        editIndex !== null
+          ? prev.map((row, i) => (i === editIndex ? entry : row))
+          : [entry, ...prev]
+      );
+      closeModal();
+      return;
+    }
 
     /* ===== EDIT ENTRY ===== */
     if (editIndex !== null) {
@@ -444,6 +492,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
               <th>Category</th>
               <th>Type</th>
               <th>Qty</th>
+              <th>Variance</th>
               <th>Remaining</th>
               <th>Safety Stock</th>
               <th className="sc-th-left">Notes</th>
@@ -470,14 +519,21 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                   </td>
                   <td className="sc-td-nowrap" data-label="Date">{stock.date}</td>
                   <td className="sc-td-left sc-cell-name" data-label="Product" title={stock.productName}>
-                    <button
-                      type="button"
-                      className="sc-product-link"
-                      onClick={() => openHistory(stock.productName)}
-                      title={`View movement history for ${stock.productName}`}
-                    >
-                      {stock.productName}
-                    </button>
+                    <span className="sc-name-cell">
+                      {productImageByName.get(stock.productName) ? (
+                        <img className="sc-thumb" src={productImageByName.get(stock.productName)} alt="" loading="lazy" />
+                      ) : (
+                        <span className="sc-thumb sc-thumb-empty" aria-hidden="true"><Package size={12} /></span>
+                      )}
+                      <button
+                        type="button"
+                        className="sc-product-link"
+                        onClick={() => openHistory(stock.productName)}
+                        title={`View movement history for ${stock.productName}`}
+                      >
+                        {stock.productName}
+                      </button>
+                    </span>
                   </td>
                   <td data-label="Category">{stock.category || '—'}</td>
                   <td data-label="Type">
@@ -486,6 +542,13 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                     </span>
                   </td>
                   <td className="sc-td-nowrap" data-label="Qty">{stock.qty}</td>
+                  <td className="sc-td-nowrap" data-label="Variance">
+                    {stock.type === 'Adjustment' && stock.variance !== undefined && stock.variance !== null ? (
+                      <span className={`sc-variance-cell ${stock.variance > 0 ? 'sc-in' : stock.variance < 0 ? 'sc-out' : ''}`}>
+                        {stock.variance >= 0 ? '+' : '−'}{Math.abs(stock.variance)}
+                      </span>
+                    ) : '—'}
+                  </td>
                   <td className="sc-td-nowrap sc-td-strong" data-label="Remaining">{stock.remainingStock}</td>
                   <td data-label="Safety Stock">
                     {status ? (
@@ -549,7 +612,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
 
             {visibleRows.length === 0 && (
               <tr>
-                <td colSpan={11} className="sc-empty-state">
+                <td colSpan={12} className="sc-empty-state">
                   {stockFromDatabase.length === 0
                     ? 'No stock movements recorded yet. Click “Add Item” to record one.'
                     : 'No movements match your search.'}
@@ -674,9 +737,12 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                     </div>
                     <div className="sc-form-group">
                       <label htmlFor="qty">
-                        Qty <span className="sc-required">*</span>
+                        {isAdjustment ? 'Counted quantity' : 'Qty'} <span className="sc-required">*</span>
                       </label>
                       <input id="qty" name="qty" type="number" min="0" value={formData.qty} onChange={handleFormChange} required />
+                      {isAdjustment && (
+                        <span className="sc-field-hint">Physical count of what’s actually on the shelf.</span>
+                      )}
                     </div>
                   </div>
                 </section>
@@ -703,6 +769,21 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                       </span>
                     )}
                   </div>
+
+                  {isAdjustment && variance !== null && (
+                    <div className="sc-variance-preview" aria-live="polite">
+                      <div className="sc-computed-copy">
+                        <span className="sc-computed-label">Variance</span>
+                        <span className="sc-computed-note">
+                          Counted {Number(formData.qty) || 0} vs {currentOnHand} on hand
+                        </span>
+                      </div>
+                      <span className={`sc-variance-value ${variance > 0 ? 'sc-in' : variance < 0 ? 'sc-out' : ''}`}>
+                        {variance >= 0 ? '+' : '−'}{Math.abs(variance)}
+                        <small>units</small>
+                      </span>
+                    </div>
+                  )}
 
                   {projectedStatus && (
                     <div className="sc-status-preview" aria-live="polite">
