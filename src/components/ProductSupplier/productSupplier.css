@@ -436,6 +436,61 @@
     color: var(--text-muted);
 }
 
+/* ===== Supplier: inline editable row(s) ===== */
+.ps-supplier-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.ps-supplier-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.ps-supplier-item input {
+    min-width: 0;
+}
+
+.ps-supplier-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.ps-supplier-remove:hover {
+    color: #e5484d;
+    border-color: #e5484d;
+}
+
+/* ===== Supplier cell in the table (name over contact) ===== */
+.ps-supplier-cell {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.ps-supplier-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ps-supplier-contact {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
 .ps-form-row {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -625,9 +680,19 @@
     min-width: 0;
 }
 
+/* dedicated picture column */
+.ps-th-pic { width: 64px; text-align: center; }
+
+.ps-td-pic { text-align: center; }
+
+.ps-td-pic .ps-thumb {
+    display: inline-flex;
+    vertical-align: middle;
+}
+
 .ps-thumb {
-    width: 26px;
-    height: 26px;
+    width: 50px;
+    height: 30px;
     flex-shrink: 0;
     object-fit: cover;
     border-radius: 6px;
@@ -670,10 +735,12 @@
 
 .ps-detail-photo-empty {
     flex-direction: column;
-    gap: 6px;
-    padding: 28px 0;
+    gap: 8px;
+    min-height: 120px;
+    padding: 24px 0;
+    border-style: dashed;
     color: var(--text-muted);
-    font-size: 0.72rem;
+    font-size: 0.78rem;
 }
 
 /* add / edit form photo field */
@@ -683,24 +750,100 @@
     gap: 12px;
 }
 
-.ps-photo-preview {
+/* clickable upload box (holds the preview + the choose-file action) */
+.ps-photo-box {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 64px;
-    height: 64px;
+    width: 96px;
+    height: 96px;
     flex-shrink: 0;
     overflow: hidden;
-    border: 1px solid var(--border-color);
+    cursor: pointer;
+    border: 1px dashed var(--border-color);
     border-radius: 8px;
     background: var(--static-bg-color);
     color: var(--text-muted);
+    transition: border-color 0.15s ease, color 0.15s ease;
 }
 
-.ps-photo-preview img {
+.ps-photo-box:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.ps-photo-box.has-image {
+    border-style: solid;
+}
+
+.ps-photo-box img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+/* empty state inside the box */
+.ps-photo-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    text-align: center;
+    padding: 4px;
+}
+
+.ps-photo-placeholder-main {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ps-photo-placeholder-sub {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+}
+
+/* hover overlay shown over an existing image */
+.ps-photo-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(17, 24, 39, 0.55);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.ps-photo-box.has-image:hover .ps-photo-overlay {
+    opacity: 1;
+}
+
+/* small remove badge, top-right of the box */
+.ps-photo-remove {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    color: #fff;
+    background: rgba(17, 24, 39, 0.7);
+}
+
+.ps-photo-remove:hover {
+    background: #e5484d;
 }
 
 .ps-photo-input {

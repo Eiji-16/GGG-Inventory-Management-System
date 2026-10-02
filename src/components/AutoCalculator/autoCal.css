@@ -273,7 +273,7 @@
 .ac-result-main {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 15px;
     padding: 0.5rem 0;
 }
 .ac-result-value {
@@ -733,7 +733,7 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    min-height: 140px;
+    min-height: 178px;
     border: 1px dashed var(--hairline);
     border-radius: 8px;
     color: var(--text-muted);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, Edit, Trash2, X, Package, Info, Download, AlertTriangle, Image as ImageIcon } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, X, Package, Info, Download, AlertTriangle, Upload, Image as ImageIcon } from 'lucide-react';
 
 import './productSupplier.css';
 
@@ -15,8 +15,10 @@ const emptyForm = {
   model: '',
   unitMeasure: '',
   image: '',
-  supplierInfo: '',
+  suppliers: [], /* ===== SUPPLIER LIST (add-row pattern) ===== */
 };
+
+const emptySupplier = { name: '', contact: '' };
 
 /* ===== PRODUCT DATA ===== */
 
@@ -28,12 +30,14 @@ const DETAIL_FIELDS = [
   { key: 'brand', label: 'Brand', hint: 'Manufacturer of the item' },
   { key: 'model', label: 'Model', hint: 'Manufacturer model or reference code' },
   { key: 'unitMeasure', label: 'Unit Measure', hint: 'How quantity is counted for this item' },
-  { key: 'supplierInfo', label: 'Supplier Information', hint: 'Contacted when a reorder is raised', wide: true },
+  { key: 'supplierName', label: 'Supplier', hint: 'Company this item is ordered from', wide: true },
+  { key: 'supplierContact', label: 'Supplier Contact', hint: 'Phone or email used when a reorder is raised', wide: true },
 ];
 
 function ProductSupplier({ onNavigate }) {
   const PAGE_SIZE = 10;
   const [productsFromDatabase, setProductsFromDatabase] = useState([]);
+  const [suppliers, setSuppliers] = useState([]); /* ===== SUPPLIER LIST (type-ahead + reuse) ===== */
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [cursor, setCursor] = useState(0); /* ===== PAGE START ===== */
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -55,12 +59,23 @@ function ProductSupplier({ onNavigate }) {
       .catch((error) => console.error('Could not load products:', error));
   }, []);
 
+  /* ===== LOAD SUPPLIERS (for the picker dropdown) ===== */
+  useEffect(() => {
+    fetch('/api/suppliers', { headers: { Accept: 'application/json' } })
+      .then((response) => {
+        if (!response.ok) throw new Error(`GET /api/suppliers failed (${response.status})`);
+        return response.json();
+      })
+      .then((data) => setSuppliers(Array.isArray(data) ? data : []))
+      .catch((error) => console.error('Could not load suppliers:', error));
+  }, []);
+
   /* ===== FILTER PRODUCTS ===== */
   const filteredProducts = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return productsFromDatabase;
     return productsFromDatabase.filter((p) =>
-      [p.id, p.name, p.category, p.brand, p.model, p.unitMeasure, p.supplierInfo]
+      [p.id, p.name, p.category, p.brand, p.model, p.unitMeasure, p.supplierName, p.supplierContact]
         .some((field) => String(field ?? '').toLowerCase().includes(q))
     );
   }, [productsFromDatabase, query]);
@@ -128,13 +143,19 @@ function ProductSupplier({ onNavigate }) {
 
   const openAddModal = () => {
     setModalMode('add');
-    setFormData(emptyForm);
+    setFormData({ ...emptyForm, suppliers: [{ ...emptySupplier }] });
     setIsModalOpen(true);
   };
 
   const openEditModal = (product) => {
     setModalMode('edit');
-    setFormData(product);
+    setFormData({
+      ...emptyForm,
+      ...product,
+      suppliers: product.supplierName
+        ? [{ name: product.supplierName, contact: product.supplierContact || '' }]
+        : [{ ...emptySupplier }],
+    });
     setIsModalOpen(true);
   };
 
@@ -151,14 +172,56 @@ function ProductSupplier({ onNavigate }) {
     openEditModal(product);
   };
 
+  /* ===== PRODUCT PHOTO (pick a file -> data URL, client-side) ===== */
+  const handleImageFile = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please choose an image file.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      alert('That image is larger than 2 MB. Please pick a smaller one.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFormData((prev) => ({ ...prev, image: reader.result })); /* base64 data URL */
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; /* allow re-picking the same file */
+  };
+
+  const clearImage = () => setFormData((prev) => ({ ...prev, image: '' }));
+
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  /* ===== SUPPLIER LIST (inline editable rows) ===== */
+  const updateSupplier = (index, field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      suppliers: prev.suppliers.map((s, i) => (i === index ? { ...s, [field]: value } : s)),
+    }));
+  };
+
+  const removeSupplier = (index) => {
+    setFormData((prev) => {
+      const next = prev.suppliers.filter((_, i) => i !== index);
+      /* Always keep one editable row so there is somewhere to type. */
+      return { ...prev, suppliers: next.length ? next : [{ ...emptySupplier }] };
+    });
+  };
+
   /* ===== SAVE PRODUCT ===== */
   const handleSave = async (e) => {
     e.preventDefault();
+
+    /* Keep only rows that actually name a supplier; first = primary. */
+    const allSuppliers = formData.suppliers.filter((s) => s.name.trim());
+    const primary = allSuppliers[0] || null;
 
     const payload = {
       name: formData.name,
@@ -166,7 +229,8 @@ function ProductSupplier({ onNavigate }) {
       brand: formData.brand,
       model: formData.model,
       unitMeasure: formData.unitMeasure,
-      supplierName: formData.supplierInfo || null,
+      supplierName: primary ? primary.name.trim() : null,
+      supplierContact: primary ? (primary.contact || '').trim() || null : null,
       image: formData.image || null, /* backend ignores until an image column exists */
     };
 
@@ -189,6 +253,15 @@ function ProductSupplier({ onNavigate }) {
           ? [...prev, { ...saved, image: formData.image }]
           : prev.map((p) => (p.id === saved.id ? { ...saved, image: formData.image } : p))
       );
+
+      /* Keep the picker in sync: if this save introduced a new supplier name,
+         add it to the dropdown list so it's reusable right away. */
+      if (saved.supplierName && !suppliers.some((s) => s.name === saved.supplierName)) {
+        setSuppliers((prev) => [
+          ...prev,
+          { id: `tmp-${Date.now()}`, name: saved.supplierName, contact: saved.supplierContact || '' },
+        ]);
+      }
       closeModal();
     } catch (error) {
       console.error('Could not save product:', error);
@@ -247,12 +320,12 @@ function ProductSupplier({ onNavigate }) {
   /* ===== EXPORT CSV ===== */
   const exportCsv = () => {
     if (filteredProducts.length === 0) return;
-    const headers = ['Product ID', 'Product Name', 'Category', 'Brand', 'Model', 'Unit Measure', 'Supplier Information'];
+    const headers = ['Product ID', 'Product Name', 'Category', 'Brand', 'Model', 'Unit Measure', 'Supplier', 'Supplier Contact'];
     const escape = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
     const lines = [
       headers.join(','),
       ...filteredProducts.map((p) =>
-        [p.id, p.name, p.category, p.brand, p.model, p.unitMeasure, p.supplierInfo].map(escape).join(',')
+        [p.id, p.name, p.category, p.brand, p.model, p.unitMeasure, p.supplierName, p.supplierContact].map(escape).join(',')
       ),
     ];
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -321,12 +394,13 @@ function ProductSupplier({ onNavigate }) {
                 />
               </th>
               <th>Product ID</th>
+              <th className="ps-th-pic">Picture</th>
               <th className="ps-th-left">Product Name</th>
               <th>Category</th>
               <th>Brand</th>
               <th>Model</th>
               <th>Unit Measure</th>
-              <th className="ps-th-left">Supplier Information</th>
+              <th className="ps-th-left">Supplier</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -354,13 +428,15 @@ function ProductSupplier({ onNavigate }) {
                   />
                 </td>
                 <td className="ps-td-nowrap ps-td-muted" data-label="Product ID">{product.id}</td>
+                <td className="ps-td-pic" data-label="Picture">
+                  {product.image ? (
+                    <img className="ps-thumb" src={product.image} alt="" loading="lazy" />
+                  ) : (
+                    <span className="ps-thumb ps-thumb-empty" aria-hidden="true"><Package size={13} /></span>
+                  )}
+                </td>
                 <td className="ps-td-left ps-cell-name" data-label="Product Name" title={product.name}>
                   <span className="ps-name-cell">
-                    {product.image ? (
-                      <img className="ps-thumb" src={product.image} alt="" loading="lazy" />
-                    ) : (
-                      <span className="ps-thumb ps-thumb-empty" aria-hidden="true"><Package size={13} /></span>
-                    )}
                     <span className="ps-name-text">{product.name}</span>
                   </span>
                 </td>
@@ -368,7 +444,16 @@ function ProductSupplier({ onNavigate }) {
                 <td data-label="Brand">{product.brand || '—'}</td>
                 <td data-label="Model">{product.model || '—'}</td>
                 <td data-label="Unit Measure">{product.unitMeasure || '—'}</td>
-                <td className="ps-td-left ps-td-muted" data-label="Supplier" title={product.supplierInfo}>{product.supplierInfo || '—'}</td>
+                <td className="ps-td-left ps-td-muted" data-label="Supplier" title={product.supplierName}>
+                  {product.supplierName ? (
+                    <span className="ps-supplier-cell">
+                      <span className="ps-supplier-name">{product.supplierName}</span>
+                      {product.supplierContact && (
+                        <span className="ps-supplier-contact">{product.supplierContact}</span>
+                      )}
+                    </span>
+                  ) : '—'}
+                </td>
                 <td className="ps-td-actions" data-label="Actions" onClick={(e) => e.stopPropagation()}>
                   <div className="ps-action-cell-container">
                     <button
@@ -396,7 +481,7 @@ function ProductSupplier({ onNavigate }) {
 
             {visibleProducts.length === 0 && (
               <tr>
-                <td colSpan={9} className="ps-empty-state">
+                <td colSpan={10} className="ps-empty-state">
                   {productsFromDatabase.length === 0
                     ? 'No products registered yet. Click “Add” to register one.'
                     : 'No products match your search.'}
@@ -611,23 +696,50 @@ function ProductSupplier({ onNavigate }) {
                   <div className="ps-form-group ps-form-group-wide">
                     <label htmlFor="image">Product Photo</label>
                     <div className="ps-photo-field">
-                      <div className="ps-photo-preview">
+                      <label className={`ps-photo-box${formData.image ? ' has-image' : ''}`}>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageFile}
+                          aria-label="Choose product photo"
+                          hidden
+                        />
                         {formData.image ? (
-                          <img src={formData.image} alt="Preview" />
+                          <>
+                            <img src={formData.image} alt="Preview" />
+                            <span className="ps-photo-overlay">
+                              <Upload size={14} /> Change
+                            </span>
+                            <button
+                              type="button"
+                              className="ps-photo-remove"
+                              onClick={(e) => { e.preventDefault(); clearImage(); }}
+                              aria-label="Remove photo"
+                              title="Remove photo"
+                            >
+                              <X size={13} />
+                            </button>
+                          </>
                         ) : (
-                          <span className="ps-photo-empty" aria-hidden="true"><ImageIcon size={20} /></span>
+                          <span className="ps-photo-placeholder">
+                            <ImageIcon size={22} />
+                            <span className="ps-photo-placeholder-main">Choose image</span>
+                            <span className="ps-photo-placeholder-sub">PNG or JPG, up to 2 MB</span>
+                          </span>
                         )}
-                      </div>
+                      </label>
+
                       <div className="ps-photo-input">
                         <input
                           id="image"
                           name="image"
-                          value={formData.image}
+                          value={formData.image.startsWith('data:') ? '' : formData.image}
                           onChange={handleFormChange}
-                          placeholder="Paste an image URL…"
+                          placeholder="…or paste an image URL"
                         />
                         <p className="ps-field-note">
-                          Mock for now — real photo upload &amp; storage arrives with the backend image field.
+                          Click the box to upload, or paste a URL. Mock for now — the photo shows this
+                          session but isn't stored until the backend image field lands.
                         </p>
                       </div>
                     </div>
@@ -638,16 +750,47 @@ function ProductSupplier({ onNavigate }) {
                   <h4 className="ps-form-section-title">Supplier</h4>
 
                   <div className="ps-form-group ps-form-group-wide">
-                    <label htmlFor="supplierInfo">Supplier Information</label>
-                    <input
-                      id="supplierInfo"
-                      name="supplierInfo"
-                      value={formData.supplierInfo}
-                      onChange={handleFormChange}
-                      placeholder="Company name or contact"
-                    />
+                    <label>Supplier</label>
+
+                    <div className="ps-supplier-list">
+                      {formData.suppliers.map((s, i) => (
+                        <div className="ps-supplier-item" key={i}>
+                          <input
+                            list="ps-supplier-list"
+                            autoComplete="off"
+                            value={s.name}
+                            onChange={(e) => updateSupplier(i, 'name', e.target.value)}
+                            placeholder="Supplier name"
+                            aria-label={`Supplier ${i + 1} name`}
+                          />
+                          <input
+                            autoComplete="off"
+                            value={s.contact}
+                            onChange={(e) => updateSupplier(i, 'contact', e.target.value)}
+                            placeholder="Contact — phone or email"
+                            aria-label={`Supplier ${i + 1} contact`}
+                          />
+                          <button
+                            type="button"
+                            className="ps-supplier-remove"
+                            onClick={() => removeSupplier(i)}
+                            aria-label={`Clear supplier ${i + 1}`}
+                            title="Clear supplier"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <datalist id="ps-supplier-list">
+                      {suppliers.map((s) => (
+                        <option key={s.id} value={s.name} />
+                      ))}
+                    </datalist>
                     <p className="ps-field-note">
-                      Used by Stock Movement and the Auto Calculator when a reorder is raised.
+                      Edit the supplier directly, or start typing to reuse a saved one. This supplier
+                      is used by Stock Movement and the Auto Calculator when a reorder is raised.
                     </p>
                   </div>
                 </section>
