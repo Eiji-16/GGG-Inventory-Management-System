@@ -20,6 +20,7 @@ class StockMovement extends Model
         'product_category',
         'movement_type',   // 'in' | 'out'
         'qty',
+        'variant_name',
         'remaining_stock',
         'notes',
         'recorded_by',

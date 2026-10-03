@@ -35,6 +35,7 @@ import {
 const emptyForm = {
   date: '',
   productName: '',
+  variantName: '',
   category: '',
   type: '',
   qty: '',
@@ -45,8 +46,8 @@ const emptyForm = {
 
 /* ===== SIGNED QTY ===== */
 const signedQty = (row) => {
-  /* An adjustment carries its own signed delta (the variance). */
-  if (row.type === 'Adjustment') return Number(row.variance) || 0;
+  /* An adjustment carries its own signed delta (the variant). */
+  if (row.type === 'Adjustment') return Number(row.variant) || 0;
   const qty = Number(row.qty) || 0;
   return row.type === 'Stock Out' ? -qty : qty;
 };
@@ -169,8 +170,8 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
 
   const isAdjustment = formData.type === 'Adjustment';
 
-  /* ===== VARIANCE (Adjustment only: counted − on hand) ===== */
-  const variance = isAdjustment && formData.qty !== ''
+  /* ===== variant (Adjustment only: counted − on hand) ===== */
+  const variant = isAdjustment && formData.qty !== ''
     ? (Number(formData.qty) || 0) - currentOnHand
     : null;
 
@@ -331,13 +332,13 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
         ...formData,
         type: 'Adjustment',
         qty: counted,
-        variance: varc,
+        variant: varc,
         remainingStock: counted,
       };
       logActivity(
         editIndex !== null ? 'edit' : 'add',
         entry.productName,
-        `Stock count — counted ${counted}, variance ${varc >= 0 ? '+' : '−'}${Math.abs(varc)} → on hand ${counted}`
+        `Stock count — counted ${counted}, variant ${varc >= 0 ? '+' : '−'}${Math.abs(varc)} → on hand ${counted}`
       );
       setStockFromDatabase((prev) =>
         editIndex !== null
@@ -365,6 +366,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
 
     const payload = {
       productName: formData.productName,
+      variantName: formData.variantName,
       type: apiType,
       qty: Number(formData.qty) || 0,
       notes: formData.notes || null,
@@ -492,7 +494,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
               <th>Category</th>
               <th>Type</th>
               <th>Qty</th>
-              <th>Variance</th>
+              <th>Variant</th>
               <th>Remaining</th>
               <th>Safety Stock</th>
               <th className="sc-th-left">Notes</th>
@@ -542,13 +544,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                     </span>
                   </td>
                   <td className="sc-td-nowrap" data-label="Qty">{stock.qty}</td>
-                  <td className="sc-td-nowrap" data-label="Variance">
-                    {stock.type === 'Adjustment' && stock.variance !== undefined && stock.variance !== null ? (
-                      <span className={`sc-variance-cell ${stock.variance > 0 ? 'sc-in' : stock.variance < 0 ? 'sc-out' : ''}`}>
-                        {stock.variance >= 0 ? '+' : '−'}{Math.abs(stock.variance)}
-                      </span>
-                    ) : '—'}
-                  </td>
+                  <td data-label="Variant">{stock.variantName || '—'}</td>
                   <td className="sc-td-nowrap sc-td-strong" data-label="Remaining">{stock.remainingStock}</td>
                   <td data-label="Safety Stock">
                     {status ? (
@@ -699,28 +695,48 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                 <section className="sc-form-section">
                   <h4 className="sc-form-section-title">Item</h4>
 
-                  <div className="sc-form-group sc-form-group-wide">
-                    <label htmlFor="productName">
-                      Product Name <span className="sc-required">*</span>
-                    </label>
-                    <select
-                      id="productName"
-                      name="productName"
-                      value={formData.productName}
-                      onChange={handleProductSelect}
-                      required
-                    >
-                      <option value="" disabled hidden>
-                        {productOptions.length === 0
-                          ? 'No products yet — add one under Product & Supplier'
-                          : 'Select a product…'}
-                      </option>
-                      {productOptions.map((p) => (
-                        <option key={p.id} value={p.name}>
-                          {p.name}
+                  <div className="sc-form-group">
+                    <div className = "product-variant-Name" aria-label="div-alignment">
+                      <label htmlFor="productName">
+                        Product Name <span className="sc-required">*</span>
+                      </label>
+                      <select
+                        id="productName"
+                        name="productName"
+                        value={formData.productName}
+                        onChange={handleProductSelect}
+                        required
+                      >
+                        <option value="" disabled hidden>
+                          {productOptions.length === 0
+                            ? 'No products yet — add one under Product & Supplier'
+                            : 'Select a product…'}
                         </option>
-                      ))}
-                    </select>
+                        {productOptions.map((p) => (
+                          <option key={p.id} value={p.name}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+
+                      <label htmlFor="variantName">
+                        Variant <span className="sc-required">*</span>
+                      </label>
+                       <input
+                          type="text"
+                          id="variantName"
+                          name="variantName"
+                          value={formData.variantName}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              variantName: e.target.value
+                            })
+                          }
+                          placeholder="Enter variant name"
+                          required
+                        />  
+                    </div>  
                   </div>
 
                   <div className="sc-form-row">
@@ -770,16 +786,16 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                     )}
                   </div>
 
-                  {isAdjustment && variance !== null && (
-                    <div className="sc-variance-preview" aria-live="polite">
+                  {isAdjustment && variant !== null && (
+                    <div className="sc-variant-preview" aria-live="polite">
                       <div className="sc-computed-copy">
-                        <span className="sc-computed-label">Variance</span>
+                        <span className="sc-computed-label">variant</span>
                         <span className="sc-computed-note">
                           Counted {Number(formData.qty) || 0} vs {currentOnHand} on hand
                         </span>
                       </div>
-                      <span className={`sc-variance-value ${variance > 0 ? 'sc-in' : variance < 0 ? 'sc-out' : ''}`}>
-                        {variance >= 0 ? '+' : '−'}{Math.abs(variance)}
+                      <span className={`sc-variant-value ${variant > 0 ? 'sc-in' : variant < 0 ? 'sc-out' : ''}`}>
+                        {variant >= 0 ? '+' : '−'}{Math.abs(variant)}
                         <small>units</small>
                       </span>
                     </div>

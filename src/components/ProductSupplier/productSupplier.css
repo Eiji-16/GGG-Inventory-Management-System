@@ -679,8 +679,6 @@
     gap: 8px;
     min-width: 0;
 }
-
-/* dedicated picture column */
 .ps-th-pic { width: 64px; text-align: center; }
 
 .ps-td-pic { text-align: center; }
