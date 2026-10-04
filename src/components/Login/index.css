@@ -45,7 +45,7 @@ body::-webkit-scrollbar {
 /*==========LOGIN BOX==========*/
 .Login-box {
     display: flex;
-    width: min(95vw, 60rem);
+    width: min(100vw, 70rem);
     min-height: 30rem;
     border-radius: 1.5rem;
     overflow: hidden;
@@ -176,9 +176,13 @@ body::-webkit-scrollbar {
 
 .ForgetPassword {
     width: 100%;
+    padding: 0;
     text-align: right;
+    font-family: inherit;
     font-size: 0.9rem;
     color: #1a2a4a;
+    background: transparent;
+    border: 0;
     text-decoration: underline transparent;
     cursor: pointer;
     transition: color 0.2s ease, text-decoration-color 0.2s ease;
@@ -187,6 +191,39 @@ body::-webkit-scrollbar {
 .ForgetPassword:hover {
     color: #0d1b3e;
     text-decoration-color: #0d1b3e;
+}
+
+.ResetPass-message {
+    margin: 0;
+    color: #237a45;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.ResetPass-back {
+    align-self: center;
+    padding: 0.25rem;
+    color: #1a2a4a;
+    font-family: inherit;
+    font-size: 0.9rem;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+}
+
+.ResetPass-back:hover {
+    text-decoration: underline;
+}
+
+.ResetPass-otp {
+    font-size: 1.25rem !important;
+    font-weight: 700;
+    letter-spacing: 0.4rem;
+}
+
+.Login-error {
+    color: #b42318;
+    font-size: 0.9rem;
 }
 
 .Login-button {
@@ -236,6 +273,11 @@ body::-webkit-scrollbar {
 /*==========BUTTON HOVER==========*/
 .Login-button:hover {
     color: #0d1b3e;
+}
+
+.Login-button:disabled {
+    cursor: wait;
+    opacity: 0.65;
 }
 
 .Login-button:hover span::before,

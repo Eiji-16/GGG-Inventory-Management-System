@@ -31,13 +31,13 @@ const ROLE_META = {
   Staff:         { Icon: Shield,      cls: 'st-role-staff' },
 };
 
-function Staffs({ currentRole = 'Super Admin' }) {
+function Staffs({ isSuperAdmin = false }) {
   const [staff, setStaff] = useState(INITIAL_STAFF);
   const [query, setQuery] = useState('');
   const [menu, setMenu] = useState(null); /* { id, top, left } */
-
-  /* Only a Super Admin may promote / demote or change account state. */
-  const isSuperAdmin = currentRole === 'Super Admin';
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -117,6 +117,60 @@ function Staffs({ currentRole = 'Super Admin' }) {
     setMenu(null);
   };
 
+  const createAccount = async (event) => {
+    event.preventDefault();
+    setCreateError('');
+    setIsCreating(true);
+
+    const formElement = event.currentTarget;
+    const formData = new FormData(formElement);
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+    try {
+      const response = await fetch('/auth/users', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrfToken || '',
+        },
+        body: JSON.stringify({
+          name: formData.get('name'),
+          email: formData.get('email'),
+          password: formData.get('password'),
+          password_confirmation: formData.get('password_confirmation'),
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        const validationMessage = data.errors
+          ? Object.values(data.errors).flat()[0]
+          : null;
+        setCreateError(validationMessage || data.message || 'Hindi nagawa ang account.');
+        return;
+      }
+
+      setStaff((previous) => [
+        ...previous,
+        {
+          ...data.user,
+          id: `created-${data.user.id}`,
+          role: 'Staff',
+          status: 'Active',
+          lastActive: 'Never',
+        },
+      ]);
+      formElement.reset();
+      setShowCreateForm(false);
+    } catch (error) {
+      console.error('Account creation request failed:', error);
+      setCreateError('Hindi makakonekta sa server. Pakisubukan ulit.');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   const menuRow = menu ? staff.find((s) => s.id === menu.id) : null;
 
   return (
@@ -158,7 +212,47 @@ function Staffs({ currentRole = 'Super Admin' }) {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
+        {isSuperAdmin && (
+          <button
+            type="button"
+            className="st-create-account-button"
+            onClick={() => {
+              setCreateError('');
+              setShowCreateForm((shown) => !shown);
+            }}
+          >
+            {showCreateForm ? 'Cancel' : 'Create account'}
+          </button>
+        )}
       </div>
+
+      {isSuperAdmin && showCreateForm && (
+        <form className="st-create-account-form" onSubmit={createAccount}>
+          <h3>Create staff account</h3>
+          <div className="st-create-account-fields">
+            <label>
+              Name
+              <input name="name" type="text" autoComplete="name" maxLength="255" required />
+            </label>
+            <label>
+              Email
+              <input name="email" type="email" autoComplete="email" maxLength="255" required />
+            </label>
+            <label>
+              Temporary password
+              <input name="password" type="password" autoComplete="new-password" minLength="8" required />
+            </label>
+            <label>
+              Confirm password
+              <input name="password_confirmation" type="password" autoComplete="new-password" minLength="8" required />
+            </label>
+          </div>
+          {createError && <p className="st-create-account-error" role="alert">{createError}</p>}
+          <button type="submit" className="st-create-account-button" disabled={isCreating}>
+            {isCreating ? 'Creating…' : 'Create account'}
+          </button>
+        </form>
+      )}
 
       {/* ===== STAFF TABLE ===== */}
       <div className="st-table-card">

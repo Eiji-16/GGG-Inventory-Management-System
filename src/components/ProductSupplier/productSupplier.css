@@ -639,9 +639,7 @@
     background: var(--static-bg-color);
 }
 
-.ps-detail-item-wide {
-    grid-column: 1 / -1;
-}
+
 
 .ps-detail-label {
     font-size: 0.62rem;

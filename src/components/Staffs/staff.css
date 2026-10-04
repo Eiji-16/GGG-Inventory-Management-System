@@ -67,6 +67,7 @@
 .st-controls-bar {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 10px;
 }
 
@@ -103,6 +104,69 @@
 
 .st-search-input::placeholder {
     color: var(--text-muted);
+}
+
+.st-create-account-button {
+    padding: 9px 14px;
+    color: #fff;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    background: #152d6b;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.st-create-account-button:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+.st-create-account-form {
+    display: grid;
+    gap: 14px;
+    padding: 18px;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-card);
+}
+
+.st-create-account-form h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.st-create-account-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.st-create-account-fields label {
+    display: grid;
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.st-create-account-fields input {
+    width: 100%;
+    padding: 10px 11px;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 13px;
+    background: var(--static-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+}
+
+.st-create-account-error {
+    margin: 0;
+    color: #b42318;
+    font-size: 13px;
 }
 
 /* ==========TABLE========== */

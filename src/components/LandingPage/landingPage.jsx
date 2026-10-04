@@ -54,7 +54,7 @@ const NOTIF_ICONS = {
   info:     { Icon: Info,          cls: 'notif-ic-info' },
 };
 
-function LandingPage({onLogout}) {
+function LandingPage({onLogout, user}) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* ===== SIDEBAR ===== */
   const [isDarkMode, setIsDarkMode] = useState(true); /* ===== THEME ===== */
   const [activeView, setActiveView] = useState('Dashboard'); /* ===== ACTIVE VIEW ===== */
@@ -345,7 +345,7 @@ function LandingPage({onLogout}) {
               {activeView === 'Auto-Calculator' && <AutoCalculator onNavigate={handleNavigate} handoff={handoff} />}
               {activeView === 'Forecasting' && <SalesForecasting onNavigate={handleNavigate} />}
 
-              {activeView === 'Staffs' && <Staffs />}
+              {activeView === 'Staffs' && <Staffs isSuperAdmin={user?.isSuperAdmin === true} />}
               {activeView === 'Reports' && <ReportAnalytics/>}
               {activeView === 'Setting' && (
                 <Settings
