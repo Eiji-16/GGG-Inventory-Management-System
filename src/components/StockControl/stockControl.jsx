@@ -16,7 +16,6 @@ import {
   PlusCircle,
   Pencil,
   Clock,
-  ArrowUpDown,
   ClipboardList,
   Package } from 'lucide-react';
 
@@ -29,8 +28,6 @@ import {
   STATUS_LABEL,
 } from '../../data/safetyStock'; /* ===== SAFETY STOCK ===== */
 
-/* ===== STOCK DATA (Not applied yet) ===== */
-
 /* ===== EMPTY FORM ===== */
 const emptyForm = {
   date: '',
@@ -38,12 +35,16 @@ const emptyForm = {
   productName: '',
   variantName: '',
   category: '',
-  type: '',
+  type: 'Stock In',
   qty: '',
-  remainingStock: '',
   notes: '',
   recordedBy: '',
 };
+
+/* ===== DISPLAY LABEL ===== */
+/* Backend stores in / out / adjustment; staff see plain language. */
+const movementLabel = (type) =>
+  type === 'Adjustment' ? 'Correction' : type;
 
 /* ===== TODAY (local date, not UTC) ===== */
 const todayLocal = () => {
@@ -59,32 +60,6 @@ const signedQty = (row) => {
   return row.type === 'Stock Out' ? -qty : qty;
 };
 
-function balanceBeforeDate(movements, product, date, excludedMovement) {
-  if (!product) return 0;
-  const productMovements = movements.filter((movement) =>
-    movement.productId === product.id && movement.id !== excludedMovement?.id
-  );
-  const currentStock = Number(product.stock) || 0;
-  const stockWithoutEditedMovement = currentStock -
-    (excludedMovement?.productId === product.id ? signedQty(excludedMovement) : 0);
-  const openingBalance = stockWithoutEditedMovement -
-    productMovements.reduce((total, movement) => total + signedQty(movement), 0);
-
-  return productMovements
-    .filter((movement) => (
-      movement.date < date ||
-      (movement.date === date && (!excludedMovement || movement.id < excludedMovement.id))
-    ))
-    .reduce((balance, movement) => balance + signedQty(movement), openingBalance);
-}
-
-/* ===== MOVEMENT TYPES ===== */
-const MOVEMENT_TYPES = [
-  { value: 'Stock In', label: 'Stock In', tone: 'in' },
-  { value: 'Stock Out', label: 'Stock Out', tone: 'out' },
-  { value: 'Adjustment', label: 'Adjustment', tone: 'adj' },
-];
-
 function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   const [stockFromDatabase, setStockFromDatabase] = useState([]);
   const [stockLoading, setStockLoading] = useState(true);
@@ -94,20 +69,16 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   const [editId, setEditId] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
   const [historyProduct, setHistoryProduct] = useState(null);
-    const [query, setQuery] = useState(''); /* ===== SEARCH ===== */
-    const [sortBy, setSortBy] = useState('date-desc'); /* ===== SORT ===== */
-    const [showActivity, setShowActivity] = useState(false); /* ===== ACTIVITY ===== */
-    /* ===== ACTIVITY LOG ===== */
+  const [query, setQuery] = useState('');
+  const [showActivity, setShowActivity] = useState(false);
   const [activityLog, setActivityLog] = useState([]);
-    /* ===== PRODUCT LIST ===== */
   const [productOptions, setProductOptions] = useState([]);
 
-    /* ===== LOG CHANGE ===== */
   const logActivity = (action, product, detail) => {
     setActivityLog((prev) => [
       {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        action,          /* ===== ACTION ===== */
+        action,
         product,
         detail,
         time: new Date(),
@@ -144,6 +115,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
       productId,
       productName: picked?.name || '',
       category: picked ? (picked.category || '') : prev.category,
+      qty: picked ? String(Number(picked.stock) || 0) : prev.qty,
     }));
   };
 
@@ -199,33 +171,25 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
 
   const editingMovement = editId === null ? null : stockFromDatabase.find((row) => row.id === editId);
 
-  /* ===== CURRENT ON HAND (excluding the movement being edited) ===== */
+  /* ===== CURRENT ON HAND (excluding the movement being edited) =====
+     Stock is product-level in the backend (one products.stock_on_hand), so we
+     base this on the product's live stock. When editing, we reverse the edited
+     movement's own delta first so it isn't counted twice. variant_name is a
+     label on the movement, not a separate balance. */
   const currentOnHand = useMemo(() => (
     (Number(productById.get(formData.productId)?.stock) || 0) -
     (editingMovement?.productId === formData.productId ? signedQty(editingMovement) : 0)
   ), [productById, formData.productId, editingMovement]);
 
-  const isAdjustment = formData.type === 'Adjustment';
+  /* ===== ENTRY PREVIEW ===== */
+  const enteredValue = formData.qty === '' ? null : Number(formData.qty);
+  const projectedChange = enteredValue === null ? null : enteredValue - currentOnHand;
 
-  /* ===== variant (Adjustment only: counted − on hand) ===== */
-  const variant = isAdjustment && formData.qty !== ''
-    ? (Number(formData.qty) || 0) - currentOnHand
-    : null;
+  const projectedRemaining = !formData.productName || enteredValue === null
+    ? null
+    : enteredValue;
 
-  /* ===== PROJECTED STOCK ===== */
-  const projectedRemaining = useMemo(() => {
-    if (!formData.productName || !formData.type || formData.qty === '') return null;
-    /* An adjustment sets on-hand to the counted quantity outright. */
-    if (formData.type === 'Adjustment') {
-      const product = productById.get(formData.productId);
-      const adjustmentDelta = (Number(formData.qty) || 0) -
-        balanceBeforeDate(stockFromDatabase, product, formData.date, editingMovement);
-      const stockBeforeReplacement = (Number(product?.stock) || 0) -
-        (editingMovement?.productId === formData.productId ? signedQty(editingMovement) : 0);
-      return stockBeforeReplacement + adjustmentDelta;
-    }
-    return currentOnHand + signedQty(formData);
-  }, [currentOnHand, formData, editId, productById, editingMovement]);
+  const projectedType = projectedChange > 0 ? 'Stock In' : 'Stock Out';
 
   /* ===== PROJECTED STATUS ===== */
   const projectedStatus = projectedRemaining === null
@@ -245,61 +209,42 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
     });
   };
 
-  /* ===== VISIBLE ROWS ===== */
   const visibleRows = useMemo(() => {
-    const withIndex = stockFromDatabase.map((row) => ({ row, id: row.id }));
-
     const q = query.trim().toLowerCase();
-    const filtered = !q
-      ? withIndex
-      : withIndex.filter(({ row }) =>
-          [row.productName, row.category, row.type, row.notes, row.recordedBy, row.date]
-            .some((field) => String(field || '').toLowerCase().includes(q))
-        );
-
-    /* ===== SORT COPY ===== */
-    const sorted = [...filtered];
-    const byText = (a, b) => String(a || '').localeCompare(String(b || ''));
-    const byDate = (a, b) => new Date(a || 0) - new Date(b || 0);
-    const byNum = (a, b) => (Number(a) || 0) - (Number(b) || 0);
-
-    switch (sortBy) {
-      case 'date-asc':
-        sorted.sort((a, b) => byDate(a.row.date, b.row.date));
-        break;
-      case 'date-desc':
-        sorted.sort((a, b) => byDate(b.row.date, a.row.date));
-        break;
-      case 'product-asc':
-        sorted.sort((a, b) => byText(a.row.productName, b.row.productName));
-        break;
-      case 'product-desc':
-        sorted.sort((a, b) => byText(b.row.productName, a.row.productName));
-        break;
-      case 'remaining-asc':
-        sorted.sort((a, b) => byNum(a.row.remainingStock, b.row.remainingStock));
-        break;
-      case 'remaining-desc':
-        sorted.sort((a, b) => byNum(b.row.remainingStock, a.row.remainingStock));
-        break;
-      default:
-        break;
-    }
-
-    return sorted;
-  }, [stockFromDatabase, query, sortBy]);
+    return stockFromDatabase
+      .filter((row) =>
+        !q || [row.productName, row.category, row.type, row.notes, row.recordedBy, row.date]
+          .some((field) => String(field || '').toLowerCase().includes(q))
+      )
+      .map((row) => ({ row, id: row.id }));
+  }, [stockFromDatabase, query]);
 
   /* ===== EXPORT CSV ===== */
   const exportCsv = () => {
     if (visibleRows.length === 0) return;
-    const headers = ['Date', 'Product Name', 'Category', 'Type', 'Qty', 'Remaining Stock', 'Notes', 'Recorded By'];
+    const headers = ['Date', 'Product', 'Variant', 'Type', 'Changes', 'Total Qty', 'Safety Stock', 'Notes', 'Recorded By'];
     const escape = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
     const lines = [
       headers.join(','),
-      ...visibleRows.map(({ row }) =>
-        [row.date, row.productName, row.category, row.type, row.qty, row.remainingStock, row.notes, row.recordedBy]
-          .map(escape).join(',')
-      ),
+      ...visibleRows.map(({ row }) => {
+        const change = signedQty(row);
+        return [
+          row.date,
+          row.productName,
+          row.variantName,
+          movementLabel(row.type),
+          `${change >= 0 ? '+' : '-'}${Math.abs(change)}`,
+          row.remainingStock,
+          stockStatusFor({
+            ...row,
+            safetyStock: productById.get(row.productId)?.safetyStock,
+            remainingStock: row.remainingStock,
+          }, safetyStock),
+          row.notes,
+          row.recordedBy,
+        ]
+          .map(escape).join(',');
+      }),
     ];
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -335,7 +280,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   };
 
   const openAddModal = () => {
-    setFormData({ ...emptyForm, date: todayLocal(), type: 'Stock In' });
+    setFormData({ ...emptyForm, date: todayLocal() });
     setEditId(null);
     setIsModalOpen(true);
   };
@@ -343,10 +288,19 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   const openEditModal = (id) => {
     const movement = stockFromDatabase.find((row) => row.id === id);
     if (!movement) return;
+    const change = signedQty(movement);
+    const currentTotal = Number(productById.get(movement.productId)?.stock ?? movement.remainingStock ?? 0);
     setFormData({
       ...emptyForm,
-      ...movement,
-      qty: movement.type === 'Adjustment' ? movement.remainingStock : movement.qty,
+      date: movement.date || '',
+      productId: movement.productId || '',
+      productName: movement.productName || '',
+      variantName: movement.variantName || '',
+      category: movement.category || '',
+      type: change < 0 ? 'Stock Out' : 'Stock In',
+      qty: String(currentTotal),
+      notes: movement.notes || '',
+      recordedBy: movement.recordedBy || '',
     });
     setEditId(id);
     setIsModalOpen(true);
@@ -391,17 +345,28 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   const handleSave = async (e) => {
     e.preventDefault();
 
+    const newTotal = Number(formData.qty);
+
+    if (!Number.isInteger(newTotal) || newTotal < 0) {
+      setStockError('Enter a total quantity of 0 or more.');
+      return;
+    }
+
+    const change = newTotal - currentOnHand;
+    if (change === 0) {
+      setStockError('The total quantity has not changed.');
+      return;
+    }
+
     const payload = {
       productId: formData.productId,
       productName: formData.productName,
       variantName: formData.variantName,
-      type: formData.type,
-      ...(formData.type === 'Adjustment'
-        ? { countedStock: Number(formData.qty) }
-        : { qty: Number(formData.qty) }),
       notes: formData.notes || null,
       recordedBy: formData.recordedBy || null,
       date: formData.date || null,
+      type: change > 0 ? 'Stock In' : 'Stock Out',
+      qty: Math.abs(change),
     };
 
     try {
@@ -419,7 +384,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
 
       const saved = result;
       logActivity(editId === null ? 'add' : 'edit', saved.productName,
-        `${saved.type} ${saved.qty} unit(s) → remaining ${saved.remainingStock}`);
+        `${movementLabel(saved.type)} ${saved.qty} unit(s) → remaining ${saved.remainingStock}`);
       closeModal();
       await refreshStockData();
     } catch (error) {
@@ -427,7 +392,6 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
       setStockError(error.message || 'Could not save stock movement.');
     }
   };
-/* ===== STOCK DATA END ===== */
   return (
     <div className="sc-table-parent">
 
@@ -445,26 +409,6 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
             />
           </div>
         </div>
-
-        {/* ===== HISTORY SIDE PANEL ===== NOT DONE YET
-        <div className="sc-sort-wrapper">
-          <ArrowUpDown size={12} className="sc-sort-icon" aria-hidden="true" />
-          <select
-            className="sc-sort-select"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            aria-label="Sort movements"
-            title="Sort the table"
-          >
-            <option value="date-desc">Date (newest first)</option>
-            <option value="date-asc">Date (oldest first)</option>
-            <option value="product-asc">Product (A–Z)</option>
-            <option value="product-desc">Product (Z–A)</option>
-            <option value="remaining-desc">Remaining (high–low)</option>
-            <option value="remaining-asc">Remaining (low–high)</option>
-          </select>
-        </div>
-        */}
 
         <button
           className="sc-add-btn"
@@ -537,12 +481,11 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                 />
               </th>
               <th>Date</th>
-              <th className="sc-th-left">Product Name</th>
-              <th>Category</th>
-              <th>Type</th>
-              <th>Qty</th>
+              <th className="sc-th-left">Product</th>
               <th>Variant</th>
-              <th>Remaining</th>
+              <th>Type</th>
+              <th className="sc-th-quantity" title="Signed quantity added or removed by this transaction.">Change</th>
+              <th className="sc-th-quantity" title="Quantity on hand after this transaction.">Total Qty</th>
               <th>Safety Stock</th>
               <th className="sc-th-left">Notes</th>
               <th>Recorded by</th>
@@ -551,14 +494,17 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
           </thead>
           <tbody>
             {stockLoading ? (
-              <tr><td colSpan={12} className="sc-empty-state">Loading stock movements…</td></tr>
+              <tr><td colSpan={11} className="sc-empty-state">Loading stock movements…</td></tr>
             ) : visibleRows.map(({ row: stock, id }) => {
               const product = productById.get(stock.productId);
               const statusRow = {
                 ...stock,
                 safetyStock: product?.safetyStock,
-                remainingStock: product?.stock ?? stock.remainingStock,
               };
+              const change = signedQty(stock);
+              const after = Number(stock.remainingStock) || 0;
+              const before = after - change;
+              const signedText = `${change >= 0 ? '+' : '-'}${Math.abs(change)}`;
               const status = stockStatusFor(statusRow, safetyStock);
               const point = safetyPointFor(statusRow, safetyStock);
               return (
@@ -592,31 +538,21 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                       </button>
                     </span>
                   </td>
-                  <td data-label="Category">{stock.category || '—'}</td>
+                  <td data-label="Variant">{stock.variantName || '—'}</td>
                   <td data-label="Type">
                     <span className={`sc-type-pill sc-type-${(stock.type || '').replace(/\s+/g, '').toLowerCase()}`}>
-                      {stock.type || '—'}
+                      {movementLabel(stock.type)}
                     </span>
                   </td>
-                  <td className="sc-td-nowrap" data-label="Qty">
-                    {(() => {
-                      const change = signedQty(stock);
-                      const after = Number(stock.remainingStock) || 0;
-                      const before = after - change;
-                      return (
-                        <span className="sc-qty-formula">
-                          <span className="sc-qty-before">{before}</span>
-                          <span className={`sc-qty-change ${change >= 0 ? 'sc-in' : 'sc-out'}`}>
-                            {change >= 0 ? '+' : '−'}{Math.abs(change)}
-                          </span>
-                          <span className="sc-qty-equals">=</span>
-                          <span className="sc-qty-after">{after}</span>
-                        </span>
-                      );
-                    })()}
+                  <td className="sc-td-nowrap" data-label="Change">
+                    <span
+                      className={`sc-qty-change ${stock.type === 'Adjustment' ? 'sc-adj' : change >= 0 ? 'sc-in' : 'sc-out'}`}
+                      title={`${stock.type === 'Adjustment' ? 'Correction' : 'Movement'} balance: ${before} ${change >= 0 ? '+' : '−'} ${Math.abs(change)} = ${after}`}
+                    >
+                      {signedText}
+                    </span>
                   </td>
-                  <td data-label="Variant">{stock.variantName || '—'}</td>
-                  <td className="sc-td-nowrap sc-td-strong" data-label="Remaining">{stock.remainingStock}</td>
+                  <td className="sc-td-nowrap sc-td-strong" data-label="Total Qty">{stock.remainingStock}</td>
                   <td data-label="Safety Stock">
                     {status ? (
                       <span
@@ -679,7 +615,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
 
             {visibleRows.length === 0 && (
               <tr>
-                <td colSpan={12} className="sc-empty-state">
+                <td colSpan={11} className="sc-empty-state">
                   {stockFromDatabase.length === 0
                     ? 'No stock movements recorded yet. Click “Add Item” to record one.'
                     : 'No movements match your search.'}
@@ -721,27 +657,6 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
               <div className="sc-modal-body">
                 <section className="sc-form-section">
                   <h4 className="sc-form-section-title">Movement</h4>
-
-                  <div className="sc-form-group sc-form-group-wide">
-                    <span className="sc-form-label" id="sc-type-label">
-                      Type <span className="sc-required">*</span>
-                    </span>
-                    <div className="sc-segmented" role="group" aria-labelledby="sc-type-label">
-                      {MOVEMENT_TYPES.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={`sc-segment sc-segment-${option.tone}${
-                            formData.type === option.value ? ' sc-segment-active' : ''
-                          }`}
-                          onClick={() => setFormData((prev) => ({ ...prev, type: option.value }))}
-                          aria-pressed={formData.type === option.value}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
 
                   <div className="sc-form-row">
                     <div className="sc-form-group">
@@ -823,12 +738,52 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                     </div>
                     <div className="sc-form-group">
                       <label htmlFor="qty">
-                        {isAdjustment ? 'Counted quantity' : 'Qty'} <span className="sc-required">*</span>
+                        Total quantity on hand <span className="sc-required">*</span>
                       </label>
-                      <input id="qty" name="qty" type="number" min="0" value={formData.qty} onChange={handleFormChange} required />
-                      {isAdjustment && (
-                        <span className="sc-field-hint">Physical count of what’s actually on the shelf.</span>
-                      )}
+                      <div className="sc-stepper">
+                        <button
+                          type="button"
+                          className="sc-stepper-btn sc-stepper-minus"
+                          aria-label="Decrease total quantity by one"
+                          onClick={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              qty: String(Math.max(0, (Number(prev.qty) || 0) - 1)),
+                            }))
+                          }
+                        >
+                          <span>−</span>
+                        </button>
+                        <input
+                          id="qty"
+                          name="qty"
+                          type="number"
+                          className="sc-stepper-value"
+                          min="0"
+                          step="1"
+                          value={formData.qty}
+                          onChange={handleFormChange}
+                          required
+                        />
+                        <button
+                          type="button"
+                          className="sc-stepper-btn sc-stepper-plus"
+                          aria-label="Increase total quantity by one"
+                          onClick={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              qty: String((Number(prev.qty) || 0) + 1),
+                            }))
+                          }
+                        >
+                          <span>+</span>
+                        </button>
+                      </div>
+                      <span className="sc-field-hint">
+                        {!formData.productName
+                          ? 'Select a product first.'
+                          : `Currently ${currentOnHand} on hand. Use − / + to change the total; the movement amount is calculated automatically.`}
+                      </span>
                     </div>
                   </div>
                 </section>
@@ -841,10 +796,10 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                     <div className="sc-computed-copy">
                       <span className="sc-computed-label">Remaining Stock</span>
                       {projectedRemaining === null ? (
-                        <span className="sc-computed-empty">Pick a product, type and qty to compute</span>
+                        <span className="sc-computed-empty">Pick a product and enter a quantity to compute</span>
                       ) : (
                         <span className="sc-computed-note">
-                          Computed from this product’s previous movements
+                          New balance on hand after this entry
                         </span>
                       )}
                     </div>
@@ -856,16 +811,16 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                     )}
                   </div>
 
-                  {isAdjustment && variant !== null && (
+                  {projectedChange !== null && projectedChange !== 0 && (
                     <div className="sc-variant-preview" aria-live="polite">
                       <div className="sc-computed-copy">
-                        <span className="sc-computed-label">variant</span>
+                        <span className="sc-computed-label">{projectedType}</span>
                         <span className="sc-computed-note">
-                          Counted {Number(formData.qty) || 0} vs {currentOnHand} on hand
+                          {`${currentOnHand} on hand → ${projectedRemaining}`}
                         </span>
                       </div>
-                      <span className={`sc-variant-value ${variant > 0 ? 'sc-in' : variant < 0 ? 'sc-out' : ''}`}>
-                        {variant >= 0 ? '+' : '−'}{Math.abs(variant)}
+                      <span className={`sc-variant-value ${projectedChange > 0 ? 'sc-in' : projectedChange < 0 ? 'sc-out' : ''}`}>
+                        {projectedChange >= 0 ? '+' : '−'}{Math.abs(projectedChange)}
                         <small>units</small>
                       </span>
                     </div>
@@ -903,7 +858,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                 <button type="button" className="sc-modal-cancel-btn" onClick={closeModal}>
                   Cancel
                 </button>
-                <button type="submit" className="sc-modal-save-btn" disabled={!formData.type}>
+                <button type="submit" className="sc-modal-save-btn" disabled={!formData.productName || formData.qty === '' || Number(formData.qty) === currentOnHand}>
                   {editId === null ? 'Add Entry' : 'Save Changes'}
                 </button>
               </div>
@@ -957,7 +912,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
             <div className="sc-history-body">
               {activeLedger && activeLedger.movements.length > 0 ? (
                 <ol className="sc-history-list">
-                  {activeLedger.movements.map((move, i) => (
+                  {activeLedger.movements.map((move) => (
                     <li className="sc-history-item" key={move.id}>
                       <span className={`sc-history-dir ${move.delta >= 0 ? 'sc-in' : 'sc-out'}`}>
                         {move.delta >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}

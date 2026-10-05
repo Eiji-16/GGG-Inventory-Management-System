@@ -37,9 +37,10 @@ export const stockStatusFor = (row, policy = SAFETY_STOCK_DEFAULTS) => {
   const remaining = Number(row?.remainingStock);
   if (!Number.isFinite(remaining)) return null;
   const point = safetyPointFor(row, policy);
+  if (remaining <= 0) return 'outofstock';
   if (remaining <= point * 0.5) return 'critical';
   if (remaining <= point) return 'low';
   return 'healthy';
 };
 
-export const STATUS_LABEL = { critical: 'Critical', low: 'Low', healthy: 'Healthy' };
+export const STATUS_LABEL = { outofstock: 'Out of Stock', critical: 'Critical', low: 'Low', healthy: 'Healthy' };

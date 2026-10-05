@@ -56,6 +56,7 @@ class StockMovementController extends Controller
 
             $product->update(['stock_on_hand' => $currentStock + $delta]);
             $this->reconcileMovementBalances($product);
+            $this->syncSalesFromMovements($product);
 
             return $movement->fresh();
         });
@@ -130,6 +131,11 @@ class StockMovementController extends Controller
                 $this->reconcileMovementBalances($newProduct);
             }
 
+            $this->syncSalesFromMovements($oldProduct);
+            if ($oldProduct->id !== $newProduct->id) {
+                $this->syncSalesFromMovements($newProduct);
+            }
+
             return $movement->fresh();
         });
 
@@ -148,6 +154,7 @@ class StockMovementController extends Controller
             $movement->delete();
             $product->update(['stock_on_hand' => $newStock]);
             $this->reconcileMovementBalances($product);
+            $this->syncSalesFromMovements($product);
         });
 
         return response()->json(['deleted' => true]);
@@ -268,6 +275,37 @@ class StockMovementController extends Controller
             if ($movement->remaining_stock !== $balance) {
                 $movement->update(['remaining_stock' => $balance]);
             }
+        }
+    }
+
+    /**
+     * Rebuild this product's monthly sales from its Stock Out movements.
+     *
+     * Stock Control is the single source of truth for stock in/out, so "units
+     * sold" is derived here rather than entered twice: each real Stock Out
+     * (not an Adjustment) counts as a sale, summed per calendar month into
+     * sales_history (one row per product per month). Recomputed from scratch
+     * on every add/edit/delete so the series always matches the ledger.
+     */
+    private function syncSalesFromMovements(Product $product): void
+    {
+        $monthlyUnits = StockMovement::where('product_id', $product->id)
+            ->where('movement_type', 'out')
+            ->where('is_adjustment', false)
+            ->get()
+            ->groupBy(fn (StockMovement $movement) => $movement->movement_date->startOfMonth()->toDateString())
+            ->map(fn ($group) => $group->sum(fn (StockMovement $movement) => (int) $movement->qty));
+
+        // Drop sales rows for months that no longer have any Stock Out.
+        SalesHistory::where('product_id', $product->id)
+            ->whereNotIn('period_date', $monthlyUnits->keys()->all())
+            ->delete();
+
+        foreach ($monthlyUnits as $period => $units) {
+            SalesHistory::updateOrCreate(
+                ['product_id' => $product->id, 'period_date' => $period],
+                ['units_sold' => $units],
+            );
         }
     }
 
