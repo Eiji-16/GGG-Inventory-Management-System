@@ -6,11 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * StockMovement — one Stock In / Stock Out row in the append-only ledger.
+ * StockMovement — one stock movement or physical-count adjustment in the ledger.
  *
- * Not edited or deleted in normal use; corrections are new rows. When creating
- * a movement, update Product::stock_on_hand in the same DB transaction so the
- * cached balance never drifts from the ledger.
+ * Writes, edits, and deletions update Product::stock_on_hand transactionally.
  */
 class StockMovement extends Model
 {
@@ -19,6 +17,7 @@ class StockMovement extends Model
         'product_name',
         'product_category',
         'movement_type',   // 'in' | 'out'
+        'is_adjustment',
         'qty',
         'variant_name',
         'remaining_stock',
@@ -29,6 +28,7 @@ class StockMovement extends Model
 
     protected $casts = [
         'qty'             => 'integer',
+        'is_adjustment'   => 'boolean',
         'remaining_stock' => 'integer',
         'movement_date'   => 'date',
     ];

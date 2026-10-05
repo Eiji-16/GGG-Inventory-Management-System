@@ -108,8 +108,13 @@ class AuthController extends Controller
                 'exception' => $exception,
             ]);
 
+            $errorMessage = str_contains($exception->getMessage(), '535-5.7.8')
+                || str_contains($exception->getMessage(), 'BadCredentials')
+                ? 'Gmail rejected the mail credentials. Update MAIL_PASSWORD in .env with a valid Gmail App Password, then run php artisan config:clear.'
+                : 'We could not send the email right now. Please check the mail settings and try again.';
+
             return response()->json([
-                'message' => 'We could not send the email right now. Please try again later.',
+                'message' => $errorMessage,
             ], 503);
         }
 

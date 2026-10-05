@@ -1,15 +1,13 @@
 import './index.css';
 import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import ResetPass from './ResetPass/resetPass';
 
 function Login({ onLogin }) {
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showPasswordReset, setShowPasswordReset] = useState(false);
-
-    if (showPasswordReset) {
-        return <ResetPass onBack={() => setShowPasswordReset(false)} />;
-    }
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -84,18 +82,27 @@ function Login({ onLogin }) {
                         </div>
 
                         <div className="input-group">
-                            <label htmlFor="psw">Password</label>
+                            <label htmlFor="password">Password</label>
                             <div className="input-icon">
                                 <i className="fa-solid fa-lock"></i>
                                 <input
                                     id="password"
-                                    type="password"
+                                    type={isPasswordVisible ? 'text' : 'password'}
                                     className="input-field"
                                     name="password"
                                     placeholder="Enter your password"
                                     autoComplete="current-password"
                                     required
                                 />
+                                <button
+                                    type="button"
+                                    className="Password-visibility-toggle"
+                                    onClick={() => setIsPasswordVisible((visible) => !visible)}
+                                    aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
+                                    aria-pressed={isPasswordVisible}
+                                >
+                                    {isPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
                             </div>
                         </div>
 
@@ -115,6 +122,9 @@ function Login({ onLogin }) {
                     </form>
                 </div>
             </div>
+            {showPasswordReset && (
+                <ResetPass onBack={() => setShowPasswordReset(false)} />
+            )}
         </div>
     );
 }

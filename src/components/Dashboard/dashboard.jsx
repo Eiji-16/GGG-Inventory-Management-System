@@ -1,468 +1,404 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './dashboard.css';
 
-/*==========SAMPLE DATA==========*/
+const fmt = (value) => Number(value || 0).toLocaleString('en-PH');
+const colors = ['var(--accent)', 'var(--accent-high)', 'var(--accent-med)', 'var(--accent-low)', 'var(--text-muted)'];
 
-
-{/* ===== SALES SAMPLES ===== */}
-const SALES = {
-  Week:  { labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], values: [42, 55, 47, 63, 72, 90, 81], delta: 12.4 },
-  Month: { labels: ['1', '5', '10', '15', '20', '25', '30'],           values: [210, 260, 240, 300, 330, 360, 410], delta: 8.1 },
-  Year:  { labels: ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'], values: [820, 760, 910, 880, 1020, 1150, 1080, 1240, 1190, 1320, 1450, 1610], delta: 23.6 },
-};
-
-{/* ===== REGION SAMPLE DATA ===== */}
-const REGIONS = [
-  { name: 'NCR',      pct: 0.38, color: 'var(--accent)' },
-  { name: 'Luzon',    pct: 0.24, color: 'var(--accent-high)' },
-  { name: 'Visayas',  pct: 0.18, color: 'var(--accent-med)' },
-  { name: 'Mindanao', pct: 0.13, color: 'var(--accent-low)' },
-  { name: 'Intl',     pct: 0.07, color: 'var(--text-muted)' },
-];
-
-{/* ===== SAMPLE CATALOG ===== */}
-const CATALOG = { total: 2148, inStock: 1806, low: 262, out: 80 };
-
-{/* ===== SAMPLE REVENUE ===== */}
-const REVENUE = { value: 1284500, delta: 18.2, spark: [52, 58, 55, 63, 60, 71, 68, 79, 86] };
-
-{/* ===== SAMPLE ORDERS ===== */}
-const ORDERS = { value: 3472, delta: 6.4, labels: ['M', 'T', 'W', 'T', 'F', 'S', 'S'], bars: [38, 52, 44, 61, 49, 72, 80] };
-
-{/* ===== SAMPLE TOP PRODUCTS ===== */}
-const TOP_PRODUCTS = [
-  { name: 'Chrono Steel 42',   units: 328 },
-  { name: 'Classic Rose Gold', units: 274 },
-  { name: 'Diver Pro 300m',    units: 231 },
-  { name: 'Minimalist 36',     units: 198 },
-  { name: 'Skeleton Auto',     units: 156 },
-];
-
-{/* ===== SAMPLE ALERTS  ===== */}
-const ALERTS = [
-  { name: 'Diver Pro 300m',    level: 'out',     qty: 0 },
-  { name: 'Chrono Steel 42',   level: 'low',     qty: 6 },
-  { name: 'Pilot 44 Bronze',   level: 'low',     qty: 9 },
-  { name: 'Classic Rose Gold', level: 'reorder', qty: 14 },
-];
-{/* ===== ALERT SUMMARY ===== */}
-const ALERT_SUMMARY = { out: 8, low: 23, reorder: 41 };
-
-{/* ===== SAMPLE CUSTOMERS ===== */}
-const CUSTOMERS = { value: 1946, delta: 4.7, spark: [120, 135, 128, 150, 162, 158, 175, 188, 201] };
-
-{/* ===== SAMPLE STAFF ===== */}
-const STAFF = { total: 12, superAdmin: 1, admin: 2, staff: 9 };
-
-{/* ===== SAMPLE FORMULA USED(EOQ) ===== */}
-const EOQ = { rate: 0.82, calcsThisWeek: 37, avgOrderQty: 145 };
-
-/*==========CHART MATH HELPERS==========*/
-const fmt = (n) => n.toLocaleString('en-PH');
-
-function scalePoints(values, w, h, padX = 6, padTop = 10, padBottom = 8) {
+function scalePoints(values, width, height, padX = 6, padTop = 10, padBottom = 8) {
+  if (!values.length) return [];
   const max = Math.max(...values);
   const min = Math.min(...values);
-  const range = (max - min) || 1;
-  const innerW = w - padX * 2;
-  const innerH = h - padTop - padBottom;
-  const step = values.length > 1 ? innerW / (values.length - 1) : 0;
-  return values.map((v, i) => {
-    const x = padX + i * step;
-    const y = padTop + innerH - ((v - min) / range) * innerH;
-    return [x, y];
-  });
+  const range = max - min || 1;
+  const innerWidth = width - padX * 2;
+  const innerHeight = height - padTop - padBottom;
+  const step = values.length > 1 ? innerWidth / (values.length - 1) : 0;
+
+  return values.map((value, index) => [
+    padX + index * step,
+    padTop + innerHeight - ((value - min) / range) * innerHeight,
+  ]);
 }
 
-/* Catmull-Rom -> cubic bezier for smooth curves */
-function smoothLine(pts) {
-  if (pts.length < 2) return '';
-  let d = `M ${pts[0][0]},${pts[0][1]}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] || pts[i];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[i + 2] || p2;
-    const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
-    const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
-    const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
-    const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
-    d += ` C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p2[0]},${p2[1]}`;
+function smoothLine(points) {
+  if (points.length < 2) return '';
+  let path = `M ${points[0][0]},${points[0][1]}`;
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const previous = points[index - 1] || points[index];
+    const current = points[index];
+    const next = points[index + 1];
+    const afterNext = points[index + 2] || next;
+    path += ` C ${current[0] + (next[0] - previous[0]) / 6},${current[1] + (next[1] - previous[1]) / 6}`;
+    path += ` ${next[0] - (afterNext[0] - current[0]) / 6},${next[1] - (afterNext[1] - current[1]) / 6}`;
+    path += ` ${next[0]},${next[1]}`;
   }
-  return d;
+  return path;
 }
 
-function arcPath(cx, cy, r, startDeg, endDeg) {
-  const pt = (deg) => {
-    const a = (deg * Math.PI) / 180;
-    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
-  };
-  const [x1, y1] = pt(startDeg);
-  const [x2, y2] = pt(endDeg);
-  const large = endDeg - startDeg > 180 ? 1 : 0;
-  return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
-}
+function Sparkline({ values, stroke, gid }) {
+  if (values.length < 2 || values.every((value) => value === 0)) {
+    return <EmptyChart message="No chart data yet" />;
+  }
+  const width = 120;
+  const height = 40;
+  const points = scalePoints(values, width, height, 3, 5, 5);
+  const line = smoothLine(points);
+  const area = `${line} L ${points[points.length - 1][0]},${height} L ${points[0][0]},${height} Z`;
 
-{/* ===== SPARKLINE FUNCTION ===== */}
-function Sparkline({ values, stroke = 'var(--accent)', gid }) {
-  const W = 120, H = 40;
-  const pts = scalePoints(values, W, H, 3, 5, 5);
-  const line = smoothLine(pts);
-  const area = `${line} L ${pts[pts.length - 1][0]},${H} L ${pts[0][0]},${H} Z`;
   return (
-    <svg className="db-spark-svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+    <svg className="db-spark-svg" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
       <defs>
         <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={stroke} stopOpacity="0.35" />
           <stop offset="100%" stopColor={stroke} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <path d={area} fill={`url(#${gid})`} stroke="none" />
-      <path d={line} fill="none" stroke={stroke} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={area} fill={`url(#${gid})`} />
+      <path d={line} fill="none" stroke={stroke} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
     </svg>
   );
 }
 
-{/* ===== DELTA PILL FUNCTION ===== */}
-function Delta({ value }) {
-  const up = value >= 0;
+function EmptyChart({ message = 'No data recorded yet' }) {
+  return <div className="db-empty-chart">{message}</div>;
+}
+
+function OpenArrow() {
   return (
-    <span className={`db-delta ${up ? 'db-delta-up' : 'db-delta-down'}`}>
-      {up ? '▲' : '▼'} {Math.abs(value)}%
-    </span>
+    <svg className="db-open-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M7 17L17 7" /><path d="M8 7h9v9" />
+    </svg>
   );
 }
 
-{/* ===== FUNCTION FOR ARROW BUTTON ON KPI CARDS ===== */}
-const OpenArrow = () => (
-  <svg className="db-open-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M7 17L17 7" /><path d="M8 7h9v9" />
-  </svg>
-);
+function Arc({ cx, cy, radius, start, end }) {
+  const point = (degrees) => {
+    const angle = (degrees * Math.PI) / 180;
+    return [cx + radius * Math.cos(angle), cy + radius * Math.sin(angle)];
+  };
+  const [x1, y1] = point(start);
+  const [x2, y2] = point(end);
+  return `M ${x1} ${y1} A ${radius} ${radius} 0 ${end - start > 180 ? 1 : 0} 1 ${x2} ${y2}`;
+}
 
 function Dashboard({ onNavigate }) {
-  const [range, setRange] = useState('Week');
+  const [range, setRange] = useState(12);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const loadSummary = () => {
+    setLoading(true);
+    setError('');
+    fetch('/api/dashboard/summary', { headers: { Accept: 'application/json' } })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Dashboard data request failed (${response.status}).`);
+        return response.json();
+      })
+      .then(setSummary)
+      .catch((requestError) => setError(requestError.message || 'Could not load dashboard data.'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadSummary();
+  }, []);
 
   const go = (tab) => { if (onNavigate) onNavigate(tab); };
-  const cardNav = (tab) => ({
-    className: 'card db-clickable',
-    role: 'button',
-    tabIndex: 0,
-    onClick: () => go(tab),
-    onKeyDown: (e) => {
-      if (e.target !== e.currentTarget) return;
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(tab); }
-    },
-  });
+  const derived = useMemo(() => {
+    if (!summary) return null;
+    const products = summary.products || [];
+    const salesHistory = summary.salesHistory || [];
+    const stockMovements = summary.stockMovements || [];
+    const currentMonth = new Date();
+    currentMonth.setDate(1);
 
-{/* ===== CHARTS SAMPLE DATA ===== */}
-
-  /*==========HERO (SALES ANALYTICS) COMPUTED==========*/
-  const s = SALES[range];
-  const HERO_W = 520, HERO_H = 150;
-  const heroPts = scalePoints(s.values, HERO_W, HERO_H, 10, 16, 12);
-  const heroLine = smoothLine(heroPts);
-  const heroArea = `${heroLine} L ${heroPts[heroPts.length - 1][0]},${HERO_H - 6} L ${heroPts[0][0]},${HERO_H - 6} Z`;
-  const heroTotal = s.values.reduce((a, b) => a + b, 0);
-  const heroPeak = Math.max(...s.values);
-  const gridYs = [0, 1, 2, 3].map((i) => 16 + ((HERO_H - 28) * i) / 3);
-
-  /*==========REGIONAL (DONUT) COMPUTED==========*/
-  const domesticPct = REGIONS.filter((r) => r.name !== 'Intl').reduce((a, s) => a + s.pct, 0);
-  const DONUT_CX = 60, DONUT_CY = 60, DONUT_R = 46, DONUT_INNER = 26;
-  function buildDonut(segments) {
-    let angle = -Math.PI / 2;
-    return segments.map((seg) => {
-      const sweep = seg.pct * 2 * Math.PI;
-      const x1 = DONUT_CX + DONUT_R * Math.cos(angle);
-      const y1 = DONUT_CY + DONUT_R * Math.sin(angle);
-      const x2 = DONUT_CX + DONUT_R * Math.cos(angle + sweep);
-      const y2 = DONUT_CY + DONUT_R * Math.sin(angle + sweep);
-      const ix1 = DONUT_CX + DONUT_INNER * Math.cos(angle + sweep);
-      const iy1 = DONUT_CY + DONUT_INNER * Math.sin(angle + sweep);
-      const ix2 = DONUT_CX + DONUT_INNER * Math.cos(angle);
-      const iy2 = DONUT_CY + DONUT_INNER * Math.sin(angle);
-      const large = sweep > Math.PI ? 1 : 0;
-      const d = `M ${x1.toFixed(2)},${y1.toFixed(2)} A ${DONUT_R},${DONUT_R} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} L ${ix1.toFixed(2)},${iy1.toFixed(2)} A ${DONUT_INNER},${DONUT_INNER} 0 ${large},0 ${ix2.toFixed(2)},${iy2.toFixed(2)} Z`;
-      angle += sweep;
-      return { ...seg, d };
+    const monthly = Array.from({ length: range }, (_, index) => {
+      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - range + index + 1, 1);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      return {
+        key,
+        label: date.toLocaleDateString('en', { month: 'short' }),
+        units: 0,
+        records: 0,
+      };
     });
+    const monthIndex = new Map(monthly.map((month, index) => [month.key, index]));
+    const visibleSales = [];
+    salesHistory.forEach((record) => {
+      const key = String(record.periodDate || '').slice(0, 7);
+      const index = monthIndex.get(key);
+      if (index === undefined) return;
+      const unitsSold = Number(record.unitsSold) || 0;
+      monthly[index].units += unitsSold;
+      if (unitsSold > 0) monthly[index].records += 1;
+      visibleSales.push(record);
+    });
+
+    const stock = products.map((product) => ({
+      ...product,
+      quantity: Number(product.stock) || 0,
+      threshold: Number(product.safetyStock ?? 20),
+    }));
+    const outOfStock = stock.filter((product) => product.quantity <= 0);
+    const lowStock = stock.filter((product) => product.quantity > 0 && product.quantity <= product.threshold);
+    const inStock = stock.length - outOfStock.length - lowStock.length;
+    const categories = Object.entries(stock.reduce((totals, product) => {
+      const category = product.category || 'Uncategorized';
+      totals[category] = (totals[category] || 0) + 1;
+      return totals;
+    }, {})).map(([name, count], index) => ({
+      name,
+      count,
+      pct: stock.length ? count / stock.length : 0,
+      color: colors[index % colors.length],
+    })).sort((a, b) => b.count - a.count);
+    const topCategories = categories.slice(0, 4);
+    if (categories.length > 4) {
+      const otherCount = categories.slice(4).reduce((total, category) => total + category.count, 0);
+      topCategories.push({ name: 'Other', count: otherCount, pct: stock.length ? otherCount / stock.length : 0, color: colors[4] });
+    }
+    let angle = -Math.PI / 2;
+    const donut = topCategories.map((category) => {
+      const sweep = category.pct * 2 * Math.PI;
+      const outer = 46;
+      const inner = 26;
+      const point = (radius, radians) => [60 + radius * Math.cos(radians), 60 + radius * Math.sin(radians)];
+      const [x1, y1] = point(outer, angle);
+      const [x2, y2] = point(outer, angle + sweep);
+      const [ix1, iy1] = point(inner, angle + sweep);
+      const [ix2, iy2] = point(inner, angle);
+      const large = sweep > Math.PI ? 1 : 0;
+      const path = `M ${x1},${y1} A ${outer},${outer} 0 ${large},1 ${x2},${y2} L ${ix1},${iy1} A ${inner},${inner} 0 ${large},0 ${ix2},${iy2} Z`;
+      angle += sweep;
+      return { ...category, path };
+    });
+
+    const now = new Date();
+    const dailyMovements = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6 + index);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const count = stockMovements.filter((movement) => movement.date === key).length;
+      return { key, count, label: date.toLocaleDateString('en', { weekday: 'short' }) };
+    });
+    const topProducts = Object.values(visibleSales.filter((record) => Number(record.unitsSold) > 0).reduce((totals, record) => {
+      const id = record.productId || record.productName || 'Unknown product';
+      if (!totals[id]) totals[id] = { name: record.productName || id, units: 0 };
+      totals[id].units += Number(record.unitsSold) || 0;
+      return totals;
+    }, {})).sort((a, b) => b.units - a.units).slice(0, 5);
+    const alerts = [
+      ...outOfStock.map((product) => ({ ...product, level: 'out' })),
+      ...lowStock.sort((a, b) => a.quantity - b.quantity).map((product) => ({ ...product, level: 'low' })),
+    ].slice(0, 4);
+    const assignedProducts = stock.filter((product) => product.supplierId).length;
+    const soldProductCount = new Set(
+      visibleSales.filter((record) => Number(record.unitsSold) > 0).map((record) => record.productId).filter(Boolean)
+    ).size;
+    const hasSalesData = monthly.some((month) => month.units > 0);
+    const hasMovementData = dailyMovements.some((day) => day.count > 0);
+
+    return {
+      products: stock,
+      totalStock: stock.reduce((total, product) => total + product.quantity, 0),
+      inStock,
+      lowStock,
+      outOfStock,
+      categories: topCategories,
+      donut,
+      monthly,
+      visibleSales,
+      unitsSold: monthly.reduce((total, month) => total + month.units, 0),
+      salesRecordCount: visibleSales.length,
+      hasSalesData,
+      hasMovementData,
+      topProducts,
+      dailyMovements,
+      movementCount: dailyMovements.reduce((total, day) => total + day.count, 0),
+      alerts,
+      assignedProducts,
+      unassignedProducts: stock.length - assignedProducts,
+      supplierCoverage: stock.length ? Math.round((assignedProducts / stock.length) * 100) : 0,
+      soldProductCount,
+      maxCategory: Math.max(1, ...topCategories.map((category) => category.count)),
+      maxProduct: Math.max(1, ...topProducts.map((product) => product.units)),
+      maxMovement: Math.max(1, ...dailyMovements.map((day) => day.count)),
+    };
+  }, [summary, range]);
+
+  if (loading && !summary) {
+    return <main className="dashboard-content-view"><div className="dashboard-scroll-container"><p role="status">Loading live dashboard data…</p></div></main>;
   }
-  const donutData = buildDonut(REGIONS);
+  if (error && !summary) {
+    return (
+      <main className="dashboard-content-view">
+        <div className="dashboard-scroll-container">
+          <p role="alert">{error}</p>
+          <button type="button" onClick={loadSummary}>Try again</button>
+        </div>
+      </main>
+    );
+  }
+  if (!derived) return null;
 
-  /*==========GAUGE (EOQ) COMPUTED==========*/
-  const GX = 60, GY = 60, GR = 46;
-  const gaugeTrack = arcPath(GX, GY, GR, 180, 360);
-  const gaugeValue = arcPath(GX, GY, GR, 180, 180 + EOQ.rate * 180);
-
-  const catMax = CATALOG.total;
-  const orderMax = Math.max(...ORDERS.bars);
-  const prodMax = Math.max(...TOP_PRODUCTS.map((p) => p.units));
-  const alertTotal = ALERT_SUMMARY.out + ALERT_SUMMARY.low + ALERT_SUMMARY.reorder;
+  const heroValues = derived.monthly.map((month) => month.units);
+  const heroPoints = derived.hasSalesData ? scalePoints(heroValues, 520, 150, 10, 16, 12) : [];
+  const heroLine = smoothLine(heroPoints);
+  const heroPeak = Math.max(0, ...heroValues);
+  const supplierGauge = Arc({ cx: 60, cy: 60, radius: 46, start: 180, end: 180 + (derived.supplierCoverage / 100) * 180 });
 
   return (
-    
     <main className="dashboard-content-view">
-      {/* ===== ACTUAL FRONT END KPI CARDS DESIGN ===== */}
       <div className="dashboard-scroll-container">
+        {error && <p role="alert">{error} Showing the last data loaded.</p>}
         <div className="parent">
-
-          {/* ===== SALES ANALYTICS ===== */}
           <div className="salesAnalytics-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
-                <span className="db-card-title">Sales Analytic</span>
-                <span className="db-card-sub">Revenue trend · view in Reports</span>
+                <span className="db-card-title">Sales History</span>
+                <span className="db-card-sub">Units sold recorded by month</span>
               </div>
-              <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <div className="db-seg">
-                  {['Week', 'Month', 'Year'].map((r) => (
-                    <button
-                      key={r}
-                      className={`db-seg-btn ${range === r ? 'active' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); setRange(r); }}
-                    >
-                      {r}
+                  {[6, 12].map((months) => (
+                    <button key={months} className={`db-seg-btn ${range === months ? 'active' : ''}`} onClick={() => setRange(months)}>
+                      {months}M
                     </button>
                   ))}
                 </div>
-                <button className="db-open-arrow-btn" onClick={() => go('Reports')} aria-label="Open in Reports" type="button"><OpenArrow /></button>
+                <button className="db-open-arrow-btn" onClick={() => go('Forecasting')} aria-label="Open Forecasting" type="button"><OpenArrow /></button>
               </div>
             </div>
-
-            <div className="db-hero-plot">
-              <svg className="db-hero-svg" viewBox={`0 0 ${HERO_W} ${HERO_H}`} preserveAspectRatio="none" aria-hidden="true">
-                <defs>
-                  <linearGradient id="dbHeroGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.32" />
-                    <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                {gridYs.map((y, i) => (
-                  <line key={i} x1="0" y1={y} x2={HERO_W} y2={y} stroke="var(--hairline)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-                ))}
-                <path d={heroArea} fill="url(#dbHeroGrad)" stroke="none" />
-                <path d={heroLine} fill="none" stroke="var(--accent)" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+            <div className={`db-hero-plot${heroPoints.length ? '' : ' db-chart-empty-plot'}`}>
+              {heroPoints.length ? (
+                <svg className="db-hero-svg" viewBox="0 0 520 150" preserveAspectRatio="none" aria-label="Monthly units sold">
+                  {[16, 57, 98, 138].map((y) => <line key={y} x1="0" y1={y} x2="520" y2={y} stroke="var(--hairline)" />)}
+                  <path d={heroLine} fill="none" stroke="var(--accent)" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+                  {heroPoints.map(([x, y], index) => <circle key={index} cx={x} cy={y} r="3.5" fill="var(--accent)" stroke="var(--bg-card)" strokeWidth="2" vectorEffect="non-scaling-stroke" />)}
+                </svg>
+              ) : <EmptyChart message="No sales recorded in this period" />}
             </div>
-            <div className="db-hero-xaxis">
-              {s.labels.map((l, i) => <span key={i}>{l}</span>)}
-            </div>
-
+            {heroPoints.length > 0 && <div className="db-hero-xaxis">{derived.monthly.map((month) => <span key={month.key}>{month.label}</span>)}</div>}
             <div className="db-card-foot db-hero-foot">
-              <div className="db-metric">
-                <span className="db-metric-label">Total</span>
-                <span className="db-metric-value">₱{fmt(heroTotal)}K</span>
-              </div>
-              <div className="db-metric">
-                <span className="db-metric-label">Peak</span>
-                <span className="db-metric-value">₱{fmt(heroPeak)}K</span>
-              </div>
-              <div className="db-metric">
-                <span className="db-metric-label">vs prev</span>
-                <span className="db-metric-value"><Delta value={s.delta} /></span>
-              </div>
-              <OpenArrow />
+              <div className="db-metric"><span className="db-metric-label">Units sold</span><span className="db-metric-value">{derived.hasSalesData ? fmt(derived.unitsSold) : '—'}</span></div>
+              <div className="db-metric"><span className="db-metric-label">Monthly peak</span><span className="db-metric-value">{derived.hasSalesData ? fmt(heroPeak) : '—'}</span></div>
             </div>
           </div>
 
-          {/* ===== CATALOG STATUS ===== */}
           <div className="catalogStatus-card card">
-            <div className="db-card-head">
-              <div className="db-card-titles">
-                <span className="db-card-title">Catalog Status</span>
+            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Catalog Status</span></div><button className="db-open-arrow-btn" onClick={() => go('Product-Supplier')} aria-label="Open products" type="button"><OpenArrow /></button></div>
+            {derived.products.length > 0 ? <>
+              <div className="db-catalog-total">{fmt(derived.products.length)} <span>SKUs</span></div>
+              <div className="db-stack-bar">
+                <span className="db-stack-seg" style={{ width: `${(derived.inStock / derived.products.length) * 100}%`, background: 'var(--accent-high)' }} />
+                <span className="db-stack-seg" style={{ width: `${(derived.lowStock.length / derived.products.length) * 100}%`, background: 'var(--accent-med)' }} />
+                <span className="db-stack-seg" style={{ width: `${(derived.outOfStock.length / derived.products.length) * 100}%`, background: 'var(--accent-low)' }} />
               </div>
-              <button className="db-open-arrow-btn" onClick={() => go('Product-Supplier')} aria-label="Open in Product-Supplier" type="button"><OpenArrow /></button>
-            </div>
-            <div className="db-catalog-total">{fmt(CATALOG.total)} <span>SKUs</span></div>
-            <div className="db-stack-bar">
-              <span className="db-stack-seg" style={{ width: `${(CATALOG.inStock / catMax) * 100}%`, background: 'var(--accent-high)' }} />
-              <span className="db-stack-seg" style={{ width: `${(CATALOG.low / catMax) * 100}%`, background: 'var(--accent-med)' }} />
-              <span className="db-stack-seg" style={{ width: `${(CATALOG.out / catMax) * 100}%`, background: 'var(--accent-low)' }} />
-            </div>
-            <div className="db-legend">
-              <span className="db-legend-item"><i style={{ background: 'var(--accent-high)' }} />In {fmt(CATALOG.inStock)}</span>
-              <span className="db-legend-item"><i style={{ background: 'var(--accent-med)' }} />Low {fmt(CATALOG.low)}</span>
-              <span className="db-legend-item"><i style={{ background: 'var(--accent-low)' }} />Out {fmt(CATALOG.out)}</span>
-            </div>
+              <div className="db-legend">
+                <span className="db-legend-item"><i style={{ background: 'var(--accent-high)' }} />In stock {fmt(derived.inStock)}</span>
+                <span className="db-legend-item"><i style={{ background: 'var(--accent-med)' }} />Low {fmt(derived.lowStock.length)}</span>
+                <span className="db-legend-item"><i style={{ background: 'var(--accent-low)' }} />Out {fmt(derived.outOfStock.length)}</span>
+              </div>
+            </> : <EmptyChart message="No products registered yet" />}
           </div>
 
-          {/* ===== TOTAL REVENUE ===== */}
           <div className="totalRevenue-card card">
-            <div className="db-card-head">
-              <div className="db-card-titles">
-                <span className="db-card-title">Total Revenue</span>
-              </div>
-              <Delta value={REVENUE.delta} />
-            </div>
-            <div className="db-stat-value">₱{(REVENUE.value / 1e6).toFixed(2)}M</div>
-            <div className="db-spark-wrap">
-              <Sparkline values={REVENUE.spark} stroke="var(--accent-high)" gid="dbRevGrad" />
-            </div>
+            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Total Units Sold</span><span className="db-card-sub">Selected {range} months</span></div></div>
+            <div className="db-stat-value">{derived.hasSalesData ? fmt(derived.unitsSold) : '—'}</div>
+            <div className="db-spark-wrap"><Sparkline values={derived.hasSalesData ? heroValues : []} stroke="var(--accent-high)" gid="dbSalesGrad" /></div>
           </div>
 
-          {/* ===== REGIONAL BREAKDOWN ===== */}
           <div className="regionalBreakdown-card card">
-            <div className="db-card-head">
-              <div className="db-card-titles">
-                <span className="db-card-title">Regional Breakdown</span>
-                <span className="db-card-sub">Geography-based sales</span>
+            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Inventory by Category</span><span className="db-card-sub">Products in each category</span></div><button className="db-open-arrow-btn" onClick={() => go('Product-Supplier')} aria-label="Open products" type="button"><OpenArrow /></button></div>
+            {derived.products.length ? (
+              <div className="db-donut-row">
+                <svg className="db-donut-svg" viewBox="0 0 120 120" aria-label="Inventory by category">
+                  {derived.donut.map((segment) => <path key={segment.name} d={segment.path} fill={segment.color} opacity="0.92" />)}
+                  <text x="60" y="60" className="db-donut-center-val" textAnchor="middle" dominantBaseline="middle">{fmt(derived.products.length)}</text>
+                  <text x="60" y="78" className="db-donut-center-label" textAnchor="middle">products</text>
+                </svg>
+                <div className="db-legend db-legend-col">
+                  {derived.categories.map((category) => <span key={category.name} className="db-legend-item"><i style={{ background: category.color }} />{category.name} {fmt(category.count)}</span>)}
+                </div>
               </div>
-              <button className="db-open-arrow-btn" onClick={() => go('Reports')} aria-label="Open in Reports" type="button"><OpenArrow /></button>
-            </div>
-            <div className="db-donut-row">
-              <svg className="db-donut-svg" viewBox="0 0 120 120" aria-label="Regional sales breakdown">
-                {donutData.map((seg, i) => (
-                  <path key={i} d={seg.d} fill={seg.color} opacity="0.92" />
-                ))}
-                <text x={DONUT_CX} y={DONUT_CY + 0} className="db-donut-center-val" textAnchor="middle" dominantBaseline="middle">{Math.round(domesticPct * 100)}%</text>
-                <text x={DONUT_CX} y={DONUT_CY + 18} className="db-donut-center-label" textAnchor="middle">local</text>
-              </svg>
-              <div className="db-legend db-legend-col">
-                {REGIONS.map((seg, i) => (
-                  <span key={i} className="db-legend-item"><i style={{ background: seg.color }} />{seg.name} {Math.round(seg.pct * 100)}%</span>
-                ))}
-              </div>
-            </div>
+            ) : <EmptyChart message="No products to group yet" />}
           </div>
 
-          {/* ===== CALCULATOR ACTIVITY ===== */}
           <div className="eoqActivity-card card">
-            <div className="db-card-head">
-              <div className="db-card-titles">
-                <span className="db-card-title">Calculation Activity</span>
-                <span className="db-card-sub">Order optimization</span>
-              </div>
-              <button className="db-open-arrow-btn" onClick={() => go('Auto-Calculator')} aria-label="Open in Auto-Calculator" type="button"><OpenArrow /></button>
-            </div>
-            <div className="db-gauge-row">
-              <svg className="db-gauge-svg" viewBox="0 0 120 74" aria-hidden="true">
-                <path d={gaugeTrack} fill="none" stroke="var(--static-bg-color)" strokeWidth="12" strokeLinecap="round" />
-                <path d={gaugeValue} fill="none" stroke="var(--accent-high)" strokeWidth="12" strokeLinecap="round" />
-                <text x={GX} y={GY - 8} className="db-gauge-value" textAnchor="middle">{Math.round(EOQ.rate * 100)}%</text>
-                <text x={GX} y={GY + 6} className="db-gauge-label" textAnchor="middle">optimized</text>
-              </svg>
-              <div className="db-gauge-stats">
-                <div className="db-metric">
-                  <span className="db-metric-label">Calcs / wk</span>
-                  <span className="db-metric-value">{EOQ.calcsThisWeek}</span>
-                </div>
-                <div className="db-metric">
-                  <span className="db-metric-label">Avg order</span>
-                  <span className="db-metric-value">{EOQ.avgOrderQty} u</span>
+            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Supplier Coverage</span><span className="db-card-sub">Products linked to a supplier</span></div><button className="db-open-arrow-btn" onClick={() => go('Product-Supplier')} aria-label="Open suppliers" type="button"><OpenArrow /></button></div>
+            {derived.products.length > 0 ? (
+              <div className="db-gauge-row">
+                <svg className="db-gauge-svg" viewBox="0 0 120 74" aria-label={`${derived.supplierCoverage}% supplier coverage`}>
+                  <path d={Arc({ cx: 60, cy: 60, radius: 46, start: 180, end: 360 })} fill="none" stroke="var(--static-bg-color)" strokeWidth="12" strokeLinecap="round" />
+                  <path d={supplierGauge} fill="none" stroke="var(--accent-high)" strokeWidth="12" strokeLinecap="round" />
+                  <text x="60" y="52" className="db-gauge-value" textAnchor="middle">{derived.supplierCoverage}%</text>
+                  <text x="60" y="66" className="db-gauge-label" textAnchor="middle">covered</text>
+                </svg>
+                <div className="db-gauge-stats">
+                  <div className="db-metric"><span className="db-metric-label">Suppliers</span><span className="db-metric-value">{fmt(summary.supplierCount)}</span></div>
+                  <div className="db-metric"><span className="db-metric-label">Unassigned</span><span className="db-metric-value">{fmt(derived.unassignedProducts)}</span></div>
                 </div>
               </div>
-            </div>
+            ) : <EmptyChart message="Add products to see supplier coverage" />}
           </div>
 
-          {/* ===== TOTAL ORDER ===== */}
           <div className="totalOrder-card card">
-            <div className="db-card-head">
-              <div className="db-card-titles">
-                <span className="db-card-title">Total Orders</span>
-              </div>
-              <Delta value={ORDERS.delta} />
-            </div>
-            <div className="db-stat-value">{fmt(ORDERS.value)}</div>
-            <div className="db-col-chart">
-              {ORDERS.bars.map((v, i) => {
-                const isMax = v === orderMax;
-                return (
-                  <div key={i} className="db-col-item">
-                    <span className="db-col-bar-wrap">
-                      <span className={`db-col-bar ${isMax ? 'db-col-bar-max' : ''}`} style={{ height: `${(v / orderMax) * 100}%` }} />
-                    </span>
-                    <span className="db-col-label">{ORDERS.labels[i]}</span>
+            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Stock Movements</span><span className="db-card-sub">Ledger entries · last 7 days</span></div><button className="db-open-arrow-btn" onClick={() => go('Stock')} aria-label="Open Stock Control" type="button"><OpenArrow /></button></div>
+            <div className="db-stat-value">{derived.hasMovementData ? fmt(derived.movementCount) : '—'}</div>
+            {derived.hasMovementData ? (
+              <div className="db-col-chart">
+                {derived.dailyMovements.map((day) => (
+                  <div key={day.key} className="db-col-item">
+                    <span className="db-col-bar-wrap"><span className={`db-col-bar ${day.count === derived.maxMovement && derived.movementCount > 0 ? 'db-col-bar-max' : ''}`} style={{ height: `${(day.count / derived.maxMovement) * 100}%` }} /></span>
+                    <span className="db-col-label">{day.label}</span>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            ) : <EmptyChart message="No movements in the last 7 days" />}
           </div>
 
-          {/* ===== PRODUCT SALES ===== */}
           <div className="productSales-card card">
-            <div className="db-card-head">
-              <div className="db-card-titles">
-                <span className="db-card-title">Product Sales</span>
-                <span className="db-card-sub">Top movers · project in Forecasting</span>
-              </div>
-              <button className="db-open-arrow-btn" onClick={() => go('Forecasting')} aria-label="Open in Forecasting" type="button"><OpenArrow /></button>
-            </div>
-            <div className="db-rank">
-              {TOP_PRODUCTS.map((p, i) => (
-                <div key={i} className="db-rank-row">
-                  <span className="db-rank-name">{p.name}</span>
-                  <span className="db-rank-track">
-                    <span className="db-rank-fill" style={{ width: `${(p.units / prodMax) * 100}%` }} />
-                  </span>
-                  <span className="db-rank-val">{p.units}</span>
+            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Top Products Sold</span><span className="db-card-sub">Selected {range} months · units</span></div><button className="db-open-arrow-btn" onClick={() => go('Forecasting')} aria-label="Open sales history" type="button"><OpenArrow /></button></div>
+            {derived.topProducts.length ? (
+              <div className="db-rank">{derived.topProducts.map((product) => (
+                <div key={product.name} className="db-rank-row">
+                  <span className="db-rank-name">{product.name}</span>
+                  <span className="db-rank-track"><span className="db-rank-fill" style={{ width: `${(product.units / derived.maxProduct) * 100}%` }} /></span>
+                  <span className="db-rank-val">{fmt(product.units)}</span>
                 </div>
-              ))}
-            </div>
+              ))}</div>
+            ) : <EmptyChart message="No sales recorded in this period" />}
           </div>
 
-          {/* ===== STOCK ALERTS ===== */}
           <div className="lowStockalerts-card card">
-            <div className="db-card-head">
-              <div className="db-card-titles">
-                <span className="db-card-title">Stock Alerts</span>
-                <span className="db-card-sub">{alertTotal} items need attention</span>
-              </div>
-              <button className="db-open-arrow-btn" onClick={() => go('Stock')} aria-label="Open in Stock" type="button"><OpenArrow /></button>
-            </div>
+            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Stock Alerts</span><span className="db-card-sub">{derived.outOfStock.length + derived.lowStock.length} products at or below reorder level</span></div><button className="db-open-arrow-btn" onClick={() => go('Stock')} aria-label="Open Stock Control" type="button"><OpenArrow /></button></div>
             <div className="db-stack-bar db-stack-bar-sm">
-              <span className="db-stack-seg" style={{ width: `${(ALERT_SUMMARY.out / alertTotal) * 100}%`, background: 'var(--accent-low)' }} />
-              <span className="db-stack-seg" style={{ width: `${(ALERT_SUMMARY.low / alertTotal) * 100}%`, background: 'var(--accent-med)' }} />
-              <span className="db-stack-seg" style={{ width: `${(ALERT_SUMMARY.reorder / alertTotal) * 100}%`, background: 'var(--accent)' }} />
+              {(derived.outOfStock.length + derived.lowStock.length) > 0 && <>
+                <span className="db-stack-seg" style={{ width: `${(derived.outOfStock.length / (derived.outOfStock.length + derived.lowStock.length)) * 100}%`, background: 'var(--accent-low)' }} />
+                <span className="db-stack-seg" style={{ width: `${(derived.lowStock.length / (derived.outOfStock.length + derived.lowStock.length)) * 100}%`, background: 'var(--accent-med)' }} />
+              </>}
             </div>
             <div className="db-alert-list">
-              {ALERTS.map((a, i) => (
-                <div key={i} className={`db-alert-row db-alert-${a.level}`}>
-                  <span className="db-alert-dot" />
-                  <span className="db-alert-name">{a.name}</span>
-                  <span className="db-alert-qty">{a.level === 'out' ? 'Out of stock' : `${a.qty} left`}</span>
+              {derived.alerts.length ? derived.alerts.map((product) => (
+                <div key={product.id} className={`db-alert-row db-alert-${product.level}`}>
+                  <span className="db-alert-dot" /><span className="db-alert-name">{product.name}</span>
+                  <span className="db-alert-qty">{product.level === 'out' ? 'Out of stock' : `${fmt(product.quantity)} left`}</span>
                 </div>
-              ))}
+              )) : <span className="db-card-sub">No products need attention.</span>}
             </div>
           </div>
 
-          {/* ===== TOTAL CUSTOMERS ===== */}
           <div className="totalCustomer-card card">
-            <div className="db-card-head">
-              <div className="db-card-titles">
-                <span className="db-card-title">Total Customers</span>
-              </div>
-              <Delta value={CUSTOMERS.delta} />
-            </div>
-            <div className="db-stat-value">{fmt(CUSTOMERS.value)}</div>
-            <div className="db-stat-sub">Active buyers this quarter</div>
-            <div className="db-spark-wrap">
-              <Sparkline values={CUSTOMERS.spark} stroke="var(--accent)" gid="dbCustGrad" />
-            </div>
+            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Products with Sales</span><span className="db-card-sub">Distinct products in recorded history</span></div></div>
+            <div className="db-stat-value">{derived.hasSalesData ? fmt(derived.soldProductCount) : '—'}</div>
+            <div className="db-stat-sub">{derived.hasSalesData ? `${fmt(derived.salesRecordCount)} monthly product records in selected range` : 'No sales history recorded in this period'}</div>
+            <div className="db-spark-wrap"><Sparkline values={derived.hasSalesData ? derived.monthly.map((month) => month.records) : []} stroke="var(--accent)" gid="dbHistoryGrad" /></div>
           </div>
 
-          {/* ===== TOTAL STAFF ===== */}
           <div className="totalStaff-card card">
-            <div className="db-card-head">
-              <div className="db-card-titles">
-                <span className="db-card-title">Total Staff</span>
-              </div>
-              <button className="db-open-arrow-btn" onClick={() => go('Staffs')} aria-label="Open in Staffs" type="button"><OpenArrow /></button>
-            </div>
-            <div className="db-stat-value">{fmt(STAFF.total)}</div>
-            <div className="db-stat-sub">Across all roles</div>
-            <div className="db-stack-bar db-stack-bar-sm">
-              <span className="db-stack-seg" style={{ width: `${(STAFF.superAdmin / STAFF.total) * 100}%`, background: 'var(--accent)' }} />
-              <span className="db-stack-seg" style={{ width: `${(STAFF.admin / STAFF.total) * 100}%`, background: 'var(--accent-high)' }} />
-              <span className="db-stack-seg" style={{ width: `${(STAFF.staff / STAFF.total) * 100}%`, background: 'var(--accent-med)' }} />
-            </div>
-            <div className="db-legend db-legend-col">
-              <span className="db-legend-item"><i style={{ background: 'var(--accent)' }} />Super Admin {STAFF.superAdmin}</span>
-              <span className="db-legend-item"><i style={{ background: 'var(--accent-high)' }} />Admin {STAFF.admin}</span>
-              <span className="db-legend-item"><i style={{ background: 'var(--accent-med)' }} />Staff {STAFF.staff}</span>
-            </div>
+            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">User Accounts</span><span className="db-card-sub">Accounts registered in the system</span></div><button className="db-open-arrow-btn" onClick={() => go('Staffs')} aria-label="Open Staffs" type="button"><OpenArrow /></button></div>
+            <div className="db-stat-value">{fmt(summary.userCount)}</div>
+            <div className="db-stat-sub">Role breakdown is not available in the current data.</div>
           </div>
-
         </div>
       </div>
     </main>

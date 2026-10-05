@@ -34,6 +34,7 @@ import {
 /* ===== EMPTY FORM ===== */
 const emptyForm = {
   date: '',
+  productId: '',
   productName: '',
   variantName: '',
   category: '',
@@ -44,13 +45,38 @@ const emptyForm = {
   recordedBy: '',
 };
 
+/* ===== TODAY (local date, not UTC) ===== */
+const todayLocal = () => {
+  const now = new Date();
+  const offsetMs = now.getTimezoneOffset() * 60 * 1000;
+  return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
+};
+
 /* ===== SIGNED QTY ===== */
 const signedQty = (row) => {
-  /* An adjustment carries its own signed delta (the variant). */
-  if (row.type === 'Adjustment') return Number(row.variant) || 0;
+  if (row.type === 'Adjustment') return Number(row.variance) || 0;
   const qty = Number(row.qty) || 0;
   return row.type === 'Stock Out' ? -qty : qty;
 };
+
+function balanceBeforeDate(movements, product, date, excludedMovement) {
+  if (!product) return 0;
+  const productMovements = movements.filter((movement) =>
+    movement.productId === product.id && movement.id !== excludedMovement?.id
+  );
+  const currentStock = Number(product.stock) || 0;
+  const stockWithoutEditedMovement = currentStock -
+    (excludedMovement?.productId === product.id ? signedQty(excludedMovement) : 0);
+  const openingBalance = stockWithoutEditedMovement -
+    productMovements.reduce((total, movement) => total + signedQty(movement), 0);
+
+  return productMovements
+    .filter((movement) => (
+      movement.date < date ||
+      (movement.date === date && (!excludedMovement || movement.id < excludedMovement.id))
+    ))
+    .reduce((balance, movement) => balance + signedQty(movement), openingBalance);
+}
 
 /* ===== MOVEMENT TYPES ===== */
 const MOVEMENT_TYPES = [
@@ -61,9 +87,11 @@ const MOVEMENT_TYPES = [
 
 function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   const [stockFromDatabase, setStockFromDatabase] = useState([]);
+  const [stockLoading, setStockLoading] = useState(true);
+  const [stockError, setStockError] = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editIndex, setEditIndex] = useState(null);
+  const [editId, setEditId] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
   const [historyProduct, setHistoryProduct] = useState(null);
     const [query, setQuery] = useState(''); /* ===== SEARCH ===== */
@@ -88,51 +116,53 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
     ]);
   };
 
-  /* ===== LOAD MOVEMENTS ===== */
-  useEffect(() => {
-    fetch('/api/stock-movements', { headers: { Accept: 'application/json' } })
-      .then((response) => {
-        if (!response.ok) throw new Error(`GET /api/stock-movements failed (${response.status})`);
-        return response.json();
-      })
-      .then((data) => setStockFromDatabase(data))
-      .catch((error) => console.error('Could not load stock movements:', error));
-  }, []);
+  const refreshStockData = async () => {
+    setStockError('');
+    const [movementResponse, productResponse] = await Promise.all([
+      fetch('/api/stock-movements', { headers: { Accept: 'application/json' } }),
+      fetch('/api/products', { headers: { Accept: 'application/json' } }),
+    ]);
+    if (!movementResponse.ok) throw new Error(`Could not load stock movements (${movementResponse.status}).`);
+    if (!productResponse.ok) throw new Error(`Could not load products (${productResponse.status}).`);
+    const [movements, products] = await Promise.all([movementResponse.json(), productResponse.json()]);
+    setStockFromDatabase(movements);
+    setProductOptions(products);
+  };
 
-  /* ===== LOAD PRODUCTS ===== */
   useEffect(() => {
-    fetch('/api/products', { headers: { Accept: 'application/json' } })
-      .then((response) => {
-        if (!response.ok) throw new Error(`GET /api/products failed (${response.status})`);
-        return response.json();
-      })
-      .then((data) => setProductOptions(data))
-      .catch((error) => console.error('Could not load products for dropdown:', error));
+    refreshStockData()
+      .catch((error) => setStockError(error.message || 'Could not load Stock Control data.'))
+      .finally(() => setStockLoading(false));
   }, []);
 
   /* ===== PICK PRODUCT ===== */
   const handleProductSelect = (e) => {
-    const name = e.target.value;
-    const picked = productOptions.find((p) => p.name === name);
+    const productId = e.target.value;
+    const picked = productOptions.find((p) => p.id === productId);
     setFormData((prev) => ({
       ...prev,
-      productName: name,
+      productId,
+      productName: picked?.name || '',
       category: picked ? (picked.category || '') : prev.category,
     }));
   };
 
+  const productById = useMemo(() => new Map(productOptions.map((product) => [product.id, product])), [productOptions]);
+
   /* ===== PRODUCT LEDGERS ===== */
   const ledgers = useMemo(() => {
     const grouped = new Map();
-    stockFromDatabase.forEach((row, index) => {
-      const key = row.productName || '—';
+    stockFromDatabase.forEach((row) => {
+      const key = row.productId || row.productName || '—';
       if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key).push({ ...row, index });
+      grouped.get(key).push(row);
     });
 
     const result = new Map();
     grouped.forEach((rows, key) => {
-      const ordered = [...rows].sort((a, b) => new Date(a.date) - new Date(b.date));
+      const ordered = [...rows].sort((a, b) => (
+        new Date(a.date) - new Date(b.date) || Number(a.id) - Number(b.id)
+      ));
       let balance = 0;
       let totalIn = 0;
       let totalOut = 0;
@@ -142,31 +172,38 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
         balance += delta;
         if (delta >= 0) totalIn += delta;
         else totalOut += -delta;
-        return { ...row, delta, balance };
+        return { ...row, delta, balance: Number(row.remainingStock ?? balance) };
       });
 
-      result.set(key, { movements, totalIn, totalOut, net: totalIn - totalOut, closing: balance });
+      const product = productById.get(key);
+      result.set(key, {
+        movements,
+        totalIn,
+        totalOut,
+        net: totalIn - totalOut,
+        closing: Number(product?.stock ?? balance),
+        productName: product?.name || rows[0]?.productName || '—',
+      });
     });
 
     return result;
-  }, [stockFromDatabase]);
+  }, [stockFromDatabase, productById]);
 
-  const openHistory = (productName) => setHistoryProduct(productName || '—');
+  const openHistory = (productId) => setHistoryProduct(productId || '—');
   const activeLedger = historyProduct ? ledgers.get(historyProduct) : null;
 
   /* ===== PRODUCT PHOTO LOOKUP (read-only, from the product master) ===== */
   const productImageByName = useMemo(() => {
-    const map = new Map();
-    productOptions.forEach((p) => map.set(p.name, p.image));
-    return map;
+    return new Map(productOptions.map((product) => [product.id, product.image]));
   }, [productOptions]);
 
-  /* ===== CURRENT ON HAND (for this product, excluding the row being edited) ===== */
+  const editingMovement = editId === null ? null : stockFromDatabase.find((row) => row.id === editId);
+
+  /* ===== CURRENT ON HAND (excluding the movement being edited) ===== */
   const currentOnHand = useMemo(() => (
-    stockFromDatabase.reduce((sum, row, i) => (
-      i === editIndex || row.productName !== formData.productName ? sum : sum + signedQty(row)
-    ), 0)
-  ), [stockFromDatabase, formData.productName, editIndex]);
+    (Number(productById.get(formData.productId)?.stock) || 0) -
+    (editingMovement?.productId === formData.productId ? signedQty(editingMovement) : 0)
+  ), [productById, formData.productId, editingMovement]);
 
   const isAdjustment = formData.type === 'Adjustment';
 
@@ -179,27 +216,38 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   const projectedRemaining = useMemo(() => {
     if (!formData.productName || !formData.type || formData.qty === '') return null;
     /* An adjustment sets on-hand to the counted quantity outright. */
-    if (formData.type === 'Adjustment') return Number(formData.qty) || 0;
+    if (formData.type === 'Adjustment') {
+      const product = productById.get(formData.productId);
+      const adjustmentDelta = (Number(formData.qty) || 0) -
+        balanceBeforeDate(stockFromDatabase, product, formData.date, editingMovement);
+      const stockBeforeReplacement = (Number(product?.stock) || 0) -
+        (editingMovement?.productId === formData.productId ? signedQty(editingMovement) : 0);
+      return stockBeforeReplacement + adjustmentDelta;
+    }
     return currentOnHand + signedQty(formData);
-  }, [currentOnHand, formData]);
+  }, [currentOnHand, formData, editId, productById, editingMovement]);
 
   /* ===== PROJECTED STATUS ===== */
   const projectedStatus = projectedRemaining === null
     ? null
-    : stockStatusFor({ ...formData, remainingStock: projectedRemaining }, safetyStock);
+    : stockStatusFor({
+        ...formData,
+        safetyStock: productById.get(formData.productId)?.safetyStock,
+        remainingStock: projectedRemaining,
+      }, safetyStock);
 
   /* ===== SEND TO CALCULATOR ===== */
   const computeEoqFor = (row) => {
     if (!onNavigate) return;
     onNavigate('Auto-Calculator', {
       product: row.productName,
-      annualDemand: annualDemandFor(row.productName, safetyStock),
+      annualDemand: productById.get(row.productId)?.annualDemand || annualDemandFor(row.productName, safetyStock),
     });
   };
 
   /* ===== VISIBLE ROWS ===== */
   const visibleRows = useMemo(() => {
-    const withIndex = stockFromDatabase.map((row, index) => ({ row, index }));
+    const withIndex = stockFromDatabase.map((row) => ({ row, id: row.id }));
 
     const q = query.trim().toLowerCase();
     const filtered = !q
@@ -264,56 +312,75 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
 
   const allSelected =
     visibleRows.length > 0 &&
-    visibleRows.every(({ index }) => selectedIds.has(index));
+    visibleRows.every(({ id }) => selectedIds.has(id));
 
   const toggleSelectAll = () => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (allSelected) {
-        visibleRows.forEach(({ index }) => next.delete(index));
+        visibleRows.forEach(({ id }) => next.delete(id));
       } else {
-        visibleRows.forEach(({ index }) => next.add(index));
+        visibleRows.forEach(({ id }) => next.add(id));
       }
       return next;
     });
   };
 
-  const toggleSelectRow = (index) => {
+  const toggleSelectRow = (id) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      next.has(index) ? next.delete(index) : next.add(index);
+      next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   };
 
   const openAddModal = () => {
-    setFormData(emptyForm);
-    setEditIndex(null);
+    setFormData({ ...emptyForm, date: todayLocal(), type: 'Stock In' });
+    setEditId(null);
     setIsModalOpen(true);
   };
 
-  const openEditModal = (index) => {
-    setFormData({ ...emptyForm, ...stockFromDatabase[index] });
-    setEditIndex(index);
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = (index) => {
-    const removed = stockFromDatabase[index];
-    if (removed) {
-      logActivity('delete', removed.productName, `Removed ${removed.type || 'entry'} of ${removed.qty || 0} unit(s) dated ${removed.date || '—'}`);
-    }
-    setStockFromDatabase((prev) => prev.filter((_, i) => i !== index));
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(index);
-      return next;
+  const openEditModal = (id) => {
+    const movement = stockFromDatabase.find((row) => row.id === id);
+    if (!movement) return;
+    setFormData({
+      ...emptyForm,
+      ...movement,
+      qty: movement.type === 'Adjustment' ? movement.remainingStock : movement.qty,
     });
+    setEditId(id);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id, refresh = true, reportError = true) => {
+    const removed = stockFromDatabase.find((row) => row.id === id);
+    if (!removed) return;
+    try {
+      const response = await fetch(`/api/stock-movements/${id}`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.message || `Delete failed (${response.status}).`);
+      }
+      logActivity('delete', removed.productName, `Removed ${removed.type} of ${removed.qty} unit(s) dated ${removed.date}.`);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      if (refresh) await refreshStockData();
+      return true;
+    } catch (error) {
+      if (reportError) setStockError(error.message || 'Could not delete the stock movement.');
+      return false;
+    }
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setEditIndex(null);
+    setEditId(null);
   };
 
   const handleFormChange = (e) => {
@@ -324,77 +391,40 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   const handleSave = async (e) => {
     e.preventDefault();
 
-    /* ===== ADJUSTMENT (stock count) — client-side until the API supports it ===== */
-    if (formData.type === 'Adjustment') {
-      const counted = Number(formData.qty) || 0;
-      const varc = counted - currentOnHand;
-      const entry = {
-        ...formData,
-        type: 'Adjustment',
-        qty: counted,
-        variant: varc,
-        remainingStock: counted,
-      };
-      logActivity(
-        editIndex !== null ? 'edit' : 'add',
-        entry.productName,
-        `Stock count — counted ${counted}, variant ${varc >= 0 ? '+' : '−'}${Math.abs(varc)} → on hand ${counted}`
-      );
-      setStockFromDatabase((prev) =>
-        editIndex !== null
-          ? prev.map((row, i) => (i === editIndex ? entry : row))
-          : [entry, ...prev]
-      );
-      closeModal();
-      return;
-    }
-
-    /* ===== EDIT ENTRY ===== */
-    if (editIndex !== null) {
-      const entry = {
-        ...formData,
-        remainingStock: projectedRemaining === null ? formData.remainingStock : projectedRemaining,
-      };
-      logActivity('edit', entry.productName, `Updated ${entry.type || 'entry'} — qty ${entry.qty || 0}, remaining ${entry.remainingStock}`);
-      setStockFromDatabase((prev) => prev.map((row, i) => (i === editIndex ? entry : row)));
-      closeModal();
-      return;
-    }
-
-    /* ===== SAVE ENTRY ===== */
-    const apiType = formData.type === 'Stock Out' ? 'Stock Out' : 'Stock In';
-
     const payload = {
+      productId: formData.productId,
       productName: formData.productName,
       variantName: formData.variantName,
-      type: apiType,
-      qty: Number(formData.qty) || 0,
+      type: formData.type,
+      ...(formData.type === 'Adjustment'
+        ? { countedStock: Number(formData.qty) }
+        : { qty: Number(formData.qty) }),
       notes: formData.notes || null,
       recordedBy: formData.recordedBy || null,
       date: formData.date || null,
     };
 
     try {
-      const response = await fetch('/api/stock-movements', {
-        method: 'POST',
+      const response = await fetch(editId === null ? '/api/stock-movements' : `/api/stock-movements/${editId}`, {
+        method: editId === null ? 'POST' : 'PUT',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(payload),
       });
 
-      if (response.status === 422 || response.status === 404) {
-        alert(`"${formData.productName}" isn't in your product list yet. Add it under Product & Supplier first, then record its stock movement.`);
-        return;
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const validationError = result.errors ? Object.values(result.errors).flat()[0] : result.message;
+        throw new Error(validationError || `Save failed (${response.status}).`);
       }
-      if (!response.ok) throw new Error(`Save failed (${response.status})`);
 
-      const saved = await response.json(); /* ===== SAVED STOCK ===== */
-      logActivity('add', saved.productName, `${saved.type || 'Movement'} of ${saved.qty || 0} unit(s) → remaining ${saved.remainingStock}`);
-      /* ===== NEWEST FIRST ===== */
-      setStockFromDatabase((prev) => [saved, ...prev]);
+      const saved = result;
+      logActivity(editId === null ? 'add' : 'edit', saved.productName,
+        `${saved.type} ${saved.qty} unit(s) → remaining ${saved.remainingStock}`);
       closeModal();
+      await refreshStockData();
     } catch (error) {
       console.error('Could not save stock movement:', error);
-      alert('Sorry — that stock entry could not be saved. Check the server is running and try again.');
+      setStockError(error.message || 'Could not save stock movement.');
     }
   };
 /* ===== STOCK DATA END ===== */
@@ -449,10 +479,20 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
         {selectedIds.size > 0 && (
           <button
             className="sc-add-btn sc-delete-selected-btn"
-            onClick={() => {
-              const indices = Array.from(selectedIds).sort((a, b) => b - a);
-              indices.forEach(i => handleDelete(i));
-              setSelectedIds(new Set());
+            onClick={async () => {
+              const failedIds = [];
+              for (const id of selectedIds) {
+                if (!await handleDelete(id, false, false)) failedIds.push(id);
+              }
+              try {
+                await refreshStockData();
+                setStockError(failedIds.length
+                  ? `Could not delete ${failedIds.length} selected stock movement(s). Check whether removing them would make stock negative.`
+                  : '');
+              } catch (error) {
+                setStockError(error.message || 'The stock list could not be refreshed.');
+              }
+              setSelectedIds(new Set(failedIds));
             }}
             type="button"
             title={`Delete ${selectedIds.size} selected`}
@@ -475,6 +515,13 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
           <Activity size={12} />
         </button>
       </div>
+
+      {stockError && (
+        <div className="sc-error-banner" role="alert">
+          <span>{stockError}</span>
+          <button type="button" onClick={() => refreshStockData().catch((error) => setStockError(error.message))}>Retry</button>
+        </div>
+      )}
 
       {/* ===== TABLE ===== */}
       <div className="sc-table-scroll">
@@ -503,34 +550,42 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
             </tr>
           </thead>
           <tbody>
-            {visibleRows.map(({ row: stock, index }) => {
-              const status = stockStatusFor(stock, safetyStock);
-              const point = safetyPointFor(stock, safetyStock);
+            {stockLoading ? (
+              <tr><td colSpan={12} className="sc-empty-state">Loading stock movements…</td></tr>
+            ) : visibleRows.map(({ row: stock, id }) => {
+              const product = productById.get(stock.productId);
+              const statusRow = {
+                ...stock,
+                safetyStock: product?.safetyStock,
+                remainingStock: product?.stock ?? stock.remainingStock,
+              };
+              const status = stockStatusFor(statusRow, safetyStock);
+              const point = safetyPointFor(statusRow, safetyStock);
               return (
                 <tr
-                  className={`${status ? `sc-row-${status}` : ''} ${selectedIds.has(index) ? 'is-selected' : ''}`}
-                  key={index}
+                  className={`${status ? `sc-row-${status}` : ''} ${selectedIds.has(id) ? 'is-selected' : ''}`}
+                  key={id}
                 >
                   <td className="sc-td-check">
                     <input
                       type="checkbox"
-                      checked={selectedIds.has(index)}
-                      onChange={() => toggleSelectRow(index)}
-                      aria-label={`Select entry ${index}`}
+                      checked={selectedIds.has(id)}
+                      onChange={() => toggleSelectRow(id)}
+                      aria-label={`Select movement ${id}`}
                     />
                   </td>
                   <td className="sc-td-nowrap" data-label="Date">{stock.date}</td>
                   <td className="sc-td-left sc-cell-name" data-label="Product" title={stock.productName}>
                     <span className="sc-name-cell">
-                      {productImageByName.get(stock.productName) ? (
-                        <img className="sc-thumb" src={productImageByName.get(stock.productName)} alt="" loading="lazy" />
+                      {productImageByName.get(stock.productId) ? (
+                        <img className="sc-thumb" src={productImageByName.get(stock.productId)} alt="" loading="lazy" />
                       ) : (
                         <span className="sc-thumb sc-thumb-empty" aria-hidden="true"><Package size={12} /></span>
                       )}
                       <button
                         type="button"
                         className="sc-product-link"
-                        onClick={() => openHistory(stock.productName)}
+                        onClick={() => openHistory(stock.productId)}
                         title={`View movement history for ${stock.productName}`}
                       >
                         {stock.productName}
@@ -543,14 +598,30 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                       {stock.type || '—'}
                     </span>
                   </td>
-                  <td className="sc-td-nowrap" data-label="Qty">{stock.qty}</td>
+                  <td className="sc-td-nowrap" data-label="Qty">
+                    {(() => {
+                      const change = signedQty(stock);
+                      const after = Number(stock.remainingStock) || 0;
+                      const before = after - change;
+                      return (
+                        <span className="sc-qty-formula">
+                          <span className="sc-qty-before">{before}</span>
+                          <span className={`sc-qty-change ${change >= 0 ? 'sc-in' : 'sc-out'}`}>
+                            {change >= 0 ? '+' : '−'}{Math.abs(change)}
+                          </span>
+                          <span className="sc-qty-equals">=</span>
+                          <span className="sc-qty-after">{after}</span>
+                        </span>
+                      );
+                    })()}
+                  </td>
                   <td data-label="Variant">{stock.variantName || '—'}</td>
                   <td className="sc-td-nowrap sc-td-strong" data-label="Remaining">{stock.remainingStock}</td>
                   <td data-label="Safety Stock">
                     {status ? (
                       <span
                         className={`sc-safety-badge sc-safety-${status}`}
-                        title={`${stock.remainingStock} on hand · safety stock ${point} (set by Super Admin)`}
+                        title={`${statusRow.remainingStock} on hand · safety stock ${point} (set by Super Admin)`}
                       >
                         {status !== 'healthy' && <AlertTriangle size={10} />}
                         {STATUS_LABEL[status]}
@@ -575,7 +646,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                       )}
                       <button
                         className="sc-table-action-btn sc-history-btn"
-                        onClick={() => openHistory(stock.productName)}
+                        onClick={() => openHistory(stock.productId)}
                         aria-label="View movement history"
                         title="View movement history"
                         type="button"
@@ -584,7 +655,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                       </button>
                       <button
                         className="sc-table-action-btn sc-edit-btn"
-                        onClick={() => openEditModal(index)}
+                        onClick={() => openEditModal(id)}
                         aria-label="Edit Item"
                         title="Edit Item"
                         type="button"
@@ -593,7 +664,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                       </button>
                       <button
                         className="sc-table-action-btn sc-delete-btn"
-                        onClick={() => handleDelete(index)}
+                        onClick={() => handleDelete(id)}
                         aria-label="Delete Item"
                         title="Delete Item"
                         type="button"
@@ -635,7 +706,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                   <ClipboardList size={18} />
                 </span>
                 <div className="sc-modal-titles">
-                  <h3 id="sc-modal-title">{editIndex === null ? 'Add Stock Entry' : 'Edit Stock Entry'}</h3>
+                  <h3 id="sc-modal-title">{editId === null ? 'Add Stock Entry' : 'Edit Stock Entry'}</h3>
                   <p className="sc-modal-subtitle">
                     Every movement recalculates remaining stock and can trigger a reorder alert.
                   </p>
@@ -703,7 +774,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                       <select
                         id="productName"
                         name="productName"
-                        value={formData.productName}
+                        value={formData.productId}
                         onChange={handleProductSelect}
                         required
                       >
@@ -713,7 +784,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                             : 'Select a product…'}
                         </option>
                         {productOptions.map((p) => (
-                          <option key={p.id} value={p.name}>
+                          <option key={p.id} value={p.id}>
                             {p.name}
                           </option>
                         ))}
@@ -734,7 +805,6 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                             })
                           }
                           placeholder="Enter variant name"
-                          required
                         />  
                     </div>  
                   </div>
@@ -834,7 +904,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                   Cancel
                 </button>
                 <button type="submit" className="sc-modal-save-btn" disabled={!formData.type}>
-                  {editIndex === null ? 'Add Entry' : 'Save Changes'}
+                  {editId === null ? 'Add Entry' : 'Save Changes'}
                 </button>
               </div>
             </form>
@@ -849,7 +919,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
             <div className="sc-modal-header">
               <div>
                 <h3>Movement History</h3>
-                <p className="sc-history-product">{historyProduct}</p>
+                <p className="sc-history-product">{activeLedger?.productName || 'Product'}</p>
               </div>
               <button
                 className="sc-modal-close-btn"
@@ -888,7 +958,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
               {activeLedger && activeLedger.movements.length > 0 ? (
                 <ol className="sc-history-list">
                   {activeLedger.movements.map((move, i) => (
-                    <li className="sc-history-item" key={`${move.index}-${i}`}>
+                    <li className="sc-history-item" key={move.id}>
                       <span className={`sc-history-dir ${move.delta >= 0 ? 'sc-in' : 'sc-out'}`}>
                         {move.delta >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                       </span>

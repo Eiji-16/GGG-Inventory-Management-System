@@ -17,6 +17,30 @@
     margin-bottom: 10px;
 }
 
+.sc-error-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 5px 10px;
+    padding: 9px 12px;
+    border: 1px solid rgba(248, 113, 113, 0.45);
+    border-radius: 8px;
+    background: rgba(248, 113, 113, 0.1);
+    color: var(--text-primary);
+    font-size: 12px;
+}
+
+.sc-error-banner button {
+    border: 0;
+    border-radius: 5px;
+    padding: 4px 9px;
+    background: rgba(248, 113, 113, 0.2);
+    color: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
 /*==========SAFETY LEVEL BADGE==========*/
 .sc-safety-badge {
     display: inline-flex;
@@ -916,6 +940,18 @@
 
 .sc-in { color: #4ade80; }
 .sc-out { color: #ff4d4d; }
+
+/* ===== QTY FORMULA (before ± change = after) ===== */
+.sc-qty-formula {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+}
+.sc-qty-before { color: #94a3b8; }
+.sc-qty-change { font-weight: 600; }
+.sc-qty-equals { color: #64748b; }
+.sc-qty-after { font-weight: 700; }
 
 .sc-history-body {
     flex: 1;

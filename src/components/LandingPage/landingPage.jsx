@@ -36,16 +36,7 @@ import Staffs from '../Staffs/staffs'; /* ===== STAFFS ===== */
 /* ===== ROLE ===== */
 const CURRENT_ROLE = 'Super Admin';
 
-/* ===== NOTIFICATIONS ===== */
-const INITIAL_NOTIFICATIONS = [
-  { id: 1, type: 'critical', title: 'Sapphire Crystal Glass Face is below safety stock', meta: '8 on hand · reorder point 20', time: '10 min ago', view: 'Stock', read: false },
-  { id: 2, type: 'warning', title: 'Automatic Movement Caliber running low', meta: '15 on hand · watch level', time: '1 hour ago', view: 'Stock', read: false },
-  { id: 3, type: 'forecast', title: 'New demand forecast is ready', meta: 'Precision Steel Chronograph · next month', time: '3 hours ago', view: 'Forecasting', read: false },
-  { id: 4, type: 'success', title: 'Stock in recorded — 60 units', meta: 'Water-Resistant Diver Strap', time: 'Yesterday', view: 'Stock', read: true },
-  { id: 5, type: 'info', title: 'Weekly report is available to export', meta: 'Reports & Analytics', time: '2 days ago', view: 'Reports', read: true },
-];
-
-/* ===== NOTIFICATION ICONS & SAMPLE DATA ===== */
+/* ===== NOTIFICATION ICONS ===== */
 const NOTIF_ICONS = {
   critical: { Icon: AlertTriangle, cls: 'notif-ic-critical' },
   warning:  { Icon: AlertTriangle, cls: 'notif-ic-warning' },
@@ -54,17 +45,85 @@ const NOTIF_ICONS = {
   info:     { Icon: Info,          cls: 'notif-ic-info' },
 };
 
+function formatNotificationTime(timestamp) {
+  if (!timestamp) return 'Recently';
+  const elapsed = Math.max(0, Date.now() - new Date(timestamp).getTime());
+  if (!Number.isFinite(elapsed)) return 'Recently';
+  const minutes = Math.floor(elapsed / 60000);
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
+function createNotifications(summary) {
+  const notifications = [];
+  (summary.products || []).forEach((product) => {
+    const stock = Number(product.stock) || 0;
+    const reorderPoint = Number(product.safetyStock ?? 20);
+    if (stock > reorderPoint) return;
+    const outOfStock = stock <= 0;
+    notifications.push({
+      id: `stock-${product.id}`,
+      type: outOfStock ? 'critical' : 'warning',
+      title: outOfStock ? `${product.name} is out of stock` : `${product.name} is below safety stock`,
+      meta: `${stock} on hand · reorder point ${reorderPoint}`,
+      time: 'Current stock',
+      view: 'Stock',
+      read: false,
+    });
+  });
+
+  (summary.stockMovements || []).slice(-5).reverse().forEach((movement) => {
+    const stockIn = movement.type === 'in';
+    notifications.push({
+      id: `movement-${movement.id}`,
+      type: stockIn ? 'success' : 'info',
+      title: `Stock ${stockIn ? 'in' : 'out'} recorded — ${movement.qty} units`,
+      meta: movement.productName,
+      time: formatNotificationTime(movement.createdAt || movement.date),
+      view: 'Stock',
+      read: false,
+    });
+  });
+
+  return notifications;
+}
+
 function LandingPage({onLogout, user}) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* ===== SIDEBAR ===== */
   const [isDarkMode, setIsDarkMode] = useState(true); /* ===== THEME ===== */
   const [activeView, setActiveView] = useState('Dashboard'); /* ===== ACTIVE VIEW ===== */
   const [handoff, setHandoff] = useState(null); /* ===== HANDOFF ===== */
   const [safetyStock, setSafetyStock] = useState(SAFETY_STOCK_DEFAULTS); /* ===== SAFETY STOCK ===== */
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS); /* ===== NOTIFICATION STATE ===== */
+  const [notifications, setNotifications] = useState([]); /* ===== NOTIFICATION STATE ===== */
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
+  const [notificationError, setNotificationError] = useState('');
   const [isNotifOpen, setIsNotifOpen] = useState(false); /* ===== NOTIFICATION MENU ===== */
   const notifRef = useRef(null); /* ===== NOTIFICATION REF ===== */
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/dashboard/summary', { headers: { Accept: 'application/json' } })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Could not load notifications (${response.status}).`);
+        return response.json();
+      })
+      .then((summary) => {
+        if (active) setNotifications(createNotifications(summary));
+      })
+      .catch((error) => {
+        if (active) setNotificationError(error.message || 'Could not load notifications.');
+      })
+      .finally(() => {
+        if (active) setNotificationsLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
 
   /* ===== THEME EFFECT ===== */
   useEffect(() => {
@@ -297,7 +356,11 @@ function LandingPage({onLogout, user}) {
                     </div>
 
                     <div className="notif-box-list">
-                      {notifications.length === 0 ? (
+                      {notificationsLoading ? (
+                        <div className="notif-empty" role="status">Loading notifications…</div>
+                      ) : notificationError ? (
+                        <div className="notif-empty" role="alert">{notificationError}</div>
+                      ) : notifications.length === 0 ? (
                         <div className="notif-empty">
                           <BellOff size={22} />
                           <span>You’re all caught up</span>

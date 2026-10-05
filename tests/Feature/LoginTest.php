@@ -155,4 +155,23 @@ class LoginTest extends TestCase
             'password_confirmation' => 'NewStrongPassword123!',
         ])->assertUnprocessable();
     }
+
+    public function test_password_reset_reports_rejected_gmail_credentials(): void
+    {
+        $user = User::factory()->create();
+        $mailer = \Mockery::mock();
+        Mail::shouldReceive('to')->once()->with($user->email)->andReturn($mailer);
+        $mailer->shouldReceive('send')
+            ->once()
+            ->andThrow(new \Symfony\Component\Mailer\Exception\TransportException('535-5.7.8 BadCredentials'));
+
+        $this->postJson('/auth/password/otp', ['email' => $user->email])
+            ->assertServiceUnavailable()
+            ->assertJsonPath(
+                'message',
+                'Gmail rejected the mail credentials. Update MAIL_PASSWORD in .env with a valid Gmail App Password, then run php artisan config:clear.'
+            );
+
+        $this->assertDatabaseMissing('password_reset_otps', ['email' => $user->email]);
+    }
 }

@@ -19,6 +19,10 @@ export const SAFETY_STOCK_DEFAULTS = {
 
 /* Safety Point */
 export const safetyPointFor = (row, policy = SAFETY_STOCK_DEFAULTS) => {
+  if (row?.safetyStock !== null && row?.safetyStock !== undefined && row.safetyStock !== '') {
+    const productSafetyStock = Number(row.safetyStock);
+    if (Number.isFinite(productSafetyStock)) return productSafetyStock;
+  }
   const value = Number(policy?.[row?.productName]?.safetyStock);
   return Number.isFinite(value) ? value : DEFAULT_SAFETY_STOCK;
 };

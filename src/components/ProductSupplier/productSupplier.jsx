@@ -246,13 +246,14 @@ function ProductSupplier({ onNavigate }) {
       if (!response.ok) throw new Error(`Save failed (${response.status})`);
       const saved = await response.json(); /* ===== SAVED PRODUCT ===== */
 
-      /* Merge the image client-side so the photo shows this session; the API
-         doesn't persist it yet (no image column), so it won't survive a reload. */
-      setProductsFromDatabase((prev) =>
-        isAdd
-          ? [...prev, { ...saved, image: formData.image }]
-          : prev.map((p) => (p.id === saved.id ? { ...saved, image: formData.image } : p))
-      );
+      /* Keep the newly selected image for this session; the API doesn't persist it yet. */
+      setProductsFromDatabase((prev) => {
+        const updated =
+          isAdd
+            ? [...prev, { ...saved, image: formData.image }]
+            : prev.map((p) => (p.id === saved.id ? { ...saved, image: formData.image } : p));
+        return updated.sort((a, b) => a.name.localeCompare(b.name));
+      });
 
       /* Keep the picker in sync: if this save introduced a new supplier name,
          add it to the dropdown list so it's reusable right away. */
@@ -263,6 +264,16 @@ function ProductSupplier({ onNavigate }) {
         ]);
       }
       closeModal();
+
+      try {
+        const refreshResponse = await fetch('/api/products', { headers: { Accept: 'application/json' } });
+        if (!refreshResponse.ok) throw new Error(`Refresh failed (${refreshResponse.status})`);
+        const refreshedProducts = await refreshResponse.json();
+        setProductsFromDatabase(refreshedProducts);
+      } catch (refreshError) {
+        console.error('Product was saved, but the product list could not be refreshed:', refreshError);
+        alert('Product saved successfully, but the list could not refresh. Reload the page to see the latest database data.');
+      }
     } catch (error) {
       console.error('Could not save product:', error);
       alert('Sorry — that product could not be saved. Check the server is running and try again.');
@@ -408,7 +419,7 @@ function ProductSupplier({ onNavigate }) {
             {visibleProducts.map((product, idx) => (
               <tr
                 className={`ps-row-clickable ${selectedIds.has(product.id) ? 'is-selected' : ''}`}
-                key={pageCursor + idx}
+                key={product.id}
                 title={`View full information for ${product.name}`}
                 onClick={() => openDetails(product)}
                 onKeyDown={(e) => {
