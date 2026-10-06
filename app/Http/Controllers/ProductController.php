@@ -6,15 +6,10 @@ use App\Models\Product;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * ProductController — /api/products
- *
- * Returns products in the SAME shape the frontend already consumes
- * (public/productSupplier.json): id = product.code, plus the flat supplier
- * fields (supplierName/supplierContact/company/supplierInfo) reconstructed from
- * the related supplier. safetyStock/annualDemand are joined from safety_stock so
- * the Auto Calculator can auto-fill demand.
  */
 class ProductController extends Controller
 {
@@ -49,19 +44,23 @@ class ProductController extends Controller
             'unitMeasure'     => ['nullable', 'string', 'max:255'],
             'supplierName'    => ['nullable', 'string', 'max:255'],
             'supplierContact' => ['nullable', 'string', 'max:255'],
+            'stock'           => ['nullable', 'integer', 'min:0'],   // ← ADDED
         ]);
 
         $supplier = $this->resolveSupplier($data);
 
         $product = Product::create([
-            'code'         => $this->generateCode(),
-            'name'         => $data['name'],
-            'category'     => $data['category'] ?? null,
-            'brand'        => $data['brand'] ?? null,
-            'model'        => $data['model'] ?? null,
-            'unit_measure' => $data['unitMeasure'] ?? null,
-            'supplier_id'  => $supplier?->id,
+            'code'          => $this->generateCode(),
+            'name'          => $data['name'],
+            'category'      => $data['category'] ?? null,
+            'brand'         => $data['brand'] ?? null,
+            'model'         => $data['model'] ?? null,
+            'unit_measure'  => $data['unitMeasure'] ?? null,
+            'supplier_id'   => $supplier?->id,
+            'stock_on_hand' => $data['stock'] ?? 0,                  // ← ADDED
         ]);
+
+        \App\Models\ActivityLog::record('product.create', "Added product — {$product->name}", 'boxes', ['product' => $product->name]);
 
         return response()->json($this->format($product->load(['supplier', 'safetyStock'])), 201);
     }
@@ -79,9 +78,23 @@ class ProductController extends Controller
             'unitMeasure'     => ['nullable', 'string', 'max:255'],
             'supplierName'    => ['nullable', 'string', 'max:255'],
             'supplierContact' => ['nullable', 'string', 'max:255'],
+            'stock'           => ['sometimes', 'integer', 'min:0'],   // opening balance
         ]);
 
         $supplier = $this->resolveSupplier($data);
+
+        // Opening stock may only be set while the product has no movements yet.
+        // Once a ledger exists, stock_on_hand is governed by StockMovementService
+        // so the cached balance can never drift out of sync with the ledger.
+        if (array_key_exists('stock', $data)) {
+            if ($product->stockMovements()->exists()) {
+                throw ValidationException::withMessages([
+                    'stock' => 'Opening stock can only be set before the first stock movement is recorded.',
+                ]);
+            }
+            $product->stock_on_hand = $data['stock'];
+            $product->save();
+        }
 
         $product->update(array_filter([
             'name'         => $data['name'] ?? null,
@@ -103,10 +116,6 @@ class ProductController extends Controller
         return response()->json(['deleted' => true]);
     }
 
-    /**
-     * Find or create a supplier from the incoming flat fields so the frontend
-     * can keep sending supplierName/supplierContact without knowing about ids.
-     */
     private function resolveSupplier(array $data): ?Supplier
     {
         $name = $data['supplierName'] ?? null;
@@ -120,7 +129,6 @@ class ProductController extends Controller
         );
     }
 
-    /** Generate a unique "PRD-XXXX" code. */
     private function generateCode(): string
     {
         do {
@@ -130,7 +138,6 @@ class ProductController extends Controller
         return $code;
     }
 
-    /** Shape a Product into the JSON the frontend expects. */
     private function format(Product $p): array
     {
         return [

@@ -192,6 +192,46 @@
     font-size: 12px;
 }
 
+/*==========MINI BAR CHART (movement over time)==========*/
+.r-mini-chart {
+    height: 220px;
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 12px 6px 0;
+}
+.r-mini-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    height: 100%;
+    justify-content: flex-end;
+}
+.r-mini-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 100%;
+    width: 100%;
+    justify-content: center;
+}
+.r-mini-bar {
+    width: 40%;
+    max-width: 22px;
+    border-radius: 4px 4px 0 0;
+    min-height: 2px;
+    transition: height 0.3s ease;
+}
+.r-mini-in { background: #1e8a5f; }
+.r-mini-out { background: #c4432e; }
+.r-mini-label {
+    font-size: 10px;
+    color: var(--text-muted, #888);
+    white-space: nowrap;
+}
+
 /*==========TABLE==========*/
 .r-table-card {
     background: var(--bg-card, #fff);

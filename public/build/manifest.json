@@ -1,11 +1,14 @@
 {
   "src/layouts/App.jsx": {
-    "file": "assets/App-DxtXa3SM.js",
+    "file": "assets/App-C9KfhO-v.js",
     "name": "App",
     "src": "src/layouts/App.jsx",
     "isEntry": true,
+    "dynamicImports": [
+      "src/layouts/App.jsx"
+    ],
     "css": [
-      "assets/App-BvABEFjQ.css"
+      "assets/App-BSlw_Ohx.css"
     ]
   },
   "src/styles/index.css": {

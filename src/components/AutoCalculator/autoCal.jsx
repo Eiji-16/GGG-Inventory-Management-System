@@ -1,22 +1,53 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, X, Calculator, History, Download, GitCompare, Info, TrendingUp, Boxes } from 'lucide-react';
 import './autoCal.css';
+import { parse as mathParse } from 'mathjs';
 
 /*--------------------------------------------------Sample data--------------------------------------------------*/
-/* SAMPLE_FORMULA — definition of the currently selected formula (default EOQ). */
-   
-const SAMPLE_FORMULA = {
+/* EOQ_FORMULA — the built-in default. It keeps its bespoke cost-curve analysis
+   and is computed locally; everything else (custom formulas) is loaded from and
+   evaluated by the backend. `custom: false` marks it as non-deletable. */
+
+const EOQ_FORMULA = {
+  id: 'eoq',
   name: 'EOQ',
   fullName: 'Economic Order Quantity',
   description: 'Computes the optimal order quantity to minimize total inventory costs including ordering and holding costs.',
   formula: '√(2DS / H)',
+  resultUnit: 'units',
+  custom: false,
   fields: [
     { key: 'demand',      label: 'Annual Demand (D)',  placeholder: '', unit: 'units/year' },
     { key: 'orderCost',   label: 'Ordering Cost (S)',  placeholder: '', unit: '₱ per order' },
     { key: 'holdingCost', label: 'Holding Cost (H)',   placeholder: '', unit: '₱ per unit/year' },
   ],
 };
+
+
+/* Canonicalise a user-typed expression into an explicit-operator form that BOTH
+   the frontend (mathjs) and the backend evaluator agree on. mathjs understands
+   implicit multiplication (2D, 2(a+b), spaced "2 D S") and we render it back with
+   explicit * via toString({implicit:'show'}) — so "2D" is stored as "2 * D".
+   Note: a run of letters is one variable (Excel-style): "dL" is the variable dL,
+   not d*L. Use a space or * to multiply single-letter variables ("d L" / "d*L").
+   If the expression doesn't parse yet, fall back to the symbol-cleaned string so
+   downstream error handling can report the problem. */
+function normalizeFormula(raw) {
+  const pre = String(raw || '')
+    .replace(/×/g, '*')
+    .replace(/÷/g, '/')
+    .replace(/√/g, 'sqrt')
+    .replace(/−/g, '-');
+  try {
+    return mathParse(pre).toString({ implicit: 'show' });
+  } catch {
+    return pre;
+  }
+}
+
+/* Kept for compatibility with the chart/compare code below. */
+const SAMPLE_FORMULA = EOQ_FORMULA;
 
 /* ===== SAMPLE_PRODUCTS — products the user can auto-fill demand from (dropdown + batch compute). ===== */
    
@@ -119,33 +150,91 @@ function CostChart({ demand, orderCost, holdingCost, eoq }) {
 }
 
 /* ===== FUNCTION FOR MODALS ===== */
+
+/* Pull the variable names out of an expression using mathjs.
+   A symbol is a variable unless it is a function name (sqrt, min, max, …).
+   Order of first appearance is preserved. */
+function parseFormulaKeys(expression) {
+  if (!expression || !expression.trim()) return [];
+  try {
+    const node = mathParse(normalizeFormula(expression));
+    const symbols = new Set();
+    const functions = new Set();
+    node.traverse((n) => {
+      if (n.isSymbolNode) symbols.add(n.name);
+      if (n.isFunctionNode && n.fn && n.fn.name) functions.add(n.fn.name);
+    });
+    return [...symbols].filter((s) => !functions.has(s));
+  } catch {
+    return [];
+  }
+}
+
 function AddFormulaModal({ onClose, onSave }) {
-  const [form, setForm] = useState({ name: '', fullName: '', description: '', formula: '' });
-  const [fields, setFields] = useState([{ label: '', key: '', unit: '' }]);
+  const [form, setForm] = useState({ name: '', fullName: '', description: '', formula: '', resultUnit: '' });
+  /* Field metadata (label + unit) keyed by the variable name. The keys
+     themselves come from the expression, so there's nothing to type twice. */
+  const [fieldMeta, setFieldMeta] = useState({}); // { d: { label, unit }, ... }
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const setField = (key) => (e) => setForm(prev => ({ ...prev, [key]: e.target.value }));
 
-  const updateFieldRow = (i, key, value) =>
-    setFields(prev => prev.map((row, idx) => (idx === i ? { ...row, [key]: value } : row)));
+  /* Keys detected in the current expression, in order of appearance. */
+ const detectedKeys = useMemo(
+  () => parseFormulaKeys(form.formula),
+  [form.formula]
+);
 
-  const addFieldRow = () => setFields(prev => [...prev, { label: '', key: '', unit: '' }]);
-  const removeFieldRow = (i) => setFields(prev => prev.filter((_, idx) => idx !== i));
+/* Is the formula even parseable right now? Used to show a hint. */
+const formulaError = useMemo(() => {
+  if (!form.formula.trim()) return '';
+  try {
+    mathParse(normalizeFormula(form.formula));
+    return '';
+  } catch (err) {
+    return err.message;
+  }
+}, [form.formula]);
 
-  const canSave = form.name.trim() && form.fullName.trim() &&
-    fields.some(f => f.label.trim() && f.key.trim());
+  const updateMeta = (key, prop, value) =>
+    setFieldMeta(prev => ({ ...prev, [key]: { ...(prev[key] || {}), [prop]: value } }));
 
-  const save = () => {
-    if (!canSave) return;
-    onSave({
-      name: form.name.trim(),
-      fullName: form.fullName.trim(),
-      description: form.description.trim(),
-      formula: form.formula.trim() || '—',
-      fields: fields
-        .filter(f => f.label.trim() && f.key.trim())
-        .map(f => ({ key: f.key.trim(), label: f.label.trim(), unit: f.unit.trim(), placeholder: '' })),
-      custom: true,
-    });
+  const save = async () => {
+    if (saving) return;
+    setError('');
+
+    // Explain exactly what's missing instead of silently disabling the button.
+    const missing = [];
+if (!form.fullName.trim()) missing.push('Full Name');
+if (!form.formula.trim()) missing.push('Formula Expression');
+if (formulaError) missing.push('a valid Formula Expression');
+if (!formulaError && detectedKeys.length === 0) missing.push('at least one variable in the Formula Expression (e.g. D, S, H)');
+
+    if (missing.length) {
+      setError('Please fill in: ' + missing.join(', ') + '.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await onSave({
+        // Short name (tab label) is derived from the Full Name — no separate field.
+        name: form.fullName.trim(),
+        fullName: form.fullName.trim(),
+        description: form.description.trim(),
+        formula: normalizeFormula(form.formula).trim(),
+        resultUnit: form.resultUnit.trim() || 'units',
+        fields: detectedKeys.map(key => ({
+          key,
+          label: (fieldMeta[key]?.label || '').trim() || key,
+          unit: (fieldMeta[key]?.unit || '').trim(),
+        })),
+      });
+    } catch (err) {
+      setError(err.message || 'Could not save the formula.');
+      setSaving(false);
+    }
   };
 
 
@@ -159,10 +248,6 @@ function AddFormulaModal({ onClose, onSave }) {
         </div>
         <div className="ac-modal-body">
           <div className="ac-field-group">
-            <label className="ac-label">Short Name <span className="ac-required">*</span></label>
-            <input className="ac-input" value={form.name} onChange={setField('name')} placeholder="e.g. ROP" />
-          </div>
-          <div className="ac-field-group">
             <label className="ac-label">Full Name <span className="ac-required">*</span></label>
             <input className="ac-input" value={form.fullName} onChange={setField('fullName')} placeholder="e.g. Reorder Point" />
           </div>
@@ -171,29 +256,60 @@ function AddFormulaModal({ onClose, onSave }) {
             <input className="ac-input" value={form.description} onChange={setField('description')} placeholder="What this formula computes" />
           </div>
           <div className="ac-field-group">
-            <label className="ac-label">Formula Expression</label>
-            <input className="ac-input" value={form.formula} onChange={setField('formula')} placeholder="e.g. d × L + SS" />
+            <label className="ac-label">Formula Expression <span className="ac-required">*</span></label>
+            <input className="ac-input" value={form.formula} onChange={setField('formula')} placeholder="e.g. sqrt(2 * D * S / H)" />
+            {formulaError ? (
+              <p className="ac-field-error" style={{ marginTop: 4 }}>
+                Formula error: {formulaError}
+              </p>
+            ) : (
+              <p className="ac-source-note">
+                Variables are detected automatically. Functions: <code>sqrt</code>, <code>min</code>, <code>max</code>, <code>abs</code>, <code>round</code>.
+              </p>
+            )}
+          </div>
+          <div className="ac-field-group">
+            <label className="ac-label">Result Unit</label>
+            <input className="ac-input" value={form.resultUnit} onChange={setField('resultUnit')} placeholder="e.g. units" />
           </div>
           <div className="ac-field-group">
             <label className="ac-label">Input Fields <span className="ac-required">*</span></label>
-            <div className="ac-fields-list">
-              {fields.map((row, i) => (
-                <div className="ac-field-row" key={i}>
-                  <input className="ac-input ac-input-sm" value={row.label} onChange={e => updateFieldRow(i, 'label', e.target.value)} placeholder="Label" />
-                  <input className="ac-input ac-input-sm" value={row.key} onChange={e => updateFieldRow(i, 'key', e.target.value)} placeholder="key" />
-                  <input className="ac-input ac-input-sm" value={row.unit} onChange={e => updateFieldRow(i, 'unit', e.target.value)} placeholder="unit" />
-                  {fields.length > 1 && (
-                    <button className="ac-modal-close" type="button" onClick={() => removeFieldRow(i)} title="Remove field"><X size={12} /></button>
-                  )}
+            {detectedKeys.length === 0 ? (
+              <p className="ac-source-note">
+                Fields appear here automatically from the expression above.
+              </p>
+            ) : (
+              <>
+                <p className="ac-source-note" style={{ marginBottom: 6 }}>
+                  Detected {detectedKeys.length} variable{detectedKeys.length !== 1 ? 's' : ''} — add a label and unit for each.
+                </p>
+                <div className="ac-fields-list">
+                  {detectedKeys.map((key) => (
+                    <div className="ac-field-row" key={key}>
+                      <input
+                        className="ac-input ac-input-sm"
+                        value={fieldMeta[key]?.label || ''}
+                        onChange={e => updateMeta(key, 'label', e.target.value)}
+                        placeholder={`Label for "${key}"`}
+                      />
+                      <input className="ac-input ac-input-sm ac-input-key" value={key} readOnly title="Taken from the expression" />
+                      <input
+                        className="ac-input ac-input-sm"
+                        value={fieldMeta[key]?.unit || ''}
+                        onChange={e => updateMeta(key, 'unit', e.target.value)}
+                        placeholder="unit"
+                      />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <button className="ac-add-field-btn" type="button" onClick={addFieldRow}><Plus size={12} /> Add Field</button>
+              </>
+            )}
           </div>
+          {error && <p className="ac-field-error" style={{ marginTop: '8px' }}>{error}</p>}
         </div>
         <div className="ac-modal-footer">
           <button className="ac-btn-cancel" onClick={onClose}>Cancel</button>
-          <button className="ac-btn-save" onClick={save} disabled={!canSave}>Save Formula</button>
+          <button className="ac-btn-save" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save Formula'}</button>
         </div>
       </div>
     </div>,
@@ -334,15 +450,44 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
   const [showBatch,   setShowBatch]   = useState(false);
   const [compareMode, setCompareMode] = useState(false);
 
-  const [inputs, setInputs] = useState({ demand: '', orderCost: '', holdingCost: '' });
-  const [errors, setErrors] = useState({});
-  const [result, setResult] = useState(null); // null = not yet computed
-
-  /* ===== ADD FORMULA MODAL ===== */
+  /* ===== FORMULAS (EOQ default + custom from backend) ===== */
   const [customFormulas, setCustomFormulas] = useState([]);
+  const [activeId, setActiveId] = useState(EOQ_FORMULA.id);
+  const [loadError, setLoadError] = useState('');
 
-  /* ===== HISTORY MODAL FOR FORMULA ===== */
+  const allFormulas = useMemo(() => [EOQ_FORMULA, ...customFormulas], [customFormulas]);
+  const activeFormula = useMemo(
+    () => allFormulas.find(f => String(f.id) === String(activeId)) || EOQ_FORMULA,
+    [allFormulas, activeId]
+  );
+  const isEoq = !activeFormula.custom;
+
+  /* Inputs are keyed by the active formula's field keys, so the form adapts to
+     however many fields the selected formula defines. */
+  const [inputs, setInputs] = useState({});
+  const [errors, setErrors] = useState({});
+  const [result, setResult] = useState(null);     // EOQ rich result object
+  const [customResult, setCustomResult] = useState(null); // { result, unit }
+  const [computing, setComputing] = useState(false);
+
+  /* ===== HISTORY ===== */
   const [history, setHistory] = useState(SAMPLE_HISTORY);
+
+  /* Load custom formulas once. */
+  useEffect(() => {
+    fetch('/api/formulas', { headers: { Accept: 'application/json' } })
+      .then(r => { if (!r.ok) throw new Error(`GET /api/formulas failed (${r.status})`); return r.json(); })
+      .then(data => setCustomFormulas(Array.isArray(data) ? data : []))
+      .catch(err => setLoadError(err.message || 'Could not load custom formulas.'));
+  }, []);
+
+  /* When the active formula changes, clear the inputs/results for a clean slate. */
+  useEffect(() => {
+    setInputs(Object.fromEntries(activeFormula.fields.map(f => [f.key, ''])));
+    setErrors({});
+    setResult(null);
+    setCustomResult(null);
+  }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -355,42 +500,87 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
     if (p) setInputs(prev => ({ ...prev, demand: String(p.demand) }));
   };
 
-  const handleCompute = () => {
+  const handleCompute = async () => {
+    // Validate every field of the active formula is a positive number.
     const errs = {};
-    const D = parseFloat(inputs.demand);
-    const S = parseFloat(inputs.orderCost);
-    const H = parseFloat(inputs.holdingCost);
-    if (!inputs.demand || isNaN(D) || D <= 0) errs.demand = 'Enter a positive annual demand';
-    if (!inputs.orderCost || isNaN(S) || S <= 0) errs.orderCost = 'Enter a positive ordering cost';
-    if (!inputs.holdingCost || isNaN(H) || H <= 0) errs.holdingCost = 'Enter a positive holding cost';
+    activeFormula.fields.forEach(f => {
+      const v = parseFloat(inputs[f.key]);
+      if (inputs[f.key] === '' || inputs[f.key] == null || isNaN(v) || v < 0) {
+        errs[f.key] = `Enter a valid ${f.label}`;
+      }
+    });
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
-    const eoq           = Math.sqrt((2 * D * S) / H);
-    const annualOrdering = (D / eoq) * S;
-    const annualHolding  = (eoq / 2) * H;
-    const totalCost      = annualOrdering + annualHolding;
-    const ordersPerYear  = D / eoq;
-    const cycleLength    = 365 / ordersPerYear;
-
-    setResult({ eoq, annualOrdering, annualHolding, totalCost, ordersPerYear, cycleLength, D, S, H });
-
-    /* ===== HISTORY ADD FUNCTION ===== */
-    setHistory(prev => [
-      {
+    if (isEoq) {
+      /* Built-in EOQ keeps its rich local analysis. */
+      const D = parseFloat(inputs.demand);
+      const S = parseFloat(inputs.orderCost);
+      const H = parseFloat(inputs.holdingCost);
+      if (!(D > 0 && S > 0 && H > 0)) {
+        setErrors({
+          demand: D > 0 ? '' : 'Enter a positive annual demand',
+          orderCost: S > 0 ? '' : 'Enter a positive ordering cost',
+          holdingCost: H > 0 ? '' : 'Enter a positive holding cost',
+        });
+        return;
+      }
+      const eoq            = Math.sqrt((2 * D * S) / H);
+      const annualOrdering = (D / eoq) * S;
+      const annualHolding  = (eoq / 2) * H;
+      const totalCost      = annualOrdering + annualHolding;
+      const ordersPerYear  = D / eoq;
+      const cycleLength    = 365 / ordersPerYear;
+      setResult({ eoq, annualOrdering, annualHolding, totalCost, ordersPerYear, cycleLength, D, S, H });
+      setHistory(prev => [{
         formulaName: 'EOQ',
         date: new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }),
         inputs: { D, S, H },
         result: eoq.toFixed(2),
         unit: 'units',
-      },
-      ...prev,
-    ]);
+      }, ...prev]);
+      return;
+    }
+
+    /* Custom formula → evaluate on the backend. */
+    /* Custom formula → evaluate in the browser with mathjs. */
+      setComputing(true);
+      try {
+        const { evaluate } = await import('mathjs');
+        const numericInputs = Object.fromEntries(
+          activeFormula.fields.map(f => [f.key, parseFloat(inputs[f.key])])
+        );
+        const scope = {};
+        for (const [k, v] of Object.entries(numericInputs)) {
+          if (!Number.isFinite(v)) {
+            throw new Error(`Enter a valid value for "${k}".`);
+          }
+          scope[k] = v;
+        }
+        const raw = evaluate(normalizeFormula(activeFormula.formula), scope);
+        const num = Number(raw);
+        if (!Number.isFinite(num)) {
+          throw new Error('Formula produced a non-numeric result.');
+        }
+        setCustomResult({ result: num, unit: activeFormula.resultUnit || 'units' });
+        setHistory(prev => [{
+          formulaName: activeFormula.name,
+          date: new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }),
+          inputs: numericInputs,
+          result: num.toLocaleString('en-PH', { maximumFractionDigits: 4 }),
+          unit: activeFormula.resultUnit || 'units',
+        }, ...prev]);
+      } catch (err) {
+        setErrors({ _form: err.message || 'Could not compute this formula.' });
+      } finally {
+        setComputing(false);
+      }
   };
 
   const handleReset = () => {
-    setInputs({ demand: '', orderCost: '', holdingCost: '' });
+    setInputs(Object.fromEntries(activeFormula.fields.map(f => [f.key, ''])));
     setErrors({});
     setResult(null);
+    setCustomResult(null);
   };
 
   const fmtCur = (v) => `₱${v.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -428,14 +618,37 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
     window.print();
   };
 
-  /* ===== SAVE FORMULA ===== */
-  const handleSaveFormula = (formula) => {
-    setCustomFormulas(prev => [...prev, formula]);
+  /* ===== SAVE FORMULA (persist to backend) ===== */
+  const handleSaveFormula = async (formula) => {
+    const response = await fetch('/api/formulas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      // Backend validates `expression`; the modal builds `formula`. Send both
+      // so the field names line up without changing the API contract.
+      body: JSON.stringify({ ...formula, expression: formula.formula }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const msg = data.errors ? Object.values(data.errors).flat()[0] : data.message;
+      throw new Error(msg || `Save failed (${response.status}).`);
+    }
+    setCustomFormulas(prev => [...prev, data]);
+    setActiveId(data.id);     // jump to the new formula so its inputs show
     setShowModal(false);
   };
 
-  const closeCustomFormula = (name) => {
-    setCustomFormulas(prev => prev.filter(f => f.name !== name));
+  const closeCustomFormula = async (formula) => {
+    try {
+      const response = await fetch(`/api/formulas/${formula.id}`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) throw new Error(`Delete failed (${response.status})`);
+      setCustomFormulas(prev => prev.filter(f => f.id !== formula.id));
+      if (String(activeId) === String(formula.id)) setActiveId(EOQ_FORMULA.id);
+    } catch (err) {
+      setLoadError(err.message || 'Could not delete the formula.');
+    }
   };
 
   /* Compare mode — side-by-side EOQ (A) vs Reorder Point (B). */
@@ -467,15 +680,14 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
       <div className="ac-header">
         <div className="ac-header-left">
           <div className="ac-tabs">
-            <div className="ac-tab active"><button className="ac-tab-btn">EOQ</button></div>
-            <div className="ac-tab active"><button className="ac-tab-btn">OTHER SAMPLE FORMULAS...</button></div>
-            {customFormulas.map((f) => (
-              <div className="ac-tab" key={f.name}>
-                <button className="ac-tab-btn" title={f.fullName}>{f.name}</button>
-                <button className="ac-tab-close" onClick={() => closeCustomFormula(f.name)} title={`Remove ${f.name}`}>
-                  
-                  <X size={10} />
-                </button>
+            {allFormulas.map((f) => (
+              <div className={`ac-tab${String(activeId) === String(f.id) ? ' active' : ''}`} key={f.id}>
+                <button className="ac-tab-btn" title={f.fullName} onClick={() => setActiveId(f.id)}>{f.name}</button>
+                {f.custom && (
+                  <button className="ac-tab-close" onClick={() => closeCustomFormula(f)} title={`Remove ${f.name}`}>
+                    <X size={10} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -499,6 +711,12 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
         </div>
       )}
 
+      {loadError && (
+        <div className="ac-handoff-banner" style={{ background: 'rgba(220,70,70,0.12)' }}>
+          <X size={13} /><span>{loadError}</span>
+        </div>
+      )}
+
       {/* ===== CALCULATOR BODY ===== */}
       {!compareMode && (
         <>
@@ -508,23 +726,28 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
               <div className="ac-top-bar">
                 <div className="ac-formula-info">
                   <span className="ac-formula-name">
-                    {SAMPLE_FORMULA.fullName}
+                    {activeFormula.fullName}
                     <span className="ac-tooltip-wrapper"><Info size={12} className="ac-tooltip-icon" /></span>
                   </span>
-                  <span className="ac-formula-expr"><Calculator size={11} />{SAMPLE_FORMULA.formula}</span>
+                  <span className="ac-formula-expr"><Calculator size={11} />{activeFormula.formula}</span>
+                  {activeFormula.description && (
+                    <span className="ac-source-note" style={{ marginTop: 4 }}>{activeFormula.description}</span>
+                  )}
                 </div>
-                <div className="ac-product-selector">
-                  <label className="ac-label">Auto-fill from Product</label>
-                  <select className="ac-input" defaultValue="" onChange={handleProductSelect}>
-                    <option value="">— Select a product —</option>
-                    {SAMPLE_PRODUCTS.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}
-                  </select>
-                  <p className="ac-source-note"><Boxes size={11} />Annual demand comes from Stock Movement records.</p>
-                </div>
+                {isEoq && (
+                  <div className="ac-product-selector">
+                    <label className="ac-label">Auto-fill from Product</label>
+                    <select className="ac-input" defaultValue="" onChange={handleProductSelect}>
+                      <option value="">— Select a product —</option>
+                      {SAMPLE_PRODUCTS.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}
+                    </select>
+                    <p className="ac-source-note"><Boxes size={11} />Annual demand comes from Stock Movement records.</p>
+                  </div>
+                )}
               </div>
 
               <div className="ac-inputs-grid">
-                {SAMPLE_FORMULA.fields.map(field => (
+                {activeFormula.fields.map(field => (
                   <div className="ac-input-group" key={field.key}>
                     <label className="ac-label">{field.label}</label>
                     <div className="ac-input-row">
@@ -532,20 +755,24 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
                         className={`ac-input${errors[field.key] ? ' ac-input-error' : ''}`}
                         type="number"
                         name={field.key}
-                        value={inputs[field.key]}
+                        value={inputs[field.key] ?? ''}
                         onChange={handleInputChange}
                         placeholder={field.placeholder}
                         min="0"
                       />
-                      <span className="ac-unit">{field.unit}</span>
+                      {field.unit && <span className="ac-unit">{field.unit}</span>}
                     </div>
                     {errors[field.key] && <span className="ac-field-error">{errors[field.key]}</span>}
                   </div>
                 ))}
               </div>
 
+              {errors._form && <p className="ac-field-error" style={{ marginTop: 6 }}>{errors._form}</p>}
+
               <div className="ac-actions">
-                <button className="ac-btn-compute" onClick={handleCompute}>Compute</button>
+                <button className="ac-btn-compute" onClick={handleCompute} disabled={computing}>
+                  {computing ? 'Computing…' : 'Compute'}
+                </button>
                 <button className="ac-btn-reset" onClick={handleReset}>Reset</button>
               </div>
             </div>
@@ -555,31 +782,45 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
               <div className="ac-result-box">
                 <div className="ac-result-formula-row">
                   <span className="ac-result-section-label">Formula</span>
-                  <span className="ac-result-formula">{SAMPLE_FORMULA.formula}</span>
+                  <span className="ac-result-formula">{activeFormula.formula}</span>
                 </div>
                 <div className="ac-result-divider" />
                 <div className="ac-result-main">
-                  <span className="ac-result-section-label">Optimal Order Quantity</span>
-                  <div className={`ac-result-value${result ? ' has-result' : ''}`}>
-                    {result ? fmtNum(result.eoq) : '—'}
+                  <span className="ac-result-section-label">
+                    {isEoq ? 'Optimal Order Quantity' : activeFormula.fullName}
+                  </span>
+                  <div className={`ac-result-value${(isEoq ? result : customResult) ? ' has-result' : ''}`}>
+                    {isEoq
+                      ? (result ? fmtNum(result.eoq) : '—')
+                      : (customResult ? fmtNum(Number(customResult.result)) : '—')}
                   </div>
-                  <div className="ac-result-unit">{result ? 'units' : 'Enter values and compute'}</div>
+                  <div className="ac-result-unit">
+                    {isEoq
+                      ? (result ? 'units' : 'Enter values and compute')
+                      : (customResult ? customResult.unit : 'Enter values and compute')}
+                  </div>
                 </div>
-                {result && (
+                {isEoq && result && (
                   <div className="ac-result-hint">
                     ✅ You should order <strong>{fmtNum(result.eoq)} units</strong> per order cycle.
                   </div>
                 )}
+                {!isEoq && customResult && (
+                  <div className="ac-result-hint">
+                    ✅ {activeFormula.name} = <strong>{fmtNum(Number(customResult.result))} {customResult.unit}</strong>
+                  </div>
+                )}
                 <div className="ac-result-divider" />
                 <div className="ac-export-actions">
-                  <button className="ac-btn-reset ac-export-btn" onClick={exportCsv} disabled={!result} type="button"><Download size={12} /> Export CSV</button>
-                  <button className="ac-btn-reset ac-export-btn" onClick={exportPdf} disabled={!result} type="button"><Download size={12} /> Export PDF</button>
+                  <button className="ac-btn-reset ac-export-btn" onClick={exportCsv} disabled={!result || !isEoq} type="button"><Download size={12} /> Export CSV</button>
+                  <button className="ac-btn-reset ac-export-btn" onClick={exportPdf} disabled={!result || !isEoq} type="button"><Download size={12} /> Export PDF</button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* ===== COST ANALYSIS ===== */}
+          {/* ===== COST ANALYSIS (EOQ only — bespoke to that formula) ===== */}
+          {isEoq && (
           <div className="ac-analysis">
             {/* Cost breakdown chart */}
             <div className="ac-analysis-chart-card">
@@ -636,6 +877,7 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
               </div>
             </div>
           </div>
+          )}
         </>
       )}
 

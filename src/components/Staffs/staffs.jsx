@@ -13,16 +13,12 @@ import {
 } from 'lucide-react';
 import './staff.css';
 
-/* ===== SAMPLE STAFF DATA ===== */
-/* Placeholder list until the Staffs tab is wired to the API. */
-const INITIAL_STAFF = [
-  { id: 1, name: 'Wrenz AJ Aquino', email: 'wrenzaj.aquino@cvsu.edu.ph', role: 'Super Admin', status: 'Active',   lastActive: 'Today · 08:42 AM' },
-  { id: 2, name: 'Maria Santos',    email: 'maria.santos@cvsu.edu.ph',   role: 'Admin',       status: 'Active',   lastActive: 'Today · 07:15 AM' },
-  { id: 3, name: 'Jomar Dela Cruz', email: 'jomar.delacruz@cvsu.edu.ph', role: 'Staff',       status: 'Active',   lastActive: 'Yesterday · 04:30 PM' },
-  { id: 4, name: 'Ana Reyes',       email: 'ana.reyes@cvsu.edu.ph',      role: 'Staff',       status: 'Inactive', lastActive: '3 days ago' },
-];
-
 const ALL_ROLES = ['Staff', 'Admin', 'Super Admin'];
+
+/* Map the display role label the UI uses to the backend role value. */
+const ROLE_TO_API = { 'Super Admin': 'super_admin', Admin: 'admin', Staff: 'staff' };
+
+const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
 
 /* ===== ROLE VISUALS ===== */
 const ROLE_META = {
@@ -32,12 +28,30 @@ const ROLE_META = {
 };
 
 function Staffs({ isSuperAdmin = false }) {
-  const [staff, setStaff] = useState(INITIAL_STAFF);
+  const [staff, setStaff] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [query, setQuery] = useState('');
   const [menu, setMenu] = useState(null); /* { id, top, left } */
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [createError, setCreateError] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+
+  /* ===== LOAD STAFF FROM API ===== */
+  const refreshStaff = async () => {
+    setLoadError('');
+    const response = await fetch('/staff', { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error(`Could not load staff (${response.status}).`);
+    const data = await response.json();
+    setStaff(Array.isArray(data) ? data : []);
+  };
+
+  useEffect(() => {
+    refreshStaff()
+      .catch((err) => setLoadError(err.message || 'Could not load staff.'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -101,20 +115,36 @@ function Staffs({ isSuperAdmin = false }) {
     };
   }, [menu]);
 
-  /* ===== MOCK ACTIONS (local state only until wired to the API) ===== */
-  const changeRole = (id, role) => {
-    setStaff((prev) => prev.map((s) => (s.id === id ? { ...s, role } : s)));
+  /* ===== PATCH a staff member (role and/or status) ===== */
+  const patchStaff = async (id, body) => {
+    setActionError('');
     setMenu(null);
+    try {
+      const response = await fetch(`/staff/${id}`, {
+        method: 'PATCH',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrf(),
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const msg = data.errors ? Object.values(data.errors).flat()[0] : data.message;
+        throw new Error(msg || `Update failed (${response.status}).`);
+      }
+      setStaff((prev) => prev.map((s) => (s.id === id ? data : s)));
+    } catch (err) {
+      setActionError(err.message || 'Could not update the account.');
+    }
   };
+
+  const changeRole = (id, role) => patchStaff(id, { role: ROLE_TO_API[role] });
   const toggleStatus = (id) => {
-    setStaff((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? { ...s, status: s.status === 'Active' ? 'Inactive' : 'Active' }
-          : s
-      )
-    );
-    setMenu(null);
+    const row = staff.find((s) => s.id === id);
+    if (!row) return;
+    patchStaff(id, { status: row.status === 'Active' ? 'inactive' : 'active' });
   };
 
   const createAccount = async (event) => {
@@ -124,21 +154,21 @@ function Staffs({ isSuperAdmin = false }) {
 
     const formElement = event.currentTarget;
     const formData = new FormData(formElement);
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 
     try {
-      const response = await fetch('/auth/users', {
+      const response = await fetch('/staff', {
         method: 'POST',
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': csrfToken || '',
+          'X-CSRF-TOKEN': csrf(),
         },
         body: JSON.stringify({
           name: formData.get('name'),
           email: formData.get('email'),
           password: formData.get('password'),
           password_confirmation: formData.get('password_confirmation'),
+          role: formData.get('role') || 'staff',
         }),
       });
       const data = await response.json();
@@ -147,25 +177,16 @@ function Staffs({ isSuperAdmin = false }) {
         const validationMessage = data.errors
           ? Object.values(data.errors).flat()[0]
           : null;
-        setCreateError(validationMessage || data.message || 'Hindi nagawa ang account.');
+        setCreateError(validationMessage || data.message || 'Could not create the account.');
         return;
       }
 
-      setStaff((previous) => [
-        ...previous,
-        {
-          ...data.user,
-          id: `created-${data.user.id}`,
-          role: 'Staff',
-          status: 'Active',
-          lastActive: 'Never',
-        },
-      ]);
+      setStaff((previous) => [...previous, data]);
       formElement.reset();
       setShowCreateForm(false);
     } catch (error) {
       console.error('Account creation request failed:', error);
-      setCreateError('Hindi makakonekta sa server. Pakisubukan ulit.');
+      setCreateError('Could not reach the server. Please try again.');
     } finally {
       setIsCreating(false);
     }
@@ -175,6 +196,12 @@ function Staffs({ isSuperAdmin = false }) {
 
   return (
     <div className="st-root">
+      {(loadError || actionError) && (
+        <div className="st-create-account-error" role="alert" style={{ marginBottom: 12 }}>
+          {loadError || actionError}
+        </div>
+      )}
+
       {/* ===== KPI CARDS ===== */}
       <div className="st-kpi-row">
         <div className="st-kpi-card">
@@ -246,6 +273,14 @@ function Staffs({ isSuperAdmin = false }) {
               Confirm password
               <input name="password_confirmation" type="password" autoComplete="new-password" minLength="8" required />
             </label>
+            <label>
+              Role
+              <select name="role" defaultValue="staff">
+                <option value="staff">Staff</option>
+                <option value="admin">Admin</option>
+                <option value="super_admin">Super Admin</option>
+              </select>
+            </label>
           </div>
           {createError && <p className="st-create-account-error" role="alert">{createError}</p>}
           <button type="submit" className="st-create-account-button" disabled={isCreating}>
@@ -269,7 +304,11 @@ function Staffs({ isSuperAdmin = false }) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((s) => {
+              {loading ? (
+                <tr>
+                  <td colSpan={isSuperAdmin ? 6 : 5} className="st-empty">Loading staff…</td>
+                </tr>
+              ) : filtered.map((s) => {
                 const role = ROLE_META[s.role] || ROLE_META.Staff;
                 const RoleIcon = role.Icon;
                 return (
@@ -308,10 +347,10 @@ function Staffs({ isSuperAdmin = false }) {
                 );
               })}
 
-              {filtered.length === 0 && (
+              {filtered.length === 0 && !loading && (
                 <tr>
                   <td colSpan={isSuperAdmin ? 6 : 5} className="st-empty">
-                    No staff match &ldquo;{query}&rdquo;.
+                    {staff.length === 0 ? 'No staff accounts yet.' : `No staff match “${query}”.`}
                   </td>
                 </tr>
               )}

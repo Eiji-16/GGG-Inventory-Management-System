@@ -109,6 +109,7 @@
 
 .f-root input[type="text"],
 .f-root input[type="number"],
+.f-root input[type="month"],
 .f-root select {
     width: 100%;
     min-height: 40px;
@@ -133,12 +134,14 @@
 
 .f-root input[type="text"]:hover,
 .f-root input[type="number"]:hover,
+.f-root input[type="month"]:hover,
 .f-root select:hover {
     border-color: rgba(232, 197, 71, 0.45);
 }
 
 .f-root input[type="text"]:focus,
 .f-root input[type="number"]:focus,
+.f-root input[type="month"]:focus,
 .f-root select:focus {
     border-color: var(--background-icon-active-color);
     box-shadow: 0 0 0 3px var(--background-icon-active-color-theme);
@@ -333,6 +336,16 @@
     border-radius: 8px;
 }
 
+.f-notice-banner {
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    color: var(--text-primary);
+    font-size: 13px;
+    background: rgba(65, 160, 105, 0.12);
+    border: 1px solid rgba(65, 160, 105, 0.3);
+    border-radius: 8px;
+}
+
 .f-warning-banner svg {
     width: 17px;
     height: 17px;
@@ -518,6 +531,54 @@
 
     border: 1px dashed var(--border-color);
     border-radius: 8px;
+}
+
+.f-forecast-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 4px;
+}
+
+.f-forecast-bar-item {
+    display: grid;
+    grid-template-columns: 44px minmax(50px, 1fr) 70px;
+    align-items: center;
+    gap: 9px;
+    min-height: 17px;
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
+.f-forecast-bar-value {
+    color: var(--text-primary);
+    font-family: 'IBM Plex Mono', monospace;
+    text-align: right;
+}
+
+.f-forecast-bar-track {
+    height: 10px;
+    overflow: hidden;
+    background: var(--static-bg-color);
+    border-radius: 6px;
+}
+
+.f-forecast-bar {
+    height: 100%;
+    min-width: 2px;
+    background: var(--background-icon-active-color);
+    border-radius: inherit;
+}
+
+.f-forecast-bar-item.is-forecast .f-forecast-bar {
+    background: var(--accent-high, #58a6ff);
+}
+
+.f-forecast-bar-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .f-chart-wrap canvas {
@@ -1046,6 +1107,39 @@
     max-height: 210px;
 }
 
+.f-sales-entry {
+    display: grid;
+    grid-template-columns: minmax(120px, 1fr) minmax(100px, 1fr) auto;
+    align-items: end;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.f-sales-entry .f-btn {
+    min-height: 40px;
+}
+
+.f-history-delete {
+    padding: 4px 8px;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 11px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.f-history-delete:hover:not(:disabled) {
+    color: var(--accent-low);
+    border-color: var(--accent-low);
+}
+
+.f-history-delete:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
 /*==========REORDER UNIT==========*/
 .f-unit {
     color: var(--text-muted);
@@ -1117,6 +1211,10 @@
     }
 
     .f-row2 {
+        grid-template-columns: 1fr;
+    }
+
+    .f-sales-entry {
         grid-template-columns: 1fr;
     }
 

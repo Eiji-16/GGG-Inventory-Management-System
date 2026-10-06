@@ -33,9 +33,6 @@ import Settings from '../Settings/Settings'; /* ===== SETTINGS ===== */
 import Profile from '../Profile/profile'; /* ===== PROFILE ===== */
 import Staffs from '../Staffs/staffs'; /* ===== STAFFS ===== */
 
-/* ===== ROLE ===== */
-const CURRENT_ROLE = 'Super Admin';
-
 /* ===== NOTIFICATION ICONS ===== */
 const NOTIF_ICONS = {
   critical: { Icon: AlertTriangle, cls: 'notif-ic-critical' },
@@ -93,6 +90,27 @@ function createNotifications(summary) {
 }
 
 function LandingPage({onLogout, user}) {
+  /* ===== ROLE-BASED ACCESS =====
+     Real role comes from the backend (user.role). Each view lists the roles
+     allowed to see it; the sidebar and the main render both honour this. */
+  const role = user?.role || 'staff';
+  const VIEW_ACCESS = {
+    Dashboard:          ['super_admin', 'admin', 'staff'],
+    'Product-Supplier': ['super_admin', 'admin'],
+    Stock:              ['super_admin', 'admin', 'staff'],
+    'Auto-Calculator':  ['super_admin', 'admin'],
+    Forecasting:        ['super_admin', 'admin'],
+    Reports:            ['super_admin', 'admin', 'staff'],
+    Staffs:             ['super_admin'],
+    Profile:            ['super_admin', 'admin', 'staff'],
+    Setting:            ['super_admin', 'admin', 'staff'],
+  };
+  const canAccess = (view) => (VIEW_ACCESS[view] || []).includes(role);
+
+  /* Settings expects a display-style role name and shows the Safety Stock
+     section only for 'Super Admin'. Map the backend role to that label. */
+  const roleLabel = { super_admin: 'Super Admin', admin: 'Admin', staff: 'Staff' }[role] || 'Staff';
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* ===== SIDEBAR ===== */
   const [isDarkMode, setIsDarkMode] = useState(true); /* ===== THEME ===== */
   const [activeView, setActiveView] = useState('Dashboard'); /* ===== ACTIVE VIEW ===== */
@@ -168,6 +186,7 @@ function LandingPage({onLogout, user}) {
 
   /* ===== NAVIGATION ===== */
   const handleNavigate = (view, payload = null) => {
+    if (!canAccess(view)) return; // role not permitted — ignore
     setHandoff(payload);
     setActiveView(view);
     setIsSidebarOpen(false);
@@ -207,30 +226,36 @@ function LandingPage({onLogout, user}) {
               <span className="sidebar-label">Dashboard</span>
             </button>
           </li>
+          {canAccess('Product-Supplier') && (
           <li className={`sidebar-item ${activeView === 'Product-Supplier' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Product-Supplier')}>
               <Users className="sidebar-icon" />
               <span className="sidebar-label"> Management </span>
             </button>
           </li>
+          )}
           <li className={`sidebar-item ${activeView === 'Stock' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Stock')}>
               <Boxes className="sidebar-icon" />
               <span className="sidebar-label">Stock Control</span>
             </button>
           </li>
+          {canAccess('Auto-Calculator') && (
           <li className={`sidebar-item ${activeView === 'Auto-Calculator' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Auto-Calculator')}>
               <Calculator className="sidebar-icon" />
               <span className="sidebar-label">Auto-Calculator</span>
             </button>
           </li>
+          )}
+          {canAccess('Forecasting') && (
           <li className={`sidebar-item ${activeView === 'Forecasting' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Forecasting')}>
               <TrendingUp className="sidebar-icon" />
               <span className="sidebar-label">Forecasting</span>
             </button>
           </li>
+          )}
           <li className={`sidebar-item ${activeView === 'Reports' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Reports')}>
               <BarChart3 className="sidebar-icon" />
@@ -244,12 +269,14 @@ function LandingPage({onLogout, user}) {
         <div className="sidebar-footer-item">
             <div className = "sub-sidebar-footer-item">
 
+              {canAccess('Staffs') && (
               <div className={`siderbar-item ${activeView === 'Staffs' ? 'active' : ''}`}>
                 <button onClick={() => handleNavigate('Staffs')} title="Staff-list">
                   <UsersRound className="sidebar-icon"/>
                   <span className="sidebar-label">Staffs</span>
                 </button>
               </div>
+              )}
               <div className={`siderbar-item ${activeView === 'Profile' ? 'active' : ''}`}>
                 <button onClick={() => handleNavigate('Profile')} title="User Profile">
                   <User className="sidebar-icon"/>
@@ -401,20 +428,20 @@ function LandingPage({onLogout, user}) {
             </div>
           </header>
             <main className={`main-content-window ${activeView === 'Auto-Calculator' ? 'no-fade' : ''}`}>
-              {/* ===== CONTENT VIEWS ===== */}
-              {activeView === 'Dashboard' && <Dashboard onNavigate={handleNavigate} />}
-              {activeView === 'Product-Supplier' && <ProductSupplier />}
-              {activeView === 'Stock' && <StockManagement onNavigate={handleNavigate} safetyStock={safetyStock} />}
-              {activeView === 'Auto-Calculator' && <AutoCalculator onNavigate={handleNavigate} handoff={handoff} />}
-              {activeView === 'Forecasting' && <SalesForecasting onNavigate={handleNavigate} />}
+              {/* ===== CONTENT VIEWS (each also guarded by role) ===== */}
+              {activeView === 'Dashboard' && canAccess('Dashboard') && <Dashboard onNavigate={handleNavigate} />}
+              {activeView === 'Product-Supplier' && canAccess('Product-Supplier') && <ProductSupplier />}
+              {activeView === 'Stock' && canAccess('Stock') && <StockManagement onNavigate={handleNavigate} safetyStock={safetyStock} />}
+              {activeView === 'Auto-Calculator' && canAccess('Auto-Calculator') && <AutoCalculator onNavigate={handleNavigate} handoff={handoff} />}
+              {activeView === 'Forecasting' && canAccess('Forecasting') && <SalesForecasting onNavigate={handleNavigate} />}
 
-              {activeView === 'Staffs' && <Staffs isSuperAdmin={user?.isSuperAdmin === true} />}
-              {activeView === 'Reports' && <ReportAnalytics/>}
-              {activeView === 'Setting' && (
+              {activeView === 'Staffs' && canAccess('Staffs') && <Staffs isSuperAdmin={user?.isSuperAdmin === true} />}
+              {activeView === 'Reports' && canAccess('Reports') && <ReportAnalytics/>}
+              {activeView === 'Setting' && canAccess('Setting') && (
                 <Settings
                   isDarkMode={isDarkMode}
                   onToggleTheme={toggleTheme}
-                  role={CURRENT_ROLE}
+                  role={roleLabel}
                   safetyStock={safetyStock}
                   onUpdateSafetyStock={setSafetyStock}
                 />

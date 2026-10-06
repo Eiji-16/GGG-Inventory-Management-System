@@ -117,8 +117,9 @@
 .ac-input:focus {
     box-shadow: 0 0 0 2px var(--background-icon-active-color-theme);
 }
-.ac-input::placeholder { color: var(--text-primary, #111); }
+.ac-input::placeholder { color: var(--text-primary, #111); opacity: 0.35; }
 .ac-input-sm { flex: 1; padding: 0.4rem 0.5rem; font-size: 11px; }
+.ac-input-key { max-width: 72px; flex: 0 0 auto; text-align: center; font-weight: 600; opacity: 0.75; cursor: default; }
 
 /*==========CALCULATOR BODY==========*/
 .ac-body {

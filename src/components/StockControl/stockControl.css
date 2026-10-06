@@ -881,6 +881,8 @@
 .sc-stepper-btn:hover { border-color: var(--text-muted); }
 .sc-stepper-minus:hover { border-color: #f87171; color: #f87171; }
 .sc-stepper-plus:hover { border-color: #34d399; color: #34d399; }
+.sc-stepper-minus.is-active { border-color: #f87171; color: #f87171; background: rgba(248, 113, 113, 0.14); }
+.sc-stepper-plus.is-active { border-color: #34d399; color: #34d399; background: rgba(52, 211, 153, 0.14); }
 .sc-stepper-value {
   flex: 1;
   min-width: 0;

@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Controllers\DashboardSummaryController;
+use App\Http\Controllers\CustomFormulaController;
+use App\Http\Controllers\ForecastController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SalesHistoryController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierController;
@@ -18,6 +21,7 @@ use Illuminate\Support\Facades\Route;
 
 // Products — Product & Supplier tab. {product} is the "PRD-XXXX" code.
 Route::get('/dashboard/summary', DashboardSummaryController::class);
+Route::get('/reports', [ReportController::class, 'index']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::post('/products', [ProductController::class, 'store']);
 Route::get('/products/{product}', [ProductController::class, 'show']);
@@ -37,3 +41,12 @@ Route::delete('/stock-movements/{stockMovement}', [StockMovementController::clas
 Route::get('/sales-history', [SalesHistoryController::class, 'index']);
 Route::post('/sales-history', [SalesHistoryController::class, 'store']);
 Route::delete('/sales-history/{salesHistory}', [SalesHistoryController::class, 'destroy']);
+Route::post('/forecasts', [ForecastController::class, 'store']);
+
+// Custom formulas — Auto Calculator. The EOQ default lives in the frontend;
+// everything the user adds is stored and evaluated server-side.
+Route::get('/formulas', [CustomFormulaController::class, 'index']);
+Route::post('/formulas', [CustomFormulaController::class, 'store']);
+Route::match(['put', 'patch'], '/formulas/{customFormula}', [CustomFormulaController::class, 'update']);
+Route::delete('/formulas/{customFormula}', [CustomFormulaController::class, 'destroy']);
+Route::post('/formulas/{customFormula}/compute', [CustomFormulaController::class, 'compute']);

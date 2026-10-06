@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\SalesHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * SalesHistoryController — /api/sales-history
@@ -48,10 +49,21 @@ class SalesHistoryController extends Controller
         // Normalise to the first of the month so one month = one row.
         $period = Carbon::parse($data['periodDate'])->startOfMonth()->toDateString();
 
-        $row = SalesHistory::updateOrCreate(
-            ['product_id' => $product->id, 'period_date' => $period],
-            ['units_sold' => $data['unitsSold']]
+        $timestamp = now();
+        DB::table('sales_history')->upsert(
+            [[
+                'product_id' => $product->id,
+                'period_date' => $period,
+                'units_sold' => $data['unitsSold'],
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ]],
+            ['product_id', 'period_date'],
+            ['units_sold', 'updated_at']
         );
+        $row = SalesHistory::where('product_id', $product->id)
+            ->whereDate('period_date', $period)
+            ->firstOrFail();
 
         return response()->json($this->format($row), 201);
     }

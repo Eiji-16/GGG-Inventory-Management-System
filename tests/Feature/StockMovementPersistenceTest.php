@@ -21,6 +21,173 @@ class StockMovementPersistenceTest extends TestCase
         ]);
     }
 
+    public function test_new_stock_in_uses_current_product_stock_as_its_starting_balance(): void
+    {
+        $product = $this->createProduct(20);
+
+        $movement = $this->postJson('/api/stock-movements', [
+            'productId' => $product->code,
+            'type' => 'Stock In',
+            'qty' => 5,
+            'date' => now()->toDateString(),
+        ])
+            ->assertCreated()
+            ->assertJsonPath('type', 'Stock In')
+            ->assertJsonPath('qty', 5)
+            ->assertJsonPath('remainingStock', 25)
+            ->json();
+
+        $this->assertSame(25, $product->fresh()->stock_on_hand);
+        $this->assertDatabaseHas('stock_movements', [
+            'id' => $movement['id'],
+            'movement_type' => 'in',
+            'qty' => 5,
+            'remaining_stock' => 25,
+        ]);
+    }
+
+    public function test_new_stock_out_uses_current_product_stock_as_its_starting_balance(): void
+    {
+        $product = $this->createProduct(20);
+
+        $movement = $this->postJson('/api/stock-movements', [
+            'productId' => $product->code,
+            'type' => 'Stock Out',
+            'qty' => 5,
+            'date' => now()->toDateString(),
+        ])
+            ->assertCreated()
+            ->assertJsonPath('type', 'Stock Out')
+            ->assertJsonPath('qty', 5)
+            ->assertJsonPath('remainingStock', 15)
+            ->json();
+
+        $this->assertSame(15, $product->fresh()->stock_on_hand);
+        $this->assertDatabaseHas('stock_movements', [
+            'id' => $movement['id'],
+            'movement_type' => 'out',
+            'qty' => 5,
+            'remaining_stock' => 15,
+        ]);
+    }
+
+    public function test_edit_replaces_existing_movement_instead_of_adding_to_current_stock(): void
+    {
+        $product = $this->createProduct(20);
+        $movement = StockMovement::create([
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'product_category' => $product->category,
+            'movement_type' => 'in',
+            'is_adjustment' => false,
+            'qty' => 20,
+            'remaining_stock' => 20,
+            'movement_date' => now()->toDateString(),
+        ]);
+
+        $this->putJson('/api/stock-movements/'.$movement->id, [
+            'productId' => $product->code,
+            'type' => 'Stock In',
+            'qty' => 5,
+            'date' => now()->toDateString(),
+        ])
+            ->assertOk()
+            ->assertJsonPath('type', 'Stock In')
+            ->assertJsonPath('qty', 5)
+            ->assertJsonPath('remainingStock', 5);
+
+        $this->assertSame(5, $product->fresh()->stock_on_hand);
+        $this->assertDatabaseCount('stock_movements', 1);
+        $this->assertDatabaseHas('stock_movements', [
+            'id' => $movement->id,
+            'movement_type' => 'in',
+            'qty' => 5,
+            'remaining_stock' => 5,
+        ]);
+    }
+
+    public function test_editing_stock_out_replaces_its_old_effect_before_applying_new_quantity(): void
+    {
+        $product = $this->createProduct(20);
+        $movement = $this->postJson('/api/stock-movements', [
+            'productId' => $product->code,
+            'type' => 'Stock Out',
+            'qty' => 5,
+            'date' => now()->toDateString(),
+        ])->assertCreated()->assertJsonPath('remainingStock', 15)->json();
+
+        $this->putJson('/api/stock-movements/'.$movement['id'], [
+            'productId' => $product->code,
+            'type' => 'Stock Out',
+            'qty' => 10,
+            'date' => now()->toDateString(),
+        ])
+            ->assertOk()
+            ->assertJsonPath('type', 'Stock Out')
+            ->assertJsonPath('qty', 10)
+            ->assertJsonPath('remainingStock', 10);
+
+        $this->assertSame(10, $product->fresh()->stock_on_hand);
+        $this->assertDatabaseHas('stock_movements', [
+            'id' => $movement['id'],
+            'movement_type' => 'out',
+            'qty' => 10,
+            'remaining_stock' => 10,
+        ]);
+    }
+
+    public function test_new_stock_in_from_zero_saves_five(): void
+    {
+        $product = $this->createProduct(0);
+
+        $this->postJson('/api/stock-movements', [
+            'productId' => $product->code,
+            'type' => 'Stock In',
+            'qty' => 5,
+            'date' => now()->toDateString(),
+        ])->assertCreated()->assertJsonPath('remainingStock', 5);
+
+        $this->assertSame(5, $product->fresh()->stock_on_hand);
+    }
+
+    public function test_stock_out_equal_to_current_stock_saves_zero(): void
+    {
+        $product = $this->createProduct(5);
+
+        $this->postJson('/api/stock-movements', [
+            'productId' => $product->code,
+            'type' => 'Stock Out',
+            'qty' => 5,
+            'date' => now()->toDateString(),
+        ])->assertCreated()->assertJsonPath('remainingStock', 0);
+
+        $this->assertSame(0, $product->fresh()->stock_on_hand);
+    }
+
+    public function test_deleting_stock_in_and_stock_out_reverses_each_movement_delta(): void
+    {
+        $product = $this->createProduct(20);
+        $stockIn = $this->postJson('/api/stock-movements', [
+            'productId' => $product->code,
+            'type' => 'Stock In',
+            'qty' => 5,
+            'date' => now()->toDateString(),
+        ])->assertCreated()->json();
+
+        $this->deleteJson('/api/stock-movements/'.$stockIn['id'])->assertOk();
+        $this->assertSame(20, $product->fresh()->stock_on_hand);
+
+        $stockOut = $this->postJson('/api/stock-movements', [
+            'productId' => $product->code,
+            'type' => 'Stock Out',
+            'qty' => 5,
+            'date' => now()->toDateString(),
+        ])->assertCreated()->json();
+
+        $this->deleteJson('/api/stock-movements/'.$stockOut['id'])->assertOk();
+        $this->assertSame(20, $product->fresh()->stock_on_hand);
+    }
+
     public function test_stock_out_cannot_make_balance_negative(): void
     {
         $product = $this->createProduct(5);

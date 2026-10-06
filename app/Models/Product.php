@@ -10,8 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 /**
  * Product — the catalogue item. Central model the whole system revolves around.
  *
- * `stock_on_hand` is a cached balance kept in sync by StockMovement writes;
- * treat the stock_movements ledger as the source of truth.
+ * `stock_on_hand` is the authoritative current balance. Stock movement writes
+ * update it transactionally and reconcile ledger snapshots against it.
  */
 class Product extends Model
 {

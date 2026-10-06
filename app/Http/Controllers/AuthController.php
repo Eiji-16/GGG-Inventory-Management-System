@@ -28,7 +28,15 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid email or password.'], 401);
         }
 
+        // Block deactivated accounts even with correct credentials.
+        if ($request->user()->status === User::STATUS_INACTIVE) {
+            Auth::logout();
+            return response()->json(['message' => 'This account has been deactivated. Contact a Super Admin.'], 403);
+        }
+
         $request->session()->regenerate();
+
+        \App\Models\ActivityLog::record('login', 'Signed in', 'login', [], $request->user()->id);
 
         return response()->json([
             'user' => $this->userPayload($request->user()),
@@ -191,17 +199,26 @@ class AuthController extends Controller
     private function userPayload(User $user): array
     {
         return [
-            ...$user->only(['id', 'name', 'email']),
+            ...$user->only(['id', 'name', 'email', 'role']),
             'isSuperAdmin' => $this->isSuperAdmin($user),
         ];
     }
 
     private function isSuperAdmin(?User $user): bool
     {
+        if ($user === null) {
+            return false;
+        }
+
+        // Prefer the real role column; fall back to the configured email so an
+        // existing super-admin login keeps working even before roles are set.
+        if ($user->role === User::ROLE_SUPER_ADMIN) {
+            return true;
+        }
+
         $superAdminEmail = config('auth.super_admin_email');
 
-        return $user !== null
-            && is_string($superAdminEmail)
+        return is_string($superAdminEmail)
             && $superAdminEmail !== ''
             && hash_equals(strtolower($superAdminEmail), strtolower($user->email));
     }
