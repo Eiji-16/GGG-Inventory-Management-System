@@ -4,7 +4,7 @@ ColWidths_connform.ListSessions<|||>1<|||>163,50,50,50,50,50,10
 ColsVisible_connform.ListSessions<|||>1<|||>0,1,4,6
 ColPositions_connform.ListSessions<|||>1<|||>0,1,2,3,4,5,6
 ColSort_connform.ListSessions<|||>1<|||>0,0
-ColWidths_frmTableEditor.listColumns<|||>1<|||>40,100,152,90,60,65,50,117,130,139,100,100
+ColWidths_frmTableEditor.listColumns<|||>1<|||>61,100,152,90,60,65,50,117,130,139,100,100
 ColsVisible_frmTableEditor.listColumns<|||>1<|||>0,1,2,3,4,5,6,7,8,9,10,11
 ColPositions_frmTableEditor.listColumns<|||>1<|||>0,1,2,3,4,5,6,7,8,9,10,11
 ColSort_frmTableEditor.listColumns<|||>1<|||>-1,0
@@ -49,11 +49,13 @@ MainWinWidth<|||>3<|||>881
 MainWinHeight<|||>3<|||>467
 SessionManager_WindowLeft<|||>3<|||>331
 SessionManager_WindowTop<|||>3<|||>85
-MainWinMaximized<|||>3<|||>1
+MainWinMaximized<|||>3<|||>0
 CreateDbCollation<|||>1<|||>utf8mb4_0900_ai_ci
 FindDialogSearchHistory<|||>1<|||>test12345<{{{><}}}>in<{{{><}}}>
 querymemoheight<|||>3<|||>299
 DataFontSize<|||>3<|||>9
+MainWinLeft<|||>3<|||>294
+MainWinTop<|||>3<|||>98
 SQLFile0<|||>1<|||>F:\laragon\bin\heidisql\Backups\query-tab-2026-10-04_12-33-17-927.sql
 Servers\Laragon.MySQL\SessionCreated<|||>1<|||>2024-12-16 22:28:25
 Servers\Laragon.MySQL\Host<|||>1<|||>127.0.0.1
@@ -94,9 +96,13 @@ Servers\Laragon.MySQL\LogFileDdl<|||>3<|||>0
 Servers\Laragon.MySQL\LogFileDml<|||>3<|||>0
 Servers\Laragon.MySQL\LogFilePath<|||>1<|||>C:\Users\Leo\AppData\Roaming\HeidiSQL\Logs\%session\%db\%y%m%d.sql
 Servers\Laragon.MySQL\ServerVersionFull<|||>1<|||>8.4.3 - MySQL Community Server - GPL
-Servers\Laragon.MySQL\ConnectCount<|||>3<|||>10
+Servers\Laragon.MySQL\ConnectCount<|||>3<|||>12
 Servers\Laragon.MySQL\ServerVersion<|||>3<|||>80403
-Servers\Laragon.MySQL\LastConnect<|||>1<|||>2026-10-04 15:33:06
+Servers\Laragon.MySQL\LastConnect<|||>1<|||>2026-10-06 17:49:44
 Servers\Laragon.MySQL\lastUsedDB<|||>1<|||>ggg_inventory
 Servers\Laragon.MySQL\RefusedCount<|||>3<|||>2
 Servers\Laragon.MySQL\QueryHistory\1<|||>1<|||>2026-09-20 14:32:31|ggg_inventory|187|INSERT INTO products (code, name, category, brand, model, unit_measure, stock_on_hand, created_at, updated_at)<{{{><}}}>VALUES ('PRD-1001', 'Sample Leather Strap', 'Straps', 'Generic', 'SLS-01', 'Units', 0, NOW(), NOW());<{{{><}}}><{{{><}}}><{{{><}}}>
+Servers\Laragon.MySQL\QueryHistory\2<|||>1<|||>2026-10-06 12:45:53|ggg_inventory|15|SELECT id, code, name, stock_on_hand FROM products;<{{{><}}}>
+Servers\Laragon.MySQL\QueryHistory\4<|||>1<|||>2026-10-06 13:01:21|ggg_inventory|0|SELECT id, product_id, movement_type, qty, remaining_stock, movement_date<{{{><}}}>FROM stock_movements<{{{><}}}>ORDER BY product_id, movement_date, id;
+Servers\Laragon.MySQL\QueryHistory\3<|||>1<|||>2026-10-06 13:01:35|ggg_inventory|0|SELECT id, code, name, stock_on_hand FROM products;
+Servers\Laragon.MySQL\QueryHistory\5<|||>1<|||>2026-10-06 13:37:06|ggg_inventory|93|UPDATE products SET stock_on_hand = 20 WHERE name = 'iPhone 11';
