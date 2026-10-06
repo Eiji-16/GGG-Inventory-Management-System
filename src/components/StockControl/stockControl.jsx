@@ -219,7 +219,8 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
     ? null
     : currentOnHand + projectedChange;
 
-  const projectedType = formData.type;
+  // Plain-language label for the preview: removing stock reads as "Sold".
+  const projectedType = isOut ? 'Sold / Removed' : 'Added stock';
 
   /* ===== OPENING STOCK PREVIEW =====
      When the selected product has no movements, the Change stepper is replaced
@@ -960,15 +961,16 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                       ) : (
                         <>
                           <label htmlFor="qty">
-                            Change quantity <span className="sc-required">*</span>
+                            Quantity <span className="sc-required">*</span>
                           </label>
                           <div className="sc-stepper">
                             <button
                               type="button"
                               className={`sc-stepper-btn sc-stepper-minus${isOut ? ' is-active' : ''}`}
-                              aria-label="Stock Out — remove units"
+                              aria-label="Minus — remove / sold"
                               aria-pressed={isOut}
                               onClick={decrementQty}
+                              title="Remove stock (counts as sold)"
                             >
                               <span>−</span>
                             </button>
@@ -986,9 +988,10 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                             <button
                               type="button"
                               className={`sc-stepper-btn sc-stepper-plus${!isOut ? ' is-active' : ''}`}
-                              aria-label="Stock In — add units"
+                              aria-label="Plus — add stock"
                               aria-pressed={!isOut}
                               onClick={incrementQty}
+                              title="Add stock (received)"
                             >
                               <span>+</span>
                             </button>
@@ -997,8 +1000,8 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                             {!formData.productName
                               ? 'Select a product first.'
                               : editId === null
-                                ? `Currently ${currentOnHand} on hand. − removes (Stock Out), + adds (Stock In). Total Qty updates automatically.`
-                                : `${currentOnHand} on hand before this movement. Saving replaces it; use Add Item to add stock to the current total.`}
+                                ? `${currentOnHand} on hand. Tap − to remove (counts as sold), + to add new stock.`
+                                : `${currentOnHand} on hand before this entry. Saving replaces it.`}
                           </span>
                         </>
                       )}
