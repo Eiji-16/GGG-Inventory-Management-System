@@ -42,9 +42,14 @@ const emptyForm = {
 };
 
 /* ===== DISPLAY LABEL ===== */
-/* Backend stores in / out / adjustment; staff see plain language. */
-const movementLabel = (type) =>
-  type === 'Adjustment' ? 'Correction' : type;
+/* Backend stores in / out / adjustment; staff see plain language.
+   Stock In -> "Added", Stock Out -> "Sold", Adjustment -> "Correction". */
+const movementLabel = (type) => {
+  if (type === 'Adjustment') return 'Correction';
+  if (type === 'Stock Out') return 'Sold';
+  if (type === 'Stock In') return 'Added';
+  return type;
+};
 
 /* ===== TODAY (local date, not UTC) ===== */
 const todayLocal = () => {
@@ -635,7 +640,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
           </button>
         )}
         <button className="sc-add-btn sc-add-btn-primary" onClick={openAddModal} type="button">
-          <p>Add Item</p>
+          <p>Update Stock</p>
           <Plus size={12} className="sc-add-icon" />
         </button>
         <button
@@ -833,17 +838,17 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                 <div className="sc-modal-titles">
                   <h3 id="sc-modal-title">
                     {editId !== null
-                      ? 'Edit Stock Entry'
+                      ? 'Edit Entry'
                       : canSetOpeningStock
                         ? 'Set Opening Stock'
-                        : 'Add Stock Entry'}
+                        : 'Update Stock'}
                   </h3>
                   <p className="sc-modal-subtitle">
                     {editId !== null
-                      ? 'Saving replaces this movement. Use Add Item to add stock to the current total.'
+                      ? 'Saving replaces this entry.'
                       : canSetOpeningStock
                         ? 'This product has no movements yet. Set its starting quantity on hand.'
-                        : 'This new movement updates the product’s current stock.'}
+                        : 'Pick a product, then + to add new stock or − to record items sold.'}
                   </p>
                 </div>
               </div>
@@ -1107,7 +1112,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                 >
                   {canSetOpeningStock
                     ? (openingSaving ? 'Saving…' : 'Set Opening Stock')
-                    : (editId === null ? 'Add Entry' : 'Save Changes')}
+                    : (editId === null ? 'Save' : 'Save Changes')}
                 </button>
               </div>
             </form>
