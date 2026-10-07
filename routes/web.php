@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CalculationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StaffController;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +25,9 @@ Route::middleware('auth')->group(function () {
     Route::match(['put', 'patch'], '/profile', [ProfileController::class, 'update']);
     Route::post('/profile/password', [ProfileController::class, 'changePassword']);
     Route::get('/profile/activity', [ProfileController::class, 'activity']);
+
+    // Auto Calculator — persist each computation (with "computed by") for Reports.
+    Route::post('/calculations', [CalculationController::class, 'store']);
 });
 
 // This forces Laravel to look for your main React index view

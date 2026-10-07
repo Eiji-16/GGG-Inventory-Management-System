@@ -49,12 +49,10 @@ function normalizeFormula(raw) {
 /* Kept for compatibility with the chart/compare code below. */
 const SAMPLE_FORMULA = EOQ_FORMULA;
 
-/* ===== SAMPLE_PRODUCTS — products the user can auto-fill demand from (dropdown + batch compute). ===== */
-   
+/* Batch Compute (EOQ-only sub-feature) still uses this; left empty for now. */
 const SAMPLE_PRODUCTS = [];
 
-/* ===== SAMPLE_HISTORY — past calculations shown in the History panel. ===== */
-   
+/* ===== SAMPLE_HISTORY — session-only feed shown in the History side panel. ===== */
 const SAMPLE_HISTORY = [];
 
 
@@ -455,12 +453,22 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
   const [activeId, setActiveId] = useState(EOQ_FORMULA.id);
   const [loadError, setLoadError] = useState('');
 
+  /* ===== PRODUCTS (for auto-fill from Stock Control history) ===== */
+  const [products, setProducts] = useState([]);
+  const [selectedProductId, setSelectedProductId] = useState('');
+
   const allFormulas = useMemo(() => [EOQ_FORMULA, ...customFormulas], [customFormulas]);
   const activeFormula = useMemo(
     () => allFormulas.find(f => String(f.id) === String(activeId)) || EOQ_FORMULA,
     [allFormulas, activeId]
   );
   const isEoq = !activeFormula.custom;
+
+  /* Show the product auto-fill only when the formula actually has a demand field. */
+  const hasDemandField = useMemo(
+    () => activeFormula.fields.some(f => /demand/i.test(f.key) || /demand/i.test(f.label)),
+    [activeFormula]
+  );
 
   /* Inputs are keyed by the active formula's field keys, so the form adapts to
      however many fields the selected formula defines. */
@@ -481,12 +489,21 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
       .catch(err => setLoadError(err.message || 'Could not load custom formulas.'));
   }, []);
 
+  /* Load real products for the auto-fill dropdown. */
+  useEffect(() => {
+    fetch('/api/products', { headers: { Accept: 'application/json' } })
+      .then(r => { if (!r.ok) throw new Error('products'); return r.json(); })
+      .then(data => setProducts(Array.isArray(data) ? data : []))
+      .catch(() => setProducts([]));
+  }, []);
+
   /* When the active formula changes, clear the inputs/results for a clean slate. */
   useEffect(() => {
     setInputs(Object.fromEntries(activeFormula.fields.map(f => [f.key, ''])));
     setErrors({});
     setResult(null);
     setCustomResult(null);
+    setSelectedProductId('');
   }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleInputChange = (e) => {
@@ -496,8 +513,38 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
   };
 
   const handleProductSelect = (e) => {
-    const p = SAMPLE_PRODUCTS.find(p => p.id === e.target.value);
-    if (p) setInputs(prev => ({ ...prev, demand: String(p.demand) }));
+    const id = e.target.value;
+    setSelectedProductId(id);
+    const p = products.find(pr => String(pr.id) === String(id));
+    if (!p) return;
+    // Auto-fill any field that looks like "annual demand" with the product's
+    // real stock-out total from the last 12 months (falls back to configured).
+    const demandValue = p.demandFromHistory > 0 ? p.demandFromHistory : (p.annualDemand || 0);
+    const demandField = activeFormula.fields.find(f =>
+      /demand/i.test(f.key) || /demand/i.test(f.label)
+    );
+    if (demandField && demandValue > 0) {
+      setInputs(prev => ({ ...prev, [demandField.key]: String(demandValue) }));
+      setErrors(prev => ({ ...prev, [demandField.key]: '' }));
+    }
+  };
+
+  /* Persist a computation (with "computed by") so it appears in Reports → EOQ.
+     Fire-and-forget: never block the on-screen result on the save. */
+  const saveCalculation = (formulaName, resultValue, unit, numericInputs) => {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const product = products.find(pr => String(pr.id) === String(selectedProductId));
+    fetch('/calculations', {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf },
+      body: JSON.stringify({
+        formula: formulaName,
+        result: resultValue,
+        unit,
+        product: product?.name || null,
+        inputs: numericInputs,
+      }),
+    }).catch(() => {});
   };
 
   const handleCompute = async () => {
@@ -538,6 +585,7 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
         result: eoq.toFixed(2),
         unit: 'units',
       }, ...prev]);
+      saveCalculation('EOQ', Number(eoq.toFixed(2)), 'units', { D, S, H });
       return;
     }
 
@@ -569,6 +617,7 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
           result: num.toLocaleString('en-PH', { maximumFractionDigits: 4 }),
           unit: activeFormula.resultUnit || 'units',
         }, ...prev]);
+        saveCalculation(activeFormula.name, num, activeFormula.resultUnit || 'units', numericInputs);
       } catch (err) {
         setErrors({ _form: err.message || 'Could not compute this formula.' });
       } finally {
@@ -720,9 +769,9 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
       {/* ===== CALCULATOR BODY ===== */}
       {!compareMode && (
         <>
-          <div className="ac-body">
+          <div className={`ac-workspace${isEoq ? ' ac-workspace-full' : ''}`}>
             {/* LEFT: inputs */}
-            <div className="ac-left">
+            <div className="ac-left ac-area-inputs">
               <div className="ac-top-bar">
                 <div className="ac-formula-info">
                   <span className="ac-formula-name">
@@ -734,14 +783,14 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
                     <span className="ac-source-note" style={{ marginTop: 4 }}>{activeFormula.description}</span>
                   )}
                 </div>
-                {isEoq && (
+                {hasDemandField && (
                   <div className="ac-product-selector">
                     <label className="ac-label">Auto-fill from Product</label>
-                    <select className="ac-input" defaultValue="" onChange={handleProductSelect}>
+                    <select className="ac-input" value={selectedProductId} onChange={handleProductSelect}>
                       <option value="">— Select a product —</option>
-                      {SAMPLE_PRODUCTS.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}
+                      {products.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}
                     </select>
-                    <p className="ac-source-note"><Boxes size={11} />Annual demand comes from Stock Movement records.</p>
+                    <p className="ac-source-note"><Boxes size={11} />Annual demand = units sold (stock out) in the last 12 months.</p>
                   </div>
                 )}
               </div>
@@ -777,8 +826,8 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
               </div>
             </div>
 
-            {/* RIGHT: result */}
-            <div className="ac-right">
+            {/* MIDDLE TOP: result */}
+            <div className="ac-right ac-area-result">
               <div className="ac-result-box">
                 <div className="ac-result-formula-row">
                   <span className="ac-result-section-label">Formula</span>
@@ -817,34 +866,33 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* ===== COST ANALYSIS (EOQ only — bespoke to that formula) ===== */}
-          {isEoq && (
-          <div className="ac-analysis">
-            {/* Cost breakdown chart */}
-            <div className="ac-analysis-chart-card">
-              <div className="ac-analysis-card-head">
-                <span className="ac-analysis-title">Cost Curve Analysis</span>
-                <span className="ac-analysis-sub">Minimum total cost occurs at EOQ</span>
-              </div>
-              {result ? (
-                <CostChart
-                  demand={result.D}
-                  orderCost={result.S}
-                  holdingCost={result.H}
-                  eoq={result.eoq}
-                />
-              ) : (
-                <div className="ac-chart-placeholder">
-                  <TrendingUp size={20} />
-                  <span>Enter values and compute to see the cost curve.</span>
+            {/* ===== COST ANALYSIS (EOQ only — bespoke to that formula) ===== */}
+            {isEoq && (
+              <>
+                {/* MIDDLE BOTTOM: cost curve chart */}
+                <div className="ac-analysis-chart-card ac-area-analysis">
+                  <div className="ac-analysis-card-head">
+                    <span className="ac-analysis-title">Cost Curve Analysis</span>
+                    <span className="ac-analysis-sub">Minimum total cost occurs at EOQ</span>
+                  </div>
+                  {result ? (
+                    <CostChart
+                      demand={result.D}
+                      orderCost={result.S}
+                      holdingCost={result.H}
+                      eoq={result.eoq}
+                    />
+                  ) : (
+                    <div className="ac-chart-placeholder">
+                      <TrendingUp size={20} />
+                      <span>Enter values and compute to see the cost curve.</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Derived metrics */}
-            <div className="ac-metrics-grid">
+                {/* RIGHT RAIL: derived metric cards */}
+                <div className="ac-metrics-grid ac-area-metrics">
               <div className="ac-metric-card">
                 <span className="ac-metric-label">Annual Ordering Cost</span>
                 <span className="ac-metric-value">{result ? fmtCur(result.annualOrdering) : '—'}</span>
@@ -875,9 +923,10 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
                 <span className="ac-metric-value">{result ? `${fmtNum(result.eoq)} units` : '—'}</span>
                 <span className="ac-metric-note">{result ? `√(2 × ${result.D} × ${result.S} ÷ ${result.H})` : '√(2DS ÷ H)'}</span>
               </div>
-            </div>
+                </div>
+              </>
+            )}
           </div>
-          )}
         </>
       )}
 

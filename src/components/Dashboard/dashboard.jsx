@@ -80,7 +80,7 @@ function Arc({ cx, cy, radius, start, end }) {
   return `M ${x1} ${y1} A ${radius} ${radius} 0 ${end - start > 180 ? 1 : 0} 1 ${x2} ${y2}`;
 }
 
-function Dashboard({ onNavigate }) {
+function Dashboard({ onNavigate, isSuperAdmin = false }) {
   const [range, setRange] = useState(12);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -250,7 +250,7 @@ function Dashboard({ onNavigate }) {
     <main className="dashboard-content-view">
       <div className="dashboard-scroll-container">
         {error && <p role="alert">{error} Showing the last data loaded.</p>}
-        <div className="parent">
+        <div className={`parent${isSuperAdmin ? '' : ' parent-without-user-accounts'}`}>
           <div className="salesAnalytics-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
@@ -394,11 +394,21 @@ function Dashboard({ onNavigate }) {
             <div className="db-spark-wrap"><Sparkline values={derived.hasSalesData ? derived.monthly.map((month) => month.records) : []} stroke="var(--accent)" gid="dbHistoryGrad" /></div>
           </div>
 
-          <div className="totalStaff-card card">
-            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">User Accounts</span><span className="db-card-sub">Accounts registered in the system</span></div><button className="db-open-arrow-btn" onClick={() => go('Staffs')} aria-label="Open Staffs" type="button"><OpenArrow /></button></div>
-            <div className="db-stat-value">{fmt(summary.userCount)}</div>
-            <div className="db-stat-sub">Role breakdown is not available in the current data.</div>
-          </div>
+          {isSuperAdmin && (
+            <div className="totalStaff-card card">
+              <div className="db-card-head">
+                <div className="db-card-titles">
+                  <span className="db-card-title">User Accounts</span>
+                  <span className="db-card-sub">Accounts registered in the system</span>
+                </div>
+                <button className="db-open-arrow-btn" onClick={() => go('Staffs')} aria-label="Open Staffs" type="button">
+                  <OpenArrow />
+                </button>
+              </div>
+              <div className="db-stat-value">{fmt(summary.userCount)}</div>
+              <div className="db-stat-sub">Role breakdown is not available in the current data.</div>
+            </div>
+          )}
         </div>
       </div>
     </main>

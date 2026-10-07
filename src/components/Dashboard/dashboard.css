@@ -646,6 +646,41 @@
     min-height: 16rem;
 }
 
+.parent-without-user-accounts {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    overflow-x: hidden;
+}
+
+.parent-without-user-accounts .salesAnalytics-card {
+    grid-column: 1 / span 4;
+}
+
+.parent-without-user-accounts .catalogStatus-card,
+.parent-without-user-accounts .totalRevenue-card,
+.parent-without-user-accounts .totalOrder-card {
+    grid-column: 5 / span 2;
+}
+
+.parent-without-user-accounts .totalRevenue-card {
+    min-height: 16rem;
+}
+
+.parent-without-user-accounts .eoqActivity-card {
+    grid-column: 3 / span 2;
+}
+
+.parent-without-user-accounts .productSales-card {
+    grid-column: 1 / span 2;
+}
+
+.parent-without-user-accounts .lowStockalerts-card {
+    grid-column: 3 / span 2;
+}
+
+.parent-without-user-accounts .totalCustomer-card {
+    grid-column: 5 / span 2;
+}
+
 /*==========TABLET RESPONSIVENESS==========*/
 @media (max-width: 1024px) {
     .parent {
@@ -700,6 +735,49 @@
         min-height: 10rem;
     }
 
+    .parent-without-user-accounts .catalogStatus-card {
+        grid-column: 1 / span 2;
+        grid-row: 2;
+    }
+
+    .parent-without-user-accounts .totalRevenue-card {
+        grid-column: 3 / span 2;
+        grid-row: 2;
+        min-height: 15rem;
+    }
+
+    .parent-without-user-accounts .regionalBreakdown-card {
+        grid-column: 1 / span 2;
+        grid-row: 3;
+    }
+
+    .parent-without-user-accounts .eoqActivity-card {
+        grid-column: 3 / span 2;
+        grid-row: 3;
+    }
+
+    .parent-without-user-accounts .totalOrder-card {
+        grid-column: 1 / span 2;
+        grid-row: 4;
+    }
+
+    .parent-without-user-accounts .totalCustomer-card {
+        grid-column: 3 / span 2;
+        grid-row: 4;
+    }
+
+    .parent-without-user-accounts .productSales-card {
+        grid-column: 1 / span 2;
+        grid-row: 5;
+        min-height: 15rem;
+    }
+
+    .parent-without-user-accounts .lowStockalerts-card {
+        grid-column: 3 / span 2;
+        grid-row: 5;
+        min-height: 15rem;
+    }
+
     .productSales-card {
         grid-column: 1 / span 2;
         grid-row: 5;
@@ -735,6 +813,14 @@
         min-height: 8rem;
     }
 
+    .parent-without-user-accounts .catalogStatus-card,
+    .parent-without-user-accounts .totalRevenue-card,
+    .parent-without-user-accounts .totalOrder-card,
+    .parent-without-user-accounts .totalCustomer-card {
+        grid-column: span 1;
+        grid-row: auto;
+    }
+
     .regionalBreakdown-card,
     .eoqActivity-card {
         grid-column: 1 / span 2;
@@ -748,12 +834,43 @@
         grid-row: auto;
         min-height: 13rem;
     }
+
+    .parent-without-user-accounts .salesAnalytics-card,
+    .parent-without-user-accounts .regionalBreakdown-card,
+    .parent-without-user-accounts .eoqActivity-card,
+    .parent-without-user-accounts .productSales-card,
+    .parent-without-user-accounts .lowStockalerts-card {
+        grid-column: 1 / span 2;
+        grid-row: auto;
+    }
+
+    .parent-without-user-accounts .catalogStatus-card,
+    .parent-without-user-accounts .totalRevenue-card,
+    .parent-without-user-accounts .totalOrder-card,
+    .parent-without-user-accounts .totalCustomer-card {
+        grid-column: span 1;
+        grid-row: auto;
+        min-height: 8rem;
+    }
+
+    .parent-without-user-accounts .totalRevenue-card {
+        min-height: 13rem;
+    }
+
+    .parent-without-user-accounts .productSales-card {
+        min-height: 13rem;
+    }
 }
 
 /*==========SMALL MOBILE RESPONSIVENESS==========*/
 @media (max-width: 400px) {
     .parent {
         grid-template-columns: 1fr;
+    }
+
+    .parent-without-user-accounts > .card {
+        grid-column: 1;
+        grid-row: auto;
     }
 
     .salesAnalytics-card,

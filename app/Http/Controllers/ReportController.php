@@ -171,9 +171,11 @@ class ReportController extends Controller
 
         $rows = $logs->map(fn (ActivityLog $log) => [
             'formula' => $log->meta['formula'] ?? '—',
+            'product' => $log->meta['product'] ?? '—',
             'result'  => isset($log->meta['result']) ? round((float) $log->meta['result'], 2) : null,
-            'detail'  => $log->description,
-            'date'    => $log->created_at?->format('n/j/Y'),
+            'unit'    => $log->meta['unit'] ?? '',
+            'by'      => $log->meta['by'] ?? ($log->user?->name ?? '—'),
+            'date'    => $log->created_at?->format('n/j/Y g:i A'),
         ])->all();
 
         return ['rows' => $rows];

@@ -429,7 +429,9 @@ function LandingPage({onLogout, user}) {
           </header>
             <main className={`main-content-window ${activeView === 'Auto-Calculator' ? 'no-fade' : ''}`}>
               {/* ===== CONTENT VIEWS (each also guarded by role) ===== */}
-              {activeView === 'Dashboard' && canAccess('Dashboard') && <Dashboard onNavigate={handleNavigate} />}
+              {activeView === 'Dashboard' && canAccess('Dashboard') && (
+                <Dashboard onNavigate={handleNavigate} isSuperAdmin={role === 'super_admin'} />
+              )}
               {activeView === 'Product-Supplier' && canAccess('Product-Supplier') && <ProductSupplier />}
               {activeView === 'Stock' && canAccess('Stock') && <StockManagement onNavigate={handleNavigate} safetyStock={safetyStock} />}
               {activeView === 'Auto-Calculator' && canAccess('Auto-Calculator') && <AutoCalculator onNavigate={handleNavigate} handoff={handoff} />}

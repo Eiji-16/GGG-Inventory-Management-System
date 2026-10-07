@@ -807,7 +807,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
               );
             })}
 
-            {visibleRows.length === 0 && (
+            {!stockLoading && !stockError && visibleRows.length === 0 && (
               <tr>
                 <td colSpan={11} className="sc-empty-state">
                   {stockFromDatabase.length === 0

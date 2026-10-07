@@ -13,6 +13,10 @@
     border: 1px solid var(--border-color, rgba(0,0,0,0.15));
     box-shadow: var(--shadow-card);
     border-radius: 8px;
+    /* Fill the content window so the workspace can use the full height. */
+    min-height: calc(93vh - 4rem);
+    display: flex;
+    flex-direction: column;
 }
 
 
@@ -130,6 +134,74 @@
 }
 @media (max-width: 700px) {
     .ac-body { grid-template-columns: 1fr; }
+}
+
+/*==========WORKSPACE (unified layout)==========
+  Inputs on the left (full height), result card top-middle, cost-curve chart
+  bottom-middle, and the derived metric cards as a right rail. One grid so the
+  pieces line up instead of floating in two disconnected sections. */
+.ac-workspace {
+    display: grid;
+    gap: 1rem;
+    align-items: stretch;
+    flex: 1;                 /* fill the remaining height of .ac-root */
+    min-height: 0;
+}
+/* EOQ: inputs | result (top) + analysis (bottom, grows) | metrics rail */
+.ac-workspace-full {
+    grid-template-columns: 1.5fr 1.6fr 1fr;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+        "inputs result  metrics"
+        "inputs analysis metrics";
+}
+/* Custom formulas (no analysis/metrics): inputs | result only */
+.ac-workspace:not(.ac-workspace-full) {
+    grid-template-columns: 1.5fr 1.6fr;
+    grid-template-areas: "inputs result";
+}
+.ac-area-inputs   { grid-area: inputs; }
+.ac-area-result   { grid-area: result; }
+.ac-area-analysis { grid-area: analysis; }
+.ac-area-metrics  { grid-area: metrics; }
+
+/* Fill the grid cell so cards don't leave awkward gaps. */
+.ac-area-result, .ac-area-analysis { height: 100%; }
+.ac-area-analysis.ac-analysis-chart-card { margin: 0; min-height: 0; }
+
+/* The metric rail stacks its 6 cards vertically in a single column. */
+.ac-area-metrics.ac-metrics-grid {
+    grid-template-columns: 1fr;
+    /* 6 equal rows that stretch to fill the rail's full height. */
+    grid-auto-rows: 1fr;
+    align-content: stretch;
+}
+.ac-area-metrics .ac-metric-card { justify-content: center; }
+
+/* Tablet: metrics drop under, inputs beside result/analysis. */
+@media (max-width: 1024px) {
+    .ac-workspace-full {
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+            "inputs   result"
+            "inputs   analysis"
+            "metrics  metrics";
+    }
+    .ac-area-metrics.ac-metrics-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Mobile: everything stacks in one column. */
+@media (max-width: 680px) {
+    .ac-workspace-full,
+    .ac-workspace:not(.ac-workspace-full) {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "inputs"
+            "result"
+            "analysis"
+            "metrics";
+    }
+    .ac-area-metrics.ac-metrics-grid { grid-template-columns: 1fr 1fr; }
 }
 
 /*==========TOP BAR (formula info + product selector side by side)==========*/
@@ -680,18 +752,8 @@
 }
 
 /*==========COST ANALYSIS SECTION==========*/
-.ac-analysis {
-    display: grid;
-    grid-template-columns: 1.5fr 1fr;
-    gap: 1rem;
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 0.5px solid var(--hairline);
-    align-items: start;
-}
-@media (max-width: 800px) {
-    .ac-analysis { grid-template-columns: 1fr; }
-}
+/* (.ac-analysis wrapper removed — chart + metrics now live as grid areas in
+   .ac-workspace above.) */
 
 /*=====CHART CARD=====*/
 .ac-analysis-chart-card {

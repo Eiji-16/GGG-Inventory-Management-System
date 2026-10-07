@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
+import { CircleAlert, RefreshCw } from 'lucide-react';
 import Login from '../components/Login/Login';
 import LandingPage from '../components/LandingPage/landingPage';
+import './app-error.css';
 
 function App() {
     const [authStatus, setAuthStatus] = useState('checking');
     const [user, setUser] = useState(null);
     const [error, setError] = useState('');
+    const [retryKey, setRetryKey] = useState(0);
 
     useEffect(() => {
         async function checkSession() {
@@ -28,13 +31,19 @@ function App() {
                 setAuthStatus('authenticated');
             } catch (requestError) {
                 console.error('Could not verify login session:', requestError);
-                setError('Hindi ma-verify ang session. I-refresh ang page para subukan ulit.');
+                setError('We couldn’t verify your session. Please try again.');
                 setAuthStatus('error');
             }
         }
 
         checkSession();
-    }, []);
+    }, [retryKey]);
+
+    function handleRetry() {
+        setError('');
+        setAuthStatus('checking');
+        setRetryKey((currentKey) => currentKey + 1);
+    }
 
     async function handleLogout() {
         try {
@@ -61,14 +70,40 @@ function App() {
             setAuthStatus('guest');
         } catch (requestError) {
             console.error('Logout request failed:', requestError);
-            setError('Hindi nagtagumpay ang pag-logout. Pakisubukan ulit.');
+            setError('We couldn’t log you out. Please try again.');
         }
     }
 
     return (
         <div>
-            {authStatus === 'checking' && <p role="status">Checking login...</p>}
-            {authStatus === 'error' && <p role="alert">{error}</p>}
+            {authStatus === 'checking' && (
+                <main className="app-status-screen" role="status" aria-live="polite">
+                    <span className="app-status-spinner" aria-hidden="true" />
+                    <p>Verifying your session...</p>
+                </main>
+            )}
+            {authStatus === 'error' && (
+                <main className="app-error-screen">
+                    <section className="app-error-card" role="alert" aria-labelledby="app-error-title">
+                        <div className="app-error-icon" aria-hidden="true">
+                            <CircleAlert size={30} strokeWidth={1.8} />
+                        </div>
+                        <p className="app-error-eyebrow">CONNECTION ISSUE</p>
+                        <h1 id="app-error-title">We couldn’t load your session</h1>
+                        <p className="app-error-message">
+                            {error || 'A temporary problem occurred while verifying your session.'}
+                            {' '}Check your internet connection and try again.
+                        </p>
+                        <button className="app-error-retry" type="button" onClick={handleRetry}>
+                            <RefreshCw size={17} aria-hidden="true" />
+                            Try again
+                        </button>
+                        <p className="app-error-footnote">
+                            Your account and saved information are safe.
+                        </p>
+                    </section>
+                </main>
+            )}
             {authStatus === 'guest' && (
                 <Login
                     onLogin={(authenticatedUser) => {

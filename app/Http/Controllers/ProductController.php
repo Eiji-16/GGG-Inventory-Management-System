@@ -20,7 +20,17 @@ class ProductController extends Controller
             ->orderBy('name')
             ->get();
 
-        return response()->json($products->map(fn ($p) => $this->format($p)));
+        // Annual demand from real history: total units sold (stock out, non-adjustment)
+        // in the trailing 12 months, per product — used by Auto Calculator auto-fill.
+        $demand = \App\Models\StockMovement::query()
+            ->where('movement_type', 'out')
+            ->where('is_adjustment', false)
+            ->where('movement_date', '>=', now()->subYear()->toDateString())
+            ->selectRaw('product_id, SUM(qty) as total')
+            ->groupBy('product_id')
+            ->pluck('total', 'product_id');
+
+        return response()->json($products->map(fn ($p) => $this->format($p, (int) ($demand[$p->id] ?? 0))));
     }
 
     /** GET /api/products/{code} */
@@ -138,7 +148,7 @@ class ProductController extends Controller
         return $code;
     }
 
-    private function format(Product $p): array
+    private function format(Product $p, int $demandFromHistory = 0): array
     {
         return [
             'id'              => $p->code,
@@ -154,6 +164,8 @@ class ProductController extends Controller
             'supplierInfo'    => $p->supplier?->name,
             'safetyStock'     => $p->safetyStock?->safety_stock,
             'annualDemand'    => $p->safetyStock?->annual_demand,
+            // Units sold (stock out) in the trailing 12 months — real demand.
+            'demandFromHistory' => $demandFromHistory,
         ];
     }
 }

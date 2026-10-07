@@ -257,14 +257,18 @@ function AutoCalculatorSummaryTab({ data, loading }) {
       <div className="r-table-card">
         <table className="r-table">
           <thead>
-            <tr><th>Formula</th><th>Result</th><th>Detail</th><th>Date Computed</th></tr>
+            <tr><th>Product</th><th>Formula</th><th>Result</th><th>Computed By</th><th>Date Computed</th></tr>
           </thead>
           <tbody>
-            {loading ? <EmptyRow cols={4} text="Loading…" />
-              : rows.length === 0 ? <EmptyRow cols={4} text="No computations logged yet — use the Auto Calculator." />
+            {loading ? <EmptyRow cols={5} text="Loading…" />
+              : rows.length === 0 ? <EmptyRow cols={5} text="No computations logged yet — use the Auto Calculator." />
               : rows.map((r, i) => (
                 <tr key={i}>
-                  <td>{r.formula}</td><td>{r.result ?? '—'}</td><td>{r.detail}</td><td>{r.date}</td>
+                  <td>{r.product || '—'}</td>
+                  <td>{r.formula}</td>
+                  <td>{r.result != null ? `${r.result} ${r.unit || ''}`.trim() : '—'}</td>
+                  <td>{r.by || '—'}</td>
+                  <td>{r.date}</td>
                 </tr>
               ))}
           </tbody>
