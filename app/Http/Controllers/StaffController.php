@@ -12,7 +12,7 @@ use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
 /**
- * StaffController — /api/staff
+ * StaffController — /staff
  *
  * Backs the Staffs tab. All actions are Super-Admin only (enforced here, not
  * just in the UI). Guards the last active Super Admin from being demoted,
@@ -20,19 +20,24 @@ use Illuminate\Validation\ValidationException;
  */
 class StaffController extends Controller
 {
-    /** GET /api/staff */
+    /** GET /staff?status=active|inactive (defaults to active accounts). */
     public function index(Request $request): JsonResponse
     {
         $this->authorizeSuperAdmin($request);
 
+        $filters = $request->validate([
+            'status' => ['sometimes', Rule::in([User::STATUS_ACTIVE, User::STATUS_INACTIVE])],
+        ]);
         $lastActivity = $this->lastActivityByUser();
 
-        $users = User::orderBy('name')->get();
+        $users = User::where('status', $filters['status'] ?? User::STATUS_ACTIVE)
+            ->orderBy('name')
+            ->get();
 
         return response()->json($users->map(fn (User $u) => $this->format($u, $lastActivity)));
     }
 
-    /** POST /api/staff — create an account with a chosen role. */
+    /** POST /staff — create an account with a chosen role. */
     public function store(Request $request): JsonResponse
     {
         $this->authorizeSuperAdmin($request);
@@ -57,7 +62,7 @@ class StaffController extends Controller
         return response()->json($this->format($user, []), 201);
     }
 
-    /** PATCH /api/staff/{user} — change role and/or status. */
+    /** PATCH /staff/{user} — change role and/or status. */
     public function update(Request $request, User $user): JsonResponse
     {
         $this->authorizeSuperAdmin($request);
