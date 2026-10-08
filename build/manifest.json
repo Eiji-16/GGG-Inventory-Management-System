@@ -1,11 +1,20 @@
 {
   "src/layouts/App.jsx": {
-    "file": "assets/App-Cq6DbTCO.js",
+    "file": "assets/App-BWA5bzls.js",
     "name": "App",
     "src": "src/layouts/App.jsx",
     "isEntry": true,
     "css": [
-      "assets/App-BZNeou_9.css"
+      "assets/App-DHZs3dhM.css"
     ]
+  },
+  "src/styles/index.css": {
+    "file": "assets/index-BNvt0UvE.css",
+    "name": "index",
+    "names": [
+      "index.css"
+    ],
+    "src": "src/styles/index.css",
+    "isEntry": true
   }
 }
