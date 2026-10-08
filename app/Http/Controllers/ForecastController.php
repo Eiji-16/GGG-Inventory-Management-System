@@ -6,7 +6,6 @@ use App\Models\Product;
 use App\Services\SalesForecastService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class ForecastController extends Controller
 {
@@ -19,11 +18,10 @@ class ForecastController extends Controller
     {
         $data = $request->validate([
             'productId' => ['required', 'string', 'exists:products,code'],
-            'formula' => ['required', 'string', Rule::in(SalesForecastService::FORMULAS)],
         ]);
 
         $product = Product::where('code', $data['productId'])->firstOrFail();
 
-        return response()->json($this->forecaster->forecast($product, $data['formula']));
+        return response()->json($this->forecaster->forecast($product));
     }
 }

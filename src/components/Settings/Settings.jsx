@@ -16,7 +16,13 @@ import './settings.css';
 import { SAFETY_STOCK_DEFAULTS, DEFAULT_SAFETY_STOCK } from '../../data/safetyStock';
 
 /* ===== EMPTY POLICY ===== */
-const emptyEntry = { productName: '', safetyStock: '', annualDemand: '' };
+const emptyEntry = {
+  productName: '',
+  safetyStock: '',
+  annualDemand: '',
+  leadTimeDays: '',
+  orderCycleDays: '',
+};
 
 function Settings({
   isDarkMode,
@@ -72,6 +78,8 @@ function Settings({
       [name]: {
         safetyStock: newEntry.safetyStock === '' ? DEFAULT_SAFETY_STOCK : Number(newEntry.safetyStock),
         annualDemand: newEntry.annualDemand === '' ? '' : Number(newEntry.annualDemand),
+        leadTimeDays: newEntry.leadTimeDays === '' ? '' : Number(newEntry.leadTimeDays),
+        orderCycleDays: newEntry.orderCycleDays === '' ? '' : Number(newEntry.orderCycleDays),
       },
     }));
     setNewEntry(emptyEntry);
@@ -152,7 +160,9 @@ function Settings({
             <div className="s-advanced-head">
               <p className="s-advanced-note">
                 Safety stock is the buffer a product must never fall below. Stock Control reads
-                these numbers to tint rows and surface the Compute EOQ shortcut — it cannot edit them.
+                these numbers for stock alerts and reorder planning. Enter lead time and order cycle
+                to calculate a maximum inventory target; leave them blank until you have reliable
+                supplier and ordering data.
               </p>
               <button
                 type="button"
@@ -164,11 +174,18 @@ function Settings({
               </button>
             </div>
 
+            <p className="s-advanced-note">
+              Maximum inventory = safety stock + (annual demand ÷ 365) × (lead time + order cycle).
+              Lead time and order cycle are measured in days.
+            </p>
+
             <div className="s-policy-table">
               <div className="s-policy-head">
                 <span>Product</span>
                 <span>Safety Stock</span>
                 <span>Annual Demand</span>
+                <span>Lead Time (days)</span>
+                <span>Order Cycle (days)</span>
                 <span />
               </div>
 
@@ -200,6 +217,32 @@ function Settings({
                     />
                   ) : (
                     <span className="s-policy-masked">{show(row.annualDemand)}</span>
+                  )}
+
+                  {revealed ? (
+                    <input
+                      type="number"
+                      min="0"
+                      value={row.leadTimeDays ?? ''}
+                      onChange={(e) => editRow(row.productName, 'leadTimeDays', e.target.value)}
+                      aria-label={`Lead time in days for ${row.productName}`}
+                      placeholder="required"
+                    />
+                  ) : (
+                    <span className="s-policy-masked">{show(row.leadTimeDays ?? '')}</span>
+                  )}
+
+                  {revealed ? (
+                    <input
+                      type="number"
+                      min="1"
+                      value={row.orderCycleDays ?? ''}
+                      onChange={(e) => editRow(row.productName, 'orderCycleDays', e.target.value)}
+                      aria-label={`Order cycle in days for ${row.productName}`}
+                      placeholder="required"
+                    />
+                  ) : (
+                    <span className="s-policy-masked">{show(row.orderCycleDays ?? '')}</span>
                   )}
 
                   <button
@@ -243,6 +286,22 @@ function Settings({
                   onChange={(e) => setNewEntry((prev) => ({ ...prev, annualDemand: e.target.value }))}
                   placeholder="optional"
                   aria-label="New annual demand"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  value={newEntry.leadTimeDays}
+                  onChange={(e) => setNewEntry((prev) => ({ ...prev, leadTimeDays: e.target.value }))}
+                  placeholder="lead days"
+                  aria-label="New lead time in days"
+                />
+                <input
+                  type="number"
+                  min="1"
+                  value={newEntry.orderCycleDays}
+                  onChange={(e) => setNewEntry((prev) => ({ ...prev, orderCycleDays: e.target.value }))}
+                  placeholder="cycle days"
+                  aria-label="New order cycle in days"
                 />
                 <button
                   type="button"

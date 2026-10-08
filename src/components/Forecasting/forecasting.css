@@ -385,8 +385,74 @@
 /*==========REORDER AREA==========*/
 .f-area-reorder  { grid-column: 7 / span 2; grid-row: 5; }
 
-/*==========SEASONAL AREA==========*/
-.f-area-seasonal { grid-column: 1 / span 2; grid-row: 4 / span 3; }
+/*==========METHOD AREA==========*/
+.f-area-method   { grid-column: 1 / span 2; grid-row: 4 / span 3; }
+
+.f-area-method .f-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.f-area-method .f-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 25px;
+    flex-shrink: 0;
+}
+
+.f-area-method .f-switch input {
+    width: 0;
+    height: 0;
+    opacity: 0;
+}
+
+.f-area-method .f-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--static-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 1.25rem;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.f-area-method .f-slider::before {
+    content: '';
+    position: absolute;
+    width: 17px;
+    height: 17px;
+    top: 3px;
+    left: 3px;
+    background: var(--text-muted);
+    border-radius: 1.25rem;
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.f-area-method .f-switch input:checked + .f-slider {
+    background: var(--background-icon-active-color);
+    border-color: var(--background-icon-active-color);
+}
+
+.f-area-method .f-switch input:checked + .f-slider::before {
+    background: var(--icon-active-color);
+    transform: translateX(19px);
+}
+
+.f-seasonal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.f-area-method .f-row2 {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
 
 /*==========HISTORY AREA==========*/
 .f-area-history  { grid-column: 3 / span 4; grid-row: 5 / span 2; }
@@ -396,10 +462,6 @@
 
 /*==========EXPORT AREA==========*/
 .f-area-export   { grid-column: 7 / span 2; grid-row: 8; }
-
-/*==========FORMULA AREA==========*/
-.f-area-formula  { grid-column: 7 / span 2; grid-row: 6 / span 2; }
-
 
 /*==========CARDS==========*/
 
@@ -657,91 +719,6 @@
 
 .f-hist tbody tr:last-child td {
     border-bottom: none;
-}
-
-
-/*==========SEASONAL TOGGLE==========*/
-
-.f-toggle-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-}
-
-.f-switch {
-    position: relative;
-
-    display: inline-block;
-
-    width: 44px;
-    height: 25px;
-
-    flex-shrink: 0;
-}
-
-.f-switch input {
-    width: 0;
-    height: 0;
-    opacity: 0;
-}
-
-.f-slider {
-    position: absolute;
-    inset: 0;
-
-    background: var(--static-bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: 1.25rem;
-
-    cursor: pointer;
-
-    transition:
-        background 0.2s ease,
-        border-color 0.2s ease;
-}
-
-.f-slider::before {
-    content: '';
-
-    position: absolute;
-
-    width: 17px;
-    height: 17px;
-
-    top: 3px;
-    left: 3px;
-
-    background: var(--text-muted);
-    border-radius: 1.25rem;
-
-    transition:
-        transform 0.2s ease,
-        background 0.2s ease;
-}
-
-.f-switch input:checked + .f-slider {
-    background: var(--background-icon-active-color);
-    border-color: var(--background-icon-active-color);
-}
-
-.f-switch input:checked + .f-slider::before {
-    background: var(--icon-active-color);
-    transform: translateX(19px);
-}
-
-.f-seasonal-body {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-
-    margin-top: 15px;
-}
-
-.f-row2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
 }
 
 
@@ -1091,17 +1068,6 @@
     padding-top: 8px;
 }
 
-/*==========SEASONAL FIELDS==========*/
-.f-area-seasonal .f-row2 {
-    grid-template-columns: 1fr;
-}
-
-.f-area-seasonal .f-suggest-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-}
-
 /*==========HISTORY SCROLL==========*/
 .f-area-history .f-scroll-table {
     max-height: 210px;
@@ -1160,13 +1126,8 @@
         grid-row: auto !important;
     }
 
-    .f-area-product .f-stat-row,
-    .f-area-seasonal .f-suggest-row {
+    .f-area-product .f-stat-row {
         flex-direction: row;
-    }
-
-    .f-area-seasonal .f-row2 {
-        grid-template-columns: 1fr 1fr;
     }
 
     .f-area-history .f-scroll-table {
@@ -1208,10 +1169,6 @@
 
     .f-controls-bar .f-field {
         flex-basis: 100%;
-    }
-
-    .f-row2 {
-        grid-template-columns: 1fr;
     }
 
     .f-sales-entry {

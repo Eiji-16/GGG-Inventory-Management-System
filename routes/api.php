@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\DashboardSummaryController;
-use App\Http\Controllers\CustomFormulaController;
 use App\Http\Controllers\ForecastController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
@@ -42,11 +41,3 @@ Route::get('/sales-history', [SalesHistoryController::class, 'index']);
 Route::post('/sales-history', [SalesHistoryController::class, 'store']);
 Route::delete('/sales-history/{salesHistory}', [SalesHistoryController::class, 'destroy']);
 Route::post('/forecasts', [ForecastController::class, 'store']);
-
-// Custom formulas — Auto Calculator. The EOQ default lives in the frontend;
-// everything the user adds is stored and evaluated server-side.
-Route::get('/formulas', [CustomFormulaController::class, 'index']);
-Route::post('/formulas', [CustomFormulaController::class, 'store']);
-Route::match(['put', 'patch'], '/formulas/{customFormula}', [CustomFormulaController::class, 'update']);
-Route::delete('/formulas/{customFormula}', [CustomFormulaController::class, 'destroy']);
-Route::post('/formulas/{customFormula}/compute', [CustomFormulaController::class, 'compute']);

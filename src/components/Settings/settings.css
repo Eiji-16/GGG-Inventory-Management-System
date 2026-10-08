@@ -233,12 +233,14 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    overflow-x: auto;
 }
 
 .s-policy-head,
 .s-policy-row {
     display: grid;
-    grid-template-columns: minmax(90px, 1.7fr) minmax(64px, 0.9fr) minmax(64px, 0.9fr) 26px;
+    grid-template-columns: minmax(110px, 1.7fr) repeat(4, minmax(78px, 0.9fr)) 26px;
+    min-width: 520px;
     align-items: center;
     gap: 6px;
 }
@@ -369,13 +371,6 @@
 
     .s-row-desc {
         font-size: 11.5px;
-    }
-
-    /* Tighten the policy grid so all four columns still fit on a phone. */
-    .s-policy-head,
-    .s-policy-row {
-        grid-template-columns: minmax(70px, 1.5fr) minmax(48px, 0.9fr) minmax(48px, 0.9fr) 24px;
-        gap: 4px;
     }
 
     .s-advanced-actions {

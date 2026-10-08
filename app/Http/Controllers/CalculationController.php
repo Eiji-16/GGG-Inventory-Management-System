@@ -5,11 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
  * CalculationController — /calculations
  *
- * Records an Auto Calculator computation (EOQ default or any custom formula)
+ * Records an Auto Calculator EOQ computation
  * to the activity log, tagged with the signed-in user ("computed by"). Runs on
  * a session-authed web route so Auth::id() is available. The actual math is done
  * in the browser (instant); this just persists the outcome for the EOQ Report.
@@ -19,7 +20,7 @@ class CalculationController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'formula' => ['required', 'string', 'max:255'],
+            'formula' => ['required', Rule::in(['EOQ'])],
             'result'  => ['required', 'numeric'],
             'unit'    => ['nullable', 'string', 'max:50'],
             'product' => ['nullable', 'string', 'max:255'],

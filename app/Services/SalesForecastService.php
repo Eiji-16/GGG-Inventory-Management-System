@@ -8,14 +8,9 @@ use Illuminate\Validation\ValidationException;
 
 class SalesForecastService
 {
-    public const FORMULAS = [
-        'Simple Moving Average',
-        'Weighted Moving Average',
-        'Exponential Smoothing',
-        'Linear Trend Regression',
-    ];
+    public const FORMULA = 'Weighted Moving Average';
 
-    public function forecast(Product $product, string $formula): array
+    public function forecast(Product $product): array
     {
         $history = $product->salesHistory()
             ->orderBy('period_date')
@@ -30,12 +25,7 @@ class SalesForecastService
         $units = $history->pluck('units_sold')->map(fn ($value) => (float) $value)->all();
         $count = count($units);
 
-        $forecast = match ($formula) {
-            'Simple Moving Average' => $this->simpleMovingAverage($units),
-            'Weighted Moving Average' => $this->weightedMovingAverage($units),
-            'Exponential Smoothing' => $this->exponentialSmoothing($units),
-            'Linear Trend Regression' => $this->linearTrendRegression($units),
-        };
+        $forecast = $this->weightedMovingAverage($units);
 
         $lastPeriod = Carbon::parse($history->last()->period_date);
 
@@ -47,19 +37,12 @@ class SalesForecastService
                 'brand' => $product->brand,
                 'stock' => $product->stock_on_hand,
             ],
-            'formula' => $formula,
+            'formula' => self::FORMULA,
             'baseForecast' => round(max(0, $forecast), 1),
             'forecastPeriod' => $lastPeriod->copy()->startOfMonth()->addMonth()->toDateString(),
             'dataPoints' => $count,
             'averageDemand' => round(array_sum($units) / $count, 1),
         ];
-    }
-
-    private function simpleMovingAverage(array $units): float
-    {
-        $recent = array_slice($units, -3);
-
-        return array_sum($recent) / count($recent);
     }
 
     private function weightedMovingAverage(array $units): float
@@ -75,34 +58,5 @@ class SalesForecastService
         }
 
         return $weightedTotal / $weightTotal;
-    }
-
-    private function exponentialSmoothing(array $units): float
-    {
-        $smoothed = $units[0];
-        foreach (array_slice($units, 1) as $actual) {
-            $smoothed = 0.5 * $actual + 0.5 * $smoothed;
-        }
-
-        return $smoothed;
-    }
-
-    private function linearTrendRegression(array $units): float
-    {
-        $count = count($units);
-        $xMean = ($count + 1) / 2;
-        $yMean = array_sum($units) / $count;
-        $numerator = 0;
-        $denominator = 0;
-
-        foreach ($units as $index => $value) {
-            $x = $index + 1;
-            $numerator += ($x - $xMean) * ($value - $yMean);
-            $denominator += ($x - $xMean) ** 2;
-        }
-
-        $slope = $denominator === 0.0 ? 0.0 : $numerator / $denominator;
-
-        return $yMean + $slope * ($count + 1 - $xMean);
     }
 }

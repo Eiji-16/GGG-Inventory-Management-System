@@ -203,10 +203,14 @@ function LandingPage({onLogout, user}) {
 {/* ===== SIDEBAR NAVIGATION ===== */}
   <ul className="sidebar-menu">
       <div className="sidebar-item sidebar-logo-row">
-        <span id="sidebar-logo">
+        <span id="sidebar-logo" aria-hidden="true">
 {/* ===== LOGO ===== */}
           A
           </span>
+        <span className="sidebar-brand">
+          <strong>GGG Inventory</strong>
+          <small>Inventory Management</small>
+        </span>
         {/* ===== CLOSE BUTTON ===== */}
         <button
           className="sidebar-close-btn"
@@ -220,12 +224,14 @@ function LandingPage({onLogout, user}) {
 
 
 {/* ===== MENUS ===== */}
+          <li className="sidebar-section-label">Overview</li>
           <li className={`sidebar-item ${activeView === 'Dashboard' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Dashboard')}>
               <LayoutDashboard className="sidebar-icon" />
               <span className="sidebar-label">Dashboard</span>
             </button>
           </li>
+          <li className="sidebar-section-label">Inventory</li>
           {canAccess('Product-Supplier') && (
           <li className={`sidebar-item ${activeView === 'Product-Supplier' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Product-Supplier')}>
@@ -240,6 +246,7 @@ function LandingPage({onLogout, user}) {
               <span className="sidebar-label">Stock Control</span>
             </button>
           </li>
+          {canAccess('Auto-Calculator') && <li className="sidebar-section-label">Planning</li>}
           {canAccess('Auto-Calculator') && (
           <li className={`sidebar-item ${activeView === 'Auto-Calculator' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Auto-Calculator')}>
@@ -256,6 +263,7 @@ function LandingPage({onLogout, user}) {
             </button>
           </li>
           )}
+          <li className="sidebar-section-label">Analytics</li>
           <li className={`sidebar-item ${activeView === 'Reports' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Reports')}>
               <BarChart3 className="sidebar-icon" />

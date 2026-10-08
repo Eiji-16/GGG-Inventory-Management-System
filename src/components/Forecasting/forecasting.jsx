@@ -1,26 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './forecasting.css';
 
-const FORMULAS = [
-  'Simple Moving Average',
-  'Weighted Moving Average',
-  'Exponential Smoothing',
-  'Linear Trend Regression',
-];
-
-const FORMULA_NOTES = {
-  'Simple Moving Average': 'Averages the most recent three periods equally.',
-  'Weighted Moving Average': 'Weights the most recent three periods more heavily.',
-  'Exponential Smoothing': 'Applies 50% smoothing to progressively weight recent history.',
-  'Linear Trend Regression': 'Projects the next period using a least-squares linear trend.',
-};
-
+const FORECAST_METHOD = 'Weighted Moving Average';
+const FORECAST_METHOD_NOTE = 'Uses the most recent three months with fixed weights of 1, 2, and 3; the newest month receives the greatest weight.';
 const EVENT_MONTHS = {
   Christmas: ['Nov', 'Dec'],
   Summer: ['Jun', 'Jul', 'Aug'],
   'Back to School': ['Aug', 'Sep'],
 };
-
 const BUILT_IN_EVENTS = Object.keys(EVENT_MONTHS);
 
 async function requestJson(url, options = {}) {
@@ -79,7 +66,6 @@ export default function DemandForecastDesign({ onNavigate }) {
   const [productId, setProductId] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [history, setHistory] = useState([]);
-  const [formula, setFormula] = useState(FORMULAS[0]);
   const [forecast, setForecast] = useState(null);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -90,7 +76,6 @@ export default function DemandForecastDesign({ onNavigate }) {
   const [unitsSold, setUnitsSold] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-
   const [seasonalOn, setSeasonalOn] = useState(true);
   const [customEvents, setCustomEvents] = useState([]);
   const [event, setEvent] = useState('Christmas');
@@ -112,12 +97,11 @@ export default function DemandForecastDesign({ onNavigate }) {
   const adjustedDemand = forecast
     ? Math.max(0, Number((forecast.baseForecast * (1 + effectivePct / 100)).toFixed(1)))
     : null;
-  const annualDemand = adjustedDemand == null ? 0 : Math.ceil(adjustedDemand * 12);
-  const reorderQuantity = selectedProduct && adjustedDemand != null
-    ? Math.max(0, Math.ceil(adjustedDemand - Number(selectedProduct.stock || 0)))
+  const forecastDemand = adjustedDemand;
+  const annualDemand = forecastDemand == null ? 0 : Math.ceil(forecastDemand * 12);
+  const reorderQuantity = selectedProduct && forecastDemand != null
+    ? Math.max(0, Math.ceil(forecastDemand - Number(selectedProduct.stock || 0)))
     : 0;
-  const eventOptions = [...BUILT_IN_EVENTS, ...customEvents];
-  const isCustomChoice = event === '__add__';
 
   useEffect(() => {
     let active = true;
@@ -162,6 +146,8 @@ export default function DemandForecastDesign({ onNavigate }) {
     return () => { active = false; };
   }, [productId]);
 
+  const eventOptions = [...BUILT_IN_EVENTS, ...customEvents];
+  const isCustomChoice = event === '__add__';
   const suggestedPct = useMemo(() => {
     const months = EVENT_MONTHS[event];
     if (!months || !sortedHistory.length || overallAverage === 0) return null;
@@ -196,7 +182,7 @@ export default function DemandForecastDesign({ onNavigate }) {
     try {
       const result = await requestJson('/api/forecasts', {
         method: 'POST',
-        body: JSON.stringify({ productId, formula }),
+        body: JSON.stringify({ productId }),
       });
       setForecast(result);
     } catch (computeError) {
@@ -265,7 +251,7 @@ export default function DemandForecastDesign({ onNavigate }) {
       ['Forecast Summary', ''],
       ['Product', selectedProduct.name],
       ['Product ID', selectedProduct.id],
-      ['Formula', formula],
+      ['Forecast method', FORECAST_METHOD],
       ['Forecast period', formatPeriod(forecast.forecastPeriod)],
       ['Base forecast (units)', forecast.baseForecast],
       ['Seasonal event', seasonalOn ? event : 'none'],
@@ -291,6 +277,7 @@ export default function DemandForecastDesign({ onNavigate }) {
     if (selectedProduct && forecast && onNavigate) {
       onNavigate('Auto-Calculator', {
         product: selectedProduct.name,
+        productId: selectedProduct.id,
         annualDemand,
       });
     }
@@ -300,7 +287,7 @@ export default function DemandForecastDesign({ onNavigate }) {
     ? [...sortedHistory.slice(-6), {
       id: 'forecast',
       periodDate: forecast.forecastPeriod,
-      unitsSold: adjustedDemand,
+      unitsSold: forecastDemand,
       isForecast: true,
     }]
     : sortedHistory.slice(-6);
@@ -339,12 +326,6 @@ export default function DemandForecastDesign({ onNavigate }) {
                 <label>Forecast period</label>
                 <select value="Month" disabled aria-label="Forecast period">
                   <option>Month</option>
-                </select>
-              </div>
-              <div className="f-field" style={{ minWidth: 190 }}>
-                <label htmlFor="forecast-formula">Formula</label>
-                <select id="forecast-formula" value={formula} onChange={(e) => { setFormula(e.target.value); setForecast(null); }}>
-                  {FORMULAS.map((option) => <option key={option} value={option}>{option}</option>)}
                 </select>
               </div>
               <div className="f-field">
@@ -390,17 +371,13 @@ export default function DemandForecastDesign({ onNavigate }) {
               {forecast ? (
                 <>
                   <div className="f-result-big">
-                    <div className="f-num">{adjustedDemand.toFixed(1)}</div>
+                    <div className="f-num">{forecastDemand.toFixed(1)}</div>
                     <div className="f-lbl">Predicted units — {formatPeriod(forecast.forecastPeriod)}</div>
                   </div>
                   <div className="f-stat-row">
                     <div className="f-stat-box">
                       <div className="f-lbl">Base forecast</div>
                       <div className="f-val">{Number(forecast.baseForecast).toFixed(1)} <small>units</small></div>
-                    </div>
-                    <div className="f-stat-box">
-                      <div className="f-lbl">Season-adjusted</div>
-                      <div className="f-val">{effectivePct >= 0 ? '+' : ''}{effectivePct}%</div>
                     </div>
                   </div>
                   <button type="button" className="f-btn f-btn-link f-eoq-handoff" onClick={computeEoqFromForecast}>
@@ -411,7 +388,7 @@ export default function DemandForecastDesign({ onNavigate }) {
               ) : (
                 <div className="f-result-placeholder">
                   {loadingHistory ? 'Loading sales history…' : history.length
-                    ? 'Choose a formula and compute to see the monthly forecast.'
+                    ? 'Compute the weighted moving average to see the monthly forecast.'
                     : 'Add sales history for this product, then compute a forecast.'}
                 </div>
               )}
@@ -451,11 +428,11 @@ export default function DemandForecastDesign({ onNavigate }) {
               </div>
             </div>
 
-            <div className="f-card f-area-seasonal">
+            <div className="f-card f-area-method">
               <div className="f-toggle-row">
                 <div>
                   <h3 style={{ marginBottom: 2 }}>Seasonal Adjustment</h3>
-                  <p className="f-sub" style={{ margin: 0 }}>Adjust next month’s forecast for a season or promotion.</p>
+                  <p className="f-sub" style={{ margin: 0 }}>Optional adjustment applied after the fixed WMA forecast.</p>
                 </div>
                 <label className="f-switch">
                   <input type="checkbox" checked={seasonalOn} onChange={(e) => setSeasonalOn(e.target.checked)} />
@@ -505,6 +482,10 @@ export default function DemandForecastDesign({ onNavigate }) {
                   </div>
                 </div>
               )}
+              <h3 style={{ marginTop: 16 }}>Forecast Method</h3>
+              <span className="f-formula-tag">{FORECAST_METHOD}</span>
+              <p className="f-sub" style={{ margin: '10px 0 0' }}>{FORECAST_METHOD_NOTE}</p>
+              {forecast && <p className="f-sub" style={{ margin: '8px 0 0' }}>Annualized demand: {annualDemand.toLocaleString()} units.</p>}
             </div>
 
             <div className="f-card f-area-history">
@@ -577,8 +558,8 @@ export default function DemandForecastDesign({ onNavigate }) {
                   <div className="f-val">{forecast ? `${reorderQuantity} units` : '—'}</div>
                 </div>
                 <div className="f-summary-item">
-                  <div className="f-lbl">Formula</div>
-                  <div className="f-val">{formula}</div>
+                  <div className="f-lbl">Forecast method</div>
+                  <div className="f-val">{FORECAST_METHOD}</div>
                 </div>
                 <div className="f-summary-item">
                   <div className="f-lbl">Forecast period</div>
@@ -596,12 +577,6 @@ export default function DemandForecastDesign({ onNavigate }) {
               </div>
             </div>
 
-            <div className="f-card f-area-formula">
-              <h3>Forecast Method</h3>
-              <span className="f-formula-tag">{formula}</span>
-              <p className="f-sub" style={{ margin: '10px 0 0' }}>{FORMULA_NOTES[formula]}</p>
-              {forecast && <p className="f-sub" style={{ margin: '8px 0 0' }}>Annualized demand: {annualDemand.toLocaleString()} units.</p>}
-            </div>
           </div>
         </main>
       </div>

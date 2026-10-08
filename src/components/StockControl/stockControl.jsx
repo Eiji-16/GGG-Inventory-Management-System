@@ -11,8 +11,10 @@ import {
   History,
   ArrowUpRight,
   ArrowDownRight,
+  ArrowRight,
   Download,
   Activity,
+  Info,
   PlusCircle,
   Pencil,
   Clock,
@@ -25,6 +27,7 @@ import {
   safetyPointFor,
   stockStatusFor,
   annualDemandFor,
+  maximumInventoryFor,
   STATUS_LABEL,
 } from '../../data/safetyStock'; /* ===== SAFETY STOCK ===== */
 
@@ -76,6 +79,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   const [historyProduct, setHistoryProduct] = useState(null);
   const [query, setQuery] = useState('');
   const [showActivity, setShowActivity] = useState(false);
+  const [showReorderPlan, setShowReorderPlan] = useState(false);
   const [activityLog, setActivityLog] = useState([]);
   const [productOptions, setProductOptions] = useState([]);
   const [openingStock, setOpeningStock] = useState('');
@@ -128,6 +132,54 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   };
 
   const productById = useMemo(() => new Map(productOptions.map((product) => [product.id, product])), [productOptions]);
+  const reorderPlans = useMemo(() => productOptions.map((product) => {
+    const policy = safetyStock?.[product.name] || {};
+    const safetyStockValue = safetyPointFor({
+      productName: product.name,
+      safetyStock: product.safetyStock,
+    }, safetyStock);
+    const configuredDemand = Number(policy.annualDemand) > 0
+      ? policy.annualDemand
+      : product.annualDemand;
+    const historicalDemand = Number(product.demandFromHistory) > 0 ? product.demandFromHistory : '';
+    const annualDemandValue = Number(configuredDemand) > 0 ? configuredDemand : historicalDemand;
+    const maximumInventory = maximumInventoryFor(
+      annualDemandValue,
+      safetyStockValue,
+      policy.leadTimeDays,
+      policy.orderCycleDays
+    );
+    const currentStock = Number(product.stock) || 0;
+    const reorderDue = currentStock <= safetyStockValue;
+
+    return {
+      id: product.id,
+      name: product.name,
+      currentStock,
+      safetyStock: safetyStockValue,
+      maximumInventory,
+      suggestedTopUp: reorderDue && maximumInventory !== null
+        ? Math.max(0, maximumInventory - currentStock)
+        : null,
+      reorderDue,
+    };
+  }), [productOptions, safetyStock]);
+  const reorderExampleProduct = productOptions.find((product) => (
+    Number(product.annualDemand) > 0 || Number(product.demandFromHistory) > 0
+  )) || productOptions[0] || null;
+  const reorderExamplePlan = reorderPlans.find((plan) => plan.id === reorderExampleProduct?.id);
+  const reorderExampleDemand = Number(reorderExampleProduct?.annualDemand) > 0
+    ? Number(reorderExampleProduct.annualDemand)
+    : Number(reorderExampleProduct?.demandFromHistory) > 0
+      ? Number(reorderExampleProduct.demandFromHistory)
+      : 1500;
+  const reorderExampleHasDemand = Boolean(
+    Number(reorderExampleProduct?.annualDemand) > 0 ||
+    Number(reorderExampleProduct?.demandFromHistory) > 0
+  );
+  const reorderExampleSafetyStock = reorderExamplePlan?.safetyStock
+    ?? safetyPointFor({ productName: reorderExampleProduct?.name }, safetyStock);
+  const maximumInventoryExample = maximumInventoryFor(reorderExampleDemand, reorderExampleSafetyStock, 7, 30);
 
   /* ===== MOVEMENT COUNT PER PRODUCT =====
      Opening stock may only be set before the first movement exists — the same
@@ -247,6 +299,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
     if (!onNavigate) return;
     onNavigate('Auto-Calculator', {
       product: row.productName,
+      productId: row.productId,
       annualDemand: productById.get(row.productId)?.annualDemand || annualDemandFor(row.productName, safetyStock),
     });
   };
@@ -651,6 +704,15 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
         >
           <p>Activity</p>
           <Activity size={12} />
+        </button>
+        <button
+          className="sc-add-btn"
+          onClick={() => setShowReorderPlan(true)}
+          type="button"
+          title="View maximum inventory and reorder planning"
+        >
+          <p>Reorder Plan</p>
+          <Info size={12} />
         </button>
       </div>
 
@@ -1196,6 +1258,117 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
               )}
             </div>
           </div>
+        </div>,
+        document.body
+      )}
+
+      {showReorderPlan && createPortal(
+        <div className="sc-reorder-fullscreen-overlay">
+          <aside
+            className="sc-reorder-fullscreen"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sc-reorder-planning-title"
+          >
+            <div className="sc-reorder-fullscreen-header">
+              <button
+                className="sc-reorder-back"
+                onClick={() => setShowReorderPlan(false)}
+                type="button"
+                aria-label="Close reorder plan"
+                title="Close"
+              >
+                <ArrowRight size={18} />
+              </button>
+              <div className="sc-reorder-fullscreen-title">
+                <div className="sc-modal-titles">
+                  <h2 id="sc-reorder-planning-title">Maximum Inventory &amp; Reorder Plan</h2>
+                  <p className="sc-modal-subtitle">
+                    Maximum inventory = safety stock + daily demand × (lead time + order cycle).
+                    Set lead time and order cycle in Settings → Advanced Options.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="sc-reorder-settings"
+                onClick={() => {
+                  setShowReorderPlan(false);
+                  onNavigate?.('Setting');
+                }}
+              >
+                Configure policy
+              </button>
+            </div>
+            <div className="sc-reorder-fullscreen-body">
+              <div className="sc-reorder-table-scroll">
+                <table className="sc-reorder-table">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>On hand</th>
+                      <th>Safety-stock trigger</th>
+                      <th>Maximum inventory</th>
+                      <th>Suggested top-up*</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stockLoading ? (
+                      <tr><td colSpan={5} className="sc-reorder-empty">Loading reorder plans…</td></tr>
+                    ) : reorderPlans.length ? reorderPlans.map((plan) => (
+                      <tr key={plan.id}>
+                        <td>{plan.name}</td>
+                        <td>{plan.currentStock} units</td>
+                        <td>{plan.safetyStock} units</td>
+                        <td>
+                          {plan.maximumInventory === null
+                            ? <span className="sc-reorder-unconfigured">Configure annual demand, lead time &amp; order cycle</span>
+                            : `${plan.maximumInventory} units`}
+                        </td>
+                        <td>
+                          {plan.suggestedTopUp === null
+                            ? (plan.reorderDue ? 'Configure maximum inventory' : 'Not at reorder point')
+                            : `${plan.suggestedTopUp} units`}
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr><td colSpan={5} className="sc-reorder-empty">No products available for reorder planning.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {reorderExampleProduct && (
+                <section className="sc-maximum-example-card" aria-labelledby="sc-maximum-example-title">
+                  <h3 id="sc-maximum-example-title">
+                    Worked example — {reorderExampleProduct.name}
+                  </h3>
+                  <div className="sc-maximum-example-inputs">
+                    <span>
+                      Annual demand: <strong>{reorderExampleDemand.toLocaleString()} units</strong>
+                      {!reorderExampleHasDemand && ' (illustrative; no demand recorded)'}
+                    </span>
+                    <span>Safety stock: <strong>{reorderExampleSafetyStock} units</strong></span>
+                    <span>Illustrative lead time: <strong>7 days</strong></span>
+                    <span>Illustrative order cycle: <strong>30 days</strong></span>
+                  </div>
+                  <div className="sc-maximum-example-formula">
+                    {reorderExampleSafetyStock} + ({reorderExampleDemand.toLocaleString()} ÷ 365) × (7 + 30)
+                    <strong>{maximumInventoryExample} units maximum inventory</strong>
+                  </div>
+                  <p>
+                    Product comes from your database; safety stock uses its configured value or the system
+                    default. Lead time and order cycle are examples only, not actual supplier settings.
+                    Configure verified values in Settings.
+                  </p>
+                </section>
+              )}
+              <p className="sc-reorder-footnote">
+                *Suggested top-up is based on current on-hand stock only. Open purchase orders are not tracked, so account for them before ordering.
+                EOQ is a separate cost-based order quantity and does not change the reorder threshold or maximum-stock target.
+              </p>
+            </div>
+          </aside>
         </div>,
         document.body
       )}

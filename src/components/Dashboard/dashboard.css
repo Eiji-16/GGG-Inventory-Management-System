@@ -27,12 +27,11 @@
     gap: 8px;
     width: 100%;
     box-sizing: border-box;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     grid-template-rows: auto;
     -ms-overflow-style: none;
     scrollbar-width: none;
-    overflow-x: auto;
-    overflow-y: hidden;
+    min-width: 0;
 }
 
 /*==========BASE CARD==========*/
@@ -48,6 +47,7 @@
     box-sizing: border-box;
     overflow: hidden;
     position: relative;
+    min-width: 0;
 
     /*==========CARD AS FLEX COLUMN==========*/
     display: flex;
@@ -684,7 +684,11 @@
 /*==========TABLET RESPONSIVENESS==========*/
 @media (max-width: 1024px) {
     .parent {
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .parent-without-user-accounts {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
     .salesAnalytics-card {
@@ -794,7 +798,12 @@
 /*==========MOBILE RESPONSIVENESS==========*/
 @media (max-width: 640px) {
     .parent {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+    .parent-without-user-accounts {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .salesAnalytics-card {

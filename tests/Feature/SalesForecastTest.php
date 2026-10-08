@@ -11,27 +11,27 @@ class SalesForecastTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_forecast_uses_the_selected_products_monthly_sales_history(): void
+    public function test_forecast_always_uses_weighted_moving_average(): void
     {
         $product = $this->createProduct();
-        $this->addSales($product, '2026-01-01', 10);
-        $this->addSales($product, '2026-02-01', 20);
-        $this->addSales($product, '2026-03-01', 30);
+        $this->addSales($product, '2026-01-01', 1000);
+        $this->addSales($product, '2026-02-01', 10);
+        $this->addSales($product, '2026-03-01', 20);
+        $this->addSales($product, '2026-04-01', 40);
 
         $this->postJson('/api/forecasts', [
             'productId' => $product->code,
-            'formula' => 'Simple Moving Average',
         ])
             ->assertOk()
             ->assertJsonPath('product.id', $product->code)
-            ->assertJsonPath('formula', 'Simple Moving Average')
-            ->assertJsonPath('baseForecast', 20)
-            ->assertJsonPath('forecastPeriod', '2026-04-01')
-            ->assertJsonPath('dataPoints', 3)
-            ->assertJsonPath('averageDemand', 20);
+            ->assertJsonPath('formula', 'Weighted Moving Average')
+            ->assertJsonPath('baseForecast', 28.3)
+            ->assertJsonPath('forecastPeriod', '2026-05-01')
+            ->assertJsonPath('dataPoints', 4)
+            ->assertJsonPath('averageDemand', 267.5);
     }
 
-    public function test_weighted_moving_average_weights_newer_months_more_heavily(): void
+    public function test_legacy_formula_input_cannot_change_the_fixed_forecast_method(): void
     {
         $product = $this->createProduct();
         $this->addSales($product, '2026-01-01', 10);
@@ -40,69 +40,21 @@ class SalesForecastTest extends TestCase
 
         $this->postJson('/api/forecasts', [
             'productId' => $product->code,
-            'formula' => 'Weighted Moving Average',
+            'formula' => 'Linear Trend Regression',
         ])
             ->assertOk()
+            ->assertJsonPath('formula', 'Weighted Moving Average')
             ->assertJsonPath('baseForecast', 28.3);
     }
 
-    public function test_exponential_smoothing_applies_the_configured_half_weight(): void
-    {
-        $product = $this->createProduct();
-        $this->addSales($product, '2026-01-01', 10);
-        $this->addSales($product, '2026-02-01', 20);
-        $this->addSales($product, '2026-03-01', 30);
-
-        $this->postJson('/api/forecasts', [
-            'productId' => $product->code,
-            'formula' => 'Exponential Smoothing',
-        ])
-            ->assertOk()
-            ->assertJsonPath('baseForecast', 22.5);
-    }
-
-    public function test_linear_trend_projects_the_next_month_and_never_returns_negative_demand(): void
-    {
-        $product = $this->createProduct();
-        $this->addSales($product, '2026-01-01', 10);
-        $this->addSales($product, '2026-02-01', 20);
-        $this->addSales($product, '2026-03-01', 30);
-
-        $this->postJson('/api/forecasts', [
-            'productId' => $product->code,
-            'formula' => 'Linear Trend Regression',
-        ])
-            ->assertOk()
-            ->assertJsonPath('baseForecast', 40);
-
-        $declining = $this->createProduct('PRD-DECLINE');
-        $this->addSales($declining, '2026-01-01', 30);
-        $this->addSales($declining, '2026-02-01', 20);
-        $this->addSales($declining, '2026-03-01', 10);
-
-        $this->postJson('/api/forecasts', [
-            'productId' => $declining->code,
-            'formula' => 'Linear Trend Regression',
-        ])
-            ->assertOk()
-            ->assertJsonPath('baseForecast', 0);
-    }
-
-    public function test_forecasting_requires_existing_sales_history_and_a_supported_formula(): void
+    public function test_forecasting_requires_existing_sales_history(): void
     {
         $product = $this->createProduct();
 
         $this->postJson('/api/forecasts', [
             'productId' => $product->code,
-            'formula' => 'Simple Moving Average',
         ])->assertUnprocessable()
             ->assertJsonValidationErrors('productId');
-
-        $this->postJson('/api/forecasts', [
-            'productId' => $product->code,
-            'formula' => 'Holt-Winters',
-        ])->assertUnprocessable()
-            ->assertJsonValidationErrors('formula');
     }
 
     public function test_sales_history_can_be_added_updated_and_deleted_for_forecasting(): void
