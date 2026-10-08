@@ -1,0 +1,52 @@
+[
+  {
+    "date": "2026-07-07",
+    "productName": "Precision Steel Chronograph",
+    "category": "Timepieces",
+    "type": "Stock In",
+    "qty": 50,
+    "remainingStock": 95,
+    "notes": "Delivery from Swiss Alliance Logistics",
+    "recordedBy": "Super Admin"
+  },
+  {
+    "date": "2026-07-07",
+    "productName": "Water-Resistant Diver Strap",
+    "category": "Accessories",
+    "type": "Stock Out",
+    "qty": 12,
+    "remainingStock": 38,
+    "notes": "Sales",
+    "recordedBy": "Admin"
+  },
+  {
+    "date": "2026-07-06",
+    "productName": "Sapphire Crystal Glass Face",
+    "category": "Spare Parts",
+    "type": "Stock In",
+    "qty": 100,
+    "remainingStock": 200,
+    "notes": "Delivery from Apex Global Distribution",
+    "recordedBy": "Super Admin"
+  },
+  {
+    "date": "2026-07-06",
+    "productName": "Premium Calfskin Band",
+    "category": "Accessories",
+    "type": "Stock Out",
+    "qty": 3,
+    "remainingStock": 8,
+    "notes": "Sales",
+    "recordedBy": "Super Admin"
+  },
+  {
+    "date": "2026-07-05",
+    "productName": "Automatic Movement Caliber",
+    "category": "Movements",
+    "type": "Stock In",
+    "qty": 20,
+    "remainingStock": 45,
+    "notes": "Delivery from Tokyo Micro-Engineering",
+    "recordedBy": "Admin"
+  }
+]
