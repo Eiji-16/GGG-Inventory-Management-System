@@ -487,6 +487,12 @@
 .f-area-summary  { grid-area: summary; }
 .f-area-export   { grid-area: export; }
 
+/* Export sits in the bottom-right; stretch it to line up with the history
+   card's bottom edge so the right column ends flush. */
+.f-area-export {
+    align-self: stretch;
+}
+
 /*==========METHOD AREA==========*/
 
 .f-area-method .f-toggle-row {
