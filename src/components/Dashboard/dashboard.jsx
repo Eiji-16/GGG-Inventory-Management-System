@@ -229,7 +229,33 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
   }, [summary, range]);
 
   if (loading && !summary) {
-    return <main className="dashboard-content-view"><div className="dashboard-scroll-container"><p role="status">Loading live dashboard data…</p></div></main>;
+    return (
+      <main className="dashboard-content-view">
+        <div className="dashboard-scroll-container">
+          <div className={`parent${isSuperAdmin ? '' : ' parent-without-user-accounts'} db-skeleton`} aria-busy="true" aria-label="Loading dashboard">
+            <div className="salesAnalytics-card card db-skel-card">
+              <div className="db-skel-line db-skel-title" />
+              <div className="db-skel-line db-skel-sub" />
+              <div className="db-skel-chart" />
+            </div>
+            <div className="catalogStatus-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-fill" /></div>
+            <div className="totalRevenue-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-line db-skel-big" /></div>
+            <div className="regionalBreakdown-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-fill" /></div>
+            <div className="eoqActivity-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-fill" /></div>
+            <div className="totalOrder-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-fill" /></div>
+            <div className="productSales-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-fill" /></div>
+            <div className="lowStockalerts-card card db-skel-card">
+              <div className="db-skel-line db-skel-title" />
+              <div className="db-skel-row" /><div className="db-skel-row" /><div className="db-skel-row" />
+            </div>
+            {isSuperAdmin && (
+              <div className="totalStaff-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-line db-skel-big" /></div>
+            )}
+          </div>
+          <p className="db-skel-note" role="status">Loading live dashboard data…</p>
+        </div>
+      </main>
+    );
   }
   if (error && !summary) {
     return (

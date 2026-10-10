@@ -107,15 +107,7 @@ function ProductSupplier({ onNavigate }) {
     return sorted;
   }, [productsFromDatabase, query, sortBy, sortDir]);
 
-  /* Toggle sort: click same column flips direction, new column starts ascending. */
-  const toggleSort = (key) => {
-    if (sortBy === key) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortBy(key);
-      setSortDir('asc');
-    }
-  };
+  /* Little ▲/▼ beside the column that's currently the active sort key. */
   const sortIndicator = (key) => (sortBy === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
 
   /* ===== RESET PAGE ===== */
@@ -405,15 +397,60 @@ function ProductSupplier({ onNavigate }) {
           </div>
         </div>
         <button
-          className="ps-add-btn"
+          className="ps-add-btn ps-icon-only"
           onClick={exportCsv}
           type="button"
           disabled={filteredProducts.length === 0}
           title="Export the current list to CSV"
+          aria-label="Export to CSV"
         >
-          <p>Export</p>
-          <Download size={12} />
+          <Download size={14} />
         </button>
+
+        {/* ===== SORT DROPDOWN (icon button) ===== */}
+        <div className="ps-sort-wrap">
+          <button
+            className="ps-add-btn ps-icon-only"
+            onClick={() => setSortMenuOpen((o) => !o)}
+            type="button"
+            title="Sort products"
+            aria-label="Sort products"
+            aria-expanded={sortMenuOpen}
+          >
+            <ArrowUpDown size={14} />
+          </button>
+          {sortMenuOpen && (
+            <div className="ps-sort-menu" role="menu">
+              {[
+                { key: 'name', label: 'Product Name' },
+                { key: 'category', label: 'Category' },
+                { key: 'brand', label: 'Brand' },
+                { key: 'supplierName', label: 'Supplier' },
+                { key: 'stock', label: 'Stock' },
+              ].map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={sortBy === opt.key}
+                  className={`ps-sort-item${sortBy === opt.key ? ' is-active' : ''}`}
+                  onClick={() => { setSortBy(opt.key); setSortMenuOpen(false); }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              <div className="ps-sort-divider" />
+              <button
+                type="button"
+                className="ps-sort-item"
+                onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
+              >
+                {sortDir === 'asc' ? 'Ascending ↑' : 'Descending ↓'}
+              </button>
+            </div>
+          )}
+        </div>
+
         {selectedIds.size > 0 && (
           <button
             className="ps-add-btn ps-delete-selected-btn"
@@ -446,28 +483,12 @@ function ProductSupplier({ onNavigate }) {
               </th>
               <th>Product ID</th>
               <th className="ps-th-pic">Picture</th>
-              <th className="ps-th-left">
-                <button type="button" className="ps-sort-btn" onClick={() => toggleSort('name')}>
-                  Product Name{sortIndicator('name')}
-                </button>
-              </th>
-              <th>
-                <button type="button" className="ps-sort-btn" onClick={() => toggleSort('category')}>
-                  Category{sortIndicator('category')}
-                </button>
-              </th>
-              <th>
-                <button type="button" className="ps-sort-btn" onClick={() => toggleSort('brand')}>
-                  Brand{sortIndicator('brand')}
-                </button>
-              </th>
+              <th className="ps-th-left">Product Name{sortIndicator('name')}</th>
+              <th>Category{sortIndicator('category')}</th>
+              <th>Brand{sortIndicator('brand')}</th>
               <th>Model</th>
               <th>Unit Measure</th>
-              <th className="ps-th-left">
-                <button type="button" className="ps-sort-btn" onClick={() => toggleSort('supplierName')}>
-                  Supplier{sortIndicator('supplierName')}
-                </button>
-              </th>
+              <th className="ps-th-left">Supplier{sortIndicator('supplierName')}</th>
               <th>Actions</th>
             </tr>
           </thead>
