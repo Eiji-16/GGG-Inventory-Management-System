@@ -403,6 +403,57 @@
     cursor: not-allowed;
 }
 
+/*==========ICON-ONLY TOOLBAR BUTTONS==========*/
+.sc-add-btn.sc-icon-only {
+    padding: 0.4rem;
+    width: 2rem;
+    height: 2rem;
+    justify-content: center;
+}
+
+/*==========SORT DROPDOWN==========*/
+.sc-sort-wrap {
+    position: relative;
+    display: inline-flex;
+}
+.sc-sort-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 30;
+    min-width: 150px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--bg-card, #1b2436);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.sc-sort-item {
+    text-align: left;
+    padding: 7px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.sc-sort-item:hover { background: var(--background-icon-active-color-theme); }
+.sc-sort-item.is-active {
+    background: var(--background-icon-active-color-theme);
+    color: var(--accent, #E8C547);
+}
+.sc-sort-divider {
+    height: 1px;
+    margin: 4px 2px;
+    background: var(--hairline, var(--border-color));
+}
+
 .sc-add-btn-primary {
     background-color: var(--background-icon-active-color, #E8C547);
     border-color: var(--background-icon-active-color, #E8C547);
@@ -488,6 +539,15 @@
 
 .sc-table tbody tr.is-selected {
     background-color: var(--background-icon-active-color-theme) !important;
+}
+
+/* Flash a row when arriving from a Dashboard Stock Alert click. */
+.sc-table tbody tr.sc-row-highlight {
+    animation: sc-row-flash 2.4s ease-out;
+}
+@keyframes sc-row-flash {
+    0%, 30%   { background-color: rgba(232, 197, 71, 0.35); }
+    100%      { background-color: transparent; }
 }
 
 .sc-td-left { text-align: left; }

@@ -19,6 +19,7 @@ import {
   Pencil,
   Clock,
   ClipboardList,
+  ArrowUpDown,
   Package } from 'lucide-react';
 
 import './stockControl.css';
@@ -68,7 +69,7 @@ const signedQty = (row) => {
   return row.type === 'Stock Out' ? -qty : qty;
 };
 
-function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
+function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff = null }) {
   const [stockFromDatabase, setStockFromDatabase] = useState([]);
   const [stockLoading, setStockLoading] = useState(true);
   const [stockError, setStockError] = useState('');
@@ -84,6 +85,10 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
   const [productOptions, setProductOptions] = useState([]);
   const [openingStock, setOpeningStock] = useState('');
   const [openingSaving, setOpeningSaving] = useState(false);
+  const [sortBy, setSortBy] = useState('date'); /* ===== SORT KEY ===== */
+  const [sortDir, setSortDir] = useState('desc'); /* ===== SORT DIRECTION ===== */
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [highlightId, setHighlightId] = useState(null); /* row to flash from a Dashboard handoff */
 
   const logActivity = (action, product, detail) => {
     setActivityLog((prev) => [
@@ -116,6 +121,38 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
       .catch((error) => setStockError(error.message || 'Could not load Stock Control data.'))
       .finally(() => setStockLoading(false));
   }, []);
+
+  /* Close the sort dropdown on any outside click. */
+  useEffect(() => {
+    if (!sortMenuOpen) return;
+    const onDown = (e) => { if (!e.target.closest('.sc-sort-wrap')) setSortMenuOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [sortMenuOpen]);
+
+  /* ===== HANDOFF HIGHLIGHT =====
+     A Dashboard "Stock Alerts" click passes { highlightProductId }. We search
+     for that product and flash its rows. If the product has no movement rows
+     yet (nothing to show), we surface a short notice instead of highlighting
+     nothing — "don't include it there" if it isn't listed. */
+  useEffect(() => {
+    const targetId = handoff?.highlightProductId;
+    if (!targetId || stockLoading) return;
+
+    const hasRows = stockFromDatabase.some((row) => row.productId === targetId);
+    if (!hasRows) {
+      const product = productOptions.find((p) => p.id === targetId);
+      setStockError(
+        `${product?.name || targetId} has no stock movements yet, so it isn't listed below. Use "Update Stock" to add an entry.`
+      );
+      return;
+    }
+
+    setQuery('');            // clear any filter so the row is visible
+    setHighlightId(targetId);
+    const t = setTimeout(() => setHighlightId(null), 2600);
+    return () => clearTimeout(t);
+  }, [handoff, stockLoading, stockFromDatabase, productOptions]);
 
   /* ===== PICK PRODUCT ===== */
   const handleProductSelect = (e) => {
@@ -340,14 +377,43 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
     runningTotals.set(row.id, next);
   });
 
-  // Prefer the backend's authoritative remaining_stock (already opening-balance
-  // aware via reconcileMovementBalances); fall back to the client computation.
-  return filtered.map((row) => ({
-    row,
-    id: row.id,
-    runningTotal: Number(row.remainingStock ?? runningTotals.get(row.id) ?? 0),
-  }));
-}, [stockFromDatabase, query, productById]);
+  // Change column = this movement's signed delta (+9 / −3).
+  // Total Qty column = the product's CURRENT overall stock on hand (same for
+  // every row of a product), per the requested behaviour — not a per-row
+  // running balance. Falls back to the client running total if stock is missing.
+  const mapped = filtered.map((row) => {
+    const key = row.productId || row.productName || '—';
+    const productStock = productById.get(key)?.stock;
+    const total = Number.isFinite(Number(productStock))
+      ? Number(productStock)
+      : Number(row.remainingStock ?? runningTotals.get(row.id) ?? 0);
+    return { row, id: row.id, runningTotal: total };
+  });
+
+  // Apply the chosen sort (dropdown). Default: newest date first.
+  const dir = sortDir === 'asc' ? 1 : -1;
+  mapped.sort((a, b) => {
+    let cmp;
+    switch (sortBy) {
+      case 'product':
+        cmp = String(a.row.productName || '').localeCompare(String(b.row.productName || ''), undefined, { sensitivity: 'base' });
+        break;
+      case 'change':
+        cmp = signedQty(a.row) - signedQty(b.row);
+        break;
+      case 'total':
+        cmp = a.runningTotal - b.runningTotal;
+        break;
+      case 'date':
+      default:
+        cmp = (new Date(a.row.date) - new Date(b.row.date)) || (Number(a.id) - Number(b.id));
+        break;
+    }
+    return cmp * dir;
+  });
+
+  return mapped;
+}, [stockFromDatabase, query, productById, sortBy, sortDir]);
 
   /* ===== EXPORT CSV ===== */
   const exportCsv = () => {
@@ -661,15 +727,59 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
         </div>
 
         <button
-          className="sc-add-btn"
+          className="sc-add-btn sc-icon-only"
           onClick={exportCsv}
           type="button"
           disabled={visibleRows.length === 0}
           title="Export the current view to CSV"
+          aria-label="Export to CSV"
         >
-          <p>Export</p>
-          <Download size={12} />
+          <Download size={14} />
         </button>
+
+        {/* ===== SORT DROPDOWN (icon button) ===== */}
+        <div className="sc-sort-wrap">
+          <button
+            className="sc-add-btn sc-icon-only"
+            onClick={() => setSortMenuOpen((o) => !o)}
+            type="button"
+            title="Sort movements"
+            aria-label="Sort movements"
+            aria-expanded={sortMenuOpen}
+          >
+            <ArrowUpDown size={14} />
+          </button>
+          {sortMenuOpen && (
+            <div className="sc-sort-menu" role="menu">
+              {[
+                { key: 'date', label: 'Date' },
+                { key: 'product', label: 'Product' },
+                { key: 'change', label: 'Change' },
+                { key: 'total', label: 'Total Qty' },
+              ].map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={sortBy === opt.key}
+                  className={`sc-sort-item${sortBy === opt.key ? ' is-active' : ''}`}
+                  onClick={() => { setSortBy(opt.key); setSortMenuOpen(false); }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              <div className="sc-sort-divider" />
+              <button
+                type="button"
+                className="sc-sort-item"
+                onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
+              >
+                {sortDir === 'asc' ? 'Ascending ↑' : 'Descending ↓'}
+              </button>
+            </div>
+          )}
+        </div>
+
         {selectedIds.size > 0 && (
           <button
             className="sc-add-btn sc-delete-selected-btn"
@@ -700,22 +810,22 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
           <Plus size={12} className="sc-add-icon" />
         </button>
         <button
-          className="sc-add-btn"
+          className="sc-add-btn sc-icon-only"
           onClick={() => setShowActivity(true)}
           type="button"
           title="View transaction & activity history"
+          aria-label="Activity history"
         >
-          <p>Activity</p>
-          <Activity size={12} />
+          <Activity size={14} />
         </button>
         <button
-          className="sc-add-btn"
+          className="sc-add-btn sc-icon-only"
           onClick={() => setShowReorderPlan(true)}
           type="button"
           title="View maximum inventory and reorder planning"
+          aria-label="Reorder plan"
         >
-          <p>Reorder Plan</p>
-          <Info size={12} />
+          <Info size={14} />
         </button>
       </div>
 
@@ -768,7 +878,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
               const point = safetyPointFor(statusRow, safetyStock);
               return (
                 <tr
-                  className={`${status ? `sc-row-${status}` : ''} ${selectedIds.has(id) ? 'is-selected' : ''}`}
+                  className={`${status ? `sc-row-${status}` : ''} ${selectedIds.has(id) ? 'is-selected' : ''} ${highlightId && stock.productId === highlightId ? 'sc-row-highlight' : ''}`}
                   key={id}
                 >
                   <td className="sc-td-check">

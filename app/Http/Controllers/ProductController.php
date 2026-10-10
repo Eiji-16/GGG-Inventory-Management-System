@@ -52,6 +52,7 @@ class ProductController extends Controller
             'brand'           => ['nullable', 'string', 'max:255'],
             'model'           => ['nullable', 'string', 'max:255'],
             'unitMeasure'     => ['nullable', 'string', 'max:255'],
+            'image'           => ['nullable', 'string', 'max:5000000'],  // data URL or http(s) URL
             'supplierName'    => ['nullable', 'string', 'max:255'],
             'supplierContact' => ['nullable', 'string', 'max:255'],
             'stock'           => ['nullable', 'integer', 'min:0'],   // ← ADDED
@@ -66,6 +67,7 @@ class ProductController extends Controller
             'brand'         => $data['brand'] ?? null,
             'model'         => $data['model'] ?? null,
             'unit_measure'  => $data['unitMeasure'] ?? null,
+            'image'         => $this->sanitizeImage($data['image'] ?? null),
             'supplier_id'   => $supplier?->id,
             'stock_on_hand' => $data['stock'] ?? 0,                  // ← ADDED
         ]);
@@ -86,6 +88,7 @@ class ProductController extends Controller
             'brand'           => ['nullable', 'string', 'max:255'],
             'model'           => ['nullable', 'string', 'max:255'],
             'unitMeasure'     => ['nullable', 'string', 'max:255'],
+            'image'           => ['nullable', 'string', 'max:5000000'],  // data URL or http(s) URL
             'supplierName'    => ['nullable', 'string', 'max:255'],
             'supplierContact' => ['nullable', 'string', 'max:255'],
             'stock'           => ['sometimes', 'integer', 'min:0'],   // opening balance
@@ -114,6 +117,13 @@ class ProductController extends Controller
             'unit_measure' => $data['unitMeasure'] ?? null,
             'supplier_id'  => $supplier?->id,
         ], fn ($v) => $v !== null));
+
+        // Image can be set OR cleared, so handle it outside array_filter (which
+        // would drop an intentional empty string / null).
+        if (array_key_exists('image', $data)) {
+            $product->image = $this->sanitizeImage($data['image']);
+            $product->save();
+        }
 
         return response()->json($this->format($product->fresh()->load(['supplier', 'safetyStock'])));
     }
@@ -148,6 +158,23 @@ class ProductController extends Controller
         return $code;
     }
 
+    /**
+     * Accept only a safe image reference: an http(s) URL or a base64 image data
+     * URL. Anything else (e.g. javascript:) is rejected to null.
+     */
+    private function sanitizeImage(?string $image): ?string
+    {
+        $image = $image !== null ? trim($image) : null;
+        if ($image === null || $image === '') {
+            return null;
+        }
+        if (preg_match('#^https?://#i', $image) || preg_match('#^data:image/[a-z0-9.+-]+;base64,#i', $image)) {
+            return $image;
+        }
+
+        return null;
+    }
+
     private function format(Product $p, int $demandFromHistory = 0): array
     {
         return [
@@ -157,6 +184,7 @@ class ProductController extends Controller
             'brand'           => $p->brand,
             'model'           => $p->model,
             'unitMeasure'     => $p->unit_measure,
+            'image'           => $p->image,
             'stock'           => $p->stock_on_hand,
             'supplierName'    => $p->supplier?->name,
             'supplierContact' => $p->supplier?->contact,

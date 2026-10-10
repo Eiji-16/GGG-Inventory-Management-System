@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, Edit, Trash2, X, Package, Info, Download, AlertTriangle, Upload, Image as ImageIcon } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, X, Package, Info, Download, AlertTriangle, Upload, Image as ImageIcon, ArrowUpDown } from 'lucide-react';
 
 import './productSupplier.css';
 
@@ -45,8 +45,19 @@ function ProductSupplier({ onNavigate }) {
   const [formData, setFormData] = useState(emptyForm);
   const [detailProduct, setDetailProduct] = useState(null);
   const [query, setQuery] = useState(''); /* ===== SEARCH ===== */
+  const [sortBy, setSortBy] = useState('name'); /* ===== SORT KEY ===== */
+  const [sortDir, setSortDir] = useState('asc'); /* ===== SORT DIRECTION ===== */
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
   /* ===== DELETE TARGET ===== */
   const [confirmTarget, setConfirmTarget] = useState(null);
+
+  /* Close the sort dropdown on outside click. */
+  useEffect(() => {
+    if (!sortMenuOpen) return;
+    const onDown = (e) => { if (!e.target.closest('.ps-sort-wrap')) setSortMenuOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [sortMenuOpen]);
 
   /* ===== LOAD PRODUCTS ===== */
   useEffect(() => {
@@ -70,15 +81,42 @@ function ProductSupplier({ onNavigate }) {
       .catch((error) => console.error('Could not load suppliers:', error));
   }, []);
 
-  /* ===== FILTER PRODUCTS ===== */
+  /* ===== FILTER + SORT PRODUCTS ===== */
   const filteredProducts = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return productsFromDatabase;
-    return productsFromDatabase.filter((p) =>
-      [p.id, p.name, p.category, p.brand, p.model, p.unitMeasure, p.supplierName, p.supplierContact]
-        .some((field) => String(field ?? '').toLowerCase().includes(q))
-    );
-  }, [productsFromDatabase, query]);
+    const matched = !q
+      ? productsFromDatabase
+      : productsFromDatabase.filter((p) =>
+          [p.id, p.name, p.category, p.brand, p.model, p.unitMeasure, p.supplierName, p.supplierContact]
+            .some((field) => String(field ?? '').toLowerCase().includes(q))
+        );
+
+    const sorted = [...matched].sort((a, b) => {
+      const av = a[sortBy];
+      const bv = b[sortBy];
+      // Numeric sort for stock; string sort (locale-aware) for the rest.
+      let cmp;
+      if (sortBy === 'stock') {
+        cmp = (Number(av) || 0) - (Number(bv) || 0);
+      } else {
+        cmp = String(av ?? '').localeCompare(String(bv ?? ''), undefined, { numeric: true, sensitivity: 'base' });
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+
+    return sorted;
+  }, [productsFromDatabase, query, sortBy, sortDir]);
+
+  /* Toggle sort: click same column flips direction, new column starts ascending. */
+  const toggleSort = (key) => {
+    if (sortBy === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(key);
+      setSortDir('asc');
+    }
+  };
+  const sortIndicator = (key) => (sortBy === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
 
   /* ===== RESET PAGE ===== */
   useEffect(() => {
@@ -92,9 +130,11 @@ function ProductSupplier({ onNavigate }) {
   const visibleProducts = filteredProducts.slice(pageCursor, pageCursor + PAGE_SIZE);
   const hasNext = pageCursor + PAGE_SIZE < total;
   const hasPrev = pageCursor > 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = Math.floor(pageCursor / PAGE_SIZE) + 1;
   const pageLabel = total === 0
     ? 'No items'
-    : `${pageCursor + 1}–${Math.min(pageCursor + PAGE_SIZE, total)} of ${total}`;
+    : `Page ${currentPage} of ${totalPages}`;
 
   const tableRef = useRef(null);
 
@@ -152,6 +192,7 @@ function ProductSupplier({ onNavigate }) {
     setFormData({
       ...emptyForm,
       ...product,
+      image: product.image || '', // coerce null → '' so the preview/URL input never crashes
       suppliers: product.supplierName
         ? [{ name: product.supplierName, contact: product.supplierContact || '' }]
         : [{ ...emptySupplier }],
@@ -231,7 +272,7 @@ function ProductSupplier({ onNavigate }) {
       unitMeasure: formData.unitMeasure,
       supplierName: primary ? primary.name.trim() : null,
       supplierContact: primary ? (primary.contact || '').trim() || null : null,
-      image: formData.image || null, /* backend ignores until an image column exists */
+      image: formData.image || null, /* data URL (upload) or pasted http(s) URL — persisted by the backend */
     };
 
     try {
@@ -244,14 +285,13 @@ function ProductSupplier({ onNavigate }) {
       });
 
       if (!response.ok) throw new Error(`Save failed (${response.status})`);
-      const saved = await response.json(); /* ===== SAVED PRODUCT ===== */
+      const saved = await response.json(); /* ===== SAVED PRODUCT (now includes persisted image) ===== */
 
-      /* Keep the newly selected image for this session; the API doesn't persist it yet. */
       setProductsFromDatabase((prev) => {
         const updated =
           isAdd
-            ? [...prev, { ...saved, image: formData.image }]
-            : prev.map((p) => (p.id === saved.id ? { ...saved, image: formData.image } : p));
+            ? [...prev, saved]
+            : prev.map((p) => (p.id === saved.id ? saved : p));
         return updated.sort((a, b) => a.name.localeCompare(b.name));
       });
 
@@ -406,12 +446,28 @@ function ProductSupplier({ onNavigate }) {
               </th>
               <th>Product ID</th>
               <th className="ps-th-pic">Picture</th>
-              <th className="ps-th-left">Product Name</th>
-              <th>Category</th>
-              <th>Brand</th>
+              <th className="ps-th-left">
+                <button type="button" className="ps-sort-btn" onClick={() => toggleSort('name')}>
+                  Product Name{sortIndicator('name')}
+                </button>
+              </th>
+              <th>
+                <button type="button" className="ps-sort-btn" onClick={() => toggleSort('category')}>
+                  Category{sortIndicator('category')}
+                </button>
+              </th>
+              <th>
+                <button type="button" className="ps-sort-btn" onClick={() => toggleSort('brand')}>
+                  Brand{sortIndicator('brand')}
+                </button>
+              </th>
               <th>Model</th>
               <th>Unit Measure</th>
-              <th className="ps-th-left">Supplier</th>
+              <th className="ps-th-left">
+                <button type="button" className="ps-sort-btn" onClick={() => toggleSort('supplierName')}>
+                  Supplier{sortIndicator('supplierName')}
+                </button>
+              </th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -744,13 +800,12 @@ function ProductSupplier({ onNavigate }) {
                         <input
                           id="image"
                           name="image"
-                          value={formData.image.startsWith('data:') ? '' : formData.image}
+                          value={(formData.image || '').startsWith('data:') ? '' : (formData.image || '')}
                           onChange={handleFormChange}
                           placeholder="…or paste an image URL"
                         />
                         <p className="ps-field-note">
-                          Click the box to upload, or paste a URL. Mock for now — the photo shows this
-                          session but isn't stored until the backend image field lands.
+                          Click the box to upload an image, or paste an image URL. Saved with the product.
                         </p>
                       </div>
                     </div>

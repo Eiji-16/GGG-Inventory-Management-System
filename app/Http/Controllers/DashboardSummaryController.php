@@ -13,6 +13,11 @@ class DashboardSummaryController extends Controller
 {
     public function __invoke(): JsonResponse
     {
+        // Product ids that have at least one stock movement — only these are
+        // "live" in Stock Control and eligible for stock alerts.
+        $movedProductIds = StockMovement::query()->distinct()->pluck('product_id')->filter()->all();
+        $movedSet = array_flip($movedProductIds);
+
         $products = Product::with('safetyStock')
             ->orderBy('name')
             ->get()
@@ -23,6 +28,9 @@ class DashboardSummaryController extends Controller
                 'stock' => $product->stock_on_hand,
                 'safetyStock' => $product->safetyStock?->safety_stock,
                 'supplierId' => $product->supplier_id,
+                // True once the product has any movement; used to keep brand-new
+                // products out of the Stock Alerts list until they're tracked.
+                'inStockControl' => isset($movedSet[$product->id]),
             ]);
 
         $salesHistory = SalesHistory::with('product:id,code,name')

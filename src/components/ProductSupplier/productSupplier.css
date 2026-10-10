@@ -148,6 +148,21 @@
     text-align: center;
 }
 
+/* Sortable column header button — inherits the header styling, adds a pointer. */
+.ps-sort-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.ps-sort-btn:hover { color: var(--text-primary); }
+
 .ps-table tbody td {
     padding: 11px 10px;
     text-align: center;

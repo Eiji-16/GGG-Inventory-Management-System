@@ -243,13 +243,6 @@ function Staffs({ isSuperAdmin = false }) {
         </div>
       )}
 
-      <div className="st-page-heading">
-        <div>
-          <h2>Staff Account Management</h2>
-          <p>Manage active accounts, roles, and access.</p>
-        </div>
-      </div>
-
       {/* ===== KPI CARDS ===== */}
       <div className="st-kpi-row">
         <div className="st-kpi-card">

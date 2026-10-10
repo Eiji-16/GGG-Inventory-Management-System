@@ -22,6 +22,7 @@ class Product extends Model
         'brand',
         'model',
         'unit_measure',
+        'image',
         'supplier_id',
         'stock_on_hand',
         'unit_cost',

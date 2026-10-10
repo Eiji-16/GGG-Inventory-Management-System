@@ -1,15 +1,11 @@
 {
   "src/layouts/App.jsx": {
-<<<<<<< Updated upstream
-    "file": "assets/App-CMSiXmSJ.js",
-=======
-    "file": "assets/App-CF96FkFX.js",
->>>>>>> Stashed changes
+    "file": "assets/App-CgCQGUCY.js",
     "name": "App",
     "src": "src/layouts/App.jsx",
     "isEntry": true,
     "css": [
-      "assets/App-DLyFif7C.css"
+      "assets/App-C4QXPKUt.css"
     ]
   },
   "src/styles/index.css": {

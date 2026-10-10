@@ -103,7 +103,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
     loadSummary();
   }, []);
 
-  const go = (tab) => { if (onNavigate) onNavigate(tab); };
+  const go = (tab, payload = null) => { if (onNavigate) onNavigate(tab, payload); };
   const derived = useMemo(() => {
     if (!summary) return null;
     const products = summary.products || [];
@@ -139,8 +139,11 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
       quantity: Number(product.stock) || 0,
       threshold: Number(product.safetyStock ?? 20),
     }));
-    const outOfStock = stock.filter((product) => product.quantity <= 0);
-    const lowStock = stock.filter((product) => product.quantity > 0 && product.quantity <= product.threshold);
+    // Only products already tracked in Stock Control count toward alerts —
+    // a brand-new product with no movements isn't "out of stock", just untracked.
+    const tracked = stock.filter((product) => product.inStockControl);
+    const outOfStock = tracked.filter((product) => product.quantity <= 0);
+    const lowStock = tracked.filter((product) => product.quantity > 0 && product.quantity <= product.threshold);
     const inStock = stock.length - outOfStock.length - lowStock.length;
     const categories = Object.entries(stock.reduce((totals, product) => {
       const category = product.category || 'Uncategorized';
@@ -189,7 +192,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
     const alerts = [
       ...outOfStock.map((product) => ({ ...product, level: 'out' })),
       ...lowStock.sort((a, b) => a.quantity - b.quantity).map((product) => ({ ...product, level: 'low' })),
-    ].slice(0, 4);
+    ];
     const assignedProducts = stock.filter((product) => product.supplierId).length;
     const soldProductCount = new Set(
       visibleSales.filter((record) => Number(record.unitsSold) > 0).map((record) => record.productId).filter(Boolean)
@@ -379,10 +382,16 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
             </div>
             <div className="db-alert-list">
               {derived.alerts.length ? derived.alerts.map((product) => (
-                <div key={product.id} className={`db-alert-row db-alert-${product.level}`}>
+                <button
+                  key={product.id}
+                  type="button"
+                  className={`db-alert-row db-alert-${product.level} db-alert-clickable`}
+                  onClick={() => go('Stock', { highlightProductId: product.id })}
+                  title={`View ${product.name} in Stock Control`}
+                >
                   <span className="db-alert-dot" /><span className="db-alert-name">{product.name}</span>
                   <span className="db-alert-qty">{product.level === 'out' ? 'Out of stock' : `${fmt(product.quantity)} left`}</span>
-                </div>
+                </button>
               )) : <span className="db-card-sub">No products need attention.</span>}
             </div>
           </div>

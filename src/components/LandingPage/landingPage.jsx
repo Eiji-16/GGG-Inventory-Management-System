@@ -441,7 +441,7 @@ function LandingPage({onLogout, user}) {
                 <Dashboard onNavigate={handleNavigate} isSuperAdmin={role === 'super_admin'} />
               )}
               {activeView === 'Product-Supplier' && canAccess('Product-Supplier') && <ProductSupplier />}
-              {activeView === 'Stock' && canAccess('Stock') && <StockManagement onNavigate={handleNavigate} safetyStock={safetyStock} />}
+              {activeView === 'Stock' && canAccess('Stock') && <StockManagement onNavigate={handleNavigate} safetyStock={safetyStock} handoff={handoff} />}
               {activeView === 'Auto-Calculator' && canAccess('Auto-Calculator') && <AutoCalculator onNavigate={handleNavigate} handoff={handoff} />}
               {activeView === 'Forecasting' && canAccess('Forecasting') && <SalesForecasting onNavigate={handleNavigate} />}
 

@@ -540,7 +540,17 @@
     gap: 6px;
     flex: 1;
     margin-top: 2px;
+    /* Scroll when many products are low/out of stock instead of growing the card. */
+    max-height: 220px;
+    overflow-y: auto;
+    padding-right: 2px;
 }
+.db-alert-list::-webkit-scrollbar { width: 6px; }
+.db-alert-list::-webkit-scrollbar-thumb {
+    background: var(--border-strong, rgba(255,255,255,0.18));
+    border-radius: 3px;
+}
+.db-alert-list::-webkit-scrollbar-track { background: transparent; }
 
 .db-alert-row {
     display: flex;
@@ -551,6 +561,20 @@
     background: var(--overlay-soft);
     border-left: 3px solid transparent;
     font-size: 11px;
+}
+
+/* Clickable alert rows jump to the item in Stock Control. */
+.db-alert-clickable {
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+.db-alert-clickable:hover {
+    background: var(--background-icon-active-color-theme, var(--overlay-soft));
+    transform: translateX(2px);
 }
 
 .db-alert-dot {

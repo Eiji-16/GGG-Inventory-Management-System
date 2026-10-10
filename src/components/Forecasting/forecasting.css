@@ -459,8 +459,14 @@
 
 .f-grid {
     display: grid;
-    grid-template-columns: repeat(8, minmax(0, 1fr));
-    grid-template-rows: repeat(8, auto);
+    grid-template-columns: 1.1fr 2fr 1.1fr;
+    grid-template-rows: auto auto auto 1.3fr 1.3fr;
+    grid-template-areas:
+        "controls controls controls"
+        "product  chart     result"
+        "method   chart     reorder"
+        "method   history   summary"
+        "method   history   export";
     gap: 12px;
 
     align-items: stretch;
@@ -470,23 +476,18 @@
     min-width: 0;
 }
 
-/*==========CONTROLS AREA==========*/
-.f-area-controls { grid-column: 1 / span 8; grid-row: 1; }
-
-/*==========PRODUCT AREA==========*/
-.f-area-product  { grid-column: 1 / span 2; grid-row: 2 / span 2; }
-
-/*==========RESULT AREA==========*/
-.f-area-result   { grid-column: 7 / span 2; grid-row: 2 / span 3; }
-
-/*==========CHART AREA==========*/
-.f-area-chart    { grid-column: 3 / span 4; grid-row: 2 / span 3; }
-
-/*==========REORDER AREA==========*/
-.f-area-reorder  { grid-column: 7 / span 2; grid-row: 5; }
+/*==========AREAS==========*/
+.f-area-controls { grid-area: controls; }
+.f-area-product  { grid-area: product; }
+.f-area-result   { grid-area: result; }
+.f-area-chart    { grid-area: chart; }
+.f-area-reorder  { grid-area: reorder; }
+.f-area-method   { grid-area: method; }
+.f-area-history  { grid-area: history; }
+.f-area-summary  { grid-area: summary; }
+.f-area-export   { grid-area: export; }
 
 /*==========METHOD AREA==========*/
-.f-area-method   { grid-column: 1 / span 2; grid-row: 4 / span 3; }
 
 .f-area-method .f-toggle-row {
     display: flex;
@@ -553,15 +554,6 @@
     grid-template-columns: 1fr;
     gap: 12px;
 }
-
-/*==========HISTORY AREA==========*/
-.f-area-history  { grid-column: 3 / span 4; grid-row: 5 / span 2; }
-
-/*==========SUMMARY AREA==========*/
-.f-area-summary  { grid-column: 1 / span 6; grid-row: 7 / span 2; }
-
-/*==========EXPORT AREA==========*/
-.f-area-export   { grid-column: 7 / span 2; grid-row: 8; }
 
 /*==========CARDS==========*/
 
@@ -751,25 +743,14 @@
 /*==========TABLE==========*/
 
 .f-scroll-table {
-    max-height: 170px;
+    max-height: none;
+    flex: 1;
 
     overflow-x: auto;
     overflow-y: auto;
 
     border: 1px solid var(--border-color);
     border-radius: 8px;
-
-    /*==========FADE MASK==========*/
-    -webkit-mask-image: linear-gradient(
-        to bottom,
-        black 92%,
-        transparent 100%
-    );
-    mask-image: linear-gradient(
-        to bottom,
-        black 92%,
-        transparent 100%
-    );
 }
 
 .f-hist {
@@ -1012,6 +993,10 @@
 .f-summary-compact {
     padding: 14px 18px;
     border-radius: 8px;
+    /* Fill the grid cell and spread content so there's no dead space below. */
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 .f-summary-compact .f-summary-head {
     margin-bottom: 12px;
@@ -1031,14 +1016,26 @@
 }
 .f-summary-compact .f-summary-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px 18px;
+    gap: 14px 18px;
+    /* Grow to fill the card; rows share the extra height evenly. */
+    flex: 1;
+    align-content: space-between;
+    grid-auto-rows: min-content;
+}
+.f-summary-compact .f-summary-item {
+    /* Each tile gets a subtle divider for scannability in the wider space. */
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--hairline, rgba(255,255,255,0.06));
 }
 .f-summary-compact .f-summary-item .f-lbl {
-    margin-bottom: 3px;
+    margin-bottom: 4px;
     font-size: 9.5px;
 }
 .f-summary-compact .f-summary-item .f-val {
-    font-size: 14px;
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /*==========SUGGESTION ROW==========*/
@@ -1170,7 +1167,7 @@
 
 /*==========HISTORY SCROLL==========*/
 .f-area-history .f-scroll-table {
-    max-height: 210px;
+    min-height: 210px;
 }
 
 .f-sales-entry {
@@ -1219,11 +1216,16 @@
     .f-grid {
         grid-template-columns: 1fr;
         grid-template-rows: none;
-    }
-
-    .f-grid > * {
-        grid-column: 1 / -1 !important;
-        grid-row: auto !important;
+        grid-template-areas:
+            "controls"
+            "product"
+            "result"
+            "chart"
+            "method"
+            "history"
+            "summary"
+            "reorder"
+            "export";
     }
 
     .f-area-product .f-stat-row {
