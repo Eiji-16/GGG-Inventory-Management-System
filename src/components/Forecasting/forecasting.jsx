@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './forecasting.css';
 
 const FORECAST_METHOD = 'Weighted Moving Average';
@@ -9,6 +9,30 @@ const EVENT_MONTHS = {
   'Back to School': ['Aug', 'Sep'],
 };
 const BUILT_IN_EVENTS = Object.keys(EVENT_MONTHS);
+
+const MONTH_OPTIONS = [
+  { value: '01', label: 'January' },
+  { value: '02', label: 'February' },
+  { value: '03', label: 'March' },
+  { value: '04', label: 'April' },
+  { value: '05', label: 'May' },
+  { value: '06', label: 'June' },
+  { value: '07', label: 'July' },
+  { value: '08', label: 'August' },
+  { value: '09', label: 'September' },
+  { value: '10', label: 'October' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'December' },
+];
+
+const YEAR_OPTIONS = (() => {
+  const current = new Date().getFullYear();
+  const years = [];
+  for (let y = current + 2; y >= 1999; y--) {
+    years.push(String(y));
+  }
+  return years;
+})();
 
 async function requestJson(url, options = {}) {
   const response = await fetch(url, {
@@ -72,7 +96,10 @@ export default function DemandForecastDesign({ onNavigate }) {
   const [computing, setComputing] = useState(false);
   const [savingSales, setSavingSales] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  const [salesMonth, setSalesMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [selectedMonth, setSelectedMonth] = useState(() => String(new Date().getMonth() + 1).padStart(2, '0'));
+  const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
+  const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
+  const yearMenuRef = useRef(null);
   const [unitsSold, setUnitsSold] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -146,6 +173,25 @@ export default function DemandForecastDesign({ onNavigate }) {
     return () => { active = false; };
   }, [productId]);
 
+  useEffect(() => {
+    if (!yearDropdownOpen) return;
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('.f-year-select-wrap')) {
+        setYearDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [yearDropdownOpen]);
+
+  useEffect(() => {
+    if (!yearDropdownOpen || !yearMenuRef.current) return;
+    const selected = yearMenuRef.current.querySelector('.f-year-opt.is-selected');
+    if (selected) {
+      selected.scrollIntoView({ block: 'center' });
+    }
+  }, [yearDropdownOpen]);
+
   const eventOptions = [...BUILT_IN_EVENTS, ...customEvents];
   const isCustomChoice = event === '__add__';
   const suggestedPct = useMemo(() => {
@@ -204,7 +250,7 @@ export default function DemandForecastDesign({ onNavigate }) {
         method: 'POST',
         body: JSON.stringify({
           productId,
-          periodDate: `${salesMonth}-01`,
+          periodDate: `${selectedYear}-${selectedMonth}-01`,
           unitsSold: Number(unitsSold),
         }),
       });
@@ -493,8 +539,50 @@ export default function DemandForecastDesign({ onNavigate }) {
               <p className="f-sub">Saved by product and month. Saving an existing month replaces its sales value.</p>
               <form className="f-sales-entry" onSubmit={saveSales}>
                 <div className="f-field">
-                  <label htmlFor="sales-month">Month</label>
-                  <input id="sales-month" type="month" value={salesMonth} onChange={(e) => setSalesMonth(e.target.value)} required />
+                  <label htmlFor="sales-month-select">Month</label>
+                  <select
+                    id="sales-month-select"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    required
+                  >
+                    {MONTH_OPTIONS.map((m) => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="f-field f-year-field">
+                  <label htmlFor="sales-year-select">Year</label>
+                  <div className="f-year-select-wrap">
+                    <button
+                      id="sales-year-select"
+                      type="button"
+                      className="f-custom-select-btn"
+                      onClick={() => setYearDropdownOpen((open) => !open)}
+                      aria-haspopup="listbox"
+                      aria-expanded={yearDropdownOpen}
+                    >
+                      {selectedYear}
+                    </button>
+                    {yearDropdownOpen && (
+                      <div className="f-year-dropdown-menu" role="listbox" ref={yearMenuRef}>
+                        {YEAR_OPTIONS.map((yr) => (
+                          <div
+                            key={yr}
+                            className={`f-year-opt${yr === selectedYear ? ' is-selected' : ''}`}
+                            role="option"
+                            aria-selected={yr === selectedYear}
+                            onClick={() => {
+                              setSelectedYear(yr);
+                              setYearDropdownOpen(false);
+                            }}
+                          >
+                            {yr}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="f-field">
                   <label htmlFor="sales-units">Units sold</label>

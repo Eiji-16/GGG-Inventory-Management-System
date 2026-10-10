@@ -11,6 +11,24 @@
     font-family: inherit;
 }
 
+.st-page-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.st-page-heading h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.st-page-heading p {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
 /* ==========KPI CARDS========== */
 
 .st-kpi-row {
@@ -71,6 +89,14 @@
     gap: 10px;
 }
 
+.st-controls-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
 .st-search-box {
     display: flex;
     align-items: center;
@@ -107,6 +133,10 @@
 }
 
 .st-create-account-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
     padding: 9px 14px;
     color: #fff;
     font: inherit;
@@ -118,6 +148,39 @@
     cursor: pointer;
 }
 
+.st-deactivated-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 38px;
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.st-deactivated-button:hover {
+    border-color: rgba(232, 197, 71, 0.45);
+}
+
+.st-deactivated-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 19px;
+    height: 19px;
+    padding: 0 5px;
+    color: var(--text-muted);
+    font-size: 10px;
+    background: var(--static-bg-color);
+    border-radius: 999px;
+}
+
 .st-create-account-button:disabled {
     cursor: wait;
     opacity: 0.65;
@@ -126,17 +189,8 @@
 .st-create-account-form {
     display: grid;
     gap: 14px;
-    padding: 18px;
+    padding: 20px;
     color: var(--text-primary);
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    box-shadow: var(--shadow-card);
-}
-
-.st-create-account-form h3 {
-    margin: 0;
-    font-size: 16px;
 }
 
 .st-create-account-fields {
@@ -152,7 +206,8 @@
     font-size: 12px;
 }
 
-.st-create-account-fields input {
+.st-create-account-fields input,
+.st-create-account-fields select {
     width: 100%;
     padding: 10px 11px;
     color: var(--text-primary);
@@ -163,10 +218,152 @@
     border-radius: 7px;
 }
 
+.st-create-account-fields select {
+    min-height: 39px;
+}
+
 .st-create-account-error {
     margin: 0;
     color: #b42318;
     font-size: 13px;
+}
+
+.st-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(3, 8, 20, 0.68);
+    backdrop-filter: blur(4px);
+    animation: st-modal-fade-in 0.15s ease;
+}
+
+@keyframes st-modal-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.st-modal {
+    display: flex;
+    flex-direction: column;
+    width: min(100%, 620px);
+    max-height: min(90vh, 760px);
+    overflow-y: auto;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 1.75rem 4rem rgba(0, 0, 0, 0.45);
+    animation: st-modal-slide-up 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes st-modal-slide-up {
+    from { opacity: 0; transform: translateY(12px) scale(0.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.st-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.st-modal-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.st-modal-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    color: var(--accent, #E8C547);
+    background: var(--static-bg-color);
+    border-radius: 9px;
+}
+
+.st-modal-heading h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.st-modal-heading p {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.st-modal-close {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 auto;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    cursor: pointer;
+}
+
+.st-modal-close:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: var(--static-bg-color);
+    border-color: var(--border-color);
+}
+
+.st-modal-close:disabled {
+    cursor: wait;
+    opacity: 0.6;
+}
+
+.st-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.st-modal-cancel {
+    padding: 8px 13px;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.st-modal-cancel:disabled {
+    cursor: wait;
+    opacity: 0.6;
+}
+
+.st-table-heading {
+    padding: 15px 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.st-table-heading h3 {
+    margin: 0;
+    font-size: 14px;
+}
+
+.st-table-heading p {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+    font-size: 12px;
 }
 
 /* ==========TABLE========== */
@@ -177,6 +374,15 @@
     border-radius: 8px;
     box-shadow: var(--shadow-card);
     overflow: hidden;
+}
+
+.st-accounts-view {
+    animation: st-accounts-view-enter 0.32s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes st-accounts-view-enter {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .st-table-scroll {
@@ -397,5 +603,45 @@
 @media (max-width: 640px) {
     .st-kpi-row {
         grid-template-columns: 1fr;
+    }
+
+    .st-controls-bar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .st-search-box {
+        max-width: none;
+    }
+
+    .st-controls-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .st-controls-actions > button {
+        min-width: 0;
+        padding-inline: 8px;
+        font-size: 11px;
+    }
+
+    .st-create-account-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .st-modal {
+        max-height: 94vh;
+    }
+
+    .st-create-account-form {
+        padding: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .st-modal-overlay,
+    .st-modal,
+    .st-accounts-view {
+        animation: none;
     }
 }

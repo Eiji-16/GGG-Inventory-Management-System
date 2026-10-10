@@ -10,6 +10,9 @@ import {
   MoreVertical,
   Power,
   Lock,
+  X,
+  Archive,
+  UserRoundPlus,
 } from 'lucide-react';
 import './staff.css';
 
@@ -29,22 +32,34 @@ const ROLE_META = {
 
 function Staffs({ isSuperAdmin = false }) {
   const [staff, setStaff] = useState([]);
+  const [deactivatedStaff, setDeactivatedStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
   const [query, setQuery] = useState('');
   const [menu, setMenu] = useState(null); /* { id, top, left } */
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDeactivated, setShowDeactivated] = useState(false);
   const [createError, setCreateError] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
   /* ===== LOAD STAFF FROM API ===== */
   const refreshStaff = async () => {
     setLoadError('');
-    const response = await fetch('/staff', { headers: { Accept: 'application/json' } });
-    if (!response.ok) throw new Error(`Could not load staff (${response.status}).`);
-    const data = await response.json();
-    setStaff(Array.isArray(data) ? data : []);
+    const [activeResponse, inactiveResponse] = await Promise.all([
+      fetch('/staff', { headers: { Accept: 'application/json' } }),
+      fetch('/staff?status=inactive', { headers: { Accept: 'application/json' } }),
+    ]);
+    if (!activeResponse.ok || !inactiveResponse.ok) {
+      const failedResponse = !activeResponse.ok ? activeResponse : inactiveResponse;
+      throw new Error(`Could not load staff (${failedResponse.status}).`);
+    }
+    const [activeAccounts, inactiveAccounts] = await Promise.all([
+      activeResponse.json(),
+      inactiveResponse.json(),
+    ]);
+    setStaff(Array.isArray(activeAccounts) ? activeAccounts : []);
+    setDeactivatedStaff(Array.isArray(inactiveAccounts) ? inactiveAccounts : []);
   };
 
   useEffect(() => {
@@ -53,25 +68,27 @@ function Staffs({ isSuperAdmin = false }) {
       .finally(() => setLoading(false));
   }, []);
 
+  const visibleAccounts = showDeactivated ? deactivatedStaff : staff;
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return staff;
-    return staff.filter(
+    if (!q) return visibleAccounts;
+    return visibleAccounts.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
         s.email.toLowerCase().includes(q) ||
         s.role.toLowerCase().includes(q)
     );
-  }, [query, staff]);
+  }, [query, visibleAccounts]);
 
-  const total = staff.length;
+  const allAccounts = [...staff, ...deactivatedStaff];
+  const total = allAccounts.length;
   const active = staff.filter((s) => s.status === 'Active').length;
-  const admins = staff.filter(
+  const admins = allAccounts.filter(
     (s) => s.role === 'Admin' || s.role === 'Super Admin'
   ).length;
 
   /* Guard: never let the LAST active Super Admin be demoted or deactivated. */
-  const superAdminCount = staff.filter((s) => s.role === 'Super Admin').length;
+  const superAdminCount = allAccounts.filter((s) => s.role === 'Super Admin').length;
   const activeSuperAdmins = staff.filter(
     (s) => s.role === 'Super Admin' && s.status === 'Active'
   ).length;
@@ -134,7 +151,21 @@ function Staffs({ isSuperAdmin = false }) {
         const msg = data.errors ? Object.values(data.errors).flat()[0] : data.message;
         throw new Error(msg || `Update failed (${response.status}).`);
       }
-      setStaff((prev) => prev.map((s) => (s.id === id ? data : s)));
+      if (data.status === 'Active' && deactivatedStaff.some((account) => account.id === id)) {
+        setShowDeactivated(false);
+      }
+      setStaff((previous) => (
+        data.status === 'Active'
+          ? [...previous.filter((account) => account.id !== id), data]
+            .sort((a, b) => a.name.localeCompare(b.name))
+          : previous.filter((account) => account.id !== id)
+      ));
+      setDeactivatedStaff((previous) => (
+        data.status === 'Active'
+          ? previous.filter((account) => account.id !== id)
+          : [...previous.filter((account) => account.id !== id), data]
+            .sort((a, b) => a.name.localeCompare(b.name))
+      ));
     } catch (err) {
       setActionError(err.message || 'Could not update the account.');
     }
@@ -142,10 +173,19 @@ function Staffs({ isSuperAdmin = false }) {
 
   const changeRole = (id, role) => patchStaff(id, { role: ROLE_TO_API[role] });
   const toggleStatus = (id) => {
-    const row = staff.find((s) => s.id === id);
+    const row = allAccounts.find((s) => s.id === id);
     if (!row) return;
     patchStaff(id, { status: row.status === 'Active' ? 'inactive' : 'active' });
   };
+
+  useEffect(() => {
+    if (!showCreateModal) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showCreateModal]);
 
   const createAccount = async (event) => {
     event.preventDefault();
@@ -181,9 +221,10 @@ function Staffs({ isSuperAdmin = false }) {
         return;
       }
 
-      setStaff((previous) => [...previous, data]);
+      setStaff((previous) => [...previous, data].sort((a, b) => a.name.localeCompare(b.name)));
       formElement.reset();
-      setShowCreateForm(false);
+      setShowDeactivated(false);
+      setShowCreateModal(false);
     } catch (error) {
       console.error('Account creation request failed:', error);
       setCreateError('Could not reach the server. Please try again.');
@@ -192,7 +233,7 @@ function Staffs({ isSuperAdmin = false }) {
     }
   };
 
-  const menuRow = menu ? staff.find((s) => s.id === menu.id) : null;
+  const menuRow = menu ? allAccounts.find((s) => s.id === menu.id) : null;
 
   return (
     <div className="st-root">
@@ -201,6 +242,13 @@ function Staffs({ isSuperAdmin = false }) {
           {loadError || actionError}
         </div>
       )}
+
+      <div className="st-page-heading">
+        <div>
+          <h2>Staff Account Management</h2>
+          <p>Manage active accounts, roles, and access.</p>
+        </div>
+      </div>
 
       {/* ===== KPI CARDS ===== */}
       <div className="st-kpi-row">
@@ -234,63 +282,132 @@ function Staffs({ isSuperAdmin = false }) {
           <input
             type="text"
             className="st-search-input"
-            placeholder="Search staff by name, email or role…"
+            placeholder={`Search ${showDeactivated ? 'deactivated ' : ''}staff by name, email or role…`}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        {isSuperAdmin && (
-          <button
-            type="button"
-            className="st-create-account-button"
-            onClick={() => {
-              setCreateError('');
-              setShowCreateForm((shown) => !shown);
-            }}
-          >
-            {showCreateForm ? 'Cancel' : 'Create account'}
-          </button>
-        )}
+        <div className="st-controls-actions">
+          {isSuperAdmin && !showDeactivated && (
+            <button
+              type="button"
+              className="st-create-account-button"
+              onClick={() => {
+                setCreateError('');
+                setShowCreateModal(true);
+              }}
+            >
+              <UserRoundPlus size={15} />
+              Create Staff Account
+            </button>
+          )}
+          {isSuperAdmin && (
+            <button
+              type="button"
+              className="st-deactivated-button"
+              onClick={() => {
+                setMenu(null);
+                setQuery('');
+                setShowDeactivated((shown) => !shown);
+              }}
+            >
+              {showDeactivated ? <Users size={15} /> : <Archive size={15} />}
+              {showDeactivated ? 'Active Accounts' : 'Deactivated Accounts'}
+              {!showDeactivated && deactivatedStaff.length > 0 && (
+                <span className="st-deactivated-count">{deactivatedStaff.length}</span>
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
-      {isSuperAdmin && showCreateForm && (
-        <form className="st-create-account-form" onSubmit={createAccount}>
-          <h3>Create staff account</h3>
-          <div className="st-create-account-fields">
-            <label>
-              Name
-              <input name="name" type="text" autoComplete="name" maxLength="255" required />
-            </label>
-            <label>
-              Email
-              <input name="email" type="email" autoComplete="email" maxLength="255" required />
-            </label>
-            <label>
-              Temporary password
-              <input name="password" type="password" autoComplete="new-password" minLength="8" required />
-            </label>
-            <label>
-              Confirm password
-              <input name="password_confirmation" type="password" autoComplete="new-password" minLength="8" required />
-            </label>
-            <label>
-              Role
-              <select name="role" defaultValue="staff">
-                <option value="staff">Staff</option>
-                <option value="admin">Admin</option>
-                <option value="super_admin">Super Admin</option>
-              </select>
-            </label>
-          </div>
-          {createError && <p className="st-create-account-error" role="alert">{createError}</p>}
-          <button type="submit" className="st-create-account-button" disabled={isCreating}>
-            {isCreating ? 'Creating…' : 'Create account'}
-          </button>
-        </form>
+      {isSuperAdmin && showCreateModal && createPortal(
+        <div className="st-modal-overlay" onClick={() => !isCreating && setShowCreateModal(false)}>
+          <section
+            className="st-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="st-create-modal-title"
+          >
+            <div className="st-modal-header">
+              <div className="st-modal-heading">
+                <span className="st-modal-icon" aria-hidden="true"><Users size={18} /></span>
+                <div>
+                  <h3 id="st-create-modal-title">Create staff account</h3>
+                  <p>Add a new account and choose its access role.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="st-modal-close"
+                aria-label="Close"
+                disabled={isCreating}
+                onClick={() => setShowCreateModal(false)}
+              >
+                <X size={17} />
+              </button>
+            </div>
+            <form className="st-create-account-form" onSubmit={createAccount}>
+              <div className="st-create-account-fields">
+                <label>
+                  Name
+                  <input name="name" type="text" autoComplete="name" maxLength="255" required />
+                </label>
+                <label>
+                  Email
+                  <input name="email" type="email" autoComplete="email" maxLength="255" required />
+                </label>
+                <label>
+                  Temporary password
+                  <input name="password" type="password" autoComplete="new-password" minLength="8" required />
+                </label>
+                <label>
+                  Confirm password
+                  <input name="password_confirmation" type="password" autoComplete="new-password" minLength="8" required />
+                </label>
+                <label>
+                  Role
+                  <select name="role" defaultValue="staff">
+                    <option value="staff">Staff</option>
+                    <option value="admin">Admin</option>
+                    <option value="super_admin">Super Admin</option>
+                  </select>
+                </label>
+              </div>
+              {createError && <p className="st-create-account-error" role="alert">{createError}</p>}
+              <div className="st-modal-actions">
+                <button
+                  type="button"
+                  className="st-modal-cancel"
+                  disabled={isCreating}
+                  onClick={() => setShowCreateModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="st-create-account-button" disabled={isCreating}>
+                  {isCreating ? 'Creating…' : 'Create account'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>,
+        document.body
       )}
 
       {/* ===== STAFF TABLE ===== */}
-      <div className="st-table-card">
+      <div
+        key={showDeactivated ? 'deactivated-accounts' : 'active-accounts'}
+        className="st-table-card st-accounts-view"
+      >
+        {showDeactivated && (
+          <div className="st-table-heading">
+            <div>
+              <h3>Deactivated Accounts</h3>
+              <p>These accounts cannot sign in until they are activated again.</p>
+            </div>
+          </div>
+        )}
         <div className="st-table-scroll">
           <table className="st-table">
             <thead>
@@ -327,7 +444,7 @@ function Staffs({ isSuperAdmin = false }) {
                           s.status === 'Active' ? 'st-status-on' : 'st-status-off'
                         }`}
                       >
-                        {s.status}
+                        {showDeactivated ? 'Deactivated' : s.status}
                       </span>
                     </td>
                     <td className="st-cell-muted">{s.lastActive}</td>
@@ -350,7 +467,9 @@ function Staffs({ isSuperAdmin = false }) {
               {filtered.length === 0 && !loading && (
                 <tr>
                   <td colSpan={isSuperAdmin ? 6 : 5} className="st-empty">
-                    {staff.length === 0 ? 'No staff accounts yet.' : `No staff match “${query}”.`}
+                    {visibleAccounts.length === 0
+                      ? (showDeactivated ? 'No deactivated accounts.' : 'No active staff accounts.')
+                      : `No staff match “${query}”.`}
                   </td>
                 </tr>
               )}
@@ -393,8 +512,8 @@ function Staffs({ isSuperAdmin = false }) {
 
           <div className="st-menu-divider" />
 
-          {menuRow.role === 'Super Admin' &&
-          menuRow.status === 'Active' &&
+          {menuRow.status === 'Active' &&
+          menuRow.role === 'Super Admin' &&
           activeSuperAdmins <= 1 ? (
             <p className="st-menu-locked">
               <Lock size={12} />

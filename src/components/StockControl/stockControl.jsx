@@ -515,19 +515,22 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const decrementQty = () => {
+  /* The − / + buttons are DIRECTION toggles, not number spinners:
+     − marks this entry as a removal (sold), + as an addition (received).
+     The quantity itself is typed in the number field. */
+  const setRemove = () => {
     setFormData((prev) => ({
       ...prev,
       type: 'Stock Out',
-      qty: String(Math.max(1, Number(prev.qty || 1) - 1)),
+      qty: prev.qty === '' ? '1' : prev.qty,
     }));
   };
 
-  const incrementQty = () => {
+  const setAdd = () => {
     setFormData((prev) => ({
       ...prev,
       type: 'Stock In',
-      qty: String(Number(prev.qty || 0) + 1),
+      qty: prev.qty === '' ? '1' : prev.qty,
     }));
   };
 
@@ -1034,10 +1037,10 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                             <button
                               type="button"
                               className={`sc-stepper-btn sc-stepper-minus${isOut ? ' is-active' : ''}`}
-                              aria-label="Minus — remove / sold"
+                              aria-label="Remove / sold"
                               aria-pressed={isOut}
-                              onClick={decrementQty}
-                              title="Remove stock (counts as sold)"
+                              onClick={setRemove}
+                              title="This entry removes stock (counts as sold)"
                             >
                               <span>−</span>
                             </button>
@@ -1055,10 +1058,10 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                             <button
                               type="button"
                               className={`sc-stepper-btn sc-stepper-plus${!isOut ? ' is-active' : ''}`}
-                              aria-label="Plus — add stock"
+                              aria-label="Add stock"
                               aria-pressed={!isOut}
-                              onClick={incrementQty}
-                              title="Add stock (received)"
+                              onClick={setAdd}
+                              title="This entry adds stock (received)"
                             >
                               <span>+</span>
                             </button>
@@ -1067,7 +1070,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS }) {
                             {!formData.productName
                               ? 'Select a product first.'
                               : editId === null
-                                ? `${currentOnHand} on hand. Tap − to remove (counts as sold), + to add new stock.`
+                                ? `${currentOnHand} on hand. Type a quantity, then pick − (sold) or + (added).`
                                 : `${currentOnHand} on hand before this entry. Saving replaces it.`}
                           </span>
                         </>

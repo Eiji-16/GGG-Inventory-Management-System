@@ -109,7 +109,6 @@
 
 .f-root input[type="text"],
 .f-root input[type="number"],
-.f-root input[type="month"],
 .f-root select {
     width: 100%;
     min-height: 40px;
@@ -134,14 +133,12 @@
 
 .f-root input[type="text"]:hover,
 .f-root input[type="number"]:hover,
-.f-root input[type="month"]:hover,
 .f-root select:hover {
     border-color: rgba(232, 197, 71, 0.45);
 }
 
 .f-root input[type="text"]:focus,
 .f-root input[type="number"]:focus,
-.f-root input[type="month"]:focus,
 .f-root select:focus {
     border-color: var(--background-icon-active-color);
     box-shadow: 0 0 0 3px var(--background-icon-active-color-theme);
@@ -162,6 +159,109 @@
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%2394A3B8'/></svg>");
     background-repeat: no-repeat;
     background-position: right 13px center;
+}
+
+.f-year-select-wrap {
+    position: relative;
+    width: 100%;
+}
+
+.f-custom-select-btn {
+    width: 100%;
+    min-height: 40px;
+
+    padding: 9px 34px 9px 12px;
+
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 13px;
+    text-align: left;
+
+    background: var(--static-bg-color);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%2394A3B8'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 13px center;
+
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    outline: none;
+
+    cursor: pointer;
+
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease,
+        background 0.15s ease;
+}
+
+.f-custom-select-btn:hover {
+    border-color: rgba(232, 197, 71, 0.45);
+}
+
+.f-custom-select-btn:focus {
+    border-color: var(--background-icon-active-color);
+    box-shadow: 0 0 0 3px var(--background-icon-active-color-theme);
+}
+
+.f-year-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 50;
+
+    max-height: 170px;
+    /* Shows approx 5 options at once */
+    overflow-y: auto;
+
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.f-year-opt {
+    padding: 8px 12px;
+
+    color: var(--text-primary);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+
+    cursor: pointer;
+
+    transition: background 0.12s ease;
+}
+
+.f-year-opt:hover {
+    background: var(--background-icon-active-color-theme);
+}
+
+.f-year-opt.is-selected {
+    color: var(--background-icon-active-color);
+    font-weight: 800;
+    background: rgba(232, 197, 71, 0.12);
+}
+
+.f-year-dropdown-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.f-year-dropdown-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.f-year-dropdown-menu::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.25);
+    border-radius: 3px;
+}
+
+.f-year-dropdown-menu::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.4);
+}
+
+.f-year-dropdown-menu {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
 }
 
 .f-search-results {
@@ -1075,7 +1175,7 @@
 
 .f-sales-entry {
     display: grid;
-    grid-template-columns: minmax(120px, 1fr) minmax(100px, 1fr) auto;
+    grid-template-columns: minmax(115px, 1fr) minmax(90px, 1fr) minmax(90px, 1fr) auto;
     align-items: end;
     gap: 8px;
     margin: 10px 0;
