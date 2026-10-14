@@ -516,6 +516,111 @@ body::-webkit-scrollbar {
         }
     }
 
+    /* The login page remains unchanged in Midnight Blue and White, but follows
+       the selected neutral surfaces when Graphite is active. */
+    [data-theme="graphite"] .Login-page-wrapper {
+        background: var(--bg-main);
+    }
+
+    [data-theme="graphite"] .Login-box {
+        background: var(--bg-card);
+        border-color: var(--border-color);
+        box-shadow: var(--shadow-hover);
+    }
+
+    [data-theme="graphite"] .Design-side {
+        background: linear-gradient(180deg, #303036 0%, #18181B 100%);
+    }
+
+    [data-theme="graphite"] .Login-side {
+        background: var(--bg-card);
+    }
+
+    [data-theme="graphite"] .WelcomeText h2,
+    [data-theme="graphite"] .input-icon input,
+    [data-theme="graphite"] .Login-button {
+        color: var(--text-primary);
+    }
+
+    [data-theme="graphite"] .WelcomeText p,
+    [data-theme="graphite"] .input-group label,
+    [data-theme="graphite"] .input-icon i {
+        color: var(--text-muted);
+    }
+
+    [data-theme="graphite"] .input-icon {
+        background: var(--input-bg);
+        border-color: var(--border-color);
+    }
+
+    [data-theme="graphite"] .input-icon:hover,
+    [data-theme="graphite"] .input-icon:focus-within {
+        background: var(--input-bg);
+        border-color: var(--accent);
+    }
+
+    [data-theme="graphite"] .input-icon input::placeholder {
+        color: var(--text-muted);
+    }
+
+    [data-theme="graphite"] .Password-visibility-toggle,
+    [data-theme="graphite"] .Login-button:hover {
+        color: var(--accent);
+    }
+
+    [data-theme="graphite"] .ForgetPassword,
+    [data-theme="graphite"] .ForgetPassword:hover {
+        color: var(--accent);
+    }
+
+    [data-theme="graphite"] .ResetPass-modal {
+        color: var(--text-primary);
+        background: var(--bg-card);
+        border-color: var(--border-color);
+    }
+
+    [data-theme="graphite"] .ResetPass-close {
+        color: var(--text-muted);
+        background: var(--static-bg-color);
+    }
+
+    [data-theme="graphite"] .ResetPass-close:hover:not(:disabled) {
+        color: var(--text-primary);
+        background: var(--overlay-medium);
+    }
+
+    [data-theme="graphite"] .ResetPass-icon {
+        color: var(--accent);
+        background: var(--background-icon-active-color-theme);
+    }
+
+    [data-theme="graphite"] .ResetPass-heading h2,
+    [data-theme="graphite"] .ResetPass-back {
+        color: var(--text-primary);
+    }
+
+    [data-theme="graphite"] .ResetPass-heading p {
+        color: var(--text-muted);
+    }
+
+    [data-theme="graphite"] .ResetPass-submit {
+        color: var(--btn-fill-text);
+        background: var(--btn-fill-bg);
+        box-shadow: var(--shadow-card);
+    }
+
+    [data-theme="graphite"] .ResetPass-submit:hover:not(:disabled) {
+        box-shadow: var(--shadow-hover);
+    }
+
+    [data-theme="graphite"] .Login-error {
+        color: var(--accent-low);
+    }
+
+    [data-theme="graphite"] .ResetPass-message {
+        color: var(--accent-high);
+    }
+
     @media (prefers-reduced-motion: reduce) {
         .ResetPass-overlay,
         .ResetPass-modal {

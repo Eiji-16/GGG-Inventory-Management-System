@@ -21,8 +21,8 @@
 .app-status-spinner {
     width: 2rem;
     height: 2rem;
-    border: 3px solid rgba(11, 27, 51, 0.14);
-    border-top-color: #c08a1e;
+    border: 3px solid var(--border-color, rgba(11, 27, 51, 0.14));
+    border-top-color: var(--accent, #c08a1e);
     border-radius: 50%;
     animation: app-status-spin 0.8s linear infinite;
 }

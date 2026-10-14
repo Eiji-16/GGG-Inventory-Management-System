@@ -13,6 +13,7 @@ import {
   X,
   Archive,
   UserRoundPlus,
+  Trash2,
 } from 'lucide-react';
 import './staff.css';
 
@@ -36,8 +37,13 @@ function Staffs({ isSuperAdmin = false }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
   const [query, setQuery] = useState('');
   const [menu, setMenu] = useState(null); /* { id, top, left } */
+  const [accountDialog, setAccountDialog] = useState(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [accountActionError, setAccountActionError] = useState('');
+  const [isAccountActionLoading, setIsAccountActionLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeactivated, setShowDeactivated] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -135,6 +141,7 @@ function Staffs({ isSuperAdmin = false }) {
   /* ===== PATCH a staff member (role and/or status) ===== */
   const patchStaff = async (id, body) => {
     setActionError('');
+    setActionMessage('');
     setMenu(null);
     try {
       const response = await fetch(`/staff/${id}`, {
@@ -179,13 +186,108 @@ function Staffs({ isSuperAdmin = false }) {
   };
 
   useEffect(() => {
-    if (!showCreateModal) return undefined;
+    if (!showCreateModal && !accountDialog) return undefined;
     const previousOverflow = document.body.style.overflow;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape' && !isAccountActionLoading) {
+        closeAccountDialog();
+      }
+    };
     document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
     };
-  }, [showCreateModal]);
+  }, [showCreateModal, accountDialog, isAccountActionLoading]);
+
+  const closeAccountDialog = () => {
+    setAccountDialog(null);
+    setDeleteConfirmation('');
+    setAccountActionError('');
+  };
+
+  const openAccountDialog = (step, account) => {
+    setMenu(null);
+    setAccountActionError('');
+    setDeleteConfirmation('');
+    setAccountDialog({ step, account });
+  };
+
+  const confirmReactivate = async () => {
+    if (!accountDialog || isAccountActionLoading) return;
+    setIsAccountActionLoading(true);
+    setAccountActionError('');
+    try {
+      const account = accountDialog.account;
+      const response = await fetch(`/staff/${account.id}`, {
+        method: 'PATCH',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrf(),
+        },
+        body: JSON.stringify({ status: 'active' }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = data.errors ? Object.values(data.errors).flat()[0] : data.message;
+        throw new Error(message || `Could not reactivate account (${response.status}).`);
+      }
+
+      setStaff((previous) => (
+        [...previous.filter((item) => item.id !== account.id), data]
+          .sort((a, b) => a.name.localeCompare(b.name))
+      ));
+      setDeactivatedStaff((previous) => previous.filter((item) => item.id !== account.id));
+      setShowDeactivated(false);
+      setActionError('');
+      setActionMessage(`${data.name}'s account has been reactivated.`);
+      closeAccountDialog();
+    } catch (error) {
+      setAccountActionError(error.message || 'Could not reactivate the account.');
+    } finally {
+      setIsAccountActionLoading(false);
+    }
+  };
+
+  const confirmPermanentDelete = async () => {
+    if (
+      !accountDialog ||
+      accountDialog.step !== 'delete-final' ||
+      deleteConfirmation !== 'DELETE' ||
+      isAccountActionLoading
+    ) return;
+
+    setIsAccountActionLoading(true);
+    setAccountActionError('');
+    try {
+      const { account } = accountDialog;
+      const response = await fetch(`/staff/${account.id}`, {
+        method: 'DELETE',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrf(),
+        },
+        body: JSON.stringify({ confirmation: deleteConfirmation }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = data.errors ? Object.values(data.errors).flat()[0] : data.message;
+        throw new Error(message || `Could not delete account (${response.status}).`);
+      }
+
+      setDeactivatedStaff((previous) => previous.filter((item) => item.id !== account.id));
+      setActionError('');
+      setActionMessage(`${account.name}'s account has been permanently deleted.`);
+      closeAccountDialog();
+    } catch (error) {
+      setAccountActionError(error.message || 'Could not permanently delete the account.');
+    } finally {
+      setIsAccountActionLoading(false);
+    }
+  };
 
   const createAccount = async (event) => {
     event.preventDefault();
@@ -240,6 +342,14 @@ function Staffs({ isSuperAdmin = false }) {
       {(loadError || actionError) && (
         <div className="st-create-account-error" role="alert" style={{ marginBottom: 12 }}>
           {loadError || actionError}
+        </div>
+      )}
+      {actionMessage && (
+        <div className="st-action-success" role="status">
+          {actionMessage}
+          <button type="button" aria-label="Dismiss message" onClick={() => setActionMessage('')}>
+            <X size={14} />
+          </button>
         </div>
       )}
 
@@ -505,24 +615,163 @@ function Staffs({ isSuperAdmin = false }) {
 
           <div className="st-menu-divider" />
 
-          {menuRow.status === 'Active' &&
-          menuRow.role === 'Super Admin' &&
-          activeSuperAdmins <= 1 ? (
-            <p className="st-menu-locked">
-              <Lock size={12} />
-              Last Super Admin — cannot deactivate
-            </p>
+          {menuRow.status === 'Active' ? (
+            menuRow.role === 'Super Admin' && activeSuperAdmins <= 1 ? (
+              <p className="st-menu-locked">
+                <Lock size={12} />
+                Last Super Admin — cannot deactivate
+              </p>
+            ) : (
+              <button
+                type="button"
+                className="st-menu-item"
+                role="menuitem"
+                onClick={() => toggleStatus(menuRow.id)}
+              >
+                <Power size={14} />
+                Deactivate account
+              </button>
+            )
           ) : (
-            <button
-              type="button"
-              className="st-menu-item"
-              role="menuitem"
-              onClick={() => toggleStatus(menuRow.id)}
-            >
-              <Power size={14} />
-              {menuRow.status === 'Active' ? 'Deactivate account' : 'Activate account'}
-            </button>
+            <>
+              <button
+                type="button"
+                className="st-menu-item"
+                role="menuitem"
+                onClick={() => openAccountDialog('reactivate', menuRow)}
+              >
+                <Power size={14} />
+                Reactivate Account
+              </button>
+              <button
+                type="button"
+                className="st-menu-item st-menu-item-danger"
+                role="menuitem"
+                onClick={() => openAccountDialog('delete-initial', menuRow)}
+              >
+                <Trash2 size={14} />
+                Permanently Delete
+              </button>
+            </>
           )}
+        </div>,
+        document.body
+      )}
+
+      {accountDialog && createPortal(
+        <div
+          className="st-modal-overlay st-account-confirm-overlay"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isAccountActionLoading) {
+              closeAccountDialog();
+            }
+          }}
+        >
+          <section
+            className={`st-modal st-account-confirm ${
+              accountDialog.step === 'delete-final' ? 'st-account-confirm-final' : ''
+            }`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="st-account-confirm-title"
+          >
+            <header className="st-modal-header">
+              <div>
+                <p className="st-modal-eyebrow">
+                  {accountDialog.step === 'reactivate' ? 'Reactivate account' : 'Permanent deletion'}
+                </p>
+                <h2 id="st-account-confirm-title">
+                  {accountDialog.step === 'reactivate'
+                    ? 'Reactivate Account?'
+                    : accountDialog.step === 'delete-initial'
+                      ? 'Delete Account Permanently?'
+                      : 'Final Confirmation'}
+                </h2>
+              </div>
+              <button
+                type="button"
+                className="st-modal-close"
+                aria-label="Close confirmation"
+                onClick={closeAccountDialog}
+                disabled={isAccountActionLoading}
+              >
+                <X size={18} />
+              </button>
+            </header>
+            <div className="st-account-confirm-body">
+              <p className={accountDialog.step === 'delete-final' ? 'st-delete-warning' : ''}>
+                {accountDialog.step === 'reactivate'
+                  ? `Are you sure you want to reactivate ${accountDialog.account.name}'s account?`
+                  : accountDialog.step === 'delete-initial'
+                    ? `Are you sure you want to permanently delete ${accountDialog.account.name}'s account? This action cannot be undone.`
+                    : 'You are about to permanently delete this account and its associated account access. This action cannot be undone.'}
+              </p>
+              <div className="st-account-confirm-identity">
+                <span>{accountDialog.account.name}</span>
+                <span>{accountDialog.account.email}</span>
+              </div>
+
+              {accountDialog.step === 'delete-final' && (
+                <label className="st-delete-confirm-label">
+                  Type <strong>DELETE</strong> to confirm
+                  <input
+                    autoComplete="off"
+                    autoFocus
+                    value={deleteConfirmation}
+                    onChange={(event) => setDeleteConfirmation(event.target.value)}
+                    aria-label="Type DELETE to confirm permanent deletion"
+                  />
+                </label>
+              )}
+
+              {accountActionError && (
+                <div className="st-create-account-error" role="alert">
+                  {accountActionError}
+                </div>
+              )}
+            </div>
+            <footer className="st-account-confirm-actions">
+              <button
+                type="button"
+                className="st-confirm-cancel"
+                onClick={closeAccountDialog}
+                disabled={isAccountActionLoading}
+              >
+                Cancel
+              </button>
+              {accountDialog.step === 'reactivate' ? (
+                <button
+                  type="button"
+                  className="st-confirm-primary"
+                  onClick={confirmReactivate}
+                  disabled={isAccountActionLoading}
+                >
+                  {isAccountActionLoading ? 'Reactivating…' : 'Reactivate'}
+                </button>
+              ) : accountDialog.step === 'delete-initial' ? (
+                <button
+                  type="button"
+                  className="st-confirm-danger"
+                  onClick={() => {
+                    setAccountActionError('');
+                    setDeleteConfirmation('');
+                    setAccountDialog((current) => ({ ...current, step: 'delete-final' }));
+                  }}
+                >
+                  Continue
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="st-confirm-danger"
+                  onClick={confirmPermanentDelete}
+                  disabled={isAccountActionLoading || deleteConfirmation !== 'DELETE'}
+                >
+                  {isAccountActionLoading ? 'Deleting…' : 'Permanently Delete Account'}
+                </button>
+              )}
+            </footer>
+          </section>
         </div>,
         document.body
       )}

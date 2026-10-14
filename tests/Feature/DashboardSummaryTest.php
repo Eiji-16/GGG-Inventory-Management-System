@@ -47,16 +47,45 @@ class DashboardSummaryTest extends TestCase
             'remaining_stock' => 5,
             'movement_date' => now()->toDateString(),
         ]);
+        StockMovement::create([
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'product_category' => $product->category,
+            'movement_type' => 'out',
+            'qty' => 1,
+            'remaining_stock' => 4,
+            'movement_date' => now()->subDay()->toDateString(),
+        ]);
+        Product::create([
+            'code' => 'PRD-UNTRACKED',
+            'name' => 'Untracked Product',
+            'category' => 'Test Category',
+            'stock_on_hand' => 7,
+        ]);
         User::factory()->create();
 
         $this->getJson('/api/dashboard/summary')
             ->assertOk()
+            ->assertJsonPath('kpis.totalProducts', 2)
+            ->assertJsonPath('kpis.totalStockUnits', 12)
+            ->assertJsonPath('kpis.lowStockItems', 1)
+            ->assertJsonPath('kpis.stockMovementsToday', 1)
             ->assertJsonPath('products.0.id', 'PRD-TEST')
             ->assertJsonPath('products.0.stock', 5)
             ->assertJsonPath('products.0.safetyStock', 10)
             ->assertJsonPath('salesHistory.0.unitsSold', 9)
-            ->assertJsonPath('stockMovements.0.type', 'in')
+            ->assertJsonPath('stockMovements.1.type', 'in')
             ->assertJsonPath('supplierCount', 1)
             ->assertJsonPath('userCount', 1);
+    }
+
+    public function test_dashboard_kpis_return_zero_values_when_inventory_and_movement_data_are_empty(): void
+    {
+        $this->getJson('/api/dashboard/summary')
+            ->assertOk()
+            ->assertJsonPath('kpis.totalProducts', 0)
+            ->assertJsonPath('kpis.totalStockUnits', 0)
+            ->assertJsonPath('kpis.lowStockItems', 0)
+            ->assertJsonPath('kpis.stockMovementsToday', 0);
     }
 }

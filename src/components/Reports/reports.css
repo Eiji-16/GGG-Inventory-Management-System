@@ -224,8 +224,8 @@
     min-height: 2px;
     transition: height 0.3s ease;
 }
-.r-mini-in { background: #1e8a5f; }
-.r-mini-out { background: #c4432e; }
+.r-mini-in { background: var(--accent-high); }
+.r-mini-out { background: var(--accent-low); }
 .r-mini-label {
     font-size: 10px;
     color: var(--text-muted, #888);
@@ -265,8 +265,8 @@
 .r-table tbody tr:last-child td { border-bottom: none; }
 .r-table tbody tr:hover { background: var(--background-icon-active-color-theme); }
 
-.r-trend-up { color: #1e8a5f; font-weight: 700; }
-.r-trend-down { color: #c4432e; font-weight: 700; }
+.r-trend-up { color: var(--accent-high); font-weight: 700; }
+.r-trend-down { color: var(--accent-low); font-weight: 700; }
 
 /*==========STATUS BADGES==========*/
 .r-badge {
@@ -280,14 +280,14 @@
 }
 .r-badge .r-dot { width: 6px; height: 6px; border-radius: 50%; }
 
-.r-badge-good { background: rgba(30,138,95,.12); color: #1e8a5f; }
-.r-badge-good .r-dot { background: #1e8a5f; }
+.r-badge-good { background: var(--accent-high-soft); color: var(--accent-high); }
+.r-badge-good .r-dot { background: var(--accent-high); }
 
-.r-badge-warn { background: rgba(192,138,30,.14); color: #c08a1e; }
-.r-badge-warn .r-dot { background: #c08a1e; }
+.r-badge-warn { background: var(--accent-med-soft); color: var(--accent-med); }
+.r-badge-warn .r-dot { background: var(--accent-med); }
 
-.r-badge-bad { background: rgba(196,67,46,.12); color: #c4432e; }
-.r-badge-bad .r-dot { background: #c4432e; }
+.r-badge-bad { background: var(--accent-low-soft); color: var(--accent-low); }
+.r-badge-bad .r-dot { background: var(--accent-low); }
 
 /*==========RESPONSIVENESS==========*/
 @media (max-width: 640px) {

@@ -13,14 +13,14 @@ class DashboardSummaryController extends Controller
 {
     public function __invoke(): JsonResponse
     {
+        $productRecords = Product::with('safetyStock')->orderBy('name')->get();
+
         // Product ids that have at least one stock movement — only these are
         // "live" in Stock Control and eligible for stock alerts.
         $movedProductIds = StockMovement::query()->distinct()->pluck('product_id')->filter()->all();
         $movedSet = array_flip($movedProductIds);
 
-        $products = Product::with('safetyStock')
-            ->orderBy('name')
-            ->get()
+        $products = $productRecords
             ->map(fn (Product $product) => [
                 'id' => $product->code,
                 'name' => $product->name,
@@ -32,6 +32,18 @@ class DashboardSummaryController extends Controller
                 // products out of the Stock Alerts list until they're tracked.
                 'inStockControl' => isset($movedSet[$product->id]),
             ]);
+
+        $kpis = [
+            'totalProducts' => $productRecords->count(),
+            'totalStockUnits' => (int) $productRecords->sum('stock_on_hand'),
+            'lowStockItems' => $productRecords->filter(function (Product $product) use ($movedSet): bool {
+                return isset($movedSet[$product->id])
+                    && (int) $product->stock_on_hand <= (int) ($product->safetyStock?->safety_stock ?? 20);
+            })->count(),
+            'stockMovementsToday' => StockMovement::query()
+                ->whereDate('movement_date', today()->toDateString())
+                ->count(),
+        ];
 
         $salesHistory = SalesHistory::with('product:id,code,name')
             ->orderBy('period_date')
@@ -58,6 +70,7 @@ class DashboardSummaryController extends Controller
             ]);
 
         return response()->json([
+            'kpis' => $kpis,
             'products' => $products,
             'salesHistory' => $salesHistory,
             'stockMovements' => $stockMovements,

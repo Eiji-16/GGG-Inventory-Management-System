@@ -59,45 +59,133 @@
     margin-top: 2px;
 }
 
-/*==========TOGGLE SWITCH==========*/
-.s-switch {
+/*==========THREE-STOP THEME SELECTOR==========*/
+.s-theme-selector {
     position: relative;
-    width: 42px;
-    height: 24px;
-    flex-shrink: 0;
-    display: inline-block;
+    isolation: isolate;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+    width: min(244px, 48%);
+    height: 64px;
+    flex: 0 0 auto;
 }
-.s-switch input {
-    opacity: 0;
+
+.s-theme-track,
+.s-theme-track-progress {
+    position: absolute;
+    top: 50%;
+    left: 24px;
+    height: 3px;
+    border-radius: 999px;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.s-theme-track {
+    right: 24px;
+    z-index: -1;
+    background: var(--border-strong);
+}
+
+.s-theme-track-progress {
+    z-index: 0;
     width: 0;
-    height: 0;
+    background: var(--accent);
+    transition: width 0.22s ease;
 }
-.s-slider {
-    position: absolute;
-    inset: 0;
-    background: var(--static-bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: 24px;
-    cursor: pointer;
-    transition: 0.15s;
+
+.s-theme-selector[data-active-theme="graphite"] .s-theme-track-progress {
+    width: calc((100% - 48px) / 2);
 }
-.s-slider:before {
-    content: "";
-    position: absolute;
-    width: 17px;
-    height: 17px;
-    left: 3px;
-    top: 2px;
-    background: var(--text-muted);
+
+.s-theme-selector[data-active-theme="midnight-blue"] .s-theme-track-progress {
+    width: calc(100% - 48px);
+}
+
+.s-theme-stop {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    justify-self: center;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border: 0;
     border-radius: 50%;
-    transition: 0.15s;
+    background: transparent;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
 }
-.s-switch input:checked + .s-slider {
-    background: var(--background-icon-active-color);
+
+.s-theme-stop-dot {
+    display: block;
+    width: 32px;
+    height: 32px;
+    border: 1px solid #a1a1aa;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
-.s-switch input:checked + .s-slider:before {
-    transform: translateX(18px);
-    background: var(--icon-active-color);
+
+.s-theme-stop-white .s-theme-stop-dot {
+    border-color: #cbd5e1;
+    background: linear-gradient(145deg, #ffffff 0%, #f1f5f9 100%);
+}
+
+.s-theme-stop-graphite .s-theme-stop-dot {
+    border-color: #52525b;
+    background: linear-gradient(145deg, #3f3f46 0%, #18181b 100%);
+}
+
+.s-theme-stop-midnight-blue .s-theme-stop-dot {
+    border-color: #45618f;
+    background: linear-gradient(145deg, #263d6b 0%, #101d39 100%);
+}
+
+.s-theme-stop:hover .s-theme-stop-dot {
+    transform: scale(1.12);
+    box-shadow: 0 0 0 4px var(--background-icon-active-color-theme), 0 2px 8px rgba(0, 0, 0, 0.22);
+}
+
+.s-theme-stop.is-selected .s-theme-stop-dot {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--bg-card), 0 0 0 5px var(--accent), 0 0 12px var(--accent-glow);
+}
+
+.s-theme-stop:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
+.s-theme-stop::after {
+    position: absolute;
+    bottom: calc(100% + 1px);
+    left: 50%;
+    z-index: 3;
+    padding: 0.3rem 0.55rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    content: attr(data-theme-name);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, 3px);
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+    pointer-events: none;
+}
+
+.s-theme-stop:hover::after,
+.s-theme-stop:focus-visible::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0);
 }
 
 /*==========ADVANCED CARD==========*/
@@ -291,7 +379,7 @@
     padding: 4px 6px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
-    background: var(--bg-card);
+    background: var(--input-bg, var(--bg-card));
     color: var(--text-primary);
     outline: none;
     box-sizing: border-box;
@@ -322,8 +410,8 @@
 }
 
 .s-policy-remove:hover {
-    color: #ff4d4d;
-    border-color: #ff4d4d;
+    color: var(--accent-low);
+    border-color: var(--accent-low);
 }
 
 .s-policy-add:hover:not(:disabled) {
@@ -351,7 +439,7 @@
     margin-right: auto;
     font-size: 11px;
     font-weight: 600;
-    color: #4ade80;
+    color: var(--accent-high);
 }
 
 /*==========RESPONSIVENESS==========*/
@@ -373,6 +461,10 @@
         font-size: 11.5px;
     }
 
+    .s-theme-selector {
+        width: min(220px, 48%);
+    }
+
     .s-advanced-actions {
         flex-wrap: wrap;
     }
@@ -385,6 +477,15 @@
 }
 
 @media (max-width: 400px) {
+    .s-row-appearance {
+        flex-wrap: wrap;
+    }
+
+    .s-theme-selector {
+        width: min(244px, calc(100% - 3rem));
+        margin-left: 3rem;
+    }
+
     .s-advanced-head {
         flex-direction: column;
     }

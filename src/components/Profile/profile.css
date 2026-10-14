@@ -150,12 +150,12 @@
 .pf-inline-error {
     margin: 8px 0 0;
     font-size: 12px;
-    color: #e05656;
+    color: var(--accent-low);
 }
 .pf-inline-success {
     margin: 8px 0 0;
     font-size: 12px;
-    color: #37b26b;
+    color: var(--accent-high);
 }
 
 /*==========CHANGE PASSWORD MODAL==========*/
@@ -207,7 +207,7 @@
     padding: 8px 10px;
     border-radius: 8px;
     border: 1px solid var(--hairline, rgba(255,255,255,0.12));
-    background: var(--static-bg-color, rgba(255,255,255,0.04));
+    background: var(--input-bg, var(--static-bg-color, rgba(255,255,255,0.04)));
     color: var(--text-primary);
     font-size: 13px;
 }
@@ -265,7 +265,7 @@
     font-size: 13px;
     font-family: inherit;
     color: var(--text-primary);
-    background: var(--static-bg-color);
+    background: var(--input-bg, var(--static-bg-color));
     border: 1px solid var(--border-color);
     border-radius: 0.55rem;
     outline: none;

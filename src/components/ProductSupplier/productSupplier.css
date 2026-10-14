@@ -38,7 +38,7 @@
 
 .ps-search-box:focus-within {
     border-color: var(--accent, #E8C547);
-    box-shadow: 0 0 0 3px rgba(232, 197, 71, 0.14);
+    box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
 .ps-search-box .ps-search-icon {
@@ -290,7 +290,7 @@
 .ps-table-action-btn.ps-edit-btn:hover {
     color: var(--accent, #E8C547);
     background: var(--background-icon-active-color-theme) !important; 
-    filter: drop-shadow(0 0 6px rgba(232, 197, 71, 0.4));
+    filter: drop-shadow(0 0 6px var(--accent-glow));
     transform: scale(1.08);
 }
 
@@ -595,7 +595,7 @@
     border-radius: 8px;
     padding: 0.62rem 0.8rem;
     font-size: 0.85rem;
-    background: var(--static-bg-color, #f8fafc);
+    background: var(--input-bg, var(--static-bg-color, #f8fafc));
     color: var(--text-primary);
     transition: border-color 0.18s ease, box-shadow 0.18s ease;
     font-family: inherit;
@@ -614,7 +614,7 @@
 .ps-form-group input:focus,
 .ps-form-group select:focus {
     border-color: var(--accent, #E8C547);
-    box-shadow: 0 0 0 3px rgba(232, 197, 71, 0.16);
+    box-shadow: 0 0 0 3px var(--accent-ring);
     outline: none;
 }
 

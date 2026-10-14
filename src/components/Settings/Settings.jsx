@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   Sun,
   Moon,
@@ -24,14 +24,24 @@ const emptyEntry = {
   orderCycleDays: '',
 };
 
+const THEMES = [
+  { value: 'white', label: 'White' },
+  { value: 'graphite', label: 'Graphite' },
+  { value: 'midnight-blue', label: 'Midnight Blue' },
+];
+
 function Settings({
-  isDarkMode,
-  onToggleTheme,
+  theme,
+  onThemeChange,
   role = 'Staff',
   safetyStock = SAFETY_STOCK_DEFAULTS,
   onUpdateSafetyStock,
 }) {
   const isSuperAdmin = role === 'Super Admin';
+  const activeThemeName = THEMES.find((option) => option.value === theme)?.label || 'Midnight Blue';
+  const selectedThemeRef = useRef(theme);
+  const themeButtonRefs = useRef([]);
+  selectedThemeRef.current = theme;
 
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [revealed, setRevealed] = useState(false);
@@ -95,33 +105,84 @@ function Settings({
     setSaved(false);
   };
 
+  const restoreThemePreview = () => {
+    document.documentElement.setAttribute('data-theme', selectedThemeRef.current);
+  };
+
+  const chooseTheme = (nextTheme) => {
+    selectedThemeRef.current = nextTheme;
+    document.documentElement.setAttribute('data-theme', nextTheme);
+    onThemeChange(nextTheme);
+  };
+
+  const handleThemeKeyDown = (event, index) => {
+    let nextIndex;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = (index + 1) % THEMES.length;
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = (index - 1 + THEMES.length) % THEMES.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = THEMES.length - 1;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    const nextTheme = THEMES[nextIndex].value;
+    chooseTheme(nextTheme);
+    themeButtonRefs.current[nextIndex]?.focus();
+  };
+
   return (
     <div className="s-container">
 
       {/* ===== APPEARANCE ===== */}
       <div className="s-card">
-        <div className="s-row">
+        <div className="s-row s-row-appearance">
           <div className="s-row-info">
             <div className="s-row-icon">
-              {isDarkMode ? <Moon size={16} /> : <Sun size={16} />}
+              {theme === 'white' ? <Sun size={16} /> : <Moon size={16} />}
             </div>
             <div>
               <div className="s-row-title">Appearance</div>
               <div className="s-row-desc">
-                {isDarkMode ? 'Dark mode is on' : 'Light mode is on'}
+                {activeThemeName} theme is active
               </div>
             </div>
           </div>
 
-          <label className="s-switch">
-            <input
-              type="checkbox"
-              checked={isDarkMode}
-              onChange={onToggleTheme}
-              aria-label="Toggle dark mode"
-            />
-            <span className="s-slider" />
-          </label>
+          <div
+            className="s-theme-selector"
+            role="radiogroup"
+            aria-label="Choose appearance theme"
+            data-active-theme={theme}
+            onPointerLeave={restoreThemePreview}
+          >
+            <span className="s-theme-track" aria-hidden="true">
+              <span className="s-theme-track-progress" />
+            </span>
+            {THEMES.map((option, index) => (
+              <button
+                key={option.value}
+                ref={(element) => { themeButtonRefs.current[index] = element; }}
+                type="button"
+                className={`s-theme-stop s-theme-stop-${option.value}${theme === option.value ? ' is-selected' : ''}`}
+                role="radio"
+                aria-checked={theme === option.value}
+                aria-label={option.label}
+                aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Home End"
+                data-theme-name={option.label}
+                tabIndex={theme === option.value ? 0 : -1}
+                onPointerEnter={() => document.documentElement.setAttribute('data-theme', option.value)}
+                onClick={() => chooseTheme(option.value)}
+                onKeyDown={(event) => handleThemeKeyDown(event, index)}
+              >
+                <span className="s-theme-stop-dot" aria-hidden="true" />
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

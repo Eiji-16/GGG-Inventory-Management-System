@@ -16,7 +16,7 @@
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 10px;
+    padding: 8px;
     box-sizing: border-box;
     scroll-behavior: smooth;
 }
@@ -24,7 +24,7 @@
 /*==========GRID==========*/
 .parent {
     display: grid;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
     box-sizing: border-box;
     grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -41,7 +41,7 @@
     color: var(--text-primary);
     box-shadow: var(--shadow-card);
     border-radius: 8px;
-    padding: 12px;
+    padding: 10px;
     font-size: 12px;
     font-weight: 500;
     box-sizing: border-box;
@@ -52,10 +52,116 @@
     /*==========CARD AS FLEX COLUMN==========*/
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 
     /*==========CARD ANIMATION==========*/
     animation: cardEnter 0.35s ease both;
+}
+
+/*==========KPI SUMMARY==========*/
+.db-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.db-kpi-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    min-height: 60px;
+    padding: 8px 10px;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-card);
+    box-sizing: border-box;
+}
+
+.db-kpi-icon {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+    color: var(--accent);
+    background: var(--static-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.db-kpi-low .db-kpi-icon { color: var(--accent-med); }
+.db-kpi-movement .db-kpi-icon { color: var(--accent-high); }
+
+.db-kpi-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.db-kpi-label {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.db-kpi-value {
+    color: var(--text-primary);
+    font-size: 19px;
+    font-weight: 800;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+
+.db-kpi-value-placeholder {
+    width: 52px;
+    height: 19px;
+}
+
+.db-coverage-empty {
+    color: var(--text-muted);
+    font-size: 10px;
+    text-align: center;
+}
+
+.db-coverage-row {
+    min-width: 0;
+    gap: 10px;
+}
+
+.db-coverage-svg {
+    width: 120px;
+    max-width: 52%;
+    flex: 0 1 120px;
+}
+
+.db-coverage-stats {
+    min-width: 0;
+    flex: 1;
+    gap: 10px;
+}
+
+.db-coverage-stats .db-metric-value {
+    font-size: 14px;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+}
+
+.db-coverage-value {
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+}
+
+.db-coverage-label {
+    font-size: 8px;
 }
 
 @keyframes cardEnter {
@@ -160,7 +266,7 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
 }
 
 .db-card-titles {
@@ -287,14 +393,14 @@
 /*==========HERO (SALES ANALYTICS)==========*/
 .db-hero-plot {
     flex: 1;
-    min-height: 90px;
+    min-height: 72px;
     width: 100%;
 }
 
 .db-hero-svg {
     width: 100%;
     height: 100%;
-    min-height: 90px;
+    min-height: 72px;
     display: block;
 }
 
@@ -310,8 +416,8 @@
 .db-hero-foot {
     display: flex;
     align-items: center;
-    gap: 18px;
-    margin-top: 2px;
+    gap: 14px;
+    margin-top: 0;
 }
 
 .db-hero-foot .db-open-arrow {
@@ -441,8 +547,8 @@
 }
 
 .db-donut-svg {
-    width: 120px;
-    height: 120px;
+    width: 112px;
+    height: 112px;
     flex-shrink: 0;
 }
 
@@ -454,9 +560,10 @@
 
 .db-donut-center-label {
     fill: var(--text-muted);
-    font-size: 8.5px;
+    font-size: 7px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
 }
 
 /*==========GAUGE (EOQ)==========*/
@@ -545,7 +652,7 @@
 .db-rank {
     display: flex;
     flex-direction: column;
-    gap: 9px;
+    gap: 6px;
     flex: 1;
     justify-content: center;
     margin-top: 2px;
@@ -592,7 +699,7 @@
 .db-alert-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     flex: 1;
     margin-top: 2px;
     /* Scroll when many products are low/out of stock instead of growing the card. */
@@ -668,61 +775,61 @@
 .salesAnalytics-card {
     grid-column: 1 / span 5;
     grid-row: 1 / span 2;
-    min-height: 15rem;
+    min-height: 13.5rem;
 }
 
 .catalogStatus-card {
     grid-column: 6 / span 2;
     grid-row: 1;
-    min-height: 7.5rem;
+    min-height: 6.5rem;
 }
 
 .totalRevenue-card {
     grid-column: 6 / span 2;
     grid-row: 2;
-    min-height: 7.5rem;
+    min-height: 10.5rem;
 }
 
 .regionalBreakdown-card {
     grid-column: 1 / span 2;
     grid-row: 3;
-    min-height: 10rem;
+    min-height: 11.5rem;
 }
 
 .eoqActivity-card {
     grid-column: 3 / span 3;
     grid-row: 3;
-    min-height: 10rem;
+    min-height: 9rem;
 }
 
 .totalOrder-card {
     grid-column: 6 / span 2;
     grid-row: 3;
-    min-height: 10rem;
+    min-height: 8rem;
 }
 
 .productSales-card {
     grid-column: 1 / span 3;
     grid-row: 4;
-    min-height: 16rem;
+    min-height: 12rem;
 }
 
 .lowStockalerts-card {
     grid-column: 4 / span 2;
     grid-row: 4;
-    min-height: 16rem;
+    min-height: 12rem;
 }
 
 .totalCustomer-card {
     grid-column: 6 / span 1;
     grid-row: 4;
-    min-height: 16rem;
+    min-height: 12rem;
 }
 
 .totalStaff-card {
     grid-column: 7 / span 1;
     grid-row: 4;
-    min-height: 16rem;
+    min-height: 12rem;
 }
 
 .parent-without-user-accounts {
@@ -741,7 +848,7 @@
 }
 
 .parent-without-user-accounts .totalRevenue-card {
-    min-height: 16rem;
+    min-height: 10.5rem;
 }
 
 .parent-without-user-accounts .eoqActivity-card {
@@ -762,6 +869,10 @@
 
 /*==========TABLET RESPONSIVENESS==========*/
 @media (max-width: 1024px) {
+    .db-kpi-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .parent {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
@@ -773,49 +884,49 @@
     .salesAnalytics-card {
         grid-column: 1 / span 4;
         grid-row: 1;
-        min-height: 13rem;
+        min-height: 12rem;
     }
 
     .catalogStatus-card {
         grid-column: 1 / span 2;
         grid-row: 2;
-        min-height: 8rem;
+        min-height: 7.5rem;
     }
 
     .totalRevenue-card {
         grid-column: 3 / span 2;
         grid-row: 2;
-        min-height: 8rem;
+        min-height: 7.5rem;
     }
 
     .regionalBreakdown-card {
         grid-column: 1 / span 2;
         grid-row: 3;
-        min-height: 10rem;
+        min-height: 11.5rem;
     }
 
     .eoqActivity-card {
         grid-column: 3 / span 2;
         grid-row: 3;
-        min-height: 10rem;
+        min-height: 9rem;
     }
 
     .totalOrder-card {
         grid-column: 1 / span 2;
         grid-row: 4;
-        min-height: 10rem;
+        min-height: 8rem;
     }
 
     .totalCustomer-card {
         grid-column: 3 / span 1;
         grid-row: 4;
-        min-height: 10rem;
+        min-height: 8rem;
     }
 
     .totalStaff-card {
         grid-column: 4 / span 1;
         grid-row: 4;
-        min-height: 10rem;
+        min-height: 8rem;
     }
 
     .parent-without-user-accounts .catalogStatus-card {
@@ -826,7 +937,7 @@
     .parent-without-user-accounts .totalRevenue-card {
         grid-column: 3 / span 2;
         grid-row: 2;
-        min-height: 15rem;
+        min-height: 10rem;
     }
 
     .parent-without-user-accounts .regionalBreakdown-card {
@@ -852,25 +963,25 @@
     .parent-without-user-accounts .productSales-card {
         grid-column: 1 / span 2;
         grid-row: 5;
-        min-height: 15rem;
+        min-height: 12rem;
     }
 
     .parent-without-user-accounts .lowStockalerts-card {
         grid-column: 3 / span 2;
         grid-row: 5;
-        min-height: 15rem;
+        min-height: 12rem;
     }
 
     .productSales-card {
         grid-column: 1 / span 2;
         grid-row: 5;
-        min-height: 15rem;
+        min-height: 12rem;
     }
 
     .lowStockalerts-card {
         grid-column: 3 / span 2;
         grid-row: 5;
-        min-height: 15rem;
+        min-height: 12rem;
     }
 }
 
@@ -885,20 +996,34 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .db-kpi-card {
+        min-height: 58px;
+        padding: 8px 9px;
+    }
+
+    .db-kpi-value {
+        font-size: 18px;
+    }
+
     .salesAnalytics-card {
         grid-column: 1 / span 2;
         grid-row: auto;
-        min-height: 12rem;
+        min-height: 10.5rem;
     }
 
     .catalogStatus-card,
-    .totalRevenue-card,
     .totalOrder-card,
     .totalCustomer-card,
     .totalStaff-card {
         grid-column: span 1;
         grid-row: auto;
-        min-height: 8rem;
+        min-height: 7.5rem;
+    }
+
+    .totalRevenue-card {
+        grid-column: span 1;
+        grid-row: auto;
+        min-height: 9rem;
     }
 
     .parent-without-user-accounts .catalogStatus-card,
@@ -916,11 +1041,15 @@
         min-height: 9rem;
     }
 
+    .regionalBreakdown-card {
+        min-height: 11.5rem;
+    }
+
     .productSales-card,
     .lowStockalerts-card {
         grid-column: 1 / span 2;
         grid-row: auto;
-        min-height: 13rem;
+        min-height: 10.5rem;
     }
 
     .parent-without-user-accounts .salesAnalytics-card,
@@ -933,25 +1062,46 @@
     }
 
     .parent-without-user-accounts .catalogStatus-card,
-    .parent-without-user-accounts .totalRevenue-card,
     .parent-without-user-accounts .totalOrder-card,
     .parent-without-user-accounts .totalCustomer-card {
         grid-column: span 1;
         grid-row: auto;
-        min-height: 8rem;
+        min-height: 7.5rem;
     }
 
     .parent-without-user-accounts .totalRevenue-card {
-        min-height: 13rem;
+        min-height: 9rem;
+    }
+
+    .parent-without-user-accounts .totalRevenue-card {
+        min-height: 9rem;
     }
 
     .parent-without-user-accounts .productSales-card {
-        min-height: 13rem;
+        min-height: 10.5rem;
     }
 }
 
 /*==========SMALL MOBILE RESPONSIVENESS==========*/
 @media (max-width: 400px) {
+    .db-kpi-row {
+        gap: 6px;
+    }
+
+    .db-kpi-card {
+        gap: 7px;
+        padding: 8px;
+    }
+
+    .db-kpi-icon {
+        width: 30px;
+        height: 30px;
+    }
+
+    .db-kpi-label {
+        font-size: 9px;
+    }
+
     .parent {
         grid-template-columns: 1fr;
     }
@@ -973,8 +1123,17 @@
     .lowStockalerts-card {
         grid-column: 1;
         grid-row: auto;
-        min-height: 9rem;
+        min-height: 7.5rem;
     }
+
+    .salesAnalytics-card { min-height: 10.5rem; }
+    .regionalBreakdown-card { min-height: 11.5rem; }
+    .eoqActivity-card { min-height: 9rem; }
+    .totalOrder-card { min-height: 7.5rem; }
+    .productSales-card,
+    .lowStockalerts-card,
+    .totalCustomer-card,
+    .totalStaff-card { min-height: 10.5rem; }
 }
 
 /*==========EMPTY CARD==========*/

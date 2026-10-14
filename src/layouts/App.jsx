@@ -1,15 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { CircleAlert, RefreshCw } from 'lucide-react';
 import Login from '../components/Login/Login';
 import LandingPage from '../components/LandingPage/landingPage';
 import './app-error.css';
+import { readSavedTheme, saveTheme } from '../theme';
 
 function App() {
     const [authStatus, setAuthStatus] = useState('checking');
     const [user, setUser] = useState(null);
     const [error, setError] = useState('');
     const [retryKey, setRetryKey] = useState(0);
+    const [theme, setTheme] = useState(readSavedTheme);
+
+    useLayoutEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        saveTheme(theme);
+    }, [theme]);
 
     useEffect(() => {
         async function checkSession() {
@@ -116,7 +123,12 @@ function App() {
             {authStatus === 'authenticated' && (
                 <>
                     {error && <p role="alert">{error}</p>}
-                    <LandingPage user={user} onLogout={handleLogout} />
+                    <LandingPage
+                        user={user}
+                        onLogout={handleLogout}
+                        theme={theme}
+                        onThemeChange={setTheme}
+                    />
                 </>
             )}
         </div>

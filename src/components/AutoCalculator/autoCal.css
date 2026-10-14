@@ -55,7 +55,7 @@
     display: flex;
     align-items: center;
 }
-.ac-required { color: #c0392b; margin-left: 2px; }
+.ac-required { color: var(--accent-low); margin-left: 2px; }
 
 .ac-input {
     width: 100%;
@@ -64,7 +64,7 @@
     padding: 0.4rem 0.55rem;
     border: 0.5px solid var(--border-strong, #111);
     border-radius: 8px;
-    background: var(--bg-card, #fff);
+    background: var(--input-bg, var(--bg-card, #fff));
     color: var(--text-primary, #111);
     outline: none;
     box-sizing: border-box;
@@ -674,12 +674,12 @@
 
 /*==========FIELD ERROR==========*/
 .ac-input-error {
-    border-color: #e53e3e !important;
-    box-shadow: 0 0 0 2px rgba(229, 62, 62, 0.15);
+    border-color: var(--accent-low) !important;
+    box-shadow: 0 0 0 2px var(--accent-low-soft);
 }
 .ac-field-error {
     font-size: 10px;
-    color: #e53e3e;
+    color: var(--accent-low);
     margin-top: 1px;
 }
 

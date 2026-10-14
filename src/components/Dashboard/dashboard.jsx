@@ -1,8 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Package, Boxes, TriangleAlert, ArrowLeftRight } from 'lucide-react';
 import './dashboard.css';
 
 const fmt = (value) => Number(value || 0).toLocaleString('en-PH');
-const colors = ['var(--accent)', 'var(--accent-high)', 'var(--accent-med)', 'var(--accent-low)', 'var(--text-muted)'];
+const categoryColors = {
+  phone: '#43D39E',
+  keyboard: '#4F9CF9',
+  peripherals: '#F4C65B',
+};
+const fallbackCategoryColors = ['#A78BFA', '#FB7185', '#38BDF8', '#F97316', '#2DD4BF'];
+const KPI_CARDS = [
+  { key: 'totalProducts', label: 'Total Products', Icon: Package, accent: 'products' },
+  { key: 'totalStockUnits', label: 'Total Stock Units', Icon: Boxes, accent: 'stock' },
+  { key: 'lowStockItems', label: 'Low Stock Items', Icon: TriangleAlert, accent: 'low' },
+  { key: 'stockMovementsToday', label: 'Stock Movements Today', Icon: ArrowLeftRight, accent: 'movement' },
+];
 
 function scalePoints(values, width, height, padX = 6, padTop = 10, padBottom = 8) {
   if (!values.length) return [];
@@ -153,12 +165,14 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
       name,
       count,
       pct: stock.length ? count / stock.length : 0,
-      color: colors[index % colors.length],
+      color: categoryColors[name.trim().toLowerCase()] || fallbackCategoryColors[index % fallbackCategoryColors.length],
     })).sort((a, b) => b.count - a.count);
     const topCategories = categories.slice(0, 4);
     if (categories.length > 4) {
       const otherCount = categories.slice(4).reduce((total, category) => total + category.count, 0);
-      topCategories.push({ name: 'Other', count: otherCount, pct: stock.length ? otherCount / stock.length : 0, color: colors[4] });
+      const usedColors = new Set(topCategories.map((category) => category.color));
+      const otherColor = fallbackCategoryColors.find((color) => !usedColors.has(color)) || '#64748B';
+      topCategories.push({ name: 'Other', count: otherCount, pct: stock.length ? otherCount / stock.length : 0, color: otherColor });
     }
     let angle = -Math.PI / 2;
     const donut = topCategories.map((category) => {
@@ -232,6 +246,17 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
     return (
       <main className="dashboard-content-view">
         <div className="dashboard-scroll-container">
+          <div className="db-kpi-row db-kpi-skeleton" aria-hidden="true">
+            {KPI_CARDS.map(({ key, label, Icon }) => (
+              <div className="db-kpi-card" key={key}>
+                <span className="db-kpi-icon"><Icon size={17} /></span>
+                <span className="db-kpi-copy">
+                  <span className="db-kpi-label">{label}</span>
+                  <span className="db-skel-line db-kpi-value-placeholder" />
+                </span>
+              </div>
+            ))}
+          </div>
           <div className={`parent${isSuperAdmin ? '' : ' parent-without-user-accounts'} db-skeleton`} aria-busy="true" aria-label="Loading dashboard">
             <div className="salesAnalytics-card card db-skel-card">
               <div className="db-skel-line db-skel-title" />
@@ -269,6 +294,22 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
   }
   if (!derived) return null;
 
+  const stockMovements = summary.stockMovements || [];
+  const appToday = summary.generatedAt?.slice(0, 10);
+  const kpiValues = {
+    totalProducts: summary.kpis?.totalProducts ?? derived.products.length,
+    totalStockUnits: summary.kpis?.totalStockUnits ?? derived.totalStock,
+    lowStockItems: summary.kpis?.lowStockItems ?? derived.alerts.length,
+    stockMovementsToday: summary.kpis?.stockMovementsToday ?? (
+      stockMovements.length === 0
+        ? 0
+        : appToday
+        ? stockMovements.filter(
+          (movement) => movement.date === appToday
+        ).length
+        : null
+    ),
+  };
   const heroValues = derived.monthly.map((month) => month.units);
   const heroPoints = derived.hasSalesData ? scalePoints(heroValues, 520, 150, 10, 16, 12) : [];
   const heroLine = smoothLine(heroPoints);
@@ -279,6 +320,19 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
     <main className="dashboard-content-view">
       <div className="dashboard-scroll-container">
         {error && <p role="alert">{error} Showing the last data loaded.</p>}
+        <section className="db-kpi-row" aria-label="Inventory summary">
+          {KPI_CARDS.map(({ key, label, Icon, accent }) => (
+            <article className={`db-kpi-card db-kpi-${accent}`} key={key}>
+              <span className="db-kpi-icon" aria-hidden="true"><Icon size={17} strokeWidth={1.8} /></span>
+              <span className="db-kpi-copy">
+                <span className="db-kpi-label">{label}</span>
+                <span className="db-kpi-value">
+                  {kpiValues[key] == null ? '—' : fmt(kpiValues[key])}
+                </span>
+              </span>
+            </article>
+          ))}
+        </section>
         <div className={`parent${isSuperAdmin ? '' : ' parent-without-user-accounts'}`}>
           <div className="salesAnalytics-card card">
             <div className="db-card-head">
@@ -342,8 +396,8 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
               <div className="db-donut-row">
                 <svg className="db-donut-svg" viewBox="0 0 120 120" aria-label="Inventory by category">
                   {derived.donut.map((segment) => <path key={segment.name} d={segment.path} fill={segment.color} opacity="0.92" />)}
-                  <text x="60" y="60" className="db-donut-center-val" textAnchor="middle" dominantBaseline="middle">{fmt(derived.products.length)}</text>
-                  <text x="60" y="78" className="db-donut-center-label" textAnchor="middle">products</text>
+                  <text x="60" y="52" className="db-donut-center-val" textAnchor="middle" dominantBaseline="middle">{fmt(derived.products.length)}</text>
+                  <text x="60" y="73" className="db-donut-center-label" textAnchor="middle" dominantBaseline="middle">products</text>
                 </svg>
                 <div className="db-legend db-legend-col">
                   {derived.categories.map((category) => <span key={category.name} className="db-legend-item"><i style={{ background: category.color }} />{category.name} {fmt(category.count)}</span>)}
@@ -354,20 +408,19 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
 
           <div className="eoqActivity-card card">
             <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Supplier Coverage</span><span className="db-card-sub">Products linked to a supplier</span></div><button className="db-open-arrow-btn" onClick={() => go('Product-Supplier')} aria-label="Open suppliers" type="button"><OpenArrow /></button></div>
-            {derived.products.length > 0 ? (
-              <div className="db-gauge-row">
-                <svg className="db-gauge-svg" viewBox="0 0 120 74" aria-label={`${derived.supplierCoverage}% supplier coverage`}>
-                  <path d={Arc({ cx: 60, cy: 60, radius: 46, start: 180, end: 360 })} fill="none" stroke="var(--static-bg-color)" strokeWidth="12" strokeLinecap="round" />
-                  <path d={supplierGauge} fill="none" stroke="var(--accent-high)" strokeWidth="12" strokeLinecap="round" />
-                  <text x="60" y="52" className="db-gauge-value" textAnchor="middle">{derived.supplierCoverage}%</text>
-                  <text x="60" y="66" className="db-gauge-label" textAnchor="middle">covered</text>
-                </svg>
-                <div className="db-gauge-stats">
-                  <div className="db-metric"><span className="db-metric-label">Suppliers</span><span className="db-metric-value">{fmt(summary.supplierCount)}</span></div>
-                  <div className="db-metric"><span className="db-metric-label">Unassigned</span><span className="db-metric-value">{fmt(derived.unassignedProducts)}</span></div>
-                </div>
+            <div className="db-gauge-row db-coverage-row">
+              <svg className="db-gauge-svg db-coverage-svg" viewBox="0 0 120 74" aria-label={`${derived.supplierCoverage}% supplier coverage`}>
+                <path d={Arc({ cx: 60, cy: 60, radius: 46, start: 180, end: 360 })} fill="none" stroke="var(--static-bg-color)" strokeWidth="12" strokeLinecap="round" />
+                <path d={supplierGauge} fill="none" stroke="var(--accent-high)" strokeWidth="12" strokeLinecap="round" />
+                <text x="60" y="52" className="db-gauge-value db-coverage-value" textAnchor="middle">{derived.supplierCoverage}%</text>
+                <text x="60" y="66" className="db-gauge-label db-coverage-label" textAnchor="middle">covered</text>
+              </svg>
+              <div className="db-gauge-stats db-coverage-stats">
+                <div className="db-metric"><span className="db-metric-label">Suppliers</span><span className="db-metric-value">{fmt(summary.supplierCount)}</span></div>
+                <div className="db-metric"><span className="db-metric-label">Unassigned</span><span className="db-metric-value">{fmt(derived.unassignedProducts)}</span></div>
               </div>
-            ) : <EmptyChart message="Add products to see supplier coverage" />}
+            </div>
+            {derived.products.length === 0 && <span className="db-coverage-empty">No products assigned yet</span>}
           </div>
 
           <div className="totalOrder-card card">

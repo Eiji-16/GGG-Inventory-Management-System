@@ -89,7 +89,7 @@ function createNotifications(summary) {
   return notifications;
 }
 
-function LandingPage({onLogout, user}) {
+function LandingPage({onLogout, user, theme, onThemeChange}) {
   /* ===== ROLE-BASED ACCESS =====
      Real role comes from the backend (user.role). Each view lists the roles
      allowed to see it; the sidebar and the main render both honour this. */
@@ -112,7 +112,6 @@ function LandingPage({onLogout, user}) {
   const roleLabel = { super_admin: 'Super Admin', admin: 'Admin', staff: 'Staff' }[role] || 'Staff';
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* ===== SIDEBAR ===== */
-  const [isDarkMode, setIsDarkMode] = useState(true); /* ===== THEME ===== */
   const [activeView, setActiveView] = useState('Dashboard'); /* ===== ACTIVE VIEW ===== */
   const [handoff, setHandoff] = useState(null); /* ===== HANDOFF ===== */
   const [safetyStock, setSafetyStock] = useState(SAFETY_STOCK_DEFAULTS); /* ===== SAFETY STOCK ===== */
@@ -143,11 +142,6 @@ function LandingPage({onLogout, user}) {
     return () => { active = false; };
   }, []);
 
-  /* ===== THEME EFFECT ===== */
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
-  }, [isDarkMode]);
-
   /* ===== OUTSIDE CLICK ===== */
   useEffect(() => {
     if (!isNotifOpen) return;
@@ -170,10 +164,6 @@ function LandingPage({onLogout, user}) {
       handleNavigate(notif.view);
       setIsNotifOpen(false);
     }
-  };
-
-  const toggleTheme = () => {
-    setIsDarkMode((currentMode) => !currentMode);
   };
 
   const handleLogout =  () => {
@@ -449,8 +439,8 @@ function LandingPage({onLogout, user}) {
               {activeView === 'Reports' && canAccess('Reports') && <ReportAnalytics/>}
               {activeView === 'Setting' && canAccess('Setting') && (
                 <Settings
-                  isDarkMode={isDarkMode}
-                  onToggleTheme={toggleTheme}
+                  theme={theme}
+                  onThemeChange={onThemeChange}
                   role={roleLabel}
                   safetyStock={safetyStock}
                   onUpdateSafetyStock={setSafetyStock}

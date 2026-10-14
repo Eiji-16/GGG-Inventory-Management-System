@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\ActivityLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -95,18 +96,64 @@ class StaffController extends Controller
                 'user' => 'You cannot delete your own account.',
             ]);
         }
-        if ($user->isSuperAdmin()) {
-            $this->ensureNotLastSuperAdmin($user, 'delete');
-        }
 
-        $user->delete();
+        $request->validate([
+            'confirmation' => ['required', 'string', Rule::in(['DELETE'])],
+        ]);
+
+        DB::transaction(function () use ($request, $user): void {
+            $account = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+
+            if ($account->id === $request->user()->id) {
+                throw ValidationException::withMessages([
+                    'user' => 'You cannot delete your own account.',
+                ]);
+            }
+            if ($account->status !== User::STATUS_INACTIVE) {
+                throw ValidationException::withMessages([
+                    'user' => 'Only deactivated accounts can be permanently deleted.',
+                ]);
+            }
+
+            if ($account->isSuperAdmin()) {
+                $this->ensureNotLastSuperAdmin($account, 'delete');
+            }
+
+            if (config('session.driver') === 'database') {
+                DB::table(config('session.table', 'sessions'))
+                    ->where('user_id', $account->id)
+                    ->delete();
+            }
+
+            DB::table('password_reset_tokens')->where('email', $account->email)->delete();
+            DB::table('password_reset_otps')->where('email', $account->email)->delete();
+
+            ActivityLog::create([
+                'user_id' => $request->user()->id,
+                'action' => 'staff.delete',
+                'description' => 'Permanently deleted a staff account.',
+                'icon' => 'user',
+                'meta' => [
+                    'deleted_user_id' => $account->id,
+                    'deleted_user_email' => $account->email,
+                    'deleted_user_role' => $account->role,
+                ],
+            ]);
+
+            $account->delete();
+        });
 
         return response()->json(['deleted' => true]);
     }
 
     private function authorizeSuperAdmin(Request $request): void
     {
-        abort_unless($request->user() && $request->user()->isSuperAdmin(), 403, 'Super Admin only.');
+        $actor = $request->user();
+        $isActiveSuperAdmin = $actor
+            && $actor->isSuperAdmin()
+            && User::whereKey($actor->id)->value('status') === User::STATUS_ACTIVE;
+
+        abort_unless($isActiveSuperAdmin, 403, 'Active Super Admin only.');
     }
 
     /** Block the action if it would remove the last active Super Admin. */
