@@ -18,10 +18,14 @@ class ForecastController extends Controller
     {
         $data = $request->validate([
             'productId' => ['required', 'string', 'exists:products,code'],
+            'periodType' => ['sometimes', 'in:week,month,year'],
         ]);
 
         $product = Product::where('code', $data['productId'])->firstOrFail();
 
-        return response()->json($this->forecaster->forecast($product));
+        return response()->json($this->forecaster->forecast(
+            $product,
+            $data['periodType'] ?? 'month'
+        ));
     }
 }

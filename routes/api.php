@@ -32,8 +32,10 @@ Route::apiResource('suppliers', SupplierController::class);
 
 // Stock movements — Stock Control ledger (Stock In / Stock Out).
 Route::get('/stock-movements', [StockMovementController::class, 'index']);
+Route::get('/stock-activities', [StockMovementController::class, 'activities']);
 Route::post('/stock-movements', [StockMovementController::class, 'store']);
 Route::match(['put', 'patch'], '/stock-movements/{stockMovement}', [StockMovementController::class, 'update']);
+Route::delete('/stock-movements/products/{productCode}', [StockMovementController::class, 'clearProduct']);
 Route::delete('/stock-movements/{stockMovement}', [StockMovementController::class, 'destroy']);
 
 // Sales history — Forecasting tab. GET accepts ?product={code}.

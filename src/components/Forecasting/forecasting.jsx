@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './forecasting.css';
 
 const FORECAST_METHOD = 'Weighted Moving Average';
-const FORECAST_METHOD_NOTE = 'Uses the most recent three months with fixed weights of 1, 2, and 3; the newest month receives the greatest weight.';
+const FORECAST_METHOD_NOTE = 'Uses the most recent three selected periods with fixed weights of 1, 2, and 3; the newest period receives the greatest weight.';
 const EVENT_MONTHS = {
   Christmas: ['Nov', 'Dec'],
   Summer: ['Jun', 'Jul', 'Aug'],
@@ -51,16 +51,47 @@ async function requestJson(url, options = {}) {
   return data;
 }
 
-function formatPeriod(date) {
-  if (!date) return 'Next month';
+function formatPeriod(date, periodType = 'month') {
+  if (!date) return `Next ${periodType}`;
+  if (periodType === 'year') return new Date(`${date}T00:00:00`).getFullYear().toString();
+  if (periodType === 'week') {
+    const start = new Date(`${date}T00:00:00`);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    const startLabel = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const endLabel = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${startLabel}–${endLabel}`;
+  }
   return new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
     month: 'short',
     year: 'numeric',
   });
 }
 
-function formatHistoryPeriod(date) {
-  return formatPeriod(date);
+function formatHistoryPeriod(date, periodType = 'month') {
+  if (periodType === 'week') return `Week of ${formatPeriod(date, periodType)}`;
+  return formatPeriod(date, periodType);
+}
+
+function currentIsoWeek(date = new Date()) {
+  const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((utcDate - yearStart) / 86400000) + 1) / 7);
+  return `${utcDate.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+function isoWeekStart(weekValue) {
+  const match = /^(\d{4})-W(\d{2})$/.exec(weekValue);
+  if (!match) return '';
+  const year = Number(match[1]);
+  const week = Number(match[2]);
+  const januaryFourth = new Date(Date.UTC(year, 0, 4));
+  const day = januaryFourth.getUTCDay() || 7;
+  const monday = new Date(januaryFourth);
+  monday.setUTCDate(januaryFourth.getUTCDate() - day + 1 + (week - 1) * 7);
+  return monday.toISOString().slice(0, 10);
 }
 
 const SearchIcon = () => (
@@ -96,8 +127,10 @@ export default function DemandForecastDesign({ onNavigate }) {
   const [computing, setComputing] = useState(false);
   const [savingSales, setSavingSales] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [selectedPeriodType, setSelectedPeriodType] = useState('month');
   const [selectedMonth, setSelectedMonth] = useState(() => String(new Date().getMonth() + 1).padStart(2, '0'));
   const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
+  const [selectedWeek, setSelectedWeek] = useState(() => currentIsoWeek());
   const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
   const yearMenuRef = useRef(null);
   const [unitsSold, setUnitsSold] = useState('');
@@ -120,12 +153,18 @@ export default function DemandForecastDesign({ onNavigate }) {
       : 0,
     [sortedHistory]
   );
-  const effectivePct = seasonalOn ? (Number(adjustment) || 0) : 0;
+  const seasonalAvailable = selectedPeriodType === 'month';
+  const effectivePct = seasonalOn && seasonalAvailable ? (Number(adjustment) || 0) : 0;
   const adjustedDemand = forecast
     ? Math.max(0, Number((forecast.baseForecast * (1 + effectivePct / 100)).toFixed(1)))
     : null;
   const forecastDemand = adjustedDemand;
-  const annualDemand = forecastDemand == null ? 0 : Math.ceil(forecastDemand * 12);
+  const annualPeriods = selectedPeriodType === 'week' ? 52 : selectedPeriodType === 'year' ? 1 : 12;
+  const annualDemand = forecastDemand == null ? 0 : Math.ceil(forecastDemand * annualPeriods);
+  const periodAdjective = selectedPeriodType === 'week' ? 'weekly'
+    : selectedPeriodType === 'year' ? 'yearly' : 'monthly';
+  const periodUnit = selectedPeriodType === 'week' ? 'week'
+    : selectedPeriodType === 'year' ? 'year' : 'month';
   const reorderQuantity = selectedProduct && forecastDemand != null
     ? Math.max(0, Math.ceil(forecastDemand - Number(selectedProduct.stock || 0)))
     : 0;
@@ -160,7 +199,7 @@ export default function DemandForecastDesign({ onNavigate }) {
 
     let active = true;
     setLoadingHistory(true);
-    requestJson(`/api/sales-history?product=${encodeURIComponent(productId)}`)
+    requestJson(`/api/sales-history?product=${encodeURIComponent(productId)}&periodType=${selectedPeriodType}`)
       .then((data) => {
         if (active) setHistory(Array.isArray(data) ? data : []);
       })
@@ -171,7 +210,7 @@ export default function DemandForecastDesign({ onNavigate }) {
         if (active) setLoadingHistory(false);
       });
     return () => { active = false; };
-  }, [productId]);
+  }, [productId, selectedPeriodType]);
 
   useEffect(() => {
     if (!yearDropdownOpen) return;
@@ -195,6 +234,7 @@ export default function DemandForecastDesign({ onNavigate }) {
   const eventOptions = [...BUILT_IN_EVENTS, ...customEvents];
   const isCustomChoice = event === '__add__';
   const suggestedPct = useMemo(() => {
+    if (selectedPeriodType !== 'month') return null;
     const months = EVENT_MONTHS[event];
     if (!months || !sortedHistory.length || overallAverage === 0) return null;
     const matchingRows = sortedHistory.filter((row) => {
@@ -205,7 +245,7 @@ export default function DemandForecastDesign({ onNavigate }) {
     if (!matchingRows.length) return null;
     const eventAverage = matchingRows.reduce((total, row) => total + Number(row.unitsSold), 0) / matchingRows.length;
     return Math.round(((eventAverage - overallAverage) / overallAverage) * 100);
-  }, [event, overallAverage, sortedHistory]);
+  }, [event, overallAverage, selectedPeriodType, sortedHistory]);
 
   const filteredProducts = products.filter((product) => {
     const query = productSearch.trim().toLowerCase();
@@ -219,7 +259,7 @@ export default function DemandForecastDesign({ onNavigate }) {
       return;
     }
     if (!history.length) {
-      setError('Add at least one month of sales history before forecasting.');
+      setError(`Add at least one ${periodUnit} of sales history before forecasting.`);
       return;
     }
     setComputing(true);
@@ -228,7 +268,7 @@ export default function DemandForecastDesign({ onNavigate }) {
     try {
       const result = await requestJson('/api/forecasts', {
         method: 'POST',
-        body: JSON.stringify({ productId }),
+        body: JSON.stringify({ productId, periodType: selectedPeriodType }),
       });
       setForecast(result);
     } catch (computeError) {
@@ -250,17 +290,22 @@ export default function DemandForecastDesign({ onNavigate }) {
         method: 'POST',
         body: JSON.stringify({
           productId,
-          periodDate: `${selectedYear}-${selectedMonth}-01`,
+          periodDate: selectedPeriodType === 'week'
+            ? isoWeekStart(selectedWeek)
+            : selectedPeriodType === 'year'
+              ? `${selectedYear}-01-01`
+              : `${selectedYear}-${selectedMonth}-01`,
+          periodType: selectedPeriodType,
           unitsSold: Number(unitsSold),
         }),
       });
-      const updatedHistory = await requestJson(`/api/sales-history?product=${encodeURIComponent(productId)}`);
+      const updatedHistory = await requestJson(`/api/sales-history?product=${encodeURIComponent(productId)}&periodType=${selectedPeriodType}`);
       setHistory(Array.isArray(updatedHistory) ? updatedHistory : []);
       setForecast(null);
       setUnitsSold('');
-      setNotice('Monthly sales saved. Recompute the forecast to use the updated history.');
+      setNotice(`${periodAdjective[0].toUpperCase() + periodAdjective.slice(1)} sales saved. Recompute the forecast to use the updated history.`);
     } catch (saveError) {
-      setError(saveError.message || 'Could not save monthly sales.');
+      setError(saveError.message || `Could not save ${periodUnit} sales.`);
     } finally {
       setSavingSales(false);
     }
@@ -298,15 +343,15 @@ export default function DemandForecastDesign({ onNavigate }) {
       ['Product', selectedProduct.name],
       ['Product ID', selectedProduct.id],
       ['Forecast method', FORECAST_METHOD],
-      ['Forecast period', formatPeriod(forecast.forecastPeriod)],
-      ['Base forecast (units)', forecast.baseForecast],
+      ['Forecast period', formatPeriod(forecast.forecastPeriod, selectedPeriodType)],
+      [`Base forecast (units/${selectedPeriodType})`, forecast.baseForecast],
       ['Seasonal event', seasonalOn ? event : 'none'],
       ['Adjustment (%)', effectivePct],
-      ['Adjusted monthly demand (units)', adjustedDemand],
+      [`Adjusted demand (units/${selectedPeriodType})`, adjustedDemand],
       ['Annualized demand (units)', annualDemand],
       ['', ''],
       ['Period', 'Units sold'],
-      ...sortedHistory.map((row) => [formatHistoryPeriod(row.periodDate), row.unitsSold]),
+      ...sortedHistory.map((row) => [formatHistoryPeriod(row.periodDate, selectedPeriodType), row.unitsSold]),
     ];
     const blob = new Blob([rows.map((row) => row.map(escape).join(',')).join('\n')], {
       type: 'text/csv;charset=utf-8;',
@@ -325,6 +370,9 @@ export default function DemandForecastDesign({ onNavigate }) {
         product: selectedProduct.name,
         productId: selectedProduct.id,
         annualDemand,
+        forecastDemand,
+        forecastPeriod: forecast.forecastPeriod,
+        forecastPeriodType: selectedPeriodType,
       });
     }
   };
@@ -334,6 +382,7 @@ export default function DemandForecastDesign({ onNavigate }) {
       id: 'forecast',
       periodDate: forecast.forecastPeriod,
       unitsSold: forecastDemand,
+      periodType: selectedPeriodType,
       isForecast: true,
     }]
     : sortedHistory.slice(-6);
@@ -369,9 +418,21 @@ export default function DemandForecastDesign({ onNavigate }) {
                 </select>
               </div>
               <div className="f-field" style={{ minWidth: 150 }}>
-                <label>Forecast period</label>
-                <select value="Month" disabled aria-label="Forecast period">
-                  <option>Month</option>
+                <label htmlFor="forecast-period">Forecast period</label>
+                <select
+                  id="forecast-period"
+                  value={selectedPeriodType}
+                  disabled={computing}
+                  onChange={(e) => {
+                    const periodType = e.target.value;
+                    setSelectedPeriodType(periodType);
+                    if (periodType !== 'month') setSeasonalOn(false);
+                  }}
+                  aria-label="Forecast period"
+                >
+                  <option value="week">Week</option>
+                  <option value="month">Month</option>
+                  <option value="year">Year</option>
                 </select>
               </div>
               <div className="f-field">
@@ -395,8 +456,8 @@ export default function DemandForecastDesign({ onNavigate }) {
                   <div className="f-val">{selectedProduct ? Number(selectedProduct.stock || 0) : '—'} <small>units</small></div>
                 </div>
                 <div className="f-stat-box">
-                  <div className="f-lbl">Avg. monthly sales</div>
-                  <div className="f-val">{history.length ? overallAverage.toFixed(1) : '—'} <small>units/mo</small></div>
+                  <div className="f-lbl">Avg. {periodAdjective} sales</div>
+                  <div className="f-val">{history.length ? overallAverage.toFixed(1) : '—'} <small>units/{periodUnit}</small></div>
                 </div>
                 <div className="f-stat-box">
                   <div className="f-lbl">Data points</div>
@@ -418,7 +479,7 @@ export default function DemandForecastDesign({ onNavigate }) {
                 <>
                   <div className="f-result-big">
                     <div className="f-num">{forecastDemand.toFixed(1)}</div>
-                    <div className="f-lbl">Predicted units — {formatPeriod(forecast.forecastPeriod)}</div>
+                    <div className="f-lbl">Predicted units — {formatPeriod(forecast.forecastPeriod, selectedPeriodType)}</div>
                   </div>
                   <div className="f-stat-row">
                     <div className="f-stat-box">
@@ -427,32 +488,35 @@ export default function DemandForecastDesign({ onNavigate }) {
                     </div>
                   </div>
                   <button type="button" className="f-btn f-btn-link f-eoq-handoff" onClick={computeEoqFromForecast}>
-                    <CalculatorIcon /> Compute EOQ from Forecast
+                    <CalculatorIcon /> Optional: Open EOQ Calculator
                   </button>
-                  <p className="f-handoff-note">Sends {annualDemand.toLocaleString()} units/year as annual demand (D)</p>
+                  <p className="f-handoff-note">
+                    Opens EOQ with annual demand (D) set to {annualDemand.toLocaleString()} units/year.
+                    Ordering (S) and holding (H) costs are required to calculate an order size.
+                  </p>
                 </>
               ) : (
                 <div className="f-result-placeholder">
                   {loadingHistory ? 'Loading sales history…' : history.length
-                    ? 'Compute the weighted moving average to see the monthly forecast.'
+                    ? `Compute the weighted moving average to see the ${periodAdjective} forecast.`
                     : 'Add sales history for this product, then compute a forecast.'}
                 </div>
               )}
             </div>
 
             <div className="f-card f-area-chart">
-              <h3>Actual vs. Forecasted Demand</h3>
-              <p className="f-sub">Monthly sales history and the next-period projection</p>
+              <h3>Sales History &amp; Forecast</h3>
+              <p className="f-sub">{selectedPeriodType[0].toUpperCase() + selectedPeriodType.slice(1)} sales history and the next-period projection</p>
               <div className="f-chart-wrap">
                 {chartRows.length ? (
-                  <div className="f-forecast-chart" role="img" aria-label="Monthly sales history and demand forecast bar chart">
+                  <div className="f-forecast-chart" role="img" aria-label={`${periodAdjective} sales history and demand forecast bar chart`}>
                     {chartRows.map((row) => (
                       <div className={`f-forecast-bar-item${row.isForecast ? ' is-forecast' : ''}`} key={row.id}>
                         <span className="f-forecast-bar-value">{Number(row.unitsSold).toFixed(row.isForecast ? 1 : 0)}</span>
                         <div className="f-forecast-bar-track">
                           <div className="f-forecast-bar" style={{ width: `${Math.max(2, Number(row.unitsSold) / chartMax * 100)}%` }} />
                         </div>
-                        <span className="f-forecast-bar-label">{formatHistoryPeriod(row.periodDate)}</span>
+                        <span className="f-forecast-bar-label">{formatHistoryPeriod(row.periodDate, selectedPeriodType)}</span>
                       </div>
                     ))}
                   </div>
@@ -478,10 +542,19 @@ export default function DemandForecastDesign({ onNavigate }) {
               <div className="f-toggle-row">
                 <div>
                   <h3 style={{ marginBottom: 2 }}>Seasonal Adjustment</h3>
-                  <p className="f-sub" style={{ margin: 0 }}>Optional adjustment applied after the fixed WMA forecast.</p>
+                  <p className="f-sub" style={{ margin: 0 }}>
+                    {seasonalAvailable
+                      ? 'Optional adjustment applied after the fixed WMA forecast.'
+                      : 'Seasonal event adjustments use monthly sales history. Select Month to use this feature.'}
+                  </p>
                 </div>
                 <label className="f-switch">
-                  <input type="checkbox" checked={seasonalOn} onChange={(e) => setSeasonalOn(e.target.checked)} />
+                  <input
+                    type="checkbox"
+                    checked={seasonalOn}
+                    onChange={(e) => setSeasonalOn(e.target.checked)}
+                    disabled={!seasonalAvailable}
+                  />
                   <span className="f-slider" />
                 </label>
               </div>
@@ -536,54 +609,83 @@ export default function DemandForecastDesign({ onNavigate }) {
 
             <div className="f-card f-area-history">
               <h3>Historical Sales Data</h3>
-              <p className="f-sub">Saved by product and month. Saving an existing month replaces its sales value.</p>
+              <p className="f-sub">
+                Saved by product and {periodUnit}. Saving an existing {periodUnit} replaces its sales value.
+              </p>
               <form className="f-sales-entry" onSubmit={saveSales}>
-                <div className="f-field">
-                  <label htmlFor="sales-month-select">Month</label>
-                  <select
-                    id="sales-month-select"
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(e.target.value)}
-                    required
-                  >
-                    {MONTH_OPTIONS.map((m) => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="f-field f-year-field">
-                  <label htmlFor="sales-year-select">Year</label>
-                  <div className="f-year-select-wrap">
-                    <button
-                      id="sales-year-select"
-                      type="button"
-                      className="f-custom-select-btn"
-                      onClick={() => setYearDropdownOpen((open) => !open)}
-                      aria-haspopup="listbox"
-                      aria-expanded={yearDropdownOpen}
-                    >
-                      {selectedYear}
-                    </button>
-                    {yearDropdownOpen && (
-                      <div className="f-year-dropdown-menu" role="listbox" ref={yearMenuRef}>
-                        {YEAR_OPTIONS.map((yr) => (
-                          <div
-                            key={yr}
-                            className={`f-year-opt${yr === selectedYear ? ' is-selected' : ''}`}
-                            role="option"
-                            aria-selected={yr === selectedYear}
-                            onClick={() => {
-                              setSelectedYear(yr);
-                              setYearDropdownOpen(false);
-                            }}
-                          >
-                            {yr}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                {selectedPeriodType === 'week' ? (
+                  <div className="f-field">
+                    <label htmlFor="sales-week-select">Week</label>
+                    <input
+                      id="sales-week-select"
+                      type="week"
+                      value={selectedWeek}
+                      onChange={(e) => setSelectedWeek(e.target.value)}
+                      required
+                    />
                   </div>
-                </div>
+                ) : selectedPeriodType === 'year' ? (
+                  <div className="f-field">
+                    <label htmlFor="sales-year-select">Year</label>
+                    <select
+                      id="sales-year-select"
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(e.target.value)}
+                      required
+                    >
+                      {YEAR_OPTIONS.map((year) => <option key={year} value={year}>{year}</option>)}
+                    </select>
+                  </div>
+                ) : (
+                  <>
+                    <div className="f-field">
+                      <label htmlFor="sales-month-select">Month</label>
+                      <select
+                        id="sales-month-select"
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        required
+                      >
+                        {MONTH_OPTIONS.map((m) => (
+                          <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="f-field f-year-field">
+                      <label htmlFor="sales-year-select">Year</label>
+                      <div className="f-year-select-wrap">
+                        <button
+                          id="sales-year-select"
+                          type="button"
+                          className="f-custom-select-btn"
+                          onClick={() => setYearDropdownOpen((open) => !open)}
+                          aria-haspopup="listbox"
+                          aria-expanded={yearDropdownOpen}
+                        >
+                          {selectedYear}
+                        </button>
+                        {yearDropdownOpen && (
+                          <div className="f-year-dropdown-menu" role="listbox" ref={yearMenuRef}>
+                            {YEAR_OPTIONS.map((yr) => (
+                              <div
+                                key={yr}
+                                className={`f-year-opt${yr === selectedYear ? ' is-selected' : ''}`}
+                                role="option"
+                                aria-selected={yr === selectedYear}
+                                onClick={() => {
+                                  setSelectedYear(yr);
+                                  setYearDropdownOpen(false);
+                                }}
+                              >
+                                {yr}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
                 <div className="f-field">
                   <label htmlFor="sales-units">Units sold</label>
                   <input id="sales-units" type="number" min="0" step="1" value={unitsSold} onChange={(e) => setUnitsSold(e.target.value)} required />
@@ -594,13 +696,13 @@ export default function DemandForecastDesign({ onNavigate }) {
               </form>
               <div className="f-scroll-table">
                 <table className="f-hist">
-                  <thead><tr><th>Period</th><th>Units sold</th><th>Action</th></tr></thead>
+                  <thead><tr><th>{periodUnit[0].toUpperCase() + periodUnit.slice(1)}</th><th>Units sold</th><th>Action</th></tr></thead>
                   <tbody>
                     {loadingHistory ? (
                       <tr><td colSpan="3">Loading sales history…</td></tr>
                     ) : [...sortedHistory].reverse().length ? [...sortedHistory].reverse().map((row) => (
                       <tr key={row.id}>
-                        <td>{formatHistoryPeriod(row.periodDate)}</td>
+                        <td>{formatHistoryPeriod(row.periodDate, selectedPeriodType)}</td>
                         <td>{row.unitsSold}</td>
                         <td>
                           <button type="button" className="f-history-delete" onClick={() => deleteSales(row.id)} disabled={deletingId === row.id}>
@@ -635,11 +737,11 @@ export default function DemandForecastDesign({ onNavigate }) {
                 </div>
                 <div className="f-summary-item">
                   <div className="f-lbl">Forecasted</div>
-                  <div className="f-val">{forecast ? `${forecast.baseForecast} units` : '—'}</div>
+                  <div className="f-val">{forecast ? `${forecast.baseForecast} units/${periodUnit}` : '—'}</div>
                 </div>
                 <div className="f-summary-item">
-                  <div className="f-lbl">Season-adjusted</div>
-                  <div className="f-val">{adjustedDemand == null ? '—' : `${adjustedDemand.toFixed(1)} units`}</div>
+                  <div className="f-lbl">Adjusted demand</div>
+                  <div className="f-val">{adjustedDemand == null ? '—' : `${adjustedDemand.toFixed(1)} units/${periodUnit}`}</div>
                 </div>
                 <div className="f-summary-item">
                   <div className="f-lbl">Suggested reorder</div>
@@ -651,14 +753,14 @@ export default function DemandForecastDesign({ onNavigate }) {
                 </div>
                 <div className="f-summary-item">
                   <div className="f-lbl">Forecast period</div>
-                  <div className="f-val">{forecast ? formatPeriod(forecast.forecastPeriod) : 'Next month'}</div>
+                  <div className="f-val">{forecast ? formatPeriod(forecast.forecastPeriod, selectedPeriodType) : `Next ${periodUnit}`}</div>
                 </div>
               </div>
             </section>
 
             <div className="f-card f-area-reorder">
               <h3>Suggested Reorder Quantity</h3>
-              <p className="f-sub">Forecasted monthly demand minus current stock</p>
+              <p className="f-sub">Forecasted {periodAdjective} demand minus current stock</p>
               <div className="f-reorder-figure">
                 <span className="f-num">{forecast ? reorderQuantity : '—'}</span>
                 <span className="f-unit">units</span>

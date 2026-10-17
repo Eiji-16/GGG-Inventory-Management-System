@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * SalesHistory — monthly units-sold per product, feeds the Forecasting chart.
+ * SalesHistory — units sold per product and reporting period.
  *
  * Table is `sales_history`, set explicitly so Laravel doesn't pluralise it to
  * `sales_histories`.
@@ -18,6 +18,7 @@ class SalesHistory extends Model
     protected $fillable = [
         'product_id',
         'period_date',
+        'period_type',
         'units_sold',
     ];
 

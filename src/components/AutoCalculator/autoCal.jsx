@@ -110,9 +110,14 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
     if (!product) return;
 
     setSelectedProductId(product.id);
-    setInputs(prev => ({ ...prev, demand: String(handoff.annualDemand ?? '') }));
+    setInputs({
+      demand: String(handoff.annualDemand ?? ''),
+      orderCost: '',
+      holdingCost: '',
+    });
     setErrors(prev => ({ ...prev, demand: '' }));
     setResult(null);
+    setSaveStatus('');
   }, [handoff, products]);
 
   const handleInputChange = (e) => {
@@ -128,9 +133,10 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
     const demandValue = p
       ? (Number(p.demandFromHistory) > 0 ? p.demandFromHistory : (p.annualDemand || 0))
       : '';
-    setInputs(prev => ({ ...prev, demand: String(demandValue) }));
+    setInputs({ demand: String(demandValue), orderCost: '', holdingCost: '' });
     setErrors(prev => ({ ...prev, demand: '' }));
     setResult(null);
+    setSaveStatus('');
   };
 
   /* Persist a computation (with "computed by") so it appears in Reports → EOQ. */
@@ -257,7 +263,13 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
       {handoff && (
         <div className="ac-handoff-banner">
           <TrendingUp size={13} />
-          <span>Received <strong>{handoff.product}</strong> — annual demand <strong>{Number(handoff.annualDemand).toLocaleString()} units/year</strong></span>
+          <div>
+            <span>
+              Forecast received for <strong>{handoff.product}</strong> — annual demand (D) is pre-filled with{' '}
+              <strong>{Number(handoff.annualDemand).toLocaleString()} units/year</strong>.
+            </span>
+            <small>For a valid EOQ, enter this product’s actual ordering cost (S) and holding cost (H). The calculator will not estimate missing costs.</small>
+          </div>
         </div>
       )}
 
@@ -269,6 +281,16 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
             <span className="ac-formula-expr"><Calculator size={12} />{EOQ_FORMULA.formula}</span>
           </div>
           <p className="ac-source-note ac-panel-description">{EOQ_FORMULA.description}</p>
+          {handoff && (
+            <div className="ac-cost-input-notice" role="status">
+              {inputs.orderCost && inputs.holdingCost
+                ? 'Both cost inputs are filled. Check that these are the actual costs for this product before computing.'
+                : `Still needed: ${[
+                  !inputs.orderCost && 'ordering cost (S) per order',
+                  !inputs.holdingCost && 'holding cost (H) per unit/year',
+                ].filter(Boolean).join(' and ')}.`}
+            </div>
+          )}
 
           <div className="ac-product-selector">
             <label className="ac-label" htmlFor="ac-product-select">Auto-fill from product</label>

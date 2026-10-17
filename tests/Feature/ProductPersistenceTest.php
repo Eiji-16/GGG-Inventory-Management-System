@@ -10,6 +10,34 @@ class ProductPersistenceTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_deleting_a_product_removes_its_stock_movements_and_quantity(): void
+    {
+        $product = $this->postJson('/api/products', [
+            'name' => 'Cherry Mobile',
+            'category' => 'Phone',
+            'stock' => 12,
+        ])->assertCreated()->json();
+
+        $movement = $this->postJson('/api/stock-movements', [
+            'productId' => $product['id'],
+            'type' => 'Stock In',
+            'qty' => 3,
+            'date' => now()->toDateString(),
+        ])->assertCreated()->json();
+
+        $this->deleteJson('/api/products/'.$product['id'])
+            ->assertOk()
+            ->assertJsonPath('deleted', true);
+
+        $this->assertDatabaseMissing('products', ['code' => $product['id']]);
+        $this->assertDatabaseMissing('stock_movements', ['id' => $movement['id']]);
+        $this->getJson('/api/products')->assertOk()->assertJsonMissing(['id' => $product['id']]);
+        $this->getJson('/api/stock-movements')->assertOk()->assertJsonMissing(['id' => $movement['id']]);
+        $this->assertDatabaseHas('activity_logs', [
+            'action' => 'product.delete',
+        ]);
+    }
+
     public function test_created_product_and_edits_remain_in_the_database_and_api_list(): void
     {
         $created = $this->postJson('/api/products', [

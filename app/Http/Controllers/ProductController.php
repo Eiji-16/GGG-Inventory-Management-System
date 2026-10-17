@@ -131,7 +131,17 @@ class ProductController extends Controller
     /** DELETE /api/products/{code} */
     public function destroy(string $code)
     {
-        Product::where('code', $code)->firstOrFail()->delete();
+        $product = Product::where('code', $code)->firstOrFail();
+        $productName = $product->name;
+        $stockOnHand = $product->stock_on_hand;
+        $product->delete();
+
+        \App\Models\ActivityLog::record(
+            'product.delete',
+            "Deleted product — {$productName}",
+            'boxes',
+            ['productId' => $code, 'product' => $productName, 'stockOnHand' => $stockOnHand]
+        );
 
         return response()->json(['deleted' => true]);
     }

@@ -921,11 +921,18 @@ body {
 }
 
 /*==========VIEW TRANSITION==========*/
-/* Each tab's content fades + eases up as it mounts when you switch views.
-   The direct child is the active view component's root, so React remounting
-   it on a view change re-triggers the animation. */
+/* A view animates the first time it is mounted; visited views stay mounted
+   while hidden so switching tabs preserves their current state. */
 .main-content-window > * {
     animation: view-enter 0.32s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.main-content-window > .app-view-panel {
+    width: 100%;
+}
+
+.main-content-window > .app-view-panel[hidden] {
+    display: none !important;
 }
 
 @keyframes view-enter {

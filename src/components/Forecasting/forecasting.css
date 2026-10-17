@@ -109,6 +109,7 @@
 
 .f-root input[type="text"],
 .f-root input[type="number"],
+.f-root input[type="week"],
 .f-root select {
     width: 100%;
     min-height: 40px;
@@ -133,12 +134,14 @@
 
 .f-root input[type="text"]:hover,
 .f-root input[type="number"]:hover,
+.f-root input[type="week"]:hover,
 .f-root select:hover {
     border-color: var(--accent-ring);
 }
 
 .f-root input[type="text"]:focus,
 .f-root input[type="number"]:focus,
+.f-root input[type="week"]:focus,
 .f-root select:focus {
     border-color: var(--background-icon-active-color);
     box-shadow: 0 0 0 3px var(--background-icon-active-color-theme);
@@ -459,14 +462,19 @@
 
 .f-grid {
     display: grid;
-    grid-template-columns: 1.1fr 2fr 1.1fr;
-    grid-template-rows: auto auto auto auto min-content;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-rows: repeat(10, minmax(50px, auto));
     grid-template-areas:
-        "controls controls controls"
-        "product  chart     result"
-        "method   chart     reorder"
-        "method   history   summary"
-        "method   history   export";
+        "controls controls controls controls controls controls controls"
+        "product product chart chart chart result result"
+        "product product chart chart chart result result"
+        "product product chart chart chart result result"
+        "product product history history history reorder reorder"
+        "method method history history history reorder reorder"
+        "method method history history history summary summary"
+        "method method history history history summary summary"
+        "method method history history history summary summary"
+        "method method history history history export export";
     gap: 12px;
 
     align-items: stretch;
@@ -487,10 +495,22 @@
 .f-area-summary  { grid-area: summary; }
 .f-area-export   { grid-area: export; }
 
-/* Export sits in the bottom-right; stretch it to line up with the history
-   card's bottom edge so the right column ends flush. */
 .f-area-export {
     align-self: stretch;
+    justify-self: stretch;
+    width: 100%;
+    min-width: 0;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    gap: 8px;
+    height: auto;
+    min-height: 96px;
+    padding: 10px 12px;
+}
+
+.f-area-export h3 {
+    margin: 0;
 }
 
 /*==========METHOD AREA==========*/
@@ -1036,12 +1056,14 @@
 .f-summary-compact .f-summary-item .f-lbl {
     margin-bottom: 4px;
     font-size: 9.5px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
 }
 .f-summary-compact .f-summary-item .f-val {
-    font-size: 15px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 /*==========SUGGESTION ROW==========*/
@@ -1167,13 +1189,20 @@
 
 /*==========EXPORT BUTTONS==========*/
 .f-area-export .f-download-actions {
-    margin-top: auto;
-    padding-top: 8px;
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.f-area-export .f-download-actions .f-btn {
+    min-width: 0;
 }
 
 /*==========HISTORY SCROLL==========*/
 .f-area-history .f-scroll-table {
-    min-height: 210px;
+    min-height: 300px;
 }
 
 .f-sales-entry {
@@ -1218,28 +1247,88 @@
 /*==========RESPONSIVENESS==========*/
 
 @media (max-width: 1100px) {
-    /*==========GRID STACK==========*/
+    /*==========TABLET GRID==========*/
     .f-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         grid-template-rows: none;
         grid-template-areas:
-            "controls"
-            "product"
-            "result"
-            "chart"
-            "method"
-            "history"
-            "summary"
-            "reorder"
-            "export";
+            "controls controls"
+            "product result"
+            "chart chart"
+            "history history"
+            "method reorder"
+            "summary summary"
+            "export export";
+    }
+
+    .f-controls-bar .f-field {
+        flex: 1 1 calc(50% - 10px);
+    }
+
+    .f-controls-bar .f-field.f-grow {
+        flex-basis: 100%;
     }
 
     .f-area-product .f-stat-row {
         flex-direction: row;
     }
 
+    .f-area-product .f-stat-box {
+        flex: 1 1 0;
+    }
+
+    .f-area-chart {
+        min-height: 300px;
+    }
+
     .f-area-history .f-scroll-table {
-        max-height: 220px;
+        max-height: 360px;
+        min-height: 300px;
+    }
+}
+
+@media (max-width: 680px) {
+    /*==========MOBILE STACK==========*/
+    .f-grid {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "controls"
+            "product"
+            "result"
+            "chart"
+            "history"
+            "method"
+            "reorder"
+            "summary"
+            "export";
+        gap: 10px;
+    }
+
+    .f-controls-bar .f-field,
+    .f-controls-bar .f-field.f-grow {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .f-area-product .f-stat-row {
+        flex-wrap: wrap;
+    }
+
+    .f-area-product .f-stat-box {
+        flex: 1 1 120px;
+    }
+
+    .f-area-chart {
+        min-height: 260px;
+    }
+
+    .f-area-history .f-scroll-table {
+        max-height: 320px;
+        min-height: 220px;
+    }
+
+    .f-area-export {
+        min-height: 90px;
     }
 }
 

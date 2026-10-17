@@ -141,7 +141,9 @@ class ReportController extends Controller
     {
         $rows = [];
         foreach ($products as $p) {
-            $history = SalesHistory::where('product_id', $p->id)->pluck('units_sold');
+            $history = SalesHistory::where('product_id', $p->id)
+                ->where('period_type', 'month')
+                ->pluck('units_sold');
             if ($history->isEmpty()) continue;
 
             $avg = round($history->avg(), 1);

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useLayoutEffect, useState, useRef } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -113,6 +113,9 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* ===== SIDEBAR ===== */
   const [activeView, setActiveView] = useState('Dashboard'); /* ===== ACTIVE VIEW ===== */
+  const [visitedViews, setVisitedViews] = useState(() => new Set(['Dashboard']));
+  const mainContentRef = useRef(null);
+  const viewScrollPositions = useRef({});
   const [handoff, setHandoff] = useState(null); /* ===== HANDOFF ===== */
   const [safetyStock, setSafetyStock] = useState(SAFETY_STOCK_DEFAULTS); /* ===== SAFETY STOCK ===== */
   const [notifications, setNotifications] = useState([]); /* ===== NOTIFICATION STATE ===== */
@@ -177,10 +180,23 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
   /* ===== NAVIGATION ===== */
   const handleNavigate = (view, payload = null) => {
     if (!canAccess(view)) return; // role not permitted — ignore
+    if (mainContentRef.current) {
+      viewScrollPositions.current[activeView] = mainContentRef.current.scrollTop;
+    }
+    setVisitedViews((previous) => {
+      if (previous.has(view)) return previous;
+      return new Set(previous).add(view);
+    });
     setHandoff(payload);
     setActiveView(view);
     setIsSidebarOpen(false);
   };
+
+  useLayoutEffect(() => {
+    const mainContent = mainContentRef.current;
+    if (!mainContent) return;
+    mainContent.scrollTop = viewScrollPositions.current[activeView] ?? 0;
+  }, [activeView]);
   return (
 
     <div className="dashboard-page-wrapper"> {/* ===== PAGE WRAPPER ===== */}
@@ -237,19 +253,19 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
             </button>
           </li>
           {canAccess('Auto-Calculator') && <li className="sidebar-section-label">Planning</li>}
-          {canAccess('Auto-Calculator') && (
-          <li className={`sidebar-item ${activeView === 'Auto-Calculator' ? 'active' : ''}`}>
-            <button onClick={() => handleNavigate('Auto-Calculator')}>
-              <Calculator className="sidebar-icon" />
-              <span className="sidebar-label">Auto-Calculator</span>
-            </button>
-          </li>
-          )}
           {canAccess('Forecasting') && (
           <li className={`sidebar-item ${activeView === 'Forecasting' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Forecasting')}>
               <TrendingUp className="sidebar-icon" />
               <span className="sidebar-label">Forecasting</span>
+            </button>
+          </li>
+          )}
+          {canAccess('Auto-Calculator') && (
+          <li className={`sidebar-item ${activeView === 'Auto-Calculator' ? 'active' : ''}`}>
+            <button onClick={() => handleNavigate('Auto-Calculator')}>
+              <Calculator className="sidebar-icon" />
+              <span className="sidebar-label">Auto-Calculator</span>
             </button>
           </li>
           )}
@@ -425,28 +441,62 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
               </div>
             </div>
           </header>
-            <main className={`main-content-window ${activeView === 'Auto-Calculator' ? 'no-fade' : ''}`}>
+            <main
+              ref={mainContentRef}
+              className={`main-content-window ${activeView === 'Auto-Calculator' ? 'no-fade' : ''}`}
+            >
               {/* ===== CONTENT VIEWS (each also guarded by role) ===== */}
-              {activeView === 'Dashboard' && canAccess('Dashboard') && (
-                <Dashboard onNavigate={handleNavigate} isSuperAdmin={role === 'super_admin'} />
+              {visitedViews.has('Dashboard') && canAccess('Dashboard') && (
+                <div className="app-view-panel" hidden={activeView !== 'Dashboard'}>
+                  <Dashboard onNavigate={handleNavigate} isSuperAdmin={role === 'super_admin'} />
+                </div>
               )}
-              {activeView === 'Product-Supplier' && canAccess('Product-Supplier') && <ProductSupplier />}
-              {activeView === 'Stock' && canAccess('Stock') && <StockManagement onNavigate={handleNavigate} safetyStock={safetyStock} handoff={handoff} />}
-              {activeView === 'Auto-Calculator' && canAccess('Auto-Calculator') && <AutoCalculator onNavigate={handleNavigate} handoff={handoff} />}
-              {activeView === 'Forecasting' && canAccess('Forecasting') && <SalesForecasting onNavigate={handleNavigate} />}
-
-              {activeView === 'Staffs' && canAccess('Staffs') && <Staffs isSuperAdmin={user?.isSuperAdmin === true} />}
-              {activeView === 'Reports' && canAccess('Reports') && <ReportAnalytics/>}
-              {activeView === 'Setting' && canAccess('Setting') && (
-                <Settings
-                  theme={theme}
-                  onThemeChange={onThemeChange}
-                  role={roleLabel}
-                  safetyStock={safetyStock}
-                  onUpdateSafetyStock={setSafetyStock}
-                />
+              {visitedViews.has('Product-Supplier') && canAccess('Product-Supplier') && (
+                <div className="app-view-panel" hidden={activeView !== 'Product-Supplier'}>
+                  <ProductSupplier />
+                </div>
               )}
-              {activeView === 'Profile' && <Profile />}
+              {visitedViews.has('Stock') && canAccess('Stock') && (
+                <div className="app-view-panel" hidden={activeView !== 'Stock'}>
+                  <StockManagement onNavigate={handleNavigate} safetyStock={safetyStock} handoff={handoff} />
+                </div>
+              )}
+              {visitedViews.has('Auto-Calculator') && canAccess('Auto-Calculator') && (
+                <div className="app-view-panel" hidden={activeView !== 'Auto-Calculator'}>
+                  <AutoCalculator onNavigate={handleNavigate} handoff={handoff} />
+                </div>
+              )}
+              {visitedViews.has('Forecasting') && canAccess('Forecasting') && (
+                <div className="app-view-panel" hidden={activeView !== 'Forecasting'}>
+                  <SalesForecasting onNavigate={handleNavigate} />
+                </div>
+              )}
+              {visitedViews.has('Staffs') && canAccess('Staffs') && (
+                <div className="app-view-panel" hidden={activeView !== 'Staffs'}>
+                  <Staffs isSuperAdmin={user?.isSuperAdmin === true} />
+                </div>
+              )}
+              {visitedViews.has('Reports') && canAccess('Reports') && (
+                <div className="app-view-panel" hidden={activeView !== 'Reports'}>
+                  <ReportAnalytics />
+                </div>
+              )}
+              {visitedViews.has('Setting') && canAccess('Setting') && (
+                <div className="app-view-panel" hidden={activeView !== 'Setting'}>
+                  <Settings
+                    theme={theme}
+                    onThemeChange={onThemeChange}
+                    role={roleLabel}
+                    safetyStock={safetyStock}
+                    onUpdateSafetyStock={setSafetyStock}
+                  />
+                </div>
+              )}
+              {visitedViews.has('Profile') && canAccess('Profile') && (
+                <div className="app-view-panel" hidden={activeView !== 'Profile'}>
+                  <Profile />
+                </div>
+              )}
             </main>
         </div>
       </div>

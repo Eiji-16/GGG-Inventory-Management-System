@@ -69,6 +69,15 @@ const signedQty = (row) => {
   return row.type === 'Stock Out' ? -qty : qty;
 };
 
+const activityPresentation = (item) => {
+  if (item.action === 'stock.clear') return { Icon: Trash2, cls: 'sc-act-delete', label: 'Cleared' };
+  if (item.action === 'stock.edit') return { Icon: Pencil, cls: 'sc-act-edit', label: 'Updated' };
+  if (item.action === 'stock.delete') return { Icon: Trash2, cls: 'sc-act-delete', label: 'Deleted' };
+  if (item.meta?.type === 'Adjustment') return { Icon: Activity, cls: 'sc-act-edit', label: 'Corrected' };
+  if (item.action === 'stock.out') return { Icon: ArrowDownRight, cls: 'sc-act-delete', label: 'Stock Out' };
+  return { Icon: PlusCircle, cls: 'sc-act-add', label: 'Stock In' };
+};
+
 function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff = null }) {
   const [stockFromDatabase, setStockFromDatabase] = useState([]);
   const [stockLoading, setStockLoading] = useState(true);
@@ -82,6 +91,11 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
   const [showActivity, setShowActivity] = useState(false);
   const [showReorderPlan, setShowReorderPlan] = useState(false);
   const [activityLog, setActivityLog] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityError, setActivityError] = useState('');
+  const [productActivityLog, setProductActivityLog] = useState([]);
+  const [productActivityLoading, setProductActivityLoading] = useState(false);
+  const [productActivityError, setProductActivityError] = useState('');
   const [productOptions, setProductOptions] = useState([]);
   const [openingStock, setOpeningStock] = useState('');
   const [openingSaving, setOpeningSaving] = useState(false);
@@ -90,17 +104,34 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [highlightId, setHighlightId] = useState(null); /* row to flash from a Dashboard handoff */
 
-  const logActivity = (action, product, detail) => {
-    setActivityLog((prev) => [
-      {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        action,
-        product,
-        detail,
-        time: new Date(),
-      },
-      ...prev,
-    ]);
+  const loadStockActivities = async (productId = null) => {
+    const isProductReport = productId !== null;
+    if (isProductReport) {
+      setProductActivityLoading(true);
+      setProductActivityError('');
+    } else {
+      setActivityLoading(true);
+      setActivityError('');
+    }
+
+    try {
+      const params = new URLSearchParams();
+      if (productId) params.set('productId', productId);
+      const response = await fetch(`/api/stock-activities${params.size ? `?${params}` : ''}`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) throw new Error(`Could not load stock activity (${response.status}).`);
+      const logs = await response.json();
+      if (!Array.isArray(logs)) throw new Error('The stock activity response was invalid.');
+      if (isProductReport) setProductActivityLog(logs);
+      else setActivityLog(logs);
+    } catch (error) {
+      if (isProductReport) setProductActivityError(error.message || 'Could not load product activity.');
+      else setActivityError(error.message || 'Could not load stock activity.');
+    } finally {
+      if (isProductReport) setProductActivityLoading(false);
+      else setActivityLoading(false);
+    }
   };
 
   const refreshStockData = async () => {
@@ -201,22 +232,16 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
       reorderDue,
     };
   }), [productOptions, safetyStock]);
-  const reorderExampleProduct = productOptions.find((product) => (
-    Number(product.annualDemand) > 0 || Number(product.demandFromHistory) > 0
-  )) || productOptions[0] || null;
-  const reorderExamplePlan = reorderPlans.find((plan) => plan.id === reorderExampleProduct?.id);
-  const reorderExampleDemand = Number(reorderExampleProduct?.annualDemand) > 0
-    ? Number(reorderExampleProduct.annualDemand)
-    : Number(reorderExampleProduct?.demandFromHistory) > 0
-      ? Number(reorderExampleProduct.demandFromHistory)
-      : 1500;
-  const reorderExampleHasDemand = Boolean(
-    Number(reorderExampleProduct?.annualDemand) > 0 ||
-    Number(reorderExampleProduct?.demandFromHistory) > 0
-  );
-  const reorderExampleSafetyStock = reorderExamplePlan?.safetyStock
-    ?? safetyPointFor({ productName: reorderExampleProduct?.name }, safetyStock);
-  const maximumInventoryExample = maximumInventoryFor(reorderExampleDemand, reorderExampleSafetyStock, 7, 30);
+  const reorderSummary = useMemo(() => reorderPlans.reduce((summary, plan) => {
+    if (!plan.reorderDue) {
+      summary.healthy += 1;
+    } else if (plan.maximumInventory === null) {
+      summary.needsSetup += 1;
+    } else {
+      summary.reorderNow += 1;
+    }
+    return summary;
+  }, { total: reorderPlans.length, healthy: 0, needsSetup: 0, reorderNow: 0 }), [reorderPlans]);
 
   /* ===== MOVEMENT COUNT PER PRODUCT =====
      Opening stock may only be set before the first movement exists — the same
@@ -276,7 +301,11 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
     return result;
   }, [stockFromDatabase, productById]);
 
-  const openHistory = (productId) => setHistoryProduct(productId || '—');
+  const openHistory = (productId) => {
+    const id = productId || '—';
+    setHistoryProduct(id);
+    if (id !== '—') loadStockActivities(id);
+  };
   const activeLedger = historyProduct ? ledgers.get(historyProduct) : null;
 
   /* ===== PRODUCT PHOTO LOOKUP (read-only, from the product master) ===== */
@@ -284,9 +313,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
     return new Map(productOptions.map((product) => [product.id, product.image]));
   }, [productOptions]);
 
-  const editingMovement = editId === null ? null : stockFromDatabase.find((row) => row.id === editId);
-
-  /* ===== CURRENT ON HAND (excluding the movement being replaced) ===== */
+  /* ===== CURRENT ON HAND ===== */
   const currentOnHand = useMemo(() => {
     const product = productById.get(formData.productId);
     if (!product) return null;
@@ -294,22 +321,20 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
     const productStock = Number(product.stock);
     if (!Number.isInteger(productStock) || productStock < 0) return null;
 
-    const replacedMovementDelta = editingMovement?.productId === formData.productId
-      ? signedQty(editingMovement)
-      : 0;
-
-    return productStock - replacedMovementDelta;
-  }, [productById, formData.productId, editingMovement]);
+    return productStock;
+  }, [productById, formData.productId]);
 
   /* ===== ENTRY PREVIEW =====
-     formData.qty is the CHANGE amount (always ≥ 1). formData.type ('Stock In'
-     or 'Stock Out') is the direction set by the + / − controls. */
+     The signed quantity is the movement: positive adds stock, negative removes it. */
   const parsedQty = formData.qty === '' ? null : Number(formData.qty);
-  const enteredValue = Number.isInteger(parsedQty) && parsedQty >= 1 ? parsedQty : null;
-  const isOut = formData.type === 'Stock Out';
-  const projectedChange = enteredValue === null ? null : (isOut ? -enteredValue : enteredValue);
+  const projectedChange = Number.isInteger(parsedQty) ? parsedQty : null;
+  const isOut = projectedChange !== null && projectedChange < 0;
+  const validMovementQuantity = projectedChange !== null
+    && projectedChange !== 0
+    && currentOnHand !== null
+    && projectedChange >= -currentOnHand;
 
-  const projectedRemaining = !formData.productName || projectedChange === null
+  const projectedRemaining = !formData.productName || currentOnHand === null || projectedChange === null
     ? null
     : currentOnHand + projectedChange;
 
@@ -348,46 +373,42 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
       .some((field) => String(field || '').toLowerCase().includes(q))
   );
 
-  // Compute running balance per product, oldest → newest.
-  // Sort oldest first so each row's running total = previous running total
-  // + its own change, seeded from the product's opening stock (not 0).
-  const ordered = [...filtered].sort((a, b) =>
+  // Keep a fallback current balance for movements whose product record cannot
+  // be matched by ID. Use the full ledger, not the filtered rows.
+  const ordered = [...stockFromDatabase].sort((a, b) =>
     new Date(a.date) - new Date(b.date) || Number(a.id) - Number(b.id)
   );
-
-  // Seed each product's running balance with its opening stock so Total Qty
-  // reflects startingStock + movements, not just movements from 0.
-  // openingByProduct = product.stock (current on-hand) − net of all its movements.
-  const netByProduct = new Map();
+  const latestTotals = new Map();
+  const latestChanges = new Map();
   ordered.forEach((row) => {
     const key = row.productId || row.productName || '—';
-    netByProduct.set(key, (netByProduct.get(key) ?? 0) + signedQty(row));
+    latestTotals.set(key, row.remainingStock);
+    latestChanges.set(key, { delta: signedQty(row), type: row.type, date: row.date });
   });
 
-  const runningByProduct = new Map();
-  const runningTotals = new Map();
-  ordered.forEach((row) => {
-    const key = row.productId || row.productName || '—';
-    const delta = signedQty(row);
-    const opening = runningByProduct.has(key)
-      ? runningByProduct.get(key)
-      : Number(productById.get(key)?.stock ?? 0) - (netByProduct.get(key) ?? 0);
-    const next = opening + delta;
-    runningByProduct.set(key, next);
-    runningTotals.set(row.id, next);
-  });
-
-  // Change column = this movement's signed delta (+9 / −3).
-  // Total Qty column = the product's CURRENT overall stock on hand (same for
-  // every row of a product), per the requested behaviour — not a per-row
-  // running balance. Falls back to the client running total if stock is missing.
+  // Show the latest movement's change on every row for the product; total qty
+  // remains the product's current overall balance.
   const mapped = filtered.map((row) => {
     const key = row.productId || row.productName || '—';
-    const productStock = productById.get(key)?.stock;
-    const total = Number.isFinite(Number(productStock))
+    const product = productById.get(row.productId)
+      || productOptions.find((item) => item.name === row.productName);
+    const productStock = row.totalQty ?? product?.stock;
+    const latestTotal = latestTotals.get(key);
+    const total = productStock !== null && productStock !== '' && Number.isFinite(Number(productStock))
       ? Number(productStock)
-      : Number(row.remainingStock ?? runningTotals.get(row.id) ?? 0);
-    return { row, id: row.id, runningTotal: total };
+      : latestTotal !== null && latestTotal !== '' && Number.isFinite(Number(latestTotal))
+        ? Number(latestTotal)
+        : 0;
+    return {
+      row,
+      id: row.id,
+      totalQty: total,
+      latestChange: latestChanges.get(key) || {
+        delta: signedQty(row),
+        type: row.type,
+        date: row.date,
+      },
+    };
   });
 
   // Apply the chosen sort (dropdown). Default: newest date first.
@@ -399,10 +420,10 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
         cmp = String(a.row.productName || '').localeCompare(String(b.row.productName || ''), undefined, { sensitivity: 'base' });
         break;
       case 'change':
-        cmp = signedQty(a.row) - signedQty(b.row);
+        cmp = a.latestChange.delta - b.latestChange.delta;
         break;
       case 'total':
-        cmp = a.runningTotal - b.runningTotal;
+        cmp = a.totalQty - b.totalQty;
         break;
       case 'date':
       default:
@@ -413,7 +434,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
   });
 
   return mapped;
-}, [stockFromDatabase, query, productById, sortBy, sortDir]);
+}, [stockFromDatabase, query, productById, productOptions, sortBy, sortDir]);
 
   /* ===== EXPORT CSV ===== */
   const exportCsv = () => {
@@ -422,19 +443,19 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
     const escape = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
     const lines = [
       headers.join(','),
-      ...visibleRows.map(({ row }) => {
-        const change = signedQty(row);
+      ...visibleRows.map(({ row, totalQty, latestChange }) => {
+        const change = latestChange.delta;
         return [
           row.date,
           row.productName,
           row.variantName,
           movementLabel(row.type),
           `${change >= 0 ? '+' : '-'}${Math.abs(change)}`,
-          row.remainingStock,
+          totalQty,
           stockStatusFor({
             ...row,
             safetyStock: productById.get(row.productId)?.safetyStock,
-            remainingStock: row.remainingStock,
+            remainingStock: totalQty,
           }, safetyStock),
           row.notes,
           row.recordedBy,
@@ -450,6 +471,12 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
     link.click();
     URL.revokeObjectURL(url);
   };
+
+  const selectedProductIds = [...new Set(
+    stockFromDatabase
+      .filter((row) => selectedIds.has(row.id))
+      .map((row) => row.productId)
+  )];
 
   const allSelected =
     visibleRows.length > 0 &&
@@ -476,7 +503,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
   };
 
   const openAddModal = () => {
-    setFormData({ ...emptyForm, date: todayLocal() });
+    setFormData({ ...emptyForm, date: todayLocal(), qty: '0' });
     setEditId(null);
     setOpeningStock('');
     setIsModalOpen(true);
@@ -513,10 +540,10 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
         const validationError = result.errors ? Object.values(result.errors).flat()[0] : result.message;
         throw new Error(validationError || `Could not set opening stock (${response.status}).`);
       }
-      logActivity('add', formData.productName, `Opening stock of ${value} unit(s) recorded.`);
       setStockError('');
       closeModal();
       await refreshStockData();
+      await loadStockActivities();
     } catch (error) {
       setStockError(error.message || 'Could not set opening stock.');
     } finally {
@@ -536,8 +563,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
       variantName: movement.variantName || '',
       category: movement.category || '',
       type: change < 0 ? 'Stock Out' : 'Stock In',
-      /* The stepper edits the change amount of this movement. */
-      qty: String(Math.abs(change) || 1),
+      qty: '0',
       notes: movement.notes || '',
       recordedBy: movement.recordedBy || '',
     });
@@ -545,11 +571,9 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id, refresh = true, reportError = true) => {
-    const removed = stockFromDatabase.find((row) => row.id === id);
-    if (!removed) return;
+  const clearProductStock = async (productId, refresh = true, reportError = true) => {
     try {
-      const response = await fetch(`/api/stock-movements/${id}`, {
+      const response = await fetch(`/api/stock-movements/products/${encodeURIComponent(productId)}`, {
         method: 'DELETE',
         headers: { Accept: 'application/json' },
       });
@@ -557,18 +581,32 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
         const result = await response.json().catch(() => ({}));
         throw new Error(result.message || `Delete failed (${response.status}).`);
       }
-      logActivity('delete', removed.productName, `Removed ${removed.type} of ${removed.qty} unit(s) dated ${removed.date}.`);
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        next.delete(id);
+        stockFromDatabase
+          .filter((row) => row.productId === productId)
+          .forEach((row) => next.delete(row.id));
         return next;
       });
-      if (refresh) await refreshStockData();
+      if (refresh) {
+        await refreshStockData();
+        await loadStockActivities();
+      }
       return true;
     } catch (error) {
-      if (reportError) setStockError(error.message || 'Could not delete the stock movement.');
-      return false;
+      if (reportError) setStockError(error.message || 'Could not clear stock for this product.');
+      return error.message || 'Could not clear stock for this product.';
     }
+  };
+
+  const requestClearProductStock = async (productId) => {
+    const product = productById.get(productId);
+    if (!product) {
+      setStockError('Could not find this product. Refresh the stock list and try again.');
+      return;
+    }
+    if (!window.confirm(`Clear ${product.name}'s stock balance and movement records? Product information will remain.`)) return;
+    await clearProductStock(productId);
   };
 
   const closeModal = () => {
@@ -581,22 +619,11 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  /* The − / + buttons are DIRECTION toggles, not number spinners:
-     − marks this entry as a removal (sold), + as an addition (received).
-     The quantity itself is typed in the number field. */
-  const setRemove = () => {
+  /* The counter stores a signed change: positive adds stock, negative removes it. */
+  const adjustQuantity = (amount) => {
     setFormData((prev) => ({
       ...prev,
-      type: 'Stock Out',
-      qty: prev.qty === '' ? '1' : prev.qty,
-    }));
-  };
-
-  const setAdd = () => {
-    setFormData((prev) => ({
-      ...prev,
-      type: 'Stock In',
-      qty: prev.qty === '' ? '1' : prev.qty,
+      qty: String((Number.isInteger(Number(prev.qty)) ? Number(prev.qty) : 0) + amount),
     }));
   };
 
@@ -610,11 +637,11 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
       return;
     }
 
-    /* formData.qty = change amount (≥ 1); formData.type = direction. */
-    const amount = Number(formData.qty);
+    /* The signed quantity determines whether this is Stock In or Stock Out. */
+    const signedAmount = Number(formData.qty);
 
-    if (!Number.isInteger(amount) || amount < 1) {
-      setStockError('Enter a change quantity of 1 or more.');
+    if (!Number.isInteger(signedAmount) || signedAmount === 0) {
+      setStockError('Use + or − to enter a non-zero stock change.');
       return;
     }
 
@@ -623,7 +650,8 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
       return;
     }
 
-    const isStockOut = formData.type === 'Stock Out';
+    const isStockOut = signedAmount < 0;
+    const amount = Math.abs(signedAmount);
     if (isStockOut && currentOnHand - amount < 0) {
       setStockError(`Only ${currentOnHand} on hand — a Stock Out of ${amount} would make the total negative.`);
       return;
@@ -640,23 +668,6 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
       qty: amount,
     };
 
-    /* ===== TEMP DEBUG — remove after tracing ===== */
-    console.debug('[STOCK DEBUG] BEFORE SAVE', {
-      'formData.productId': formData.productId,
-      'formData.productName': formData.productName,
-      'formData.type': formData.type,
-      'formData.qty': formData.qty,
-      'productById.get().stock': productById.get(formData.productId)?.stock,
-      currentOnHand,
-      projectedChange,
-      projectedRemaining,
-    });
-    console.debug('[STOCK DEBUG] PAYLOAD', {
-      'payload.type': payload.type,
-      'payload.qty': payload.qty,
-      'payload.productId': payload.productId,
-    });
-
     try {
       const response = await fetch(editId === null ? '/api/stock-movements' : `/api/stock-movements/${editId}`, {
         method: editId === null ? 'POST' : 'PUT',
@@ -670,39 +681,10 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
         throw new Error(validationError || `Save failed (${response.status}).`);
       }
 
-      /* ===== TEMP DEBUG — remove after tracing ===== */
-      console.debug('[STOCK DEBUG] API RESPONSE', {
-        'result.type': result.type,
-        'result.qty': result.qty,
-        'result.remainingStock': result.remainingStock,
-      });
-
-      const saved = result;
-      logActivity(editId === null ? 'add' : 'edit', saved.productName,
-        `${movementLabel(saved.type)} ${saved.qty} unit(s) → remaining ${saved.remainingStock}`);
       closeModal();
       await refreshStockData();
-
-      /* ===== TEMP DEBUG — remove after tracing ===== */
-      const savedProductId = payload.productId;
-      const savedMovementId = saved.id;
-      setTimeout(() => {
-        setProductOptions((currentProducts) => {
-          const prod = currentProducts.find((p) => p.id === savedProductId);
-          console.debug('[STOCK DEBUG] AFTER refreshStockData', {
-            'product.stock after refresh': prod?.stock,
-          });
-          return currentProducts;
-        });
-        setStockFromDatabase((currentMovements) => {
-          const mv = currentMovements.find((m) => m.id === savedMovementId);
-          console.debug('[STOCK DEBUG] AFTER refreshStockData (movement)', {
-            'saved movement qty': mv?.qty,
-            'saved movement remainingStock': mv?.remainingStock,
-          });
-          return currentMovements;
-        });
-      }, 0);
+      await loadStockActivities();
+      if (historyProduct && historyProduct !== '—') await loadStockActivities(historyProduct);
     } catch (error) {
       console.error('Could not save stock movement:', error);
       setStockError(error.message || 'Could not save stock movement.');
@@ -784,24 +766,37 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
           <button
             className="sc-add-btn sc-delete-selected-btn"
             onClick={async () => {
-              const failedIds = [];
-              for (const id of selectedIds) {
-                if (!await handleDelete(id, false, false)) failedIds.push(id);
+              const selectedProducts = selectedProductIds
+                .map((productId) => productById.get(productId))
+                .filter(Boolean);
+              const confirmed = window.confirm(
+                `Clear stock balances and movement records for ${selectedProducts.length} selected product(s)? Product information will remain.`
+              );
+              if (!confirmed) return;
+              const failedProducts = [];
+              for (const product of selectedProducts) {
+                const result = await clearProductStock(product.id, false, false);
+                if (result !== true) failedProducts.push({ product, error: result });
               }
               try {
                 await refreshStockData();
-                setStockError(failedIds.length
-                  ? `Could not delete ${failedIds.length} selected stock movement(s). Check whether removing them would make stock negative.`
+                await loadStockActivities();
+                setStockError(failedProducts.length
+                  ? failedProducts.map(({ product, error }) => `${product.name}: ${error}`).join(' ')
                   : '');
               } catch (error) {
                 setStockError(error.message || 'The stock list could not be refreshed.');
               }
-              setSelectedIds(new Set(failedIds));
+              setSelectedIds(new Set(
+                stockFromDatabase
+                  .filter((row) => failedProducts.some(({ product }) => product.id === row.productId))
+                  .map((row) => row.id)
+              ));
             }}
             type="button"
-            title={`Delete ${selectedIds.size} selected`}
+            title={`Clear stock for ${selectedProductIds.length} selected product(s)`}
           >
-            <p>Delete ({selectedIds.size})</p>
+            <p>Clear stock ({selectedProductIds.length})</p>
             <Trash2 size={12} />
           </button>
         )}
@@ -811,7 +806,10 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
         </button>
         <button
           className="sc-add-btn sc-icon-only"
-          onClick={() => setShowActivity(true)}
+          onClick={() => {
+            setShowActivity(true);
+            loadStockActivities();
+          }}
           type="button"
           title="View transaction & activity history"
           aria-label="Activity history"
@@ -853,7 +851,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
               <th className="sc-th-left">Product</th>
               <th>Variant</th>
               <th>Type</th>
-              <th className="sc-th-quantity" title="Signed quantity added or removed by this transaction.">Change</th>
+              <th className="sc-th-quantity" title="Latest signed change for this product.">Change</th>
               <th className="sc-th-quantity" title="Current total stock for this product.">Total Qty</th>
               <th>Safety Stock</th>
               <th className="sc-th-left">Notes</th>
@@ -864,15 +862,15 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
           <tbody>
             {stockLoading ? (
               <tr><td colSpan={11} className="sc-empty-state">Loading stock movements…</td></tr>
-            ) : visibleRows.map(({ row: stock, id, runningTotal }) => {
+            ) : visibleRows.map(({ row: stock, id, totalQty, latestChange }) => {
               const product = productById.get(stock.productId);
               const statusRow = {
                 ...stock,
                 safetyStock: product?.safetyStock,
+                remainingStock: totalQty,
               };
-              const change = signedQty(stock);
-              const after = runningTotal;
-              const before = after - change;
+              const change = latestChange.delta;
+              const after = totalQty;
               const signedText = `${change >= 0 ? '+' : '-'}${Math.abs(change)}`;
               const status = stockStatusFor(statusRow, safetyStock);
               const point = safetyPointFor(statusRow, safetyStock);
@@ -915,8 +913,8 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
                   </td>
                   <td className="sc-td-nowrap" data-label="Change">
                     <span
-                      className={`sc-qty-change ${stock.type === 'Adjustment' ? 'sc-adj' : change >= 0 ? 'sc-in' : 'sc-out'}`}
-                      title={`${stock.type === 'Adjustment' ? 'Correction' : 'Movement'} balance: ${before} ${change >= 0 ? '+' : '−'} ${Math.abs(change)} = ${after}`}
+                      className={`sc-qty-change ${latestChange.type === 'Adjustment' ? 'sc-adj' : change >= 0 ? 'sc-in' : 'sc-out'}`}
+                      title={`Latest change for ${stock.productName}: ${latestChange.date} (${latestChange.type})`}
                     >
                       {signedText}
                     </span>
@@ -969,9 +967,9 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
                       </button>
                       <button
                         className="sc-table-action-btn sc-delete-btn"
-                        onClick={() => handleDelete(id)}
-                        aria-label="Delete Item"
-                        title="Delete Item"
+                        onClick={() => requestClearProductStock(stock.productId)}
+                        aria-label={`Clear stock for ${stock.productName}`}
+                        title="Clear product stock and movement records"
                         type="button"
                       >
                         <Trash2 size={14} />
@@ -1141,16 +1139,16 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
                       ) : (
                         <>
                           <label htmlFor="qty">
-                            Quantity <span className="sc-required">*</span>
+                            Change Quantity (+ / −) <span className="sc-required">*</span>
                           </label>
                           <div className="sc-stepper">
                             <button
                               type="button"
-                              className={`sc-stepper-btn sc-stepper-minus${isOut ? ' is-active' : ''}`}
-                              aria-label="Remove / sold"
-                              aria-pressed={isOut}
-                              onClick={setRemove}
-                              title="This entry removes stock (counts as sold)"
+                              className="sc-stepper-btn sc-stepper-minus"
+                              aria-label="Decrease change quantity by one"
+                              onClick={() => adjustQuantity(-1)}
+                              disabled={currentOnHand !== null && Number(formData.qty) <= -currentOnHand}
+                              title="Decrease quantity by one"
                             >
                               <span>−</span>
                             </button>
@@ -1159,7 +1157,8 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
                               name="qty"
                               type="number"
                               className="sc-stepper-value"
-                              min="1"
+                              aria-describedby="sc-qty-hint"
+                              min={currentOnHand === null ? undefined : -currentOnHand}
                               step="1"
                               value={formData.qty}
                               onChange={handleFormChange}
@@ -1167,21 +1166,20 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
                             />
                             <button
                               type="button"
-                              className={`sc-stepper-btn sc-stepper-plus${!isOut ? ' is-active' : ''}`}
-                              aria-label="Add stock"
-                              aria-pressed={!isOut}
-                              onClick={setAdd}
-                              title="This entry adds stock (received)"
+                              className="sc-stepper-btn sc-stepper-plus"
+                              aria-label="Increase change quantity by one"
+                              onClick={() => adjustQuantity(1)}
+                              title="Increase quantity by one"
                             >
                               <span>+</span>
                             </button>
                           </div>
-                          <span className="sc-field-hint">
+                          <span className="sc-field-hint" id="sc-qty-hint">
                             {!formData.productName
                               ? 'Select a product first.'
                               : editId === null
-                                ? `${currentOnHand} on hand. Type a quantity, then pick − (sold) or + (added).`
-                                : `${currentOnHand} on hand before this entry. Saving replaces it.`}
+                                ? `${currentOnHand} units on hand. + adds one; − removes one. Negative quantities record stock out.`
+                                : `${currentOnHand} units currently on hand. Saving applies this signed change; total after save: ${projectedRemaining ?? '—'} units.`}
                           </span>
                         </>
                       )}
@@ -1282,7 +1280,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
                     !formData.productName ||
                     (canSetOpeningStock
                       ? !openingValid
-                      : !Number.isInteger(parsedQty) || parsedQty < 1 || currentOnHand === null)
+                      : !validMovementQuantity)
                   }
                 >
                   {canSetOpeningStock
@@ -1369,6 +1367,38 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
               ) : (
                 <div className="sc-empty-state">NO MOVEMENTS RECORDED FOR THIS ITEM YET.</div>
               )}
+
+              <h4 className="sc-product-activity-title">Activity Report</h4>
+              {productActivityLoading ? (
+                <div className="sc-empty-state">Loading product activity…</div>
+              ) : productActivityError ? (
+                <div className="sc-error-banner" role="alert">{productActivityError}</div>
+              ) : productActivityLog.length > 0 ? (
+                <ol className="sc-activity-list">
+                  {productActivityLog.map((item) => {
+                    const { Icon, cls, label } = activityPresentation(item);
+                    return (
+                      <li className="sc-activity-item" key={item.id}>
+                        <span className={`sc-activity-dot ${cls}`}><Icon size={14} /></span>
+                        <div className="sc-activity-main">
+                          <div className="sc-activity-top">
+                            <span className="sc-activity-action">{label}</span>
+                          </div>
+                          <div className="sc-activity-detail">{item.description}</div>
+                          <div className="sc-activity-time">
+                            <Clock size={10} />
+                            {item.createdAt
+                              ? new Date(item.createdAt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
+                              : '—'}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              ) : (
+                <div className="sc-empty-state">No stock activity recorded for this product yet.</div>
+              )}
             </div>
           </div>
         </div>,
@@ -1414,34 +1444,103 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
               </button>
             </div>
             <div className="sc-reorder-fullscreen-body">
+              <section className="sc-reorder-overview" aria-label="Reorder plan overview">
+                <div className="sc-reorder-overview-card">
+                  <span className="sc-reorder-overview-label">Products tracked</span>
+                  <strong>{reorderSummary.total}</strong>
+                  <small>items in your catalog</small>
+                </div>
+                <div className="sc-reorder-overview-card sc-reorder-overview-alert">
+                  <span className="sc-reorder-overview-label">Ready to reorder</span>
+                  <strong>{reorderSummary.reorderNow}</strong>
+                  <small>below trigger with a target set</small>
+                </div>
+                <div className="sc-reorder-overview-card sc-reorder-overview-setup">
+                  <span className="sc-reorder-overview-label">Needs policy setup</span>
+                  <strong>{reorderSummary.needsSetup}</strong>
+                  <small>configure demand and order timing</small>
+                </div>
+                <div className="sc-reorder-overview-card sc-reorder-overview-good">
+                  <span className="sc-reorder-overview-label">Above reorder point</span>
+                  <strong>{reorderSummary.healthy}</strong>
+                  <small>currently above safety stock</small>
+                </div>
+              </section>
+
+              <section className="sc-reorder-formula" aria-label="Maximum inventory formula">
+                <span className="sc-reorder-formula-mark" aria-hidden="true">i</span>
+                <div>
+                  <strong>How the target is calculated</strong>
+                  <p>
+                    Maximum inventory = safety stock + (annual demand ÷ 365) × (lead time + order cycle).
+                    Suggested top-up is the amount needed to reach that target when stock is at or below its trigger.
+                  </p>
+                </div>
+              </section>
+
+              <div className="sc-reorder-section-heading">
+                <div>
+                  <h3>Product reorder status</h3>
+                  <p>Stock levels and suggested replenishment by product.</p>
+                </div>
+                <span className="sc-reorder-product-count">{reorderSummary.total} products</span>
+              </div>
+
               <div className="sc-reorder-table-scroll">
                 <table className="sc-reorder-table">
                   <thead>
                     <tr>
                       <th>Product</th>
-                      <th>On hand</th>
-                      <th>Safety-stock trigger</th>
-                      <th>Maximum inventory</th>
-                      <th>Suggested top-up*</th>
+                      <th>Current stock</th>
+                      <th>Reorder trigger</th>
+                      <th>Maximum target</th>
+                      <th>Recommended action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {stockLoading ? (
                       <tr><td colSpan={5} className="sc-reorder-empty">Loading reorder plans…</td></tr>
                     ) : reorderPlans.length ? reorderPlans.map((plan) => (
-                      <tr key={plan.id}>
-                        <td>{plan.name}</td>
-                        <td>{plan.currentStock} units</td>
-                        <td>{plan.safetyStock} units</td>
+                      <tr key={plan.id} className={plan.reorderDue ? 'is-reorder-due' : ''}>
                         <td>
-                          {plan.maximumInventory === null
-                            ? <span className="sc-reorder-unconfigured">Configure annual demand, lead time &amp; order cycle</span>
-                            : `${plan.maximumInventory} units`}
+                          <span className="sc-reorder-product-name">{plan.name}</span>
+                          <span className={`sc-reorder-status ${plan.reorderDue
+                            ? plan.maximumInventory === null ? 'is-setup' : 'is-due'
+                            : 'is-healthy'}`}>
+                            {plan.reorderDue
+                              ? plan.maximumInventory === null ? 'Setup needed' : 'Reorder due'
+                              : 'In range'}
+                          </span>
                         </td>
                         <td>
-                          {plan.suggestedTopUp === null
-                            ? (plan.reorderDue ? 'Configure maximum inventory' : 'Not at reorder point')
-                            : `${plan.suggestedTopUp} units`}
+                          <strong className={`sc-reorder-number${plan.reorderDue ? ' is-low' : ''}`}>{plan.currentStock}</strong>
+                          <small>units on hand</small>
+                        </td>
+                        <td>
+                          <strong className="sc-reorder-number">{plan.safetyStock}</strong>
+                          <small>units minimum</small>
+                        </td>
+                        <td>
+                          {plan.maximumInventory === null ? (
+                            <span className="sc-reorder-unconfigured">Not configured</span>
+                          ) : (
+                            <>
+                              <strong className="sc-reorder-number">{plan.maximumInventory}</strong>
+                              <small>units target</small>
+                            </>
+                          )}
+                        </td>
+                        <td>
+                          {plan.suggestedTopUp !== null ? (
+                            <span className="sc-reorder-top-up">
+                              <strong>+{plan.suggestedTopUp}</strong>
+                              <small>units to order</small>
+                            </span>
+                          ) : plan.reorderDue ? (
+                            <span className="sc-reorder-action-copy">Configure demand and order timing</span>
+                          ) : (
+                            <span className="sc-reorder-action-copy is-neutral">No reorder needed</span>
+                          )}
                         </td>
                       </tr>
                     )) : (
@@ -1451,34 +1550,9 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
                 </table>
               </div>
 
-              {reorderExampleProduct && (
-                <section className="sc-maximum-example-card" aria-labelledby="sc-maximum-example-title">
-                  <h3 id="sc-maximum-example-title">
-                    Worked example — {reorderExampleProduct.name}
-                  </h3>
-                  <div className="sc-maximum-example-inputs">
-                    <span>
-                      Annual demand: <strong>{reorderExampleDemand.toLocaleString()} units</strong>
-                      {!reorderExampleHasDemand && ' (illustrative; no demand recorded)'}
-                    </span>
-                    <span>Safety stock: <strong>{reorderExampleSafetyStock} units</strong></span>
-                    <span>Illustrative lead time: <strong>7 days</strong></span>
-                    <span>Illustrative order cycle: <strong>30 days</strong></span>
-                  </div>
-                  <div className="sc-maximum-example-formula">
-                    {reorderExampleSafetyStock} + ({reorderExampleDemand.toLocaleString()} ÷ 365) × (7 + 30)
-                    <strong>{maximumInventoryExample} units maximum inventory</strong>
-                  </div>
-                  <p>
-                    Product comes from your database; safety stock uses its configured value or the system
-                    default. Lead time and order cycle are examples only, not actual supplier settings.
-                    Configure verified values in Settings.
-                  </p>
-                </section>
-              )}
               <p className="sc-reorder-footnote">
-                *Suggested top-up is based on current on-hand stock only. Open purchase orders are not tracked, so account for them before ordering.
-                EOQ is a separate cost-based order quantity and does not change the reorder threshold or maximum-stock target.
+                Suggested quantities use current on-hand stock only; open purchase orders are not tracked, so account for them before ordering.
+                EOQ is a separate cost-based quantity and does not change the reorder trigger or maximum target.
               </p>
             </div>
           </aside>
@@ -1517,33 +1591,34 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
             </div>
 
             <div className="sc-drawer-body">
-              {activityLog.length === 0 ? (
+              {activityLoading ? (
+                <div className="sc-empty-state">Loading stock activity…</div>
+              ) : activityError ? (
+                <div className="sc-error-banner" role="alert">{activityError}</div>
+              ) : activityLog.length === 0 ? (
                 <div className="sc-empty-state">
                   No activity yet. Adding, editing or deleting an entry will show up here.
                 </div>
               ) : (
                 <ol className="sc-activity-list">
                   {activityLog.map((item) => {
-                    const meta = {
-                      add:            { Icon: PlusCircle, cls: 'sc-act-add',    label: 'Added' },
-                      edit:           { Icon: Pencil,     cls: 'sc-act-edit',   label: 'Updated' },
-                      delete:         { Icon: Trash2,     cls: 'sc-act-delete', label: 'Deleted' },
-                    }[item.action] || { Icon: Activity, cls: '', label: item.action };
-                    const { Icon } = meta;
+                    const { Icon, cls, label } = activityPresentation(item);
                     return (
                       <li className="sc-activity-item" key={item.id}>
-                        <span className={`sc-activity-dot ${meta.cls}`}>
+                        <span className={`sc-activity-dot ${cls}`}>
                           <Icon size={14} />
                         </span>
                         <div className="sc-activity-main">
                           <div className="sc-activity-top">
-                            <span className="sc-activity-action">{meta.label}</span>
-                            <span className="sc-activity-product">{item.product || '—'}</span>
+                            <span className="sc-activity-action">{label}</span>
+                            <span className="sc-activity-product">{item.meta?.product || '—'}</span>
                           </div>
-                          <div className="sc-activity-detail">{item.detail}</div>
+                          <div className="sc-activity-detail">{item.description}</div>
                           <div className="sc-activity-time">
                             <Clock size={10} />
-                            {item.time.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}
+                            {item.createdAt
+                              ? new Date(item.createdAt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
+                              : '—'}
                           </div>
                         </div>
                       </li>
@@ -1553,13 +1628,9 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
               )}
             </div>
 
-            {activityLog.length > 0 && (
+            {!activityLoading && !activityError && activityLog.length > 0 && (
               <div className="sc-drawer-footer">
                 <span className="sc-drawer-count">{activityLog.length} record{activityLog.length !== 1 ? 's' : ''}</span>
-                <button className="sc-add-btn sc-delete-selected-btn" type="button" onClick={() => setActivityLog([])}>
-                  <p>Clear</p>
-                  <Trash2 size={12} />
-                </button>
               </div>
             )}
           </aside>

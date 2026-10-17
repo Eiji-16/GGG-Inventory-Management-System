@@ -433,7 +433,7 @@
 /*==========HANDOFF BANNER==========*/
 .ac-handoff-banner {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     margin: 0 0 8px;
     padding: 6px 10px;
@@ -447,9 +447,31 @@
     animation: acHandoffEnter 0.3s ease both;
 }
 
+.ac-handoff-banner > div {
+    display: grid;
+    gap: 3px;
+}
+
+.ac-handoff-banner small {
+    color: var(--text-muted);
+    font-size: 10.5px;
+}
+
 .ac-handoff-banner svg {
+    margin-top: 2px;
     flex-shrink: 0;
     color: var(--accent, #E8C547);
+}
+
+.ac-cost-input-notice {
+    margin: 0 0 12px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    background: var(--overlay-soft);
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.45;
 }
 
 @keyframes acHandoffEnter {

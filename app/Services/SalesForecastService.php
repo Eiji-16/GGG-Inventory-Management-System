@@ -10,15 +10,16 @@ class SalesForecastService
 {
     public const FORMULA = 'Weighted Moving Average';
 
-    public function forecast(Product $product): array
+    public function forecast(Product $product, string $periodType = 'month'): array
     {
         $history = $product->salesHistory()
+            ->where('period_type', $periodType)
             ->orderBy('period_date')
             ->get(['id', 'period_date', 'units_sold']);
 
         if ($history->isEmpty()) {
             throw ValidationException::withMessages([
-                'productId' => 'Add at least one month of sales history before forecasting.',
+                'productId' => "Add at least one {$periodType} of sales history before forecasting.",
             ]);
         }
 
@@ -28,6 +29,11 @@ class SalesForecastService
         $forecast = $this->weightedMovingAverage($units);
 
         $lastPeriod = Carbon::parse($history->last()->period_date);
+        $forecastPeriod = match ($periodType) {
+            'week' => $lastPeriod->copy()->startOfWeek(Carbon::MONDAY)->addWeek(),
+            'year' => $lastPeriod->copy()->startOfYear()->addYear(),
+            default => $lastPeriod->copy()->startOfMonth()->addMonth(),
+        };
 
         return [
             'product' => [
@@ -38,8 +44,9 @@ class SalesForecastService
                 'stock' => $product->stock_on_hand,
             ],
             'formula' => self::FORMULA,
+            'periodType' => $periodType,
             'baseForecast' => round(max(0, $forecast), 1),
-            'forecastPeriod' => $lastPeriod->copy()->startOfMonth()->addMonth()->toDateString(),
+            'forecastPeriod' => $forecastPeriod->toDateString(),
             'dataPoints' => $count,
             'averageDemand' => round(array_sum($units) / $count, 1),
         ];

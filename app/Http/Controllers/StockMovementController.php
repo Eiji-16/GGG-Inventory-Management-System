@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
+use App\Models\Product;
 use App\Models\StockMovement;
 use App\Services\StockMovementService;
 use Illuminate\Http\JsonResponse;
@@ -16,42 +18,162 @@ class StockMovementController extends Controller
     /** GET /api/stock-movements */
     public function index(): JsonResponse
     {
-        $movements = StockMovement::orderByDesc('movement_date')
+        $movements = StockMovement::with('product:id,code,stock_on_hand')
+            ->orderByDesc('movement_date')
             ->orderByDesc('id')
             ->get();
 
         return response()->json($movements->map(fn (StockMovement $movement) => $this->format($movement)));
     }
 
+    /** GET /api/stock-activities */
+    public function activities(Request $request): JsonResponse
+    {
+        $logs = ActivityLog::query()
+            ->where('action', 'like', 'stock.%')
+            ->when($request->filled('productId'), function ($query) use ($request) {
+                $productId = $request->query('productId');
+                $query->where(function ($productQuery) use ($productId) {
+                    $productQuery->where('meta->productId', $productId)
+                        ->orWhere('meta->previousProductId', $productId);
+                });
+            })
+            ->latest()
+            ->limit(200)
+            ->get();
+
+        return response()->json($logs->map(fn (ActivityLog $log) => [
+            'id' => $log->id,
+            'action' => $log->action,
+            'description' => $log->description,
+            'meta' => $log->meta ?? [],
+            'createdAt' => $log->created_at?->toIso8601String(),
+        ]));
+    }
+
     /** POST /api/stock-movements */
     public function store(Request $request): JsonResponse
     {
         $movement = $this->stockMovements->create($this->validatedMovement($request, false));
-        $dir = $movement->movement_type === 'in' ? 'Stock in' : ($movement->is_adjustment ? 'Adjusted' : 'Stock out');
-        \App\Models\ActivityLog::record(
-            'stock.'.$movement->movement_type,
-            "{$dir} — {$movement->qty} unit(s) of {$movement->product_name}",
-            'boxes',
-            ['product' => $movement->product_name, 'qty' => $movement->qty]
-        );
+        $this->recordMovementActivity('add', $movement);
+
         return response()->json($this->format($movement), 201);
     }
 
     /** PUT/PATCH /api/stock-movements/{stockMovement} */
     public function update(Request $request, StockMovement $stockMovement): JsonResponse
     {
+        $before = $this->activitySnapshot($stockMovement->loadMissing('product'));
         $movement = $this->stockMovements->replace(
             $stockMovement,
             $this->validatedMovement($request, true)
         );
+        $this->recordMovementActivity('edit', $movement, $before);
+
         return response()->json($this->format($movement));
     }
 
     /** DELETE /api/stock-movements/{stockMovement} */
     public function destroy(StockMovement $stockMovement): JsonResponse
     {
+        $before = $this->activitySnapshot($stockMovement->loadMissing('product'));
         $this->stockMovements->delete($stockMovement);
+        $currentTotal = Product::where('code', $before['productId'])->value('stock_on_hand');
+        ActivityLog::record(
+            'stock.delete',
+            "Deleted {$before['type']} {$before['changeText']} for {$before['product']}",
+            'boxes',
+            [
+                'productId' => $before['productId'],
+                'product' => $before['product'],
+                'movementId' => $before['movementId'],
+                'type' => $before['type'],
+                'change' => $before['change'],
+                'qty' => $before['qty'],
+                'totalQty' => $currentTotal,
+                'date' => $before['date'],
+            ]
+        );
+
         return response()->json(['deleted' => true]);
+    }
+
+    /** DELETE /api/stock-movements/products/{productCode} */
+    public function clearProduct(string $productCode): JsonResponse
+    {
+        $product = Product::where('code', $productCode)->firstOrFail();
+        $productName = $product->name;
+        $previousStock = (int) $product->stock_on_hand;
+        $movementCount = $this->stockMovements->clearProductStock($product);
+
+        ActivityLog::record(
+            'stock.clear',
+            "Cleared stock for {$productName} ({$previousStock} units)",
+            'boxes',
+            [
+                'productId' => $productCode,
+                'product' => $productName,
+                'previousTotalQty' => $previousStock,
+                'deletedMovements' => $movementCount,
+                'totalQty' => 0,
+            ]
+        );
+
+        return response()->json([
+            'cleared' => true,
+            'productId' => $productCode,
+            'deletedMovements' => $movementCount,
+            'totalQty' => 0,
+        ]);
+    }
+
+    private function recordMovementActivity(string $event, StockMovement $movement, ?array $before = null): void
+    {
+        $snapshot = $this->activitySnapshot($movement->loadMissing('product'));
+        $action = match ($event) {
+            'edit' => 'stock.edit',
+            default => $snapshot['change'] < 0 ? 'stock.out' : 'stock.in',
+        };
+        $previousChangeText = $before
+            ? (($before['change'] >= 0 ? '+' : '−').abs($before['change']))
+            : '—';
+        $description = match ($event) {
+            'edit' => "Updated {$snapshot['product']} movement: {$previousChangeText} → {$snapshot['changeText']}",
+            default => "{$snapshot['type']} {$snapshot['changeText']} for {$snapshot['product']}",
+        };
+
+        ActivityLog::record($action, $description, 'boxes', [
+            'productId' => $snapshot['productId'],
+            'product' => $snapshot['product'],
+            'movementId' => $snapshot['movementId'],
+            'type' => $snapshot['type'],
+            'change' => $snapshot['change'],
+            'qty' => $snapshot['qty'],
+            'totalQty' => $snapshot['totalQty'],
+            'date' => $snapshot['date'],
+            'previousChange' => $before['change'] ?? null,
+            'previousType' => $before['type'] ?? null,
+            'previousProductId' => $before['productId'] ?? null,
+        ]);
+    }
+
+    private function activitySnapshot(StockMovement $movement): array
+    {
+        $change = $movement->movement_type === 'in' ? (int) $movement->qty : -(int) $movement->qty;
+
+        return [
+            'productId' => $movement->product?->code,
+            'product' => $movement->product_name,
+            'movementId' => $movement->id,
+            'type' => $movement->is_adjustment
+                ? 'Adjustment'
+                : ($movement->movement_type === 'in' ? 'Stock In' : 'Stock Out'),
+            'change' => $change,
+            'changeText' => ($change >= 0 ? '+' : '−').abs($change),
+            'qty' => (int) $movement->qty,
+            'totalQty' => $movement->product?->stock_on_hand ?? $movement->remaining_stock,
+            'date' => $movement->movement_date?->toDateString(),
+        ];
     }
 
     private function validatedMovement(Request $request, bool $updating): array
@@ -89,6 +211,7 @@ class StockMovementController extends Controller
                 : null,
             'variantName'    => $movement->variant_name,
             'remainingStock' => $movement->remaining_stock,
+            'totalQty'       => $movement->product?->stock_on_hand ?? $movement->remaining_stock,
             'notes'          => $movement->notes,
             'recordedBy'     => $movement->recorded_by,
         ];

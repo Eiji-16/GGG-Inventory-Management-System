@@ -60,18 +60,19 @@ class StockMovementService
                 ->findOrFail($movement->product_id);
 
             $oldDelta = $this->deltaFor($movement);
-            $oldProductStockWithoutMovement = (int) $oldProduct->stock_on_hand - $oldDelta;
             $newProduct = $this->findProduct($data);
 
             if ($newProduct->id === $oldProduct->id) {
                 $newProduct = $oldProduct;
-                $newProduct->stock_on_hand = $oldProductStockWithoutMovement;
+                // An edit enters the new change to apply to today's stock; the
+                // previous row amount becomes part of the opening balance.
+                $stockBeforeReplacement = (int) $oldProduct->stock_on_hand;
             } else {
-                $oldProduct->stock_on_hand = $oldProductStockWithoutMovement;
+                $oldProduct->stock_on_hand = (int) $oldProduct->stock_on_hand - $oldDelta;
                 $oldProduct->save();
+                $stockBeforeReplacement = (int) $newProduct->stock_on_hand;
             }
 
-            $stockBeforeReplacement = (int) $newProduct->stock_on_hand;
             $date = $data['date'] ?? $movement->movement_date->toDateString();
             $adjustmentBaseline = $data['type'] === 'Adjustment'
                 ? $this->balanceBeforeDate(
@@ -131,6 +132,21 @@ class StockMovementService
             $product->update(['stock_on_hand' => $newStock]);
             $this->reconcileMovementBalances($product);
             $this->syncSalesFromMovements($product);
+        });
+    }
+
+    public function clearProductStock(Product $existingProduct): int
+    {
+        return DB::transaction(function () use ($existingProduct) {
+            $product = Product::query()
+                ->lockForUpdate()
+                ->findOrFail($existingProduct->id);
+
+            $movementCount = $product->stockMovements()->count();
+            $product->stockMovements()->delete();
+            $product->update(['stock_on_hand' => 0]);
+
+            return $movementCount;
         });
     }
 
@@ -243,12 +259,13 @@ class StockMovementService
             ->map(fn ($group) => $group->sum(fn (StockMovement $movement) => (int) $movement->qty));
 
         SalesHistory::where('product_id', $product->id)
+            ->where('period_type', 'month')
             ->whereNotIn('period_date', $monthlyUnits->keys()->all())
             ->delete();
 
         foreach ($monthlyUnits as $period => $units) {
             SalesHistory::updateOrCreate(
-                ['product_id' => $product->id, 'period_date' => $period],
+                ['product_id' => $product->id, 'period_type' => 'month', 'period_date' => $period],
                 ['units_sold' => $units]
             );
         }

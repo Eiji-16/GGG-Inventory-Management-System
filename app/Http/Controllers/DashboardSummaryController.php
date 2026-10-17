@@ -46,6 +46,7 @@ class DashboardSummaryController extends Controller
         ];
 
         $salesHistory = SalesHistory::with('product:id,code,name')
+            ->where('period_type', 'month')
             ->orderBy('period_date')
             ->get()
             ->map(fn (SalesHistory $record) => [

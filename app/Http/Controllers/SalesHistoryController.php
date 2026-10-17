@@ -11,21 +11,24 @@ use Illuminate\Support\Facades\DB;
 /**
  * SalesHistoryController — /api/sales-history
  *
- * Feeds the Forecasting tab: monthly units-sold per product. Records are stored
- * one row per product per month (period_date = first of the month). Adding a
- * point for a month that already exists overwrites it rather than duplicating.
+ * Feeds the Forecasting tab with weekly, monthly, and yearly sales periods.
  */
 class SalesHistoryController extends Controller
 {
     /**
      * GET /api/sales-history?product={code}
      *
-     * Returns the monthly series (oldest first) for one product when ?product=
-     * is given, otherwise every row.
+     * Returns a product's selected-period series (oldest first).
      */
     public function index(Request $request)
     {
-        $query = SalesHistory::query()->orderBy('period_date');
+        $filters = $request->validate([
+            'periodType' => ['sometimes', 'in:week,month,year'],
+        ]);
+        $periodType = $filters['periodType'] ?? 'month';
+        $query = SalesHistory::query()
+            ->where('period_type', $periodType)
+            ->orderBy('period_date');
 
         if ($code = $request->query('product')) {
             $product = Product::where('code', $code)->firstOrFail();
@@ -40,28 +43,30 @@ class SalesHistoryController extends Controller
     {
         $data = $request->validate([
             'productId'  => ['required', 'string'],          // product code
-            'periodDate' => ['required', 'date'],            // any day in the month
+            'periodDate' => ['required', 'date'],
+            'periodType' => ['sometimes', 'in:week,month,year'],
             'unitsSold'  => ['required', 'integer', 'min:0'],
         ]);
 
         $product = Product::where('code', $data['productId'])->firstOrFail();
-
-        // Normalise to the first of the month so one month = one row.
-        $period = Carbon::parse($data['periodDate'])->startOfMonth()->toDateString();
+        $periodType = $data['periodType'] ?? 'month';
+        $period = $this->normalizePeriod($data['periodDate'], $periodType);
 
         $timestamp = now();
         DB::table('sales_history')->upsert(
             [[
                 'product_id' => $product->id,
                 'period_date' => $period,
+                'period_type' => $periodType,
                 'units_sold' => $data['unitsSold'],
                 'created_at' => $timestamp,
                 'updated_at' => $timestamp,
             ]],
-            ['product_id', 'period_date'],
+            ['product_id', 'period_type', 'period_date'],
             ['units_sold', 'updated_at']
         );
         $row = SalesHistory::where('product_id', $product->id)
+            ->where('period_type', $periodType)
             ->whereDate('period_date', $period)
             ->firstOrFail();
 
@@ -83,7 +88,19 @@ class SalesHistoryController extends Controller
             'id'         => $r->id,
             'productId'  => $r->product?->code,
             'periodDate' => $r->period_date?->toDateString(),
+            'periodType' => $r->period_type,
             'unitsSold'  => $r->units_sold,
         ];
+    }
+
+    private function normalizePeriod(string $date, string $periodType): string
+    {
+        $period = Carbon::parse($date);
+
+        return match ($periodType) {
+            'week' => $period->startOfWeek(Carbon::MONDAY)->toDateString(),
+            'year' => $period->startOfYear()->toDateString(),
+            default => $period->startOfMonth()->toDateString(),
+        };
     }
 }
