@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Calculator, History, Download, TrendingUp, Boxes } from 'lucide-react';
 import './autoCal.css';
+import { safetyPointFor, SAFETY_STOCK_DEFAULTS } from '../../data/safetyStock';
 
 const EOQ_FORMULA = {
   fullName: 'Economic Order Quantity',
@@ -58,7 +59,12 @@ function HistoryPanel({ onClose, history, onClear }) {
 
 
 /* ===== MAIN COMPONENT ===== */
-export default function AutoCalculatorDesign({ onNavigate, handoff }) {
+export default function AutoCalculatorDesign({
+  onNavigate,
+  handoff,
+  safetyStock = SAFETY_STOCK_DEFAULTS,
+  catalogRevision = 0,
+}) {
   const [showHistory, setShowHistory] = useState(false);
 
   /* ===== PRODUCTS (for auto-fill from Stock Control history) ===== */
@@ -74,7 +80,13 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
   const [result, setResult] = useState(null);
   const [saveStatus, setSaveStatus] = useState('');
   const [saving, setSaving] = useState(false);
-  const reorderPoint = selectedProduct ? Number(selectedProduct.safetyStock ?? 20) : null;
+  const reorderPoint = selectedProduct
+    ? safetyPointFor({
+        productId: selectedProduct.id,
+        productName: selectedProduct.name,
+        safetyStock: selectedProduct.safetyStock,
+      }, safetyStock)
+    : null;
   const currentStock = selectedProduct ? Number(selectedProduct.stock ?? 0) : null;
   const reorderRequired = reorderPoint !== null && currentStock !== null && currentStock <= reorderPoint;
 
@@ -102,7 +114,16 @@ export default function AutoCalculatorDesign({ onNavigate, handoff }) {
 
     loadProducts();
     return () => { active = false; };
-  }, [productsRetry]);
+  }, [productsRetry, catalogRevision]);
+
+  useEffect(() => {
+    if (selectedProductId && !products.some((product) => String(product.id) === String(selectedProductId))) {
+      setSelectedProductId('');
+      setInputs({ demand: '', orderCost: '', holdingCost: '' });
+      setResult(null);
+      setSaveStatus('');
+    }
+  }, [products, selectedProductId]);
 
   useEffect(() => {
     if (!handoff?.productId || !products.length) return;

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Sun,
   Moon,
@@ -7,22 +7,11 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
-  Plus,
-  Trash2,
   RotateCcw,
   Check,
 } from 'lucide-react';
 import './settings.css';
 import { SAFETY_STOCK_DEFAULTS, DEFAULT_SAFETY_STOCK } from '../../data/safetyStock';
-
-/* ===== EMPTY POLICY ===== */
-const emptyEntry = {
-  productName: '',
-  safetyStock: '',
-  annualDemand: '',
-  leadTimeDays: '',
-  orderCycleDays: '',
-};
 
 const THEMES = [
   { value: 'white', label: 'White' },
@@ -36,6 +25,8 @@ function Settings({
   role = 'Staff',
   safetyStock = SAFETY_STOCK_DEFAULTS,
   onUpdateSafetyStock,
+  policyLoading = false,
+  policyError = '',
 }) {
   const isSuperAdmin = role === 'Super Admin';
   const activeThemeName = THEMES.find((option) => option.value === theme)?.label || 'Midnight Blue';
@@ -46,63 +37,70 @@ function Settings({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [draft, setDraft] = useState(() => safetyStock);
-  const [newEntry, setNewEntry] = useState(emptyEntry);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  useEffect(() => {
+    setDraft(safetyStock);
+  }, [safetyStock]);
 
   const rows = useMemo(
-    () => Object.entries(draft).map(([productName, values]) => ({ productName, ...values })),
+    () => Object.entries(draft).map(([productId, values]) => ({ productId, ...values })),
     [draft]
   );
 
   const dirty = useMemo(
-    () => JSON.stringify(draft) !== JSON.stringify(safetyStock),
-    [draft, safetyStock]
+    () => JSON.stringify(draft) !== JSON.stringify(safetyStock)
+      || rows.some((row) => !row.configured),
+    [draft, safetyStock, rows]
   );
 
   /* ===== HIDE VALUE ===== */
   const show = (value) => (revealed ? value : '•••');
 
-  const editRow = (productName, field, value) => {
+  const editRow = (productId, field, value) => {
     setSaved(false);
+    setSaveError('');
     setDraft((prev) => ({
       ...prev,
-      [productName]: { ...prev[productName], [field]: value === '' ? '' : Number(value) },
+      [productId]: { ...prev[productId], [field]: value === '' ? '' : Number(value) },
     }));
   };
 
-  const removeRow = (productName) => {
+  const resetRow = (productId) => {
     setSaved(false);
-    setDraft((prev) => {
-      const next = { ...prev };
-      delete next[productName];
-      return next;
-    });
-  };
-
-  const addRow = () => {
-    const name = newEntry.productName.trim();
-    if (!name) return;
-    setSaved(false);
+    setSaveError('');
     setDraft((prev) => ({
       ...prev,
-      [name]: {
-        safetyStock: newEntry.safetyStock === '' ? DEFAULT_SAFETY_STOCK : Number(newEntry.safetyStock),
-        annualDemand: newEntry.annualDemand === '' ? '' : Number(newEntry.annualDemand),
-        leadTimeDays: newEntry.leadTimeDays === '' ? '' : Number(newEntry.leadTimeDays),
-        orderCycleDays: newEntry.orderCycleDays === '' ? '' : Number(newEntry.orderCycleDays),
+      [productId]: {
+        ...prev[productId],
+        safetyStock: DEFAULT_SAFETY_STOCK,
+        annualDemand: '',
+        leadTimeDays: '',
+        orderCycleDays: '',
       },
     }));
-    setNewEntry(emptyEntry);
   };
 
-  const applyChanges = () => {
-    if (onUpdateSafetyStock) onUpdateSafetyStock(draft);
-    setSaved(true);
+  const applyChanges = async () => {
+    if (!onUpdateSafetyStock) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      await onUpdateSafetyStock(draft);
+      setSaved(true);
+    } catch (error) {
+      setSaveError(error.message || 'Could not apply the reorder policy.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const discardChanges = () => {
     setDraft(safetyStock);
     setSaved(false);
+    setSaveError('');
   };
 
   const restoreThemePreview = () => {
@@ -250,8 +248,11 @@ function Settings({
                 <span />
               </div>
 
+              {policyLoading && <div className="s-policy-empty">Loading products and reorder policies…</div>}
+              {policyError && <div className="s-policy-error" role="alert">{policyError}</div>}
+
               {rows.map((row) => (
-                <div className="s-policy-row" key={row.productName}>
+                <div className="s-policy-row" key={row.productId}>
                   <span className="s-policy-product" title={row.productName}>
                     {row.productName}
                   </span>
@@ -260,8 +261,8 @@ function Settings({
                     <input
                       type="number"
                       min="0"
-                      value={row.safetyStock}
-                      onChange={(e) => editRow(row.productName, 'safetyStock', e.target.value)}
+                      value={row.safetyStock ?? ''}
+                      onChange={(e) => editRow(row.productId, 'safetyStock', e.target.value)}
                       aria-label={`Safety stock for ${row.productName}`}
                     />
                   ) : (
@@ -272,8 +273,8 @@ function Settings({
                     <input
                       type="number"
                       min="0"
-                      value={row.annualDemand}
-                      onChange={(e) => editRow(row.productName, 'annualDemand', e.target.value)}
+                      value={row.annualDemand ?? ''}
+                      onChange={(e) => editRow(row.productId, 'annualDemand', e.target.value)}
                       aria-label={`Annual demand for ${row.productName}`}
                     />
                   ) : (
@@ -285,7 +286,7 @@ function Settings({
                       type="number"
                       min="0"
                       value={row.leadTimeDays ?? ''}
-                      onChange={(e) => editRow(row.productName, 'leadTimeDays', e.target.value)}
+                      onChange={(e) => editRow(row.productId, 'leadTimeDays', e.target.value)}
                       aria-label={`Lead time in days for ${row.productName}`}
                       placeholder="required"
                     />
@@ -298,7 +299,7 @@ function Settings({
                       type="number"
                       min="1"
                       value={row.orderCycleDays ?? ''}
-                      onChange={(e) => editRow(row.productName, 'orderCycleDays', e.target.value)}
+                      onChange={(e) => editRow(row.productId, 'orderCycleDays', e.target.value)}
                       aria-label={`Order cycle in days for ${row.productName}`}
                       placeholder="required"
                     />
@@ -309,75 +310,24 @@ function Settings({
                   <button
                     type="button"
                     className="s-policy-remove"
-                    onClick={() => removeRow(row.productName)}
-                    aria-label={`Remove policy for ${row.productName}`}
-                    title="Remove — the product falls back to the system default"
+                    onClick={() => resetRow(row.productId)}
+                    aria-label={`Reset policy for ${row.productName}`}
+                    title={`Reset policy to the system default of ${DEFAULT_SAFETY_STOCK}`}
                   >
-                    <Trash2 size={13} />
+                    <RotateCcw size={13} />
                   </button>
                 </div>
               ))}
 
-              {rows.length === 0 && (
+              {!policyLoading && !policyError && rows.length === 0 && (
                 <div className="s-policy-empty">
-                  No product policy set. Every item falls back to {DEFAULT_SAFETY_STOCK} units.
+                  No products are available in the catalog.
                 </div>
               )}
-
-              {/* ===== NEW POLICY ===== */}
-              <div className="s-policy-row s-policy-row-new">
-                <input
-                  value={newEntry.productName}
-                  onChange={(e) => setNewEntry((prev) => ({ ...prev, productName: e.target.value }))}
-                  placeholder="Product name"
-                  aria-label="New product name"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  value={newEntry.safetyStock}
-                  onChange={(e) => setNewEntry((prev) => ({ ...prev, safetyStock: e.target.value }))}
-                  placeholder={String(DEFAULT_SAFETY_STOCK)}
-                  aria-label="New safety stock"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  value={newEntry.annualDemand}
-                  onChange={(e) => setNewEntry((prev) => ({ ...prev, annualDemand: e.target.value }))}
-                  placeholder="optional"
-                  aria-label="New annual demand"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  value={newEntry.leadTimeDays}
-                  onChange={(e) => setNewEntry((prev) => ({ ...prev, leadTimeDays: e.target.value }))}
-                  placeholder="lead days"
-                  aria-label="New lead time in days"
-                />
-                <input
-                  type="number"
-                  min="1"
-                  value={newEntry.orderCycleDays}
-                  onChange={(e) => setNewEntry((prev) => ({ ...prev, orderCycleDays: e.target.value }))}
-                  placeholder="cycle days"
-                  aria-label="New order cycle in days"
-                />
-                <button
-                  type="button"
-                  className="s-policy-add"
-                  onClick={addRow}
-                  disabled={!newEntry.productName.trim()}
-                  aria-label="Add product policy"
-                  title="Add product policy"
-                >
-                  <Plus size={13} />
-                </button>
-              </div>
             </div>
 
             <div className="s-advanced-actions">
+              {saveError && <span className="s-policy-error" role="alert">{saveError}</span>}
               {saved && !dirty && (
                 <span className="s-saved-flag">
                   <Check size={12} /> Policy applied
@@ -387,7 +337,7 @@ function Settings({
                 type="button"
                 className="s-ghost-btn"
                 onClick={discardChanges}
-                disabled={!dirty}
+                disabled={!dirty || saving}
               >
                 <RotateCcw size={13} /> Discard
               </button>
@@ -395,9 +345,9 @@ function Settings({
                 type="button"
                 className="s-primary-btn"
                 onClick={applyChanges}
-                disabled={!dirty}
+                disabled={!dirty || saving || policyLoading || Boolean(policyError)}
               >
-                Apply Policy
+                {saving ? 'Applying…' : 'Apply Policy'}
               </button>
             </div>
           </div>

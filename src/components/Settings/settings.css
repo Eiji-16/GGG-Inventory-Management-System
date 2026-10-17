@@ -369,6 +369,11 @@
     color: var(--text-muted);
     padding: 8px 2px;
 }
+
+.s-policy-error {
+    color: var(--accent-low, #ef4444);
+    font-size: 11px;
+}
 /* POLICY-INPUT-CSS-CONTINUES */
 
 /*==========POLICY INPUTS==========*/
@@ -389,13 +394,7 @@
     border-color: var(--background-icon-active-color);
 }
 
-.s-policy-row-new {
-    background: transparent;
-    border-style: dashed;
-}
-
-.s-policy-remove,
-.s-policy-add {
+.s-policy-remove {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -412,16 +411,6 @@
 .s-policy-remove:hover {
     color: var(--accent-low);
     border-color: var(--accent-low);
-}
-
-.s-policy-add:hover:not(:disabled) {
-    color: var(--background-icon-active-color);
-    border-color: var(--background-icon-active-color);
-}
-
-.s-policy-add:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
 }
 
 /*==========ADVANCED ACTIONS==========*/

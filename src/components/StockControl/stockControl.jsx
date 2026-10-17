@@ -28,6 +28,7 @@ import {
   safetyPointFor,
   stockStatusFor,
   annualDemandFor,
+  policyFor,
   maximumInventoryFor,
   STATUS_LABEL,
 } from '../../data/safetyStock'; /* ===== SAFETY STOCK ===== */
@@ -78,7 +79,12 @@ const activityPresentation = (item) => {
   return { Icon: PlusCircle, cls: 'sc-act-add', label: 'Stock In' };
 };
 
-function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff = null }) {
+function StockControl({
+  onNavigate,
+  safetyStock = SAFETY_STOCK_DEFAULTS,
+  handoff = null,
+  catalogRevision = 0,
+}) {
   const [stockFromDatabase, setStockFromDatabase] = useState([]);
   const [stockLoading, setStockLoading] = useState(true);
   const [stockError, setStockError] = useState('');
@@ -151,7 +157,7 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
     refreshStockData()
       .catch((error) => setStockError(error.message || 'Could not load Stock Control data.'))
       .finally(() => setStockLoading(false));
-  }, []);
+  }, [catalogRevision]);
 
   /* Close the sort dropdown on any outside click. */
   useEffect(() => {
@@ -201,8 +207,9 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
 
   const productById = useMemo(() => new Map(productOptions.map((product) => [product.id, product])), [productOptions]);
   const reorderPlans = useMemo(() => productOptions.map((product) => {
-    const policy = safetyStock?.[product.name] || {};
+    const policy = policyFor({ productId: product.id, productName: product.name }, safetyStock);
     const safetyStockValue = safetyPointFor({
+      productId: product.id,
       productName: product.name,
       safetyStock: product.safetyStock,
     }, safetyStock);
@@ -362,7 +369,8 @@ function StockControl({ onNavigate, safetyStock = SAFETY_STOCK_DEFAULTS, handoff
     onNavigate('Auto-Calculator', {
       product: row.productName,
       productId: row.productId,
-      annualDemand: productById.get(row.productId)?.annualDemand || annualDemandFor(row.productName, safetyStock),
+    annualDemand: productById.get(row.productId)?.annualDemand
+      || annualDemandFor(row.productId, safetyStock, row.productName),
     });
   };
 

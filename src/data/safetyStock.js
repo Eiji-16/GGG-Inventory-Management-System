@@ -5,12 +5,7 @@
    BACKEND: a single config value; store in a `settings` table or app config. */
 export const DEFAULT_SAFETY_STOCK = 20;
 
-/* SAFETY_STOCK_DEFAULTS — per-product policy: reorder threshold, yearly demand,
-   lead time, and order cycle.
-   This is the shared data authority — Stock Control reads it for alerts, and the Auto Calculator
-   pulls annualDemand from it during the EOQ handoff.
-   BACKEND: GET /api/safety-stock → the `safety_stock` table keyed by product.
-   Keys are product names now; switch to product_id once products have real IDs. */
+/* Fallback policy used only until the persisted per-product records load. */
 export const SAFETY_STOCK_DEFAULTS = {
   'Premium Calfskin Band': { safetyStock: 25, annualDemand: 960, leadTimeDays: '', orderCycleDays: '' },
   'Water-Resistant Diver Strap': { safetyStock: 45, annualDemand: 1240, leadTimeDays: '', orderCycleDays: '' },
@@ -18,19 +13,24 @@ export const SAFETY_STOCK_DEFAULTS = {
   'Sapphire Crystal Glass Face': { safetyStock: 60, annualDemand: 2100, leadTimeDays: '', orderCycleDays: '' },
 };
 
+export const policyFor = (row, policy = SAFETY_STOCK_DEFAULTS) => (
+  policy?.[row?.productId] || policy?.[row?.productName] || {}
+);
+
 /* Safety Point */
 export const safetyPointFor = (row, policy = SAFETY_STOCK_DEFAULTS) => {
-  if (row?.safetyStock !== null && row?.safetyStock !== undefined && row.safetyStock !== '') {
-    const productSafetyStock = Number(row.safetyStock);
-    if (Number.isFinite(productSafetyStock)) return productSafetyStock;
+  const configuredValue = policyFor(row, policy).safetyStock;
+  if (configuredValue !== null && configuredValue !== undefined && configuredValue !== '') {
+    const configuredSafetyStock = Number(configuredValue);
+    if (Number.isFinite(configuredSafetyStock)) return configuredSafetyStock;
   }
-  const value = Number(policy?.[row?.productName]?.safetyStock);
-  return Number.isFinite(value) ? value : DEFAULT_SAFETY_STOCK;
+  const productSafetyStock = Number(row?.safetyStock);
+  return Number.isFinite(productSafetyStock) ? productSafetyStock : DEFAULT_SAFETY_STOCK;
 };
 
 /* Annual Demand */
-export const annualDemandFor = (productName, policy = SAFETY_STOCK_DEFAULTS) => (
-  policy?.[productName]?.annualDemand ?? ''
+export const annualDemandFor = (productId, policy = SAFETY_STOCK_DEFAULTS, productName = '') => (
+  policyFor({ productId, productName }, policy).annualDemand ?? ''
 );
 
 /* Maximum stock target = safety stock + expected demand during lead time and order cycle. */

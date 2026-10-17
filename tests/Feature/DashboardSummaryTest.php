@@ -74,7 +74,9 @@ class DashboardSummaryTest extends TestCase
             ->assertJsonPath('products.0.stock', 5)
             ->assertJsonPath('products.0.safetyStock', 10)
             ->assertJsonPath('salesHistory.0.unitsSold', 9)
+            ->assertJsonPath('stockMovements.1.productId', 'PRD-TEST')
             ->assertJsonPath('stockMovements.1.type', 'in')
+            ->assertJsonPath('stockMovements.1.isAdjustment', false)
             ->assertJsonPath('supplierCount', 1)
             ->assertJsonPath('userCount', 1);
     }

@@ -202,6 +202,8 @@ class ProductController extends Controller
             'supplierInfo'    => $p->supplier?->name,
             'safetyStock'     => $p->safetyStock?->safety_stock,
             'annualDemand'    => $p->safetyStock?->annual_demand,
+            'leadTimeDays'    => $p->safetyStock?->lead_time_days,
+            'orderCycleDays'  => $p->safetyStock?->order_cycle_days,
             // Units sold (stock out) in the trailing 12 months — real demand.
             'demandFromHistory' => $demandFromHistory,
         ];

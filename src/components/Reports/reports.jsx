@@ -282,7 +282,7 @@ function InventoryAgingReportTab({ data, loading }) {
   const rows = data?.rows || [];
   return (
     <div>
-      <PanelHeader title="Inventory Aging Report" subtitle="Days since the last stock-in for each product" />
+      <PanelHeader title="Inventory Aging Report" subtitle="Days since stock-in; estimated from product creation date if no stock-in is recorded" />
       <div className="r-table-card">
         <table className="r-table">
           <thead>
@@ -293,7 +293,11 @@ function InventoryAgingReportTab({ data, loading }) {
               : rows.length === 0 ? <EmptyRow cols={4} text="No stock on hand to age." />
               : rows.map((r, i) => (
                 <tr key={i}>
-                  <td>{r.product}</td><td>{r.daysInStock ?? '—'}</td><td>{r.stock}</td>
+                  <td>{r.product}</td>
+                  <td title={r.ageEstimated ? 'Estimated from the product creation date' : 'Based on the latest stock-in date'}>
+                    {r.daysInStock ?? '—'}{r.ageEstimated && r.daysInStock !== null ? ' (est.)' : ''}
+                  </td>
+                  <td>{r.stock}</td>
                   <td><Badge label={r.status} /></td>
                 </tr>
               ))}
@@ -344,7 +348,7 @@ const TAB_RENDER = [
   (p) => <ReorderPointReportTab {...p} data={p.report?.reorderPoint} />,
 ];
 
-export default function ReportsAnalyticsDesign() {
+export default function ReportsAnalyticsDesign({ safetyStock }) {
   const [activeTab, setActiveTab] = useState(0);
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -356,7 +360,7 @@ export default function ReportsAnalyticsDesign() {
       .then((data) => setReport(data))
       .catch((e) => setError(e.message || 'Could not load reports.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [safetyStock]);
 
   const renderTab = TAB_RENDER[activeTab];
 

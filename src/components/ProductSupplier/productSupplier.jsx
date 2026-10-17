@@ -34,7 +34,7 @@ const DETAIL_FIELDS = [
   { key: 'supplierContact', label: 'Supplier Contact', hint: 'Phone or email used when a reorder is raised', wide: true },
 ];
 
-function ProductSupplier({ onNavigate }) {
+function ProductSupplier({ onNavigate, onCatalogChange }) {
   const PAGE_SIZE = 10;
   const [productsFromDatabase, setProductsFromDatabase] = useState([]);
   const [suppliers, setSuppliers] = useState([]); /* ===== SUPPLIER LIST (type-ahead + reuse) ===== */
@@ -302,6 +302,7 @@ function ProductSupplier({ onNavigate }) {
         if (!refreshResponse.ok) throw new Error(`Refresh failed (${refreshResponse.status})`);
         const refreshedProducts = await refreshResponse.json();
         setProductsFromDatabase(refreshedProducts);
+        onCatalogChange?.();
       } catch (refreshError) {
         console.error('Product was saved, but the product list could not be refreshed:', refreshError);
         alert('Product saved successfully, but the list could not refresh. Reload the page to see the latest database data.');
@@ -340,6 +341,7 @@ function ProductSupplier({ onNavigate }) {
       next.delete(id);
       return next;
     });
+    onCatalogChange?.();
   };
 
   /* ===== DELETE CHECK ===== */

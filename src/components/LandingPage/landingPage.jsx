@@ -22,7 +22,7 @@ import {
 } from 'lucide-react'; /* ===== ICONS ===== */
 
 import './landingPage.css'; /* ===== STYLES ===== */
-import { SAFETY_STOCK_DEFAULTS } from '../../data/safetyStock'; /* ===== POLICY ===== */
+import { SAFETY_STOCK_DEFAULTS, DEFAULT_SAFETY_STOCK, safetyPointFor } from '../../data/safetyStock'; /* ===== POLICY ===== */
 import Dashboard from '../Dashboard/dashboard'; /* ===== DASHBOARD ===== */
 import ProductSupplier from '../ProductSupplier/productSupplier'; /* ===== PRODUCTS ===== */
 import AutoCalculator from '../AutoCalculator/autoCal'; /* ===== CALCULATOR ===== */
@@ -55,11 +55,29 @@ function formatNotificationTime(timestamp) {
   return `${days} day${days === 1 ? '' : 's'} ago`;
 }
 
-function createNotifications(summary) {
+function mapSafetyStockPolicies(records) {
+  return Object.fromEntries(records.map((record) => {
+    const defaults = record.configured ? {} : SAFETY_STOCK_DEFAULTS[record.productName] || {};
+    return [record.productId, {
+      productName: record.productName,
+      safetyStock: record.safetyStock ?? defaults.safetyStock ?? DEFAULT_SAFETY_STOCK,
+      annualDemand: record.annualDemand ?? defaults.annualDemand ?? '',
+      leadTimeDays: record.leadTimeDays ?? defaults.leadTimeDays ?? '',
+      orderCycleDays: record.orderCycleDays ?? defaults.orderCycleDays ?? '',
+      configured: record.configured,
+    }];
+  }));
+}
+
+function createNotifications(summary, policy) {
   const notifications = [];
   (summary.products || []).forEach((product) => {
     const stock = Number(product.stock) || 0;
-    const reorderPoint = Number(product.safetyStock ?? 20);
+    const reorderPoint = safetyPointFor({
+      productId: product.id,
+      productName: product.name,
+      safetyStock: product.safetyStock,
+    }, policy);
     if (stock > reorderPoint) return;
     const outOfStock = stock <= 0;
     notifications.push({
@@ -118,6 +136,9 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
   const viewScrollPositions = useRef({});
   const [handoff, setHandoff] = useState(null); /* ===== HANDOFF ===== */
   const [safetyStock, setSafetyStock] = useState(SAFETY_STOCK_DEFAULTS); /* ===== SAFETY STOCK ===== */
+  const [policyLoading, setPolicyLoading] = useState(true);
+  const [policyError, setPolicyError] = useState('');
+  const [policyRefreshKey, setPolicyRefreshKey] = useState(0);
   const [notifications, setNotifications] = useState([]); /* ===== NOTIFICATION STATE ===== */
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [notificationError, setNotificationError] = useState('');
@@ -134,7 +155,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
         return response.json();
       })
       .then((summary) => {
-        if (active) setNotifications(createNotifications(summary));
+        if (active) setNotifications(createNotifications(summary, safetyStock));
       })
       .catch((error) => {
         if (active) setNotificationError(error.message || 'Could not load notifications.');
@@ -143,7 +164,53 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
         if (active) setNotificationsLoading(false);
       });
     return () => { active = false; };
-  }, []);
+  }, [safetyStock]);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/safety-stock', { headers: { Accept: 'application/json' } })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Could not load reorder policies (${response.status}).`);
+        return response.json();
+      })
+      .then((records) => {
+        if (!Array.isArray(records)) throw new Error('The reorder policy response was invalid.');
+        if (active) {
+          setSafetyStock(mapSafetyStockPolicies(records));
+          setPolicyError('');
+        }
+      })
+      .catch((error) => {
+        if (active) setPolicyError(error.message || 'Could not load reorder policies.');
+      })
+      .finally(() => {
+        if (active) setPolicyLoading(false);
+      });
+    return () => { active = false; };
+  }, [policyRefreshKey]);
+
+  const saveSafetyStock = async (draft) => {
+    const policies = Object.entries(draft).map(([productId, values]) => ({
+      productId,
+      safetyStock: values.safetyStock,
+      annualDemand: values.annualDemand === '' ? null : values.annualDemand,
+      leadTimeDays: values.leadTimeDays === '' ? null : values.leadTimeDays,
+      orderCycleDays: values.orderCycleDays === '' ? null : values.orderCycleDays,
+    }));
+    const response = await fetch('/api/safety-stock', {
+      method: 'PUT',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ policies }),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      const validationMessage = Object.values(body?.errors || {}).flat()[0];
+      throw new Error(validationMessage || body?.message || `Could not apply reorder policy (${response.status}).`);
+    }
+    const records = await response.json();
+    setSafetyStock(mapSafetyStockPolicies(records));
+    setPolicyError('');
+  };
 
   /* ===== OUTSIDE CLICK ===== */
   useEffect(() => {
@@ -448,22 +515,37 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
               {/* ===== CONTENT VIEWS (each also guarded by role) ===== */}
               {visitedViews.has('Dashboard') && canAccess('Dashboard') && (
                 <div className="app-view-panel" hidden={activeView !== 'Dashboard'}>
-                  <Dashboard onNavigate={handleNavigate} isSuperAdmin={role === 'super_admin'} />
+                  <Dashboard
+                    onNavigate={handleNavigate}
+                    isSuperAdmin={role === 'super_admin'}
+                    safetyStock={safetyStock}
+                    isActive={activeView === 'Dashboard'}
+                  />
                 </div>
               )}
               {visitedViews.has('Product-Supplier') && canAccess('Product-Supplier') && (
                 <div className="app-view-panel" hidden={activeView !== 'Product-Supplier'}>
-                  <ProductSupplier />
+                  <ProductSupplier onCatalogChange={() => setPolicyRefreshKey((key) => key + 1)} />
                 </div>
               )}
               {visitedViews.has('Stock') && canAccess('Stock') && (
                 <div className="app-view-panel" hidden={activeView !== 'Stock'}>
-                  <StockManagement onNavigate={handleNavigate} safetyStock={safetyStock} handoff={handoff} />
+                  <StockManagement
+                    onNavigate={handleNavigate}
+                    safetyStock={safetyStock}
+                    handoff={handoff}
+                    catalogRevision={policyRefreshKey}
+                  />
                 </div>
               )}
               {visitedViews.has('Auto-Calculator') && canAccess('Auto-Calculator') && (
                 <div className="app-view-panel" hidden={activeView !== 'Auto-Calculator'}>
-                  <AutoCalculator onNavigate={handleNavigate} handoff={handoff} />
+                  <AutoCalculator
+                    onNavigate={handleNavigate}
+                    handoff={handoff}
+                    safetyStock={safetyStock}
+                    catalogRevision={policyRefreshKey}
+                  />
                 </div>
               )}
               {visitedViews.has('Forecasting') && canAccess('Forecasting') && (
@@ -478,7 +560,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
               )}
               {visitedViews.has('Reports') && canAccess('Reports') && (
                 <div className="app-view-panel" hidden={activeView !== 'Reports'}>
-                  <ReportAnalytics />
+                  <ReportAnalytics safetyStock={safetyStock} />
                 </div>
               )}
               {visitedViews.has('Setting') && canAccess('Setting') && (
@@ -488,7 +570,9 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     onThemeChange={onThemeChange}
                     role={roleLabel}
                     safetyStock={safetyStock}
-                    onUpdateSafetyStock={setSafetyStock}
+                    onUpdateSafetyStock={saveSafetyStock}
+                    policyLoading={policyLoading}
+                    policyError={policyError}
                   />
                 </div>
               )}

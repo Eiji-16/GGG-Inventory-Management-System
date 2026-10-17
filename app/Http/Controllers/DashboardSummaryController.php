@@ -57,15 +57,17 @@ class DashboardSummaryController extends Controller
                 'unitsSold' => $record->units_sold,
             ]);
 
-        $stockMovements = StockMovement::query()
+        $stockMovements = StockMovement::with('product:id,code')
             ->orderBy('movement_date')
             ->orderBy('id')
-            ->get(['id', 'product_name', 'movement_date', 'movement_type', 'qty', 'created_at'])
+            ->get(['id', 'product_id', 'product_name', 'movement_date', 'movement_type', 'is_adjustment', 'qty', 'created_at'])
             ->map(fn (StockMovement $movement) => [
                 'id' => $movement->id,
+                'productId' => $movement->product?->code,
                 'productName' => $movement->product_name,
                 'date' => $movement->movement_date?->toDateString(),
                 'type' => $movement->movement_type,
+                'isAdjustment' => (bool) $movement->is_adjustment,
                 'qty' => $movement->qty,
                 'createdAt' => $movement->created_at?->toIso8601String(),
             ]);

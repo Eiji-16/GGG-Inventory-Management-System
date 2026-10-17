@@ -19,11 +19,15 @@ class SafetyStock extends Model
         'product_id',
         'safety_stock',
         'annual_demand',
+        'lead_time_days',
+        'order_cycle_days',
     ];
 
     protected $casts = [
         'safety_stock'  => 'integer',
         'annual_demand' => 'integer',
+        'lead_time_days' => 'integer',
+        'order_cycle_days' => 'integer',
     ];
 
     /** The product this policy governs. */

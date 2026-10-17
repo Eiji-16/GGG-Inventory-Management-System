@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Package, Boxes, TriangleAlert, ArrowLeftRight } from 'lucide-react';
 import './dashboard.css';
+import { safetyPointFor } from '../../data/safetyStock';
 
 const fmt = (value) => Number(value || 0).toLocaleString('en-PH');
 const categoryColors = {
@@ -12,7 +13,7 @@ const fallbackCategoryColors = ['#A78BFA', '#FB7185', '#38BDF8', '#F97316', '#2D
 const KPI_CARDS = [
   { key: 'totalProducts', label: 'Total Products', Icon: Package, accent: 'products' },
   { key: 'totalStockUnits', label: 'Total Stock Units', Icon: Boxes, accent: 'stock' },
-  { key: 'lowStockItems', label: 'Low Stock Items', Icon: TriangleAlert, accent: 'low' },
+  { key: 'lowStockItems', label: 'Reorder Alerts', Icon: TriangleAlert, accent: 'low' },
   { key: 'stockMovementsToday', label: 'Stock Movements Today', Icon: ArrowLeftRight, accent: 'movement' },
 ];
 
@@ -92,13 +93,16 @@ function Arc({ cx, cy, radius, start, end }) {
   return `M ${x1} ${y1} A ${radius} ${radius} 0 ${end - start > 180 ? 1 : 0} 1 ${x2} ${y2}`;
 }
 
-function Dashboard({ onNavigate, isSuperAdmin = false }) {
+function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = true }) {
   const [range, setRange] = useState(12);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const summaryRequestRef = useRef(0);
 
   const loadSummary = () => {
+    const requestId = summaryRequestRef.current + 1;
+    summaryRequestRef.current = requestId;
     setLoading(true);
     setError('');
     fetch('/api/dashboard/summary', { headers: { Accept: 'application/json' } })
@@ -106,14 +110,33 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
         if (!response.ok) throw new Error(`Dashboard data request failed (${response.status}).`);
         return response.json();
       })
-      .then(setSummary)
-      .catch((requestError) => setError(requestError.message || 'Could not load dashboard data.'))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (requestId === summaryRequestRef.current) setSummary(data);
+      })
+      .catch((requestError) => {
+        if (requestId === summaryRequestRef.current) {
+          setError(requestError.message || 'Could not load dashboard data.');
+        }
+      })
+      .finally(() => {
+        if (requestId === summaryRequestRef.current) setLoading(false);
+      });
   };
 
   useEffect(() => {
+    if (!isActive) return undefined;
+
     loadSummary();
-  }, []);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') loadSummary();
+    };
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [isActive]);
 
   const go = (tab, payload = null) => { if (onNavigate) onNavigate(tab, payload); };
   const derived = useMemo(() => {
@@ -149,7 +172,11 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
     const stock = products.map((product) => ({
       ...product,
       quantity: Number(product.stock) || 0,
-      threshold: Number(product.safetyStock ?? 20),
+      threshold: safetyPointFor({
+        productId: product.id,
+        productName: product.name,
+        safetyStock: product.safetyStock,
+      }, safetyStock),
     }));
     // Only products already tracked in Stock Control count toward alerts —
     // a brand-new product with no movements isn't "out of stock", just untracked.
@@ -197,12 +224,28 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
       const count = stockMovements.filter((movement) => movement.date === key).length;
       return { key, count, label: date.toLocaleDateString('en', { weekday: 'short' }) };
     });
-    const topProducts = Object.values(visibleSales.filter((record) => Number(record.unitsSold) > 0).reduce((totals, record) => {
-      const id = record.productId || record.productName || 'Unknown product';
-      if (!totals[id]) totals[id] = { name: record.productName || id, units: 0 };
-      totals[id].units += Number(record.unitsSold) || 0;
-      return totals;
-    }, {})).sort((a, b) => b.units - a.units).slice(0, 5);
+    const firstMonth = `${monthly[0]?.key || ''}-01`;
+    const todayKey = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-');
+    const topProducts = Object.values(stockMovements
+      .filter((movement) => (
+        movement.type === 'out'
+        && !movement.isAdjustment
+        && movement.date >= firstMonth
+        && movement.date <= todayKey
+        && Number(movement.qty) > 0
+      ))
+      .reduce((totals, movement) => {
+        const id = movement.productId || movement.productName || 'Unknown product';
+        if (!totals[id]) totals[id] = { id, name: movement.productName || id, units: 0 };
+        totals[id].units += Number(movement.qty);
+        return totals;
+      }, {}))
+      .sort((a, b) => b.units - a.units)
+      .slice(0, 5);
     const alerts = [
       ...outOfStock.map((product) => ({ ...product, level: 'out' })),
       ...lowStock.sort((a, b) => a.quantity - b.quantity).map((product) => ({ ...product, level: 'low' })),
@@ -213,9 +256,14 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
     ).size;
     const hasSalesData = monthly.some((month) => month.units > 0);
     const hasMovementData = dailyMovements.some((day) => day.count > 0);
+    const today = summary.generatedAt?.slice(0, 10);
+    const movementsToday = today
+      ? stockMovements.filter((movement) => movement.date === today).length
+      : null;
 
     return {
       products: stock,
+      totalProducts: stock.length,
       totalStock: stock.reduce((total, product) => total + product.quantity, 0),
       inStock,
       lowStock,
@@ -231,6 +279,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
       topProducts,
       dailyMovements,
       movementCount: dailyMovements.reduce((total, day) => total + day.count, 0),
+      movementsToday,
       alerts,
       assignedProducts,
       unassignedProducts: stock.length - assignedProducts,
@@ -240,7 +289,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
       maxProduct: Math.max(1, ...topProducts.map((product) => product.units)),
       maxMovement: Math.max(1, ...dailyMovements.map((day) => day.count)),
     };
-  }, [summary, range]);
+  }, [summary, range, safetyStock]);
 
   if (loading && !summary) {
     return (
@@ -294,21 +343,11 @@ function Dashboard({ onNavigate, isSuperAdmin = false }) {
   }
   if (!derived) return null;
 
-  const stockMovements = summary.stockMovements || [];
-  const appToday = summary.generatedAt?.slice(0, 10);
   const kpiValues = {
-    totalProducts: summary.kpis?.totalProducts ?? derived.products.length,
-    totalStockUnits: summary.kpis?.totalStockUnits ?? derived.totalStock,
-    lowStockItems: summary.kpis?.lowStockItems ?? derived.alerts.length,
-    stockMovementsToday: summary.kpis?.stockMovementsToday ?? (
-      stockMovements.length === 0
-        ? 0
-        : appToday
-        ? stockMovements.filter(
-          (movement) => movement.date === appToday
-        ).length
-        : null
-    ),
+    totalProducts: derived.totalProducts,
+    totalStockUnits: derived.totalStock,
+    lowStockItems: derived.alerts.length,
+    stockMovementsToday: derived.movementsToday,
   };
   const heroValues = derived.monthly.map((month) => month.units);
   const heroPoints = derived.hasSalesData ? scalePoints(heroValues, 520, 150, 10, 16, 12) : [];

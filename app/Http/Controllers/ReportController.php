@@ -183,7 +183,7 @@ class ReportController extends Controller
         return ['rows' => $rows];
     }
 
-    /** Days since the last stock-in = how long current stock has sat. */
+    /** Use the latest stock-in date, falling back to product creation as an estimate. */
     private function inventoryAging($products): array
     {
         $rows = [];
@@ -193,14 +193,19 @@ class ReportController extends Controller
             $lastIn = StockMovement::where('product_id', $p->id)
                 ->where('movement_type', 'in')
                 ->max('movement_date');
+            $ageDate = $lastIn ?? $p->created_at?->toDateString();
+            $ageEstimated = $lastIn === null;
 
-            $days = $lastIn ? (int) now()->startOfDay()->diffInDays(\Illuminate\Support\Carbon::parse($lastIn)->startOfDay()) : null;
+            $days = $ageDate
+                ? abs((int) now()->startOfDay()->diffInDays(\Illuminate\Support\Carbon::parse($ageDate)->startOfDay()))
+                : null;
 
             $status = $days === null ? 'Unknown' : ($days > 120 ? 'Slow Mover' : ($days > 60 ? 'Aging' : 'Healthy'));
 
             $rows[] = [
                 'product'    => $p->name,
                 'daysInStock'=> $days,
+                'ageEstimated' => $ageEstimated,
                 'stock'      => (int) $p->stock_on_hand,
                 'status'     => $status,
             ];
