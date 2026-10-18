@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { Search, Plus, Edit, Trash2, X, Package, Info, Download, AlertTriangle, Upload, Image as ImageIcon, ArrowUpDown } from 'lucide-react';
 
 import './productSupplier.css';
+import apiFetch from '../../apiFetch';
+import exportReportWorkbook from '../../utils/exportReportWorkbook';
 
 
 
@@ -48,6 +50,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
   const [sortBy, setSortBy] = useState('name'); /* ===== SORT KEY ===== */
   const [sortDir, setSortDir] = useState('asc'); /* ===== SORT DIRECTION ===== */
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [exportError, setExportError] = useState('');
   /* ===== DELETE TARGET ===== */
   const [confirmTarget, setConfirmTarget] = useState(null);
 
@@ -270,7 +273,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
     try {
       const isAdd = modalMode === 'add';
       const url = isAdd ? '/api/products' : `/api/products/${formData.id}`;
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method: isAdd ? 'POST' : 'PUT',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(payload),
@@ -316,7 +319,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
   /* ===== DELETE PRODUCT ===== */
   const handleDelete = async (id) => {
     try {
-      const response = await fetch(`/api/products/${id}`, {
+      const response = await apiFetch(`/api/products/${id}`, {
         method: 'DELETE',
         headers: { Accept: 'application/json' },
       });
@@ -362,28 +365,47 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
     setConfirmTarget(null);
   };
 
-  /* ===== EXPORT CSV ===== */
-  const exportCsv = () => {
+  /* ===== EXPORT FORMATTED PRODUCT WORKBOOK ===== */
+  const exportProducts = async () => {
     if (filteredProducts.length === 0) return;
     const headers = ['Product ID', 'Product Name', 'Category', 'Brand', 'Model', 'Unit Measure', 'Supplier', 'Supplier Contact'];
-    const escape = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
-    const lines = [
-      headers.join(','),
-      ...filteredProducts.map((p) =>
-        [p.id, p.name, p.category, p.brand, p.model, p.unitMeasure, p.supplierName, p.supplierContact].map(escape).join(',')
-      ),
-    ];
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `products-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    setExportError('');
+    try {
+      await exportReportWorkbook({
+        title: 'Product and Supplier Directory',
+        subtitle: 'Current product catalog and linked supplier contact information',
+        fileName: 'product-supplier-directory',
+        sections: [{
+          title: 'Product records',
+          headers,
+          rows: filteredProducts.map((product) => [
+            product.id,
+            product.name,
+            product.category,
+            product.brand,
+            product.model,
+            product.unitMeasure,
+            product.supplierName,
+            product.supplierContact,
+          ]),
+        }],
+        summary: [
+          { label: 'Products', value: filteredProducts.length },
+          { label: 'Categories', value: new Set(filteredProducts.map((product) => product.category).filter(Boolean)).size },
+          { label: 'Suppliers', value: new Set(filteredProducts.map((product) => product.supplierName).filter(Boolean)).size },
+        ],
+        scope: query.trim() ? `Filtered by: ${query.trim()}` : 'All matching product records',
+        columnWidths: [16, 28, 20, 20, 18, 18, 28, 28],
+      });
+    } catch (error) {
+      console.error('Could not export product and supplier directory:', error);
+      setExportError('Export failed. Please try again.');
+    }
   };
 /* ===== PRODUCT DATA END ===== */
   return (
     <div className="ps-table-parent">
+      {exportError && <p className="ps-export-error" role="alert">{exportError}</p>}
       {/* ===== SEARCH BAR ===== */}
       <div className="ps-navigation-bar">
         <div className="ps-search-wrapper">
@@ -400,11 +422,11 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
         </div>
         <button
           className="ps-add-btn ps-icon-only"
-          onClick={exportCsv}
+          onClick={exportProducts}
           type="button"
           disabled={filteredProducts.length === 0}
-          title="Export the current list to CSV"
-          aria-label="Export to CSV"
+          title="Export the current list to a formatted Excel report"
+          aria-label="Export Excel report"
         >
           <Download size={14} />
         </button>

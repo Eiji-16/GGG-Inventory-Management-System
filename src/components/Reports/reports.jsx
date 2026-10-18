@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Download, Search } from 'lucide-react';
 import './reports.css';
+import exportReportWorkbook from '../../utils/exportReportWorkbook';
 
 /* ===== REPORT TABS ===== */
 const TABS = [
@@ -26,37 +27,64 @@ const Badge = ({ label }) => (
   <span className={`r-badge ${BADGE[label] || 'r-badge-warn'}`}><span className="r-dot" />{label}</span>
 );
 
-/* ===== EXPORT CSV (reads the rendered table) ===== */
-const exportPanelCsv = (btn, title) => {
+/* ===== EXPORT FORMATTED WORKBOOK (reads the currently rendered report) ===== */
+const exportPanelWorkbook = async (btn, title, subtitle) => {
   const panel = btn.closest('.r-panel-header')?.parentElement;
   const table = panel?.querySelector('.r-table');
   if (!table) return;
-  const escape = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
-  const rows = Array.from(table.querySelectorAll('tr')).map((tr) =>
-    Array.from(tr.querySelectorAll('th,td'))
-      .map((cell) => escape(cell.innerText.trim()))
-      .join(',')
-  );
-  const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${title.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  const headers = Array.from(table.querySelectorAll('thead th'), (cell) => cell.innerText.trim());
+  const rows = Array.from(table.querySelectorAll('tbody tr'))
+    .map((tr) => Array.from(tr.querySelectorAll('td'), (cell) => cell.innerText.trim()))
+    .filter((row) => row.length === headers.length);
+  const summary = [{ label: 'Records', value: rows.length }];
+  const summaryCards = panel.querySelectorAll('.r-kpi-card');
+  Array.from(summaryCards).forEach((card) => {
+    const label = card.querySelector('.r-kpi-label')?.innerText.trim();
+    const value = card.querySelector('.r-kpi-value')?.innerText.trim();
+    if (label && value) summary.push({ label, value });
+  });
+  await exportReportWorkbook({
+    title,
+    subtitle,
+    fileName: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+    sections: [{ title: 'Report details', headers, rows }],
+    summary: summary.slice(0, Math.max(1, Math.min(4, headers.length))),
+    scope: 'The exported table reflects the current report tab and its active filters.',
+    note: rows.length ? '' : 'No report rows were available at the time of export.',
+    columnWidths: Array.from({ length: headers.length }, () => 22),
+  });
 };
 
 const PanelHeader = ({ title, subtitle }) => (
-  <div className="r-panel-header">
-    <div className="r-panel-title">
-      <h2>{title}</h2>
-      <p>{subtitle}</p>
-    </div>
-    <button className="r-export-btn" type="button" onClick={(e) => exportPanelCsv(e.currentTarget, title)}>
-      <Download size={13} /> Export
-    </button>
-  </div>
+  <PanelHeaderContent title={title} subtitle={subtitle} />
 );
+
+function PanelHeaderContent({ title, subtitle }) {
+  const [exportError, setExportError] = useState('');
+
+  const handleExport = async (event) => {
+    setExportError('');
+    try {
+      await exportPanelWorkbook(event.currentTarget, title, subtitle);
+    } catch (error) {
+      console.error(`Could not export ${title}:`, error);
+      setExportError('Export failed. Please try again.');
+    }
+  };
+
+  return (
+    <div className="r-panel-header">
+      <div className="r-panel-title">
+        <h2>{title}</h2>
+        <p>{subtitle}</p>
+        {exportError && <p role="alert">{exportError}</p>}
+      </div>
+      <button className="r-export-btn" type="button" onClick={handleExport}>
+        <Download size={13} /> Export Excel
+      </button>
+    </div>
+  );
+}
 
 /* Shared empty/loading row. */
 const EmptyRow = ({ cols, text }) => (
@@ -227,7 +255,7 @@ function DemandForecastSummaryTab({ data, loading }) {
   const rows = data?.rows || [];
   return (
     <div>
-      <PanelHeader title="Demand Forecast Summary" subtitle="Average demand from recorded sales history" />
+      <PanelHeader title="Demand Forecast Summary" subtitle="Weighted moving average of the latest three recorded monthly periods" />
       <div className="r-table-card">
         <table className="r-table">
           <thead>

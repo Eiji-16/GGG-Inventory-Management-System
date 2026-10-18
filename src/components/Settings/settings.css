@@ -327,8 +327,8 @@
 .s-policy-head,
 .s-policy-row {
     display: grid;
-    grid-template-columns: minmax(110px, 1.7fr) repeat(4, minmax(78px, 0.9fr)) 26px;
-    min-width: 520px;
+    grid-template-columns: minmax(110px, 1.7fr) repeat(6, minmax(100px, 0.9fr)) 26px;
+    min-width: 760px;
     align-items: center;
     gap: 6px;
 }

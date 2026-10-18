@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Package, Boxes, TriangleAlert, ArrowLeftRight } from 'lucide-react';
 import './dashboard.css';
-import { safetyPointFor } from '../../data/safetyStock';
+import { reorderPointFor } from '../../data/safetyStock';
 
 const fmt = (value) => Number(value || 0).toLocaleString('en-PH');
 const categoryColors = {
@@ -172,10 +172,12 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
     const stock = products.map((product) => ({
       ...product,
       quantity: Number(product.stock) || 0,
-      threshold: safetyPointFor({
+      threshold: reorderPointFor({
         productId: product.id,
         productName: product.name,
         safetyStock: product.safetyStock,
+        annualDemand: product.annualDemand,
+        leadTimeDays: product.leadTimeDays,
       }, safetyStock),
     }));
     // Only products already tracked in Stock Control count toward alerts —
@@ -435,11 +437,12 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
               <div className="db-donut-row">
                 <svg className="db-donut-svg" viewBox="0 0 120 120" aria-label="Inventory by category">
                   {derived.donut.map((segment) => <path key={segment.name} d={segment.path} fill={segment.color} opacity="0.92" />)}
-                  <text x="60" y="52" className="db-donut-center-val" textAnchor="middle" dominantBaseline="middle">{fmt(derived.products.length)}</text>
-                  <text x="60" y="73" className="db-donut-center-label" textAnchor="middle" dominantBaseline="middle">products</text>
                 </svg>
-                <div className="db-legend db-legend-col">
-                  {derived.categories.map((category) => <span key={category.name} className="db-legend-item"><i style={{ background: category.color }} />{category.name} {fmt(category.count)}</span>)}
+                <div className="db-donut-details">
+                  <strong className="db-donut-total">{fmt(derived.products.length)} products</strong>
+                  <div className="db-legend db-legend-col">
+                    {derived.categories.map((category) => <span key={category.name} className="db-legend-item"><i style={{ background: category.color }} />{category.name} {fmt(category.count)}</span>)}
+                  </div>
                 </div>
               </div>
             ) : <EmptyChart message="No products to group yet" />}

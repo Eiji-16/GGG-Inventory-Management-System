@@ -9,6 +9,12 @@
     flex-direction: column;
 }
 
+.ps-export-error {
+    margin: 0 5px 8px;
+    color: var(--accent-low, #b42318);
+    font-size: 12px;
+}
+
 /*==========SEARCH BAR==========*/
 .ps-navigation-bar{
     background: transparent;
@@ -442,22 +448,6 @@
     display: flex;
     flex-direction: column;
     gap: 1.35rem;
-
-    /*==========FADE MASK==========*/
-    -webkit-mask-image: linear-gradient(
-        to bottom,
-        transparent 0%,
-        black 3%,
-        black 92%,
-        transparent 100%
-    );
-    mask-image: linear-gradient(
-        to bottom,
-        transparent 0%,
-        black 3%,
-        black 92%,
-        transparent 100%
-    );
 }
 
 .ps-modal-idtag {
@@ -781,7 +771,9 @@
     align-items: center;
     justify-content: center;
     width: 100%;
-    max-height: 220px;
+    flex: 0 0 clamp(160px, 28vw, 240px);
+    min-height: clamp(160px, 28vw, 240px);
+    box-sizing: border-box;
     overflow: hidden;
     margin-bottom: 4px;
     border: 1px solid var(--border-color);
@@ -790,8 +782,9 @@
 }
 
 .ps-detail-photo img {
+    display: block;
     width: 100%;
-    max-height: 220px;
+    height: 100%;
     object-fit: contain;
 }
 
@@ -842,7 +835,9 @@
 .ps-photo-box img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    padding: 4px;
+    box-sizing: border-box;
+    object-fit: contain;
 }
 
 /* empty state inside the box */

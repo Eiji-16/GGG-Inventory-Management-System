@@ -52,7 +52,7 @@ class SalesForecastService
         ];
     }
 
-    private function weightedMovingAverage(array $units): float
+    public function weightedMovingAverage(array $units): float
     {
         $recent = array_slice($units, -3);
         $weightedTotal = 0;

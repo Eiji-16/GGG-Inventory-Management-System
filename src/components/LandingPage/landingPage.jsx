@@ -22,7 +22,8 @@ import {
 } from 'lucide-react'; /* ===== ICONS ===== */
 
 import './landingPage.css'; /* ===== STYLES ===== */
-import { SAFETY_STOCK_DEFAULTS, DEFAULT_SAFETY_STOCK, safetyPointFor } from '../../data/safetyStock'; /* ===== POLICY ===== */
+import apiFetch from '../../apiFetch';
+import { SAFETY_STOCK_DEFAULTS, DEFAULT_SAFETY_STOCK, reorderPointFor } from '../../data/safetyStock'; /* ===== POLICY ===== */
 import Dashboard from '../Dashboard/dashboard'; /* ===== DASHBOARD ===== */
 import ProductSupplier from '../ProductSupplier/productSupplier'; /* ===== PRODUCTS ===== */
 import AutoCalculator from '../AutoCalculator/autoCal'; /* ===== CALCULATOR ===== */
@@ -64,6 +65,8 @@ function mapSafetyStockPolicies(records) {
       annualDemand: record.annualDemand ?? defaults.annualDemand ?? '',
       leadTimeDays: record.leadTimeDays ?? defaults.leadTimeDays ?? '',
       orderCycleDays: record.orderCycleDays ?? defaults.orderCycleDays ?? '',
+      orderingCost: record.orderingCost ?? defaults.orderingCost ?? '',
+      holdingCost: record.holdingCost ?? defaults.holdingCost ?? '',
       configured: record.configured,
     }];
   }));
@@ -73,15 +76,17 @@ function createNotifications(summary, policy) {
   const notifications = [];
   (summary.products || []).forEach((product) => {
     const stock = Number(product.stock) || 0;
-    const reorderPoint = safetyPointFor({
+    const reorderPoint = reorderPointFor({
       productId: product.id,
       productName: product.name,
       safetyStock: product.safetyStock,
+      annualDemand: product.annualDemand,
+      leadTimeDays: product.leadTimeDays,
     }, policy);
     if (stock > reorderPoint) return;
     const outOfStock = stock <= 0;
     notifications.push({
-      id: `stock-${product.id}`,
+      id: `stock-${product.id}-${outOfStock ? 'out' : 'low'}`,
       type: outOfStock ? 'critical' : 'warning',
       title: outOfStock ? `${product.name} is out of stock` : `${product.name} is below safety stock`,
       meta: `${stock} on hand · reorder point ${reorderPoint}`,
@@ -105,6 +110,19 @@ function createNotifications(summary, policy) {
   });
 
   return notifications;
+}
+
+function loadNotificationPreference(key) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) || '{}');
+    return {
+      readIds: Array.isArray(saved.readIds) ? saved.readIds.filter((id) => typeof id === 'string') : [],
+      dismissedIds: Array.isArray(saved.dismissedIds) ? saved.dismissedIds.filter((id) => typeof id === 'string') : [],
+    };
+  } catch (error) {
+    console.error('Could not load notification preferences:', error);
+    return { readIds: [], dismissedIds: [] };
+  }
 }
 
 function LandingPage({onLogout, user, theme, onThemeChange}) {
@@ -140,6 +158,16 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
   const [policyError, setPolicyError] = useState('');
   const [policyRefreshKey, setPolicyRefreshKey] = useState(0);
   const [notifications, setNotifications] = useState([]); /* ===== NOTIFICATION STATE ===== */
+  const notificationPreferenceKey = `ggg-inventory-notifications:${user?.id ?? user?.email ?? 'account'}`;
+  const notificationPreferencesRef = useRef(null);
+  const notificationPreferenceOwnerRef = useRef(notificationPreferenceKey);
+  if (notificationPreferenceOwnerRef.current !== notificationPreferenceKey) {
+    notificationPreferenceOwnerRef.current = notificationPreferenceKey;
+    notificationPreferencesRef.current = null;
+  }
+  if (notificationPreferencesRef.current === null) {
+    notificationPreferencesRef.current = loadNotificationPreference(notificationPreferenceKey);
+  }
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [notificationError, setNotificationError] = useState('');
   const [isNotifOpen, setIsNotifOpen] = useState(false); /* ===== NOTIFICATION MENU ===== */
@@ -147,7 +175,17 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  const saveNotificationPreferences = (next) => {
+    notificationPreferencesRef.current = next;
+    try {
+      localStorage.setItem(notificationPreferenceKey, JSON.stringify(next));
+    } catch (error) {
+      console.error('Could not save notification preferences:', error);
+    }
+  };
+
   useEffect(() => {
+    if (policyLoading) return undefined;
     let active = true;
     fetch('/api/dashboard/summary', { headers: { Accept: 'application/json' } })
       .then((response) => {
@@ -155,7 +193,27 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
         return response.json();
       })
       .then((summary) => {
-        if (active) setNotifications(createNotifications(summary, safetyStock));
+        if (!active) return;
+        const current = createNotifications(summary, safetyStock);
+        const activeStockIds = new Set(current
+          .filter((notification) => notification.id.startsWith('stock-'))
+          .map((notification) => notification.id));
+        const previous = notificationPreferencesRef.current;
+        const next = {
+          readIds: previous.readIds.filter((id) => !id.startsWith('stock-') || activeStockIds.has(id)),
+          dismissedIds: previous.dismissedIds.filter((id) => !id.startsWith('stock-') || activeStockIds.has(id)),
+        };
+        if (
+          next.readIds.length !== previous.readIds.length
+          || next.dismissedIds.length !== previous.dismissedIds.length
+        ) {
+          saveNotificationPreferences(next);
+        }
+        const readIds = new Set(next.readIds);
+        const dismissedIds = new Set(next.dismissedIds);
+        setNotifications(current
+          .filter((notification) => !dismissedIds.has(notification.id))
+          .map((notification) => ({ ...notification, read: readIds.has(notification.id) })));
       })
       .catch((error) => {
         if (active) setNotificationError(error.message || 'Could not load notifications.');
@@ -164,7 +222,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
         if (active) setNotificationsLoading(false);
       });
     return () => { active = false; };
-  }, [safetyStock]);
+  }, [notificationPreferenceKey, policyLoading, safetyStock]);
 
   useEffect(() => {
     let active = true;
@@ -196,8 +254,10 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
       annualDemand: values.annualDemand === '' ? null : values.annualDemand,
       leadTimeDays: values.leadTimeDays === '' ? null : values.leadTimeDays,
       orderCycleDays: values.orderCycleDays === '' ? null : values.orderCycleDays,
+      orderingCost: values.orderingCost === '' ? null : values.orderingCost,
+      holdingCost: values.holdingCost === '' ? null : values.holdingCost,
     }));
-    const response = await fetch('/api/safety-stock', {
+    const response = await apiFetch('/api/safety-stock', {
       method: 'PUT',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ policies }),
@@ -224,11 +284,33 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isNotifOpen]);
 
-  const markAllRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  const clearNotifications = () => setNotifications([]);
+  const markAllRead = () => {
+    const readIds = new Set(notificationPreferencesRef.current.readIds);
+    notifications.forEach((notification) => readIds.add(notification.id));
+    saveNotificationPreferences({
+      ...notificationPreferencesRef.current,
+      readIds: [...readIds],
+    });
+    setNotifications((previous) => previous.map((notification) => ({ ...notification, read: true })));
+  };
+  const clearNotifications = () => {
+    const dismissedIds = new Set(notificationPreferencesRef.current.dismissedIds);
+    notifications.forEach((notification) => dismissedIds.add(notification.id));
+    saveNotificationPreferences({
+      ...notificationPreferencesRef.current,
+      dismissedIds: [...dismissedIds],
+    });
+    setNotifications([]);
+  };
 
   /* ===== OPEN NOTIFICATION ===== */
   const openNotification = (notif) => {
+    const readIds = new Set(notificationPreferencesRef.current.readIds);
+    readIds.add(notif.id);
+    saveNotificationPreferences({
+      ...notificationPreferencesRef.current,
+      readIds: [...readIds],
+    });
     setNotifications((prev) => prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n)));
     if (notif.view) {
       handleNavigate(notif.view);
@@ -236,13 +318,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
     }
   };
 
-  const handleLogout =  () => {
-    if (onLogout) {
-      onLogout();
-    } else {
-      console.log('Logging out...')
-    }
-  };
+  const handleLogout = () => onLogout?.();
 
   /* ===== NAVIGATION ===== */
   const handleNavigate = (view, payload = null) => {
@@ -535,6 +611,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     safetyStock={safetyStock}
                     handoff={handoff}
                     catalogRevision={policyRefreshKey}
+                    onInventoryChanged={() => setPolicyRefreshKey((key) => key + 1)}
                   />
                 </div>
               )}

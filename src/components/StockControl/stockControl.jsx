@@ -23,9 +23,11 @@ import {
   Package } from 'lucide-react';
 
 import './stockControl.css';
+import apiFetch from '../../apiFetch';
 import {
   SAFETY_STOCK_DEFAULTS,
   safetyPointFor,
+  reorderPointFor,
   stockStatusFor,
   annualDemandFor,
   policyFor,
@@ -84,6 +86,7 @@ function StockControl({
   safetyStock = SAFETY_STOCK_DEFAULTS,
   handoff = null,
   catalogRevision = 0,
+  onInventoryChanged,
 }) {
   const [stockFromDatabase, setStockFromDatabase] = useState([]);
   const [stockLoading, setStockLoading] = useState(true);
@@ -225,13 +228,21 @@ function StockControl({
       policy.orderCycleDays
     );
     const currentStock = Number(product.stock) || 0;
-    const reorderDue = currentStock <= safetyStockValue;
+    const reorderPoint = reorderPointFor({
+      productId: product.id,
+      productName: product.name,
+      safetyStock: safetyStockValue,
+      annualDemand: annualDemandValue,
+      leadTimeDays: policy.leadTimeDays,
+    }, safetyStock);
+    const reorderDue = currentStock <= reorderPoint;
 
     return {
       id: product.id,
       name: product.name,
       currentStock,
       safetyStock: safetyStockValue,
+      reorderPoint,
       maximumInventory,
       suggestedTopUp: reorderDue && maximumInventory !== null
         ? Math.max(0, maximumInventory - currentStock)
@@ -360,8 +371,11 @@ function StockControl({
     : stockStatusFor({
         ...formData,
         safetyStock: productById.get(formData.productId)?.safetyStock,
-        remainingStock: projectedRemaining,
-      }, safetyStock);
+      annualDemand: productById.get(formData.productId)?.annualDemand
+        || productById.get(formData.productId)?.demandFromHistory,
+      leadTimeDays: productById.get(formData.productId)?.leadTimeDays,
+      remainingStock: projectedRemaining,
+    }, safetyStock);
 
   /* ===== SEND TO CALCULATOR ===== */
   const computeEoqFor = (row) => {
@@ -444,40 +458,213 @@ function StockControl({
   return mapped;
 }, [stockFromDatabase, query, productById, productOptions, sortBy, sortDir]);
 
-  /* ===== EXPORT CSV ===== */
-  const exportCsv = () => {
+  /* ===== EXPORT FORMATTED EXCEL REPORT ===== */
+  const exportStockReport = async () => {
     if (visibleRows.length === 0) return;
-    const headers = ['Date', 'Product', 'Variant', 'Type', 'Changes', 'Total Qty', 'Safety Stock', 'Notes', 'Recorded By'];
-    const escape = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
-    const lines = [
-      headers.join(','),
-      ...visibleRows.map(({ row, totalQty, latestChange }) => {
-        const change = latestChange.delta;
-        return [
-          row.date,
+    let XLSX;
+    try {
+      ({ default: XLSX } = await import('xlsx-js-style'));
+    } catch (error) {
+      console.error('Could not load spreadsheet export support:', error);
+      setStockError('The Excel export could not be loaded. Please refresh the page and try again.');
+      return;
+    }
+    const headers = ['Date', 'Product', 'Variant', 'Type', 'Changes', 'Total Qty', 'Stock Status', 'Notes', 'Recorded By'];
+    const exportedAt = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+    const uniqueProducts = new Set(visibleRows.map(({ row }) => row.productId)).size;
+    const stockInCount = visibleRows.filter(({ row }) => row.type === 'Stock In').length;
+    const stockOutCount = visibleRows.filter(({ row }) => row.type === 'Stock Out').length;
+    const bodyRows = visibleRows.map(({ row, totalQty, latestChange }) => {
+      const product = productById.get(row.productId);
+      const status = stockStatusFor({
+        ...row,
+        safetyStock: product?.safetyStock,
+        annualDemand: product?.annualDemand || product?.demandFromHistory,
+        leadTimeDays: product?.leadTimeDays,
+        remainingStock: totalQty,
+      }, safetyStock);
+      const parsedDate = new Date(`${row.date}T00:00:00`);
+      const date = Number.isNaN(parsedDate.getTime())
+        ? String(row.date || '')
+        : parsedDate.toLocaleDateString('en-PH', { day: '2-digit', month: 'short', year: 'numeric' });
+
+      return {
+        values: [
+          date,
           row.productName,
-          row.variantName,
+          row.variantName || '—',
           movementLabel(row.type),
-          `${change >= 0 ? '+' : '-'}${Math.abs(change)}`,
+          latestChange.delta,
           totalQty,
-          stockStatusFor({
-            ...row,
-            safetyStock: productById.get(row.productId)?.safetyStock,
-            remainingStock: totalQty,
-          }, safetyStock),
-          row.notes,
-          row.recordedBy,
-        ]
-          .map(escape).join(',');
-      }),
+          STATUS_LABEL[status] || status,
+          row.notes || '—',
+          row.recordedBy || '—',
+        ],
+        status,
+      };
+    });
+
+    const rows = [
+      ['GGG INVENTORY MANAGEMENT SYSTEM'],
+      ['STOCK MOVEMENT REPORT'],
+      [`Generated: ${exportedAt}`, '', '', '', '', '', '', '', `Records: ${visibleRows.length}`],
+      ['MOVEMENT SUMMARY', '', '', '', '', '', '', '', ''],
+      [],
+      [],
+      ['MOVEMENT RECORDS', '', '', '', '', '', '', '', ''],
+      headers,
+      ...bodyRows.map(({ values }) => values),
+      [],
+      ['Report scope', query.trim() ? `Filtered by: ${query.trim()}` : 'All records in the current view'],
+      ['Note', 'Change shows the latest signed movement for the product; Total Qty shows its current overall stock.'],
     ];
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `stock-movements-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    const lastDataRow = 7 + bodyRows.length;
+
+    worksheet['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 8 } },
+      { s: { r: 6, c: 0 }, e: { r: 6, c: 8 } },
+      { s: { r: 9 + bodyRows.length, c: 1 }, e: { r: 9 + bodyRows.length, c: 8 } },
+      { s: { r: 10 + bodyRows.length, c: 1 }, e: { r: 10 + bodyRows.length, c: 8 } },
+    ];
+    worksheet['!cols'] = [
+      { wch: 17 }, { wch: 25 }, { wch: 17 }, { wch: 16 }, { wch: 13 },
+      { wch: 14 }, { wch: 17 }, { wch: 34 }, { wch: 20 },
+    ];
+    worksheet['!rows'] = [
+      { hpt: 30 }, { hpt: 25 }, { hpt: 22 }, { hpt: 21 }, { hpt: 22 }, { hpt: 30 },
+      { hpt: 22 }, { hpt: 25 },
+      ...bodyRows.map(() => ({ hpt: 22 })),
+    ];
+    worksheet['!autofilter'] = { ref: `A8:I${lastDataRow + 1}` };
+    worksheet['!freeze'] = {
+      xSplit: 0,
+      ySplit: 8,
+      topLeftCell: 'A9',
+      activePane: 'bottomLeft',
+      state: 'frozen',
+    };
+    worksheet['!views'] = [{ showGridLines: false }];
+
+    const setCellStyle = (cell, style) => {
+      if (worksheet[cell]) worksheet[cell].s = style;
+    };
+    const border = { bottom: { style: 'thin', color: { rgb: 'D9E2EC' } } };
+    const summaryLabel = {
+      font: { name: 'Aptos', sz: 10, bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '176B57' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+    };
+    const summaryValue = {
+      font: { name: 'Aptos', sz: 15, bold: true, color: { rgb: '163A32' } },
+      fill: { fgColor: { rgb: 'EAF4F0' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border,
+    };
+    setCellStyle('A1', {
+      font: { name: 'Aptos Display', sz: 18, bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '123B32' } },
+      alignment: { vertical: 'center' },
+    });
+    setCellStyle('A2', {
+      font: { name: 'Aptos Display', sz: 15, bold: true, color: { rgb: '176B57' } },
+      alignment: { vertical: 'center' },
+    });
+    setCellStyle('A3', {
+      font: { name: 'Aptos', sz: 10, color: { rgb: '5B6877' } },
+      alignment: { vertical: 'center' },
+    });
+    setCellStyle('I3', {
+      font: { name: 'Aptos', sz: 10, bold: true, color: { rgb: '176B57' } },
+      alignment: { horizontal: 'right', vertical: 'center' },
+    });
+    setCellStyle('A4', {
+      font: { name: 'Aptos', sz: 11, bold: true, color: { rgb: '176B57' } },
+      fill: { fgColor: { rgb: 'EAF4F0' } },
+      alignment: { vertical: 'center' },
+    });
+    setCellStyle('A7', {
+      font: { name: 'Aptos', sz: 11, bold: true, color: { rgb: '176B57' } },
+      fill: { fgColor: { rgb: 'EAF4F0' } },
+      alignment: { vertical: 'center' },
+    });
+    const summaryRanges = [
+      ['A', 'B', 'Records', visibleRows.length],
+      ['C', 'D', 'Products', uniqueProducts],
+      ['E', 'F', 'Stock In', stockInCount],
+      ['G', 'I', 'Stock Out', stockOutCount],
+    ];
+    summaryRanges.forEach(([start, end, label, value]) => {
+      setCellStyle(`${start}5`, summaryLabel);
+      setCellStyle(`${start}6`, summaryValue);
+      worksheet[`${start}6`] = { t: 'n', v: value, s: summaryValue };
+      worksheet['!merges'].push(
+        { s: { r: 4, c: XLSX.utils.decode_col(start) }, e: { r: 4, c: XLSX.utils.decode_col(end) } },
+        { s: { r: 5, c: XLSX.utils.decode_col(start) }, e: { r: 5, c: XLSX.utils.decode_col(end) } },
+      );
+      worksheet[`${start}5`] = { t: 's', v: label, s: summaryLabel };
+    });
+    headers.forEach((_, column) => {
+      const address = XLSX.utils.encode_cell({ r: 7, c: column });
+      if (worksheet[address]) {
+        worksheet[address].s = {
+          font: { name: 'Aptos', sz: 10, bold: true, color: { rgb: 'FFFFFF' } },
+          fill: { fgColor: { rgb: '244B43' } },
+          alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+          border: { bottom: { style: 'medium', color: { rgb: '176B57' } } },
+        };
+      }
+    });
+    bodyRows.forEach(({ status }, index) => {
+      const rowIndex = index + 8;
+      for (let column = 0; column < headers.length; column += 1) {
+        const address = XLSX.utils.encode_cell({ r: rowIndex, c: column });
+        if (worksheet[address]) {
+          worksheet[address].s = {
+            font: { name: 'Aptos', sz: 10, color: { rgb: '253247' } },
+            fill: { fgColor: { rgb: index % 2 === 0 ? 'FFFFFF' : 'F5F8FA' } },
+            alignment: { vertical: 'center', wrapText: column === 7 },
+            border,
+          };
+        }
+      }
+      const changeCell = worksheet[XLSX.utils.encode_cell({ r: rowIndex, c: 4 })];
+      if (changeCell) {
+        changeCell.z = '+0;-0;0';
+        changeCell.s = {
+          ...changeCell.s,
+          font: { name: 'Aptos', sz: 10, bold: true, color: { rgb: changeCell.v < 0 ? 'B42318' : '16804A' } },
+          alignment: { horizontal: 'center', vertical: 'center' },
+        };
+      }
+      const statusCell = worksheet[XLSX.utils.encode_cell({ r: rowIndex, c: 6 })];
+      if (statusCell) {
+        const statusColor = status === 'critical' || status === 'outofstock'
+          ? ['FCE8E6', 'B42318']
+          : status === 'warning'
+            ? ['FFF4D6', '8A5A00']
+            : ['E8F5EE', '16804A'];
+        statusCell.s = {
+          ...statusCell.s,
+          font: { name: 'Aptos', sz: 10, bold: true, color: { rgb: statusColor[1] } },
+          fill: { fgColor: { rgb: statusColor[0] } },
+          alignment: { horizontal: 'center', vertical: 'center' },
+        };
+      }
+    });
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Stock Movement Report');
+    workbook.Props = {
+      Title: 'Stock Movement Report',
+      Subject: 'Inventory stock movement and current quantity',
+      Author: 'GGG Inventory Management System',
+      CreatedDate: new Date(),
+    };
+    const date = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(workbook, `stock-movement-report-${date}.xlsx`);
   };
 
   const selectedProductIds = [...new Set(
@@ -529,7 +716,7 @@ function StockControl({
     }
     setOpeningSaving(true);
     try {
-      const response = await fetch('/api/stock-movements', {
+      const response = await apiFetch('/api/stock-movements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
@@ -552,6 +739,7 @@ function StockControl({
       closeModal();
       await refreshStockData();
       await loadStockActivities();
+      onInventoryChanged?.();
     } catch (error) {
       setStockError(error.message || 'Could not set opening stock.');
     } finally {
@@ -581,7 +769,7 @@ function StockControl({
 
   const clearProductStock = async (productId, refresh = true, reportError = true) => {
     try {
-      const response = await fetch(`/api/stock-movements/products/${encodeURIComponent(productId)}`, {
+      const response = await apiFetch(`/api/stock-movements/products/${encodeURIComponent(productId)}`, {
         method: 'DELETE',
         headers: { Accept: 'application/json' },
       });
@@ -599,6 +787,7 @@ function StockControl({
       if (refresh) {
         await refreshStockData();
         await loadStockActivities();
+        onInventoryChanged?.();
       }
       return true;
     } catch (error) {
@@ -677,7 +866,7 @@ function StockControl({
     };
 
     try {
-      const response = await fetch(editId === null ? '/api/stock-movements' : `/api/stock-movements/${editId}`, {
+      const response = await apiFetch(editId === null ? '/api/stock-movements' : `/api/stock-movements/${editId}`, {
         method: editId === null ? 'POST' : 'PUT',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(payload),
@@ -693,6 +882,7 @@ function StockControl({
       await refreshStockData();
       await loadStockActivities();
       if (historyProduct && historyProduct !== '—') await loadStockActivities(historyProduct);
+      onInventoryChanged?.();
     } catch (error) {
       console.error('Could not save stock movement:', error);
       setStockError(error.message || 'Could not save stock movement.');
@@ -718,11 +908,11 @@ function StockControl({
 
         <button
           className="sc-add-btn sc-icon-only"
-          onClick={exportCsv}
+          onClick={exportStockReport}
           type="button"
           disabled={visibleRows.length === 0}
-          title="Export the current view to CSV"
-          aria-label="Export to CSV"
+          title="Export the current view to a formatted Excel report"
+          aria-label="Export Excel report"
         >
           <Download size={14} />
         </button>
@@ -789,6 +979,7 @@ function StockControl({
               try {
                 await refreshStockData();
                 await loadStockActivities();
+                if (selectedProducts.length > failedProducts.length) onInventoryChanged?.();
                 setStockError(failedProducts.length
                   ? failedProducts.map(({ product, error }) => `${product.name}: ${error}`).join(' ')
                   : '');
@@ -861,7 +1052,7 @@ function StockControl({
               <th>Type</th>
               <th className="sc-th-quantity" title="Latest signed change for this product.">Change</th>
               <th className="sc-th-quantity" title="Current total stock for this product.">Total Qty</th>
-              <th>Safety Stock</th>
+              <th>Reorder Point</th>
               <th className="sc-th-left">Notes</th>
               <th>Recorded by</th>
               <th>Action</th>
@@ -875,13 +1066,15 @@ function StockControl({
               const statusRow = {
                 ...stock,
                 safetyStock: product?.safetyStock,
+                annualDemand: product?.annualDemand || product?.demandFromHistory,
+                leadTimeDays: product?.leadTimeDays,
                 remainingStock: totalQty,
               };
               const change = latestChange.delta;
               const after = totalQty;
               const signedText = `${change >= 0 ? '+' : '-'}${Math.abs(change)}`;
               const status = stockStatusFor(statusRow, safetyStock);
-              const point = safetyPointFor(statusRow, safetyStock);
+              const point = reorderPointFor(statusRow, safetyStock);
               return (
                 <tr
                   className={`${status ? `sc-row-${status}` : ''} ${selectedIds.has(id) ? 'is-selected' : ''} ${highlightId && stock.productId === highlightId ? 'sc-row-highlight' : ''}`}
@@ -928,11 +1121,11 @@ function StockControl({
                     </span>
                   </td>
                   <td className="sc-td-nowrap sc-td-strong" data-label="Total Qty">{after}</td>
-                  <td data-label="Safety Stock">
+                  <td data-label="Reorder Point">
                     {status ? (
                       <span
                         className={`sc-safety-badge sc-safety-${status}`}
-                        title={`${statusRow.remainingStock} on hand · safety stock ${point} (set by Super Admin)`}
+                        title={`${statusRow.remainingStock} on hand · reorder point ${point} (safety stock plus demand during lead time)`}
                       >
                         {status !== 'healthy' && <AlertTriangle size={10} />}
                         {STATUS_LABEL[status]}
@@ -1253,12 +1446,17 @@ function StockControl({
                       <span className={`sc-safety-badge sc-safety-${projectedStatus}`}>
                         {projectedStatus !== 'healthy' && <AlertTriangle size={10} />}
                         {STATUS_LABEL[projectedStatus]}
-                        <small>≤{safetyPointFor(formData, safetyStock)}</small>
+                        <small>≤{reorderPointFor({
+                          ...formData,
+                          annualDemand: productById.get(formData.productId)?.annualDemand
+                            || productById.get(formData.productId)?.demandFromHistory,
+                          leadTimeDays: productById.get(formData.productId)?.leadTimeDays,
+                        }, safetyStock)}</small>
                       </span>
                       <span className="sc-status-preview-note">
                         {projectedStatus === 'healthy'
-                          ? 'This entry keeps the item above its safety stock.'
-                          : 'This entry puts the item at or below its safety stock — the row will be flagged and a Compute EOQ shortcut appears.'}
+                          ? 'This entry keeps the item above its reorder point.'
+                          : 'This entry puts the item at or below its reorder point — the row will be flagged and a Compute EOQ shortcut appears.'}
                       </span>
                     </div>
                   )}
@@ -1435,7 +1633,7 @@ function StockControl({
                 <div className="sc-modal-titles">
                   <h2 id="sc-reorder-planning-title">Maximum Inventory &amp; Reorder Plan</h2>
                   <p className="sc-modal-subtitle">
-                    Maximum inventory = safety stock + daily demand × (lead time + order cycle).
+                    Reorder point = safety stock + daily demand × lead time. Maximum inventory = safety stock + daily demand × (lead time + order cycle).
                     Set lead time and order cycle in Settings → Advanced Options.
                   </p>
                 </div>
@@ -1471,7 +1669,7 @@ function StockControl({
                 <div className="sc-reorder-overview-card sc-reorder-overview-good">
                   <span className="sc-reorder-overview-label">Above reorder point</span>
                   <strong>{reorderSummary.healthy}</strong>
-                  <small>currently above safety stock</small>
+                  <small>currently above the reorder point</small>
                 </div>
               </section>
 
@@ -1480,8 +1678,9 @@ function StockControl({
                 <div>
                   <strong>How the target is calculated</strong>
                   <p>
+                    Reorder point = safety stock + (annual demand ÷ 365) × lead time.
                     Maximum inventory = safety stock + (annual demand ÷ 365) × (lead time + order cycle).
-                    Suggested top-up is the amount needed to reach that target when stock is at or below its trigger.
+                    Suggested top-up is the amount needed to reach the maximum target when stock is at or below the reorder point.
                   </p>
                 </div>
               </section>
@@ -1500,7 +1699,7 @@ function StockControl({
                     <tr>
                       <th>Product</th>
                       <th>Current stock</th>
-                      <th>Reorder trigger</th>
+                      <th>Reorder point</th>
                       <th>Maximum target</th>
                       <th>Recommended action</th>
                     </tr>
@@ -1559,8 +1758,7 @@ function StockControl({
               </div>
 
               <p className="sc-reorder-footnote">
-                Suggested quantities use current on-hand stock only; open purchase orders are not tracked, so account for them before ordering.
-                EOQ is a separate cost-based quantity and does not change the reorder trigger or maximum target.
+                Suggested quantities use current on-hand stock only. EOQ is a separate cost-based quantity and does not change the reorder trigger or maximum target.
               </p>
             </div>
           </aside>

@@ -19,6 +19,8 @@ class SafetyStockController extends Controller
             'safetyStock' => $product->safetyStock?->safety_stock,
             'annualDemand' => $product->safetyStock?->annual_demand,
             'leadTimeDays' => $product->safetyStock?->lead_time_days,
+            'orderingCost' => auth()->user()?->isAdminOrAbove() ? $product->safetyStock?->ordering_cost : null,
+            'holdingCost' => auth()->user()?->isAdminOrAbove() ? $product->safetyStock?->holding_cost : null,
             'orderCycleDays' => $product->safetyStock?->order_cycle_days,
             'configured' => $product->safetyStock !== null,
         ]));
@@ -33,6 +35,8 @@ class SafetyStockController extends Controller
             'policies.*.annualDemand' => ['nullable', 'integer', 'min:0'],
             'policies.*.leadTimeDays' => ['nullable', 'integer', 'min:0'],
             'policies.*.orderCycleDays' => ['nullable', 'integer', 'min:1'],
+            'policies.*.orderingCost' => ['nullable', 'numeric', 'min:0.01'],
+            'policies.*.holdingCost' => ['nullable', 'numeric', 'min:0.01'],
         ]);
 
         DB::transaction(function () use ($data): void {
@@ -45,6 +49,8 @@ class SafetyStockController extends Controller
                         'annual_demand' => $policy['annualDemand'] ?? null,
                         'lead_time_days' => $policy['leadTimeDays'] ?? null,
                         'order_cycle_days' => $policy['orderCycleDays'] ?? null,
+                        'ordering_cost' => $policy['orderingCost'] ?? null,
+                        'holding_cost' => $policy['holdingCost'] ?? null,
                     ]
                 );
             }

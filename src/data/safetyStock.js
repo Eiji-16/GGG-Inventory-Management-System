@@ -28,6 +28,30 @@ export const safetyPointFor = (row, policy = SAFETY_STOCK_DEFAULTS) => {
   return Number.isFinite(productSafetyStock) ? productSafetyStock : DEFAULT_SAFETY_STOCK;
 };
 
+export const reorderPointFor = (row, policy = SAFETY_STOCK_DEFAULTS) => {
+  const safetyStock = safetyPointFor(row, policy);
+  const configured = policyFor(row, policy);
+  const annualDemandValue = row?.annualDemand !== null && row?.annualDemand !== undefined
+    ? row.annualDemand
+    : configured.annualDemand ?? row?.demandFromHistory;
+  const annualDemand = Number(annualDemandValue);
+  const configuredLeadTime = configured.leadTimeDays;
+  const leadTimeValue = configuredLeadTime !== '' && configuredLeadTime !== null && configuredLeadTime !== undefined
+    ? configuredLeadTime
+    : row?.leadTimeDays;
+  const leadTimeDays = Number(leadTimeValue);
+
+  if (
+    !Number.isFinite(annualDemand) || annualDemand <= 0 ||
+    leadTimeValue === '' || leadTimeValue === null || leadTimeValue === undefined ||
+    !Number.isFinite(leadTimeDays) || leadTimeDays < 0
+  ) {
+    return safetyStock;
+  }
+
+  return Math.ceil(safetyStock + (annualDemand / 365) * leadTimeDays);
+};
+
 /* Annual Demand */
 export const annualDemandFor = (productId, policy = SAFETY_STOCK_DEFAULTS, productName = '') => (
   policyFor({ productId, productName }, policy).annualDemand ?? ''
@@ -59,7 +83,7 @@ export const maximumInventoryFor = (annualDemand, safetyStock, leadTimeDays, ord
 export const stockStatusFor = (row, policy = SAFETY_STOCK_DEFAULTS) => {
   const remaining = Number(row?.remainingStock);
   if (!Number.isFinite(remaining)) return null;
-  const point = safetyPointFor(row, policy);
+  const point = reorderPointFor(row, policy);
   if (remaining <= 0) return 'outofstock';
   if (remaining <= point * 0.5) return 'critical';
   if (remaining <= point) return 'low';

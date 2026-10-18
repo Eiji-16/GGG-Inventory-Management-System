@@ -5,10 +5,12 @@ namespace Tests\Feature;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use Tests\Concerns\AuthenticatesBusinessApi;
 
 class InventoryAgingReportTest extends TestCase
 {
     use RefreshDatabase;
+    use AuthenticatesBusinessApi;
 
     public function test_existing_stock_without_stock_in_uses_product_creation_date_as_estimate(): void
     {

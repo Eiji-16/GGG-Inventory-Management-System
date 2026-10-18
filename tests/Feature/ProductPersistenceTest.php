@@ -5,10 +5,12 @@ namespace Tests\Feature;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use Tests\Concerns\AuthenticatesBusinessApi;
 
 class ProductPersistenceTest extends TestCase
 {
     use RefreshDatabase;
+    use AuthenticatesBusinessApi;
 
     public function test_deleting_a_product_removes_its_stock_movements_and_quantity(): void
     {

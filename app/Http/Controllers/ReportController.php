@@ -6,6 +6,8 @@ use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\SalesHistory;
 use App\Models\StockMovement;
+use App\Services\ReorderPointService;
+use App\Services\SalesForecastService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,6 +20,11 @@ use Illuminate\Http\Request;
  */
 class ReportController extends Controller
 {
+    public function __construct(
+        private readonly ReorderPointService $reorderPoints,
+        private readonly SalesForecastService $forecasts,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         $products = Product::with('safetyStock')->orderBy('name')->get();
@@ -33,10 +40,10 @@ class ReportController extends Controller
         ]);
     }
 
-    /** Reorder point for a product: its safety stock, else a default of 20. */
+    /** Uses demand during lead time plus safety stock; falls back to safety stock. */
     private function reorderPointFor(Product $p): int
     {
-        return (int) ($p->safetyStock->safety_stock ?? 20);
+        return $this->reorderPoints->forProduct($p);
     }
 
     private function statusFor(Product $p): string
@@ -136,25 +143,31 @@ class ReportController extends Controller
         return ['rows' => $rows];
     }
 
-    /** Simple forecast: average monthly units sold from sales history. */
+    /** Weighted moving average using the latest three recorded monthly periods. */
     private function demandForecast($products): array
     {
         $rows = [];
         foreach ($products as $p) {
-            $history = SalesHistory::where('product_id', $p->id)
-                ->where('period_type', 'month')
-                ->pluck('units_sold');
+            $salesQuery = SalesHistory::where('product_id', $p->id)
+                ->where('period_type', 'month');
+            $periodCount = (clone $salesQuery)->count();
+            $history = $salesQuery
+                ->orderByDesc('period_date')
+                ->limit(3)
+                ->pluck('units_sold')
+                ->reverse()
+                ->values();
             if ($history->isEmpty()) continue;
 
-            $avg = round($history->avg(), 1);
+            $forecast = round($this->forecasts->weightedMovingAverage($history->map(fn ($units) => (float) $units)->all()), 1);
             $stock = (int) $p->stock_on_hand;
-            $suggested = max(0, (int) ceil($avg - $stock + $this->reorderPointFor($p)));
-            $confidence = $history->count() >= 6 ? 'High' : ($history->count() >= 3 ? 'Medium' : 'Low');
+            $suggested = max(0, (int) ceil($forecast - $stock + $this->reorderPointFor($p)));
+            $confidence = $periodCount >= 6 ? 'High' : ($periodCount >= 3 ? 'Medium' : 'Low');
 
             $rows[] = [
                 'product'          => $p->name,
                 'currentStock'     => $stock,
-                'forecastedDemand' => $avg,
+                'forecastedDemand' => $forecast,
                 'suggestedReorder' => $suggested,
                 'confidence'       => $confidence,
             ];

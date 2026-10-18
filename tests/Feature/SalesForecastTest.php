@@ -6,10 +6,12 @@ use App\Models\Product;
 use App\Models\SalesHistory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use Tests\Concerns\AuthenticatesBusinessApi;
 
 class SalesForecastTest extends TestCase
 {
     use RefreshDatabase;
+    use AuthenticatesBusinessApi;
 
     public function test_forecast_always_uses_weighted_moving_average(): void
     {

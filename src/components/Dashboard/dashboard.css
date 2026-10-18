@@ -552,6 +552,20 @@
     flex-shrink: 0;
 }
 
+.db-donut-details {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.db-donut-total {
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 700;
+}
+
 .db-donut-center-val {
     fill: var(--text-primary);
     font-size: 16px;

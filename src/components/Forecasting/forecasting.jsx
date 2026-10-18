@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './forecasting.css';
+import apiFetch from '../../apiFetch';
+import exportReportWorkbook, { printReportPdf } from '../../utils/exportReportWorkbook';
 
 const FORECAST_METHOD = 'Weighted Moving Average';
 const FORECAST_METHOD_NOTE = 'Uses the most recent three selected periods with fixed weights of 1, 2, and 3; the newest period receives the greatest weight.';
@@ -35,7 +37,7 @@ const YEAR_OPTIONS = (() => {
 })();
 
 async function requestJson(url, options = {}) {
-  const response = await fetch(url, {
+  const response = await apiFetch(url, {
     ...options,
     headers: {
       Accept: 'application/json',
@@ -335,33 +337,98 @@ export default function DemandForecastDesign({ onNavigate }) {
     setNewEventName('');
   };
 
-  const exportCsv = () => {
+  const exportForecastExcel = async () => {
     if (!forecast || !selectedProduct) return;
-    const escape = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
-    const rows = [
-      ['Forecast Summary', ''],
-      ['Product', selectedProduct.name],
-      ['Product ID', selectedProduct.id],
-      ['Forecast method', FORECAST_METHOD],
-      ['Forecast period', formatPeriod(forecast.forecastPeriod, selectedPeriodType)],
-      [`Base forecast (units/${selectedPeriodType})`, forecast.baseForecast],
-      ['Seasonal event', seasonalOn ? event : 'none'],
-      ['Adjustment (%)', effectivePct],
-      [`Adjusted demand (units/${selectedPeriodType})`, adjustedDemand],
-      ['Annualized demand (units)', annualDemand],
-      ['', ''],
-      ['Period', 'Units sold'],
-      ...sortedHistory.map((row) => [formatHistoryPeriod(row.periodDate, selectedPeriodType), row.unitsSold]),
+    setError('');
+    const sections = [
+      {
+        title: 'Forecast calculation',
+        headers: ['Metric', 'Value'],
+        rows: [
+          ['Product', selectedProduct.name],
+          ['Product ID', selectedProduct.id],
+          ['Forecast method', FORECAST_METHOD],
+          ['Forecast period', formatPeriod(forecast.forecastPeriod, selectedPeriodType)],
+          [`Base forecast (units/${selectedPeriodType})`, Number(forecast.baseForecast).toFixed(1)],
+          ['Seasonal event', seasonalOn ? event : 'None'],
+          ['Seasonal adjustment', `${effectivePct}%`],
+          [`Adjusted demand (units/${selectedPeriodType})`, Number(adjustedDemand).toFixed(1)],
+          ['Annualized demand (units)', annualDemand],
+        ],
+      },
+      {
+        title: 'Historical sales data',
+        headers: ['Period', 'Units sold'],
+        rows: sortedHistory.map((row) => [
+          formatHistoryPeriod(row.periodDate, selectedPeriodType),
+          Number(row.unitsSold),
+        ]),
+      },
     ];
-    const blob = new Blob([rows.map((row) => row.map(escape).join(',')).join('\n')], {
-      type: 'text/csv;charset=utf-8;',
+    const summary = [
+      { label: 'Base forecast', value: `${Number(forecast.baseForecast).toFixed(1)} units/${selectedPeriodType}` },
+      { label: 'Adjusted demand', value: `${Number(adjustedDemand).toFixed(1)} units/${selectedPeriodType}` },
+      { label: 'Annualized demand', value: `${annualDemand} units` },
+      { label: 'History periods', value: sortedHistory.length },
+    ];
+    try {
+      await exportReportWorkbook({
+        title: 'Sales Forecast Report',
+        subtitle: `Weighted moving average forecast for ${selectedProduct.name}`,
+        fileName: `sales-forecast-${selectedProduct.id}`,
+        sections,
+        summary,
+        scope: `Forecast period: ${formatPeriod(forecast.forecastPeriod, selectedPeriodType)}.`,
+        note: 'Seasonal adjustment is applied after the base weighted moving average forecast.',
+        columnWidths: [38, 30],
+      });
+    } catch (exportError) {
+      console.error('Could not export sales forecast:', exportError);
+      setError('Excel export failed. Please try again.');
+    }
+  };
+
+  const exportForecastPdf = () => {
+    if (!forecast || !selectedProduct) return;
+    setError('');
+    const opened = printReportPdf({
+      title: 'Sales Forecast Report',
+      subtitle: `Weighted moving average forecast for ${selectedProduct.name}`,
+      summary: [
+        { label: 'Base forecast', value: `${Number(forecast.baseForecast).toFixed(1)} units/${selectedPeriodType}` },
+        { label: 'Adjusted demand', value: `${Number(adjustedDemand).toFixed(1)} units/${selectedPeriodType}` },
+        { label: 'Annualized demand', value: `${annualDemand} units` },
+        { label: 'History periods', value: sortedHistory.length },
+      ],
+      sections: [
+        {
+          title: 'Forecast calculation',
+          headers: ['Metric', 'Value'],
+          rows: [
+            ['Product', selectedProduct.name],
+            ['Product ID', selectedProduct.id],
+            ['Forecast method', FORECAST_METHOD],
+            ['Forecast period', formatPeriod(forecast.forecastPeriod, selectedPeriodType)],
+            [`Base forecast (units/${selectedPeriodType})`, Number(forecast.baseForecast).toFixed(1)],
+            ['Seasonal event', seasonalOn ? event : 'None'],
+            ['Seasonal adjustment', `${effectivePct}%`],
+            [`Adjusted demand (units/${selectedPeriodType})`, Number(adjustedDemand).toFixed(1)],
+            ['Annualized demand (units)', annualDemand],
+          ],
+        },
+        {
+          title: 'Historical sales data',
+          headers: ['Period', 'Units sold'],
+          rows: sortedHistory.map((row) => [
+            formatHistoryPeriod(row.periodDate, selectedPeriodType),
+            Number(row.unitsSold),
+          ]),
+        },
+      ],
+      scope: `Forecast period: ${formatPeriod(forecast.forecastPeriod, selectedPeriodType)}.`,
+      note: 'Seasonal adjustment is applied after the base weighted moving average forecast.',
     });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `forecast-${selectedProduct.id}-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    if (!opened) setError('The PDF report could not be opened. Allow pop-ups and try again.');
   };
 
   const computeEoqFromForecast = () => {
@@ -529,10 +596,10 @@ export default function DemandForecastDesign({ onNavigate }) {
             <div className="f-card f-area-export">
               <h3>Export</h3>
               <div className="f-download-actions">
-                <button className="f-btn f-btn-ghost f-btn-sm" onClick={exportCsv} type="button" disabled={!forecast}>
-                  <FileIcon /> CSV
+                <button className="f-btn f-btn-ghost f-btn-sm" onClick={exportForecastExcel} type="button" disabled={!forecast}>
+                  <FileIcon /> Excel
                 </button>
-                <button className="f-btn f-btn-ghost f-btn-sm" onClick={() => window.print()} type="button" disabled={!forecast}>
+                <button className="f-btn f-btn-ghost f-btn-sm" onClick={exportForecastPdf} type="button" disabled={!forecast}>
                   <FileIcon /> PDF
                 </button>
               </div>

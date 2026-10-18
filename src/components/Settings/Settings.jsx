@@ -79,6 +79,8 @@ function Settings({
         annualDemand: '',
         leadTimeDays: '',
         orderCycleDays: '',
+        orderingCost: '',
+        holdingCost: '',
       },
     }));
   };
@@ -234,8 +236,10 @@ function Settings({
             </div>
 
             <p className="s-advanced-note">
-              Maximum inventory = safety stock + (annual demand ÷ 365) × (lead time + order cycle).
-              Lead time and order cycle are measured in days.
+              Reorder point = safety stock + (annual demand ÷ 365) × lead time.
+              {' '}Maximum inventory = safety stock + (annual demand ÷ 365) × (lead time + order cycle).
+              Lead time and order cycle are measured in days. Enter actual ordering cost per order
+              and annual holding cost per unit to enable automatic order-quantity recommendations.
             </p>
 
             <div className="s-policy-table">
@@ -245,6 +249,8 @@ function Settings({
                 <span>Annual Demand</span>
                 <span>Lead Time (days)</span>
                 <span>Order Cycle (days)</span>
+                <span>Ordering Cost (₱/order)</span>
+                <span>Holding Cost (₱/unit/year)</span>
                 <span />
               </div>
 
@@ -305,6 +311,32 @@ function Settings({
                     />
                   ) : (
                     <span className="s-policy-masked">{show(row.orderCycleDays ?? '')}</span>
+                  )}
+
+                  {revealed ? (
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={row.orderingCost ?? ''}
+                      onChange={(e) => editRow(row.productId, 'orderingCost', e.target.value)}
+                      aria-label={`Ordering cost per order for ${row.productName}`}
+                    />
+                  ) : (
+                    <span className="s-policy-masked">{show(row.orderingCost ?? '')}</span>
+                  )}
+
+                  {revealed ? (
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={row.holdingCost ?? ''}
+                      onChange={(e) => editRow(row.productId, 'holdingCost', e.target.value)}
+                      aria-label={`Holding cost per unit per year for ${row.productName}`}
+                    />
+                  ) : (
+                    <span className="s-policy-masked">{show(row.holdingCost ?? '')}</span>
                   )}
 
                   <button

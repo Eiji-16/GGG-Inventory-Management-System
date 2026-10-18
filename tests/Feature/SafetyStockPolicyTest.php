@@ -5,10 +5,12 @@ namespace Tests\Feature;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use Tests\Concerns\AuthenticatesBusinessApi;
 
 class SafetyStockPolicyTest extends TestCase
 {
     use RefreshDatabase;
+    use AuthenticatesBusinessApi;
 
     public function test_policy_is_saved_by_product_id_and_exposed_to_product_consumers(): void
     {
@@ -31,6 +33,8 @@ class SafetyStockPolicyTest extends TestCase
                 'annualDemand' => 840,
                 'leadTimeDays' => 12,
                 'orderCycleDays' => 30,
+                'orderingCost' => 250.50,
+                'holdingCost' => 18.25,
             ]],
         ])
             ->assertOk()
@@ -41,6 +45,8 @@ class SafetyStockPolicyTest extends TestCase
                 'annualDemand' => 840,
                 'leadTimeDays' => 12,
                 'orderCycleDays' => 30,
+                'orderingCost' => '250.50',
+                'holdingCost' => '18.25',
                 'configured' => true,
             ]);
 
@@ -52,6 +58,8 @@ class SafetyStockPolicyTest extends TestCase
                 'annualDemand' => 840,
                 'leadTimeDays' => 12,
                 'orderCycleDays' => 30,
+                'orderingCost' => '250.50',
+                'holdingCost' => '18.25',
             ]);
 
         $this->assertDatabaseHas('safety_stock', [
@@ -60,6 +68,8 @@ class SafetyStockPolicyTest extends TestCase
             'annual_demand' => 840,
             'lead_time_days' => 12,
             'order_cycle_days' => 30,
+            'ordering_cost' => 250.50,
+            'holding_cost' => 18.25,
         ]);
     }
 
@@ -86,6 +96,15 @@ class SafetyStockPolicyTest extends TestCase
                 'annualDemand' => null,
                 'leadTimeDays' => null,
                 'orderCycleDays' => 0,
+            ]],
+        ])->assertUnprocessable();
+
+        $this->putJson('/api/safety-stock', [
+            'policies' => [[
+                'productId' => $product['id'],
+                'safetyStock' => 5,
+                'orderingCost' => 0,
+                'holdingCost' => 10,
             ]],
         ])->assertUnprocessable();
     }

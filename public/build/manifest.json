@@ -1,11 +1,23 @@
 {
+  "node_modules/xlsx-js-style/dist/xlsx.min.js": {
+    "file": "assets/xlsx.min-CrFpcxjM.js",
+    "name": "xlsx.min",
+    "src": "node_modules/xlsx-js-style/dist/xlsx.min.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/layouts/App.jsx"
+    ]
+  },
   "src/layouts/App.jsx": {
-    "file": "assets/App-BHmAgO8S.js",
+    "file": "assets/App-cQI0XYWY.js",
     "name": "App",
     "src": "src/layouts/App.jsx",
     "isEntry": true,
+    "dynamicImports": [
+      "node_modules/xlsx-js-style/dist/xlsx.min.js"
+    ],
     "css": [
-      "assets/App-CyOTPn-x.css"
+      "assets/App-D8Gv_72r.css"
     ]
   },
   "src/styles/index.css": {

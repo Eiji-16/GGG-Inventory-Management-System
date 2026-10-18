@@ -21,6 +21,8 @@ class SafetyStock extends Model
         'annual_demand',
         'lead_time_days',
         'order_cycle_days',
+        'ordering_cost',
+        'holding_cost',
     ];
 
     protected $casts = [
@@ -28,6 +30,8 @@ class SafetyStock extends Model
         'annual_demand' => 'integer',
         'lead_time_days' => 'integer',
         'order_cycle_days' => 'integer',
+        'ordering_cost' => 'decimal:2',
+        'holding_cost' => 'decimal:2',
     ];
 
     /** The product this policy governs. */

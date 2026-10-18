@@ -30,7 +30,10 @@ class ProductController extends Controller
             ->groupBy('product_id')
             ->pluck('total', 'product_id');
 
-        return response()->json($products->map(fn ($p) => $this->format($p, (int) ($demand[$p->id] ?? 0))));
+        return response()->json($products->map(fn ($p) => $this->format(
+            $p,
+            (int) ($demand[$p->id] ?? 0)
+        )));
     }
 
     /** GET /api/products/{code} */
@@ -204,6 +207,8 @@ class ProductController extends Controller
             'annualDemand'    => $p->safetyStock?->annual_demand,
             'leadTimeDays'    => $p->safetyStock?->lead_time_days,
             'orderCycleDays'  => $p->safetyStock?->order_cycle_days,
+            'orderingCost'    => auth()->user()?->isAdminOrAbove() ? $p->safetyStock?->ordering_cost : null,
+            'holdingCost'     => auth()->user()?->isAdminOrAbove() ? $p->safetyStock?->holding_cost : null,
             // Units sold (stock out) in the trailing 12 months — real demand.
             'demandFromHistory' => $demandFromHistory,
         ];

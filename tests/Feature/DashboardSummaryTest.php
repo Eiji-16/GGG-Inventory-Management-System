@@ -10,10 +10,12 @@ use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use Tests\Concerns\AuthenticatesBusinessApi;
 
 class DashboardSummaryTest extends TestCase
 {
     use RefreshDatabase;
+    use AuthenticatesBusinessApi;
 
     public function test_dashboard_summary_returns_live_inventory_sales_and_account_data(): void
     {
@@ -21,6 +23,11 @@ class DashboardSummaryTest extends TestCase
             'name' => 'Local Supplier',
             'contact' => null,
             'company' => 'Local Supplier',
+        ]);
+        Supplier::create([
+            'name' => 'Unused Supplier',
+            'contact' => null,
+            'company' => 'Unused Supplier',
         ]);
         $product = Product::create([
             'code' => 'PRD-TEST',

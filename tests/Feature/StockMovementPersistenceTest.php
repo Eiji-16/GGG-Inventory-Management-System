@@ -6,10 +6,12 @@ use App\Models\Product;
 use App\Models\StockMovement;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use Tests\Concerns\AuthenticatesBusinessApi;
 
 class StockMovementPersistenceTest extends TestCase
 {
     use RefreshDatabase;
+    use AuthenticatesBusinessApi;
 
     private function createProduct(int $stock = 10): Product
     {

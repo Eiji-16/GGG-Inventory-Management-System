@@ -8,10 +8,11 @@ use App\Models\StockMovement;
 use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
+use App\Services\ReorderPointService;
 
 class DashboardSummaryController extends Controller
 {
-    public function __invoke(): JsonResponse
+    public function __invoke(ReorderPointService $reorderPoints): JsonResponse
     {
         $productRecords = Product::with('safetyStock')->orderBy('name')->get();
 
@@ -27,6 +28,8 @@ class DashboardSummaryController extends Controller
                 'category' => $product->category,
                 'stock' => $product->stock_on_hand,
                 'safetyStock' => $product->safetyStock?->safety_stock,
+                'annualDemand' => $reorderPoints->annualDemand($product),
+                'leadTimeDays' => $product->safetyStock?->lead_time_days,
                 'supplierId' => $product->supplier_id,
                 // True once the product has any movement; used to keep brand-new
                 // products out of the Stock Alerts list until they're tracked.
@@ -36,9 +39,9 @@ class DashboardSummaryController extends Controller
         $kpis = [
             'totalProducts' => $productRecords->count(),
             'totalStockUnits' => (int) $productRecords->sum('stock_on_hand'),
-            'lowStockItems' => $productRecords->filter(function (Product $product) use ($movedSet): bool {
+            'lowStockItems' => $productRecords->filter(function (Product $product) use ($movedSet, $reorderPoints): bool {
                 return isset($movedSet[$product->id])
-                    && (int) $product->stock_on_hand <= (int) ($product->safetyStock?->safety_stock ?? 20);
+                    && (int) $product->stock_on_hand <= $reorderPoints->forProduct($product);
             })->count(),
             'stockMovementsToday' => StockMovement::query()
                 ->whereDate('movement_date', today()->toDateString())
@@ -77,7 +80,7 @@ class DashboardSummaryController extends Controller
             'products' => $products,
             'salesHistory' => $salesHistory,
             'stockMovements' => $stockMovements,
-            'supplierCount' => Supplier::count(),
+            'supplierCount' => Supplier::whereHas('products')->count(),
             'userCount' => User::count(),
             'generatedAt' => now()->toIso8601String(),
         ]);
