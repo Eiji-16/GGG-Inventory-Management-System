@@ -288,11 +288,35 @@ class SalesForecastTest extends TestCase
             'period_date' => '2026-01-05 00:00:00',
             'units_sold' => 4,
         ]);
+        $this->assertDatabaseHas('sales_history', [
+            'product_id' => $product->id,
+            'period_type' => 'month',
+            'period_date' => '2026-02-01',
+            'units_sold' => 24,
+        ]);
         $this->assertDatabaseMissing('sales_history', [
             'product_id' => $product->id,
             'period_type' => 'month',
             'period_date' => '2026-01-01 00:00:00',
         ]);
+
+        $this->getJson('/api/sales-history?product='.$product->code.'&periodType=month')
+            ->assertOk()
+            ->assertJsonCount(2)
+            ->assertJsonPath('0.productId', $product->code)
+            ->assertJsonPath('0.periodType', 'month')
+            ->assertJsonPath('0.periodDate', '2025-01-01')
+            ->assertJsonPath('0.unitsSold', 8)
+            ->assertJsonPath('1.periodDate', '2026-02-01')
+            ->assertJsonPath('1.unitsSold', 24);
+
+        $this->getJson('/api/sales-history?product='.$product->code.'&periodType=week')
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.productId', $product->code)
+            ->assertJsonPath('0.periodType', 'week')
+            ->assertJsonPath('0.periodDate', '2026-01-05')
+            ->assertJsonPath('0.unitsSold', 4);
     }
 
     public function test_bulk_sales_history_rejects_negative_units_and_duplicate_normalized_weeks(): void

@@ -213,8 +213,7 @@
     right: 0;
     z-index: 50;
 
-    max-height: 170px;
-    /* Shows approx 5 options at once */
+    max-height: 152px;
     overflow-y: auto;
 
     background: var(--bg-card);
@@ -224,7 +223,10 @@
 }
 
 .f-year-opt {
-    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    height: 30px;
+    padding: 0 12px;
 
     color: var(--text-primary);
     font-family: 'IBM Plex Mono', monospace;
@@ -236,6 +238,10 @@
 }
 
 .f-year-opt:hover {
+    background: var(--background-icon-active-color-theme);
+}
+
+.f-year-opt.is-active:not(.is-selected) {
     background: var(--background-icon-active-color-theme);
 }
 
@@ -1361,10 +1367,15 @@
     font-size: 7px;
 }
 
-.f-sales-year-select select {
+.f-sales-year-select .f-year-select-wrap {
+    width: 100%;
+}
+
+.f-sales-year-select .f-custom-select-btn {
     min-height: 28px;
     padding: 5px 24px 5px 9px;
     font-size: 10px;
+    background-color: var(--input-bg, var(--static-bg-color));
 }
 
 .f-monthly-progress {
