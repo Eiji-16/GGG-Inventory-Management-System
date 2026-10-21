@@ -199,7 +199,7 @@ class AuthController extends Controller
     private function userPayload(User $user): array
     {
         return [
-            ...$user->only(['id', 'name', 'email', 'role']),
+            ...$user->only(['id', 'name', 'email', 'role', 'currency']),
             'isSuperAdmin' => $this->isSuperAdmin($user),
         ];
     }

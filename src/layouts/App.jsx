@@ -5,6 +5,7 @@ import Login from '../components/Login/Login';
 import LandingPage from '../components/LandingPage/landingPage';
 import './app-error.css';
 import { readSavedTheme, saveTheme } from '../theme';
+import { CurrencyProvider } from '../CurrencyContext';
 
 function App() {
     const [authStatus, setAuthStatus] = useState('checking');
@@ -123,12 +124,14 @@ function App() {
             {authStatus === 'authenticated' && (
                 <>
                     {error && <p role="alert">{error}</p>}
-                    <LandingPage
-                        user={user}
-                        onLogout={handleLogout}
-                        theme={theme}
-                        onThemeChange={setTheme}
-                    />
+                    <CurrencyProvider user={user}>
+                        <LandingPage
+                            user={user}
+                            onLogout={handleLogout}
+                            theme={theme}
+                            onThemeChange={setTheme}
+                        />
+                    </CurrencyProvider>
                 </>
             )}
         </div>

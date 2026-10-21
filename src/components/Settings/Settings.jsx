@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import './settings.css';
 import { SAFETY_STOCK_DEFAULTS, DEFAULT_SAFETY_STOCK } from '../../data/safetyStock';
+import { CURRENCIES, useCurrency } from '../../CurrencyContext';
 
 const THEMES = [
   { value: 'white', label: 'White' },
@@ -29,6 +30,7 @@ function Settings({
   policyError = '',
 }) {
   const isSuperAdmin = role === 'Super Admin';
+  const { currency, currencySymbol, updateCurrency } = useCurrency();
   const activeThemeName = THEMES.find((option) => option.value === theme)?.label || 'Midnight Blue';
   const selectedThemeRef = useRef(theme);
   const themeButtonRefs = useRef([]);
@@ -40,6 +42,9 @@ function Settings({
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [currencySaving, setCurrencySaving] = useState(false);
+  const [currencyError, setCurrencyError] = useState('');
+  const [currencySaved, setCurrencySaved] = useState(false);
 
   useEffect(() => {
     setDraft(safetyStock);
@@ -99,6 +104,20 @@ function Settings({
     }
   };
 
+  const handleCurrencyChange = async (event) => {
+    setCurrencySaving(true);
+    setCurrencyError('');
+    setCurrencySaved(false);
+    try {
+      await updateCurrency(event.target.value);
+      setCurrencySaved(true);
+    } catch (error) {
+      setCurrencyError(error.message || 'Could not save the currency preference.');
+    } finally {
+      setCurrencySaving(false);
+    }
+  };
+
   const discardChanges = () => {
     setDraft(safetyStock);
     setSaved(false);
@@ -137,6 +156,31 @@ function Settings({
 
   return (
     <div className="s-container">
+
+      <div className="s-card s-currency-card">
+        <div className="s-currency-info">
+          <div>
+            <label className="s-row-title" htmlFor="s-currency">Currency</label>
+            <div className="s-row-desc">
+              Changes monetary displays throughout the system; amounts are not converted.
+            </div>
+          </div>
+          <select
+            id="s-currency"
+            className="s-currency-select"
+            value={currency}
+            onChange={handleCurrencyChange}
+            disabled={currencySaving}
+          >
+            {CURRENCIES.map((option) => (
+              <option key={option.code} value={option.code}>{option.label}</option>
+            ))}
+          </select>
+        </div>
+        {currencySaving && <div className="s-currency-status" role="status">Saving currency…</div>}
+        {currencySaved && <div className="s-currency-status" role="status">Currency preference saved.</div>}
+        {currencyError && <div className="s-currency-error" role="alert">{currencyError}</div>}
+      </div>
 
       {/* ===== APPEARANCE ===== */}
       <div className="s-card">
@@ -249,8 +293,8 @@ function Settings({
                 <span>Annual Demand</span>
                 <span>Lead Time (days)</span>
                 <span>Order Cycle (days)</span>
-                <span>Ordering Cost (₱/order)</span>
-                <span>Holding Cost (₱/unit/year)</span>
+                <span>Ordering Cost ({currencySymbol}/order)</span>
+                <span>Holding Cost ({currencySymbol}/unit/year)</span>
                 <span />
               </div>
 

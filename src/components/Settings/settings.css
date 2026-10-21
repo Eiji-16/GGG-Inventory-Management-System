@@ -22,6 +22,42 @@
     padding: 1rem 1.25rem;
 }
 
+.s-currency-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.s-currency-select {
+    min-width: 220px;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg, var(--bg-card));
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12px;
+}
+
+.s-currency-select:focus-visible {
+    outline: 2px solid var(--background-icon-active-color);
+    outline-offset: 2px;
+}
+
+.s-currency-select:disabled {
+    opacity: 0.65;
+}
+
+.s-currency-status,
+.s-currency-error {
+    margin-top: 0.55rem;
+    font-size: 11px;
+}
+
+.s-currency-status { color: var(--accent-high); }
+.s-currency-error { color: var(--accent-low, #ef4444); }
+
 .s-row {
     display: flex;
     align-items: center;
@@ -439,6 +475,16 @@
 
     .s-card {
         padding: 0.9rem 1rem;
+    }
+
+    .s-currency-info {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .s-currency-select {
+        min-width: 0;
+        width: 100%;
     }
 
     /* Keep the label + control on one line but allow the text to wrap. */

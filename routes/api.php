@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardSummaryController;
+use App\Http\Controllers\CurrencyPreferenceController;
 use App\Http\Controllers\ForecastController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\SupplierController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['web', 'auth', 'active'])->group(function (): void {
+    Route::put('/settings/currency', [CurrencyPreferenceController::class, 'update']);
     Route::get('/dashboard/summary', DashboardSummaryController::class);
     Route::get('/reports', [ReportController::class, 'index']);
     Route::get('/products', [ProductController::class, 'index']);

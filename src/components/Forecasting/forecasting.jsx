@@ -524,7 +524,7 @@ export default function DemandForecastDesign({ onNavigate }) {
                 </div>
                 <div className="f-stat-box">
                   <div className="f-lbl">Avg. {periodAdjective} sales</div>
-                  <div className="f-val">{history.length ? overallAverage.toFixed(1) : '—'} <small>units/{periodUnit}</small></div>
+                  <div className="f-val">{history.length ? Math.round(overallAverage) : '—'} <small>units/{periodUnit}</small></div>
                 </div>
                 <div className="f-stat-box">
                   <div className="f-lbl">Data points</div>
@@ -545,13 +545,13 @@ export default function DemandForecastDesign({ onNavigate }) {
               {forecast ? (
                 <>
                   <div className="f-result-big">
-                    <div className="f-num">{forecastDemand.toFixed(1)}</div>
+                    <div className="f-num">{Math.round(forecastDemand)}</div>
                     <div className="f-lbl">Predicted units — {formatPeriod(forecast.forecastPeriod, selectedPeriodType)}</div>
                   </div>
                   <div className="f-stat-row">
                     <div className="f-stat-box">
                       <div className="f-lbl">Base forecast</div>
-                      <div className="f-val">{Number(forecast.baseForecast).toFixed(1)} <small>units</small></div>
+                      <div className="f-val">{Math.round(Number(forecast.baseForecast))} <small>units</small></div>
                     </div>
                   </div>
                   <button type="button" className="f-btn f-btn-link f-eoq-handoff" onClick={computeEoqFromForecast}>

@@ -4,6 +4,7 @@ import { X, History, Download, TrendingUp, Boxes } from 'lucide-react';
 import './autoCal.css';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
+import { useCurrency } from '../../CurrencyContext';
 import {
   maximumInventoryFor,
   policyFor,
@@ -17,8 +18,8 @@ const ORDER_QUANTITY_FORMULA = {
   formula: '√[(2 × annual demand × ordering cost) ÷ holding cost]',
   fields: [
     { key: 'demand',      label: 'Annual Demand',  placeholder: '', unit: 'units/year' },
-    { key: 'orderCost',   label: 'Ordering Cost',  placeholder: '', unit: '₱ per order' },
-    { key: 'holdingCost', label: 'Holding Cost', placeholder: '', unit: '₱ per unit/year' },
+    { key: 'orderCost',   label: 'Ordering Cost',  placeholder: '', unit: 'per order' },
+    { key: 'holdingCost', label: 'Holding Cost', placeholder: '', unit: 'per unit/year' },
   ],
 };
 
@@ -73,7 +74,7 @@ function HistoryPanel({ onClose, history, onClear }) {
                       <span key={k} className="ac-history-input-chip">{fullInputName(k)}: {v}</span>
                     ))}
                   </div>
-                  <div className="ac-history-result">Result: <strong>{h.result} {h.unit}</strong></div>
+                  <div className="ac-history-result">Result: <strong>{Math.round(Number(h.result)).toLocaleString('en-PH')} {h.unit}</strong></div>
                 </div>
               ))}
             </div>
@@ -96,6 +97,7 @@ export default function AutoCalculatorDesign({
   safetyStock = SAFETY_STOCK_DEFAULTS,
   catalogRevision = 0,
 }) {
+  const { currency, currencySymbol, formatCurrency } = useCurrency();
   const [showHistory, setShowHistory] = useState(false);
 
   /* ===== PRODUCTS (for auto-fill from Stock Control history) ===== */
@@ -315,7 +317,7 @@ export default function AutoCalculatorDesign({
         'Ordering Cost': orderingCost,
         'Holding Cost': holdingCost,
       },
-      result: calculation.economicOrderQuantity.toFixed(2),
+      result: calculation.economicOrderQuantity,
       unit: 'units',
     }, ...prev]);
     setSaving(true);
@@ -342,8 +344,8 @@ export default function AutoCalculatorDesign({
     setSaveStatus('');
   };
 
-  const fmtCur = (v) => `₱${v.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const fmtNum = (v, d = 2) => v.toLocaleString('en-PH', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const fmtWholeNum = (v) => Math.round(v).toLocaleString('en-PH');
 
   const reportGeneratedAt = () => new Date().toLocaleString('en-PH', {
     dateStyle: 'long',
@@ -360,9 +362,9 @@ export default function AutoCalculatorDesign({
         subtitle: `Inventory order planning for ${selectedProduct?.name || 'manual calculation'}`,
         fileName: `eoq-report-${selectedProduct?.id || 'manual-calculation'}`,
         summary: [
-          { label: 'Recommended order quantity', value: `${fmtNum(displayResult.economicOrderQuantity)} units` },
+          { label: 'Recommended order quantity', value: `${fmtWholeNum(displayResult.economicOrderQuantity)} units` },
           { label: 'Orders per year', value: fmtNum(displayResult.annualOrders) },
-          { label: 'Total annual cost', value: fmtCur(displayResult.totalCost) },
+          { label: 'Total annual cost', value: formatCurrency(displayResult.totalCost) },
         ],
         sections: [
           {
@@ -370,8 +372,8 @@ export default function AutoCalculatorDesign({
             headers: ['Input', 'Value', 'Unit'],
             rows: [
               ['Annual demand', fmtNum(displayResult.annualDemand), 'units/year'],
-              ['Ordering cost', fmtCur(displayResult.orderingCost), 'PHP/order'],
-              ['Holding cost', fmtCur(displayResult.holdingCost), 'PHP/unit/year'],
+              ['Ordering cost', formatCurrency(displayResult.orderingCost), `${currency}/order`],
+              ['Holding cost', formatCurrency(displayResult.holdingCost), `${currency}/unit/year`],
             ],
           },
           {
@@ -389,11 +391,11 @@ export default function AutoCalculatorDesign({
             title: 'EOQ results',
             headers: ['Result', 'Value', 'Unit'],
             rows: [
-              ['Economic order quantity', fmtNum(displayResult.economicOrderQuantity), 'units/order'],
+              ['Economic order quantity', fmtWholeNum(displayResult.economicOrderQuantity), 'units/order'],
               ['Orders per year', fmtNum(displayResult.annualOrders), 'orders/year'],
-              ['Annual ordering cost', fmtCur(displayResult.annualOrdering), 'PHP/year'],
-              ['Annual holding cost', fmtCur(displayResult.annualHolding), 'PHP/year'],
-              ['Total annual inventory cost', fmtCur(displayResult.totalCost), 'PHP/year'],
+              ['Annual ordering cost', formatCurrency(displayResult.annualOrdering), `${currency}/year`],
+              ['Annual holding cost', formatCurrency(displayResult.annualHolding), `${currency}/year`],
+              ['Total annual inventory cost', formatCurrency(displayResult.totalCost), `${currency}/year`],
             ],
           },
         ],
@@ -434,14 +436,14 @@ export default function AutoCalculatorDesign({
       : [['Inventory position', 'Not linked to a selected product']];
     const inputRows = [
       ['Annual demand', `${fmtNum(displayResult.annualDemand)} units/year`],
-      ['Ordering cost', fmtCur(displayResult.orderingCost)],
-      ['Holding cost', `${fmtCur(displayResult.holdingCost)} per unit/year`],
+      ['Ordering cost', formatCurrency(displayResult.orderingCost)],
+      ['Holding cost', `${formatCurrency(displayResult.holdingCost)} per unit/year`],
     ];
     const resultRows = [
       ['Orders per year', `${fmtNum(displayResult.annualOrders)} orders`],
-      ['Annual ordering cost', fmtCur(displayResult.annualOrdering)],
-      ['Annual holding cost', fmtCur(displayResult.annualHolding)],
-      ['Total annual inventory cost', fmtCur(displayResult.totalCost)],
+      ['Annual ordering cost', formatCurrency(displayResult.annualOrdering)],
+      ['Annual holding cost', formatCurrency(displayResult.annualHolding)],
+      ['Total annual inventory cost', formatCurrency(displayResult.totalCost)],
     ];
     const renderRows = (rows) => rows.map(([label, value]) => (
       `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`
@@ -491,7 +493,7 @@ export default function AutoCalculatorDesign({
             </header>
             <div class="hero">
               <div class="hero-label">Recommended order quantity</div>
-              <div class="hero-value">${escapeHtml(fmtNum(displayResult.economicOrderQuantity))} <small>units per order</small></div>
+              <div class="hero-value">${escapeHtml(fmtWholeNum(displayResult.economicOrderQuantity))} <small>units per order</small></div>
               <div class="muted">Based on the demand and cost values shown in this report.</div>
             </div>
             <div class="grid">
@@ -599,7 +601,11 @@ export default function AutoCalculatorDesign({
                     placeholder={field.placeholder}
                     min="0"
                   />
-                  {field.unit && <span className="ac-unit">{field.unit}</span>}
+                  {field.unit && (
+                    <span className="ac-unit">
+                      {field.key === 'demand' ? field.unit : `${currencySymbol} ${field.unit}`}
+                    </span>
+                  )}
                 </div>
                 {errors[field.key] && <span className="ac-field-error">{errors[field.key]}</span>}
               </div>
@@ -622,7 +628,7 @@ export default function AutoCalculatorDesign({
           <div className="ac-result-main">
             <span className="ac-result-eyebrow">Economic Order Quantity</span>
             <div key={displayResult ? `order-quantity-${displayResult.economicOrderQuantity}` : 'order-quantity-empty'} className={`ac-result-value${displayResult ? ' has-result' : ''}`}>
-              {displayResult ? fmtNum(displayResult.economicOrderQuantity) : '—'}
+              {displayResult ? fmtWholeNum(displayResult.economicOrderQuantity) : '—'}
             </div>
             <div className="ac-result-unit">
               {displayResult ? 'units per order' : 'Calculate the recommended order quantity'}
@@ -656,7 +662,7 @@ export default function AutoCalculatorDesign({
                 <p className="ac-policy-message">
                   {reorderRequired
                     ? automaticResult
-                      ? `Current stock is at the reorder trigger. Recommended order: ${fmtNum(automaticResult.economicOrderQuantity)} units.`
+                      ? `Current stock is at the reorder trigger. Recommended order: ${fmtWholeNum(automaticResult.economicOrderQuantity)} units.`
                       : 'Current stock is at the reorder trigger. Add demand and cost values to calculate an order recommendation.'
                     : `Current stock: ${currentStock} units. Reorder point is safety stock plus demand during lead time.`}
                 </p>
@@ -666,15 +672,15 @@ export default function AutoCalculatorDesign({
           <div className="ac-metrics-grid">
             <div className="ac-metric-card">
               <span className="ac-metric-label">Annual Ordering Cost</span>
-              <span className="ac-metric-value">{displayResult ? fmtCur(displayResult.annualOrdering) : '—'}</span>
+              <span className="ac-metric-value">{displayResult ? formatCurrency(displayResult.annualOrdering) : '—'}</span>
             </div>
             <div className="ac-metric-card">
               <span className="ac-metric-label">Annual Holding Cost</span>
-              <span className="ac-metric-value">{displayResult ? fmtCur(displayResult.annualHolding) : '—'}</span>
+              <span className="ac-metric-value">{displayResult ? formatCurrency(displayResult.annualHolding) : '—'}</span>
             </div>
             <div className="ac-metric-card ac-metric-card-accent">
               <span className="ac-metric-label">Total Annual Cost</span>
-              <span className="ac-metric-value">{displayResult ? fmtCur(displayResult.totalCost) : '—'}</span>
+              <span className="ac-metric-value">{displayResult ? formatCurrency(displayResult.totalCost) : '—'}</span>
             </div>
           </div>
           <div className="ac-export-actions">

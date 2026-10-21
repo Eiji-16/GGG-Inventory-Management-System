@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Download, Search } from 'lucide-react';
 import './reports.css';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
+import { useCurrency } from '../../CurrencyContext';
 
 /* ===== REPORT TABS ===== */
 const TABS = [
@@ -13,8 +14,6 @@ const TABS = [
   'Inventory Aging Report',
   'Reorder Point Report',
 ];
-
-const peso = (v) => `₱${Number(v || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 })}`;
 
 /* Status/urgency/confidence → badge class. */
 const BADGE = {
@@ -92,6 +91,7 @@ const EmptyRow = ({ cols, text }) => (
 );
 
 function StockSummaryTab({ data, loading }) {
+  const { formatCurrency } = useCurrency();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
   const kpis = data?.kpis || {};
@@ -145,7 +145,7 @@ function StockSummaryTab({ data, loading }) {
         </div>
         <div className="r-kpi-card">
           <div className="r-kpi-label">Inventory Value</div>
-          <div className="r-kpi-value">{peso(kpis.inventoryValue)}</div>
+          <div className="r-kpi-value">{formatCurrency(kpis.inventoryValue)}</div>
           <div className="r-kpi-sub">at cost</div>
         </div>
       </div>
@@ -227,6 +227,7 @@ function StockMovementTab({ data, loading }) {
 }
 
 function TopMovingProductsTab({ data, loading }) {
+  const { formatCurrency } = useCurrency();
   const rows = data?.rows || [];
   return (
     <div>
@@ -241,7 +242,7 @@ function TopMovingProductsTab({ data, loading }) {
               : rows.length === 0 ? <EmptyRow cols={4} text="No sales/stock-out recorded yet." />
               : rows.map((r) => (
                 <tr key={r.rank}>
-                  <td>{r.rank}</td><td>{r.product}</td><td>{r.unitsSold}</td><td>{peso(r.value)}</td>
+                  <td>{r.rank}</td><td>{r.product}</td><td>{r.unitsSold}</td><td>{formatCurrency(r.value)}</td>
                 </tr>
               ))}
           </tbody>
@@ -294,7 +295,9 @@ function AutoCalculatorSummaryTab({ data, loading }) {
                 <tr key={i}>
                   <td>{r.product || '—'}</td>
                   <td>{r.formula}</td>
-                  <td>{r.result != null ? `${r.result} ${r.unit || ''}`.trim() : '—'}</td>
+                  <td>{r.result != null
+                    ? `${r.formula === 'EOQ' ? Math.round(Number(r.result)).toLocaleString('en-PH') : r.result} ${r.unit || ''}`.trim()
+                    : '—'}</td>
                   <td>{r.by || '—'}</td>
                   <td>{r.date}</td>
                 </tr>
