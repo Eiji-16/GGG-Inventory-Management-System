@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Calculator, History, Download, TrendingUp, Boxes } from 'lucide-react';
+import { X, History, Download, TrendingUp, Boxes } from 'lucide-react';
 import './autoCal.css';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
@@ -136,6 +136,9 @@ export default function AutoCalculatorDesign({
       )
     : null;
   const currentStock = selectedProduct ? Number(selectedProduct.stock ?? 0) : null;
+  const selectedSafetyStock = selectedProduct
+    ? Number(selectedProduct.safetyStock ?? selectedPolicy.safetyStock ?? 0)
+    : null;
   const reorderRequired = reorderPoint !== null && currentStock !== null && currentStock <= reorderPoint;
   const annualDemandForCalculation = Number(reorderDemand);
   const orderingCostForCalculation = Number(
@@ -542,7 +545,7 @@ export default function AutoCalculatorDesign({
         <section className="ac-panel ac-input-panel" aria-labelledby="ac-input-title">
           <div className="ac-panel-heading">
             <h2 id="ac-input-title">Inputs</h2>
-            <span className="ac-formula-expr"><Calculator size={12} />{ORDER_QUANTITY_FORMULA.formula}</span>
+            <span className="ac-formula-expr">{ORDER_QUANTITY_FORMULA.formula}</span>
           </div>
           <p className="ac-source-note ac-panel-description">{ORDER_QUANTITY_FORMULA.description}</p>
           {handoff && (
@@ -576,31 +579,9 @@ export default function AutoCalculatorDesign({
                 <button type="button" onClick={() => setProductsRetry(retry => retry + 1)}>Retry</button>
               </div>
             )}
-            <p className="ac-source-note">
+            <p className="ac-source-note ac-demand-source">
               <Boxes size={11} /> Annual demand uses units sold in the last 12 months.
             </p>
-            {selectedProduct && (
-              <div className={`ac-reorder-status${reorderRequired ? ' is-due' : ''}`} role="status">
-                <div className="ac-reorder-status-values">
-                  <span>Reorder point: <strong>{reorderPoint} units</strong></span>
-                  {maximumInventory !== null && (
-                    <span>Maximum inventory: <strong>{maximumInventory} units</strong></span>
-                  )}
-                  <span>Current stock: <strong>{currentStock} units</strong></span>
-                </div>
-                <span className="ac-reorder-status-message">
-                  {reorderRequired ? 'Reorder trigger reached.' : 'Stock is above the reorder point.'}
-                  {' '}The reorder point is safety stock plus demand during lead time. The economic order quantity calculates how much to order.
-                </span>
-                {reorderRequired && (
-                  <span className="ac-reorder-status-message">
-                    {automaticResult
-                      ? 'An order-quantity recommendation has been calculated automatically from this product’s policy.'
-                      : 'Set annual demand, ordering cost, and holding cost in Settings → Advanced Options to calculate automatically.'}
-                  </span>
-                )}
-              </div>
-            )}
           </div>
 
           <div className="ac-inputs-grid">
@@ -627,7 +608,7 @@ export default function AutoCalculatorDesign({
 
           <div className="ac-actions">
             <button className="ac-btn-compute" onClick={handleCompute} type="button" disabled={saving}>
-              {saving ? 'Saving…' : 'Calculate Order Quantity'}
+              {saving ? 'Saving…' : 'Compute EOQ'}
             </button>
             <button className="ac-btn-reset" onClick={handleReset} type="button" disabled={saving}>Reset</button>
           </div>
@@ -639,6 +620,7 @@ export default function AutoCalculatorDesign({
             <span className="ac-result-section-label">{ORDER_QUANTITY_FORMULA.fullName}</span>
           </div>
           <div className="ac-result-main">
+            <span className="ac-result-eyebrow">Economic Order Quantity</span>
             <div key={displayResult ? `order-quantity-${displayResult.economicOrderQuantity}` : 'order-quantity-empty'} className={`ac-result-value${displayResult ? ' has-result' : ''}`}>
               {displayResult ? fmtNum(displayResult.economicOrderQuantity) : '—'}
             </div>
@@ -646,6 +628,41 @@ export default function AutoCalculatorDesign({
               {displayResult ? 'units per order' : 'Calculate the recommended order quantity'}
             </div>
           </div>
+          {(selectedProduct || displayResult) && (
+            <div className={`ac-policy-strip${reorderRequired ? ' is-due' : ''}`} role="status">
+              {selectedProduct && (
+                <>
+                  <div className="ac-policy-stat">
+                    <span>Reorder Point</span>
+                    <strong>{reorderPoint} <small>units</small></strong>
+                  </div>
+                  <div className="ac-policy-stat">
+                    <span>Safety Stock</span>
+                    <strong>{selectedSafetyStock} <small>units</small></strong>
+                  </div>
+                </>
+              )}
+              <div className="ac-policy-stat">
+                <span>Orders per Year</span>
+                <strong>{displayResult ? fmtNum(displayResult.annualOrders) : '—'} <small>orders</small></strong>
+              </div>
+              {selectedProduct && maximumInventory !== null && (
+                <div className="ac-policy-stat">
+                  <span>Maximum Inventory</span>
+                  <strong>{maximumInventory} <small>units</small></strong>
+                </div>
+              )}
+              {selectedProduct && (
+                <p className="ac-policy-message">
+                  {reorderRequired
+                    ? automaticResult
+                      ? `Current stock is at the reorder trigger. Recommended order: ${fmtNum(automaticResult.economicOrderQuantity)} units.`
+                      : 'Current stock is at the reorder trigger. Add demand and cost values to calculate an order recommendation.'
+                    : `Current stock: ${currentStock} units. Reorder point is safety stock plus demand during lead time.`}
+                </p>
+              )}
+            </div>
+          )}
           <div className="ac-metrics-grid">
             <div className="ac-metric-card">
               <span className="ac-metric-label">Annual Ordering Cost</span>
@@ -658,12 +675,6 @@ export default function AutoCalculatorDesign({
             <div className="ac-metric-card ac-metric-card-accent">
               <span className="ac-metric-label">Total Annual Cost</span>
               <span className="ac-metric-value">{displayResult ? fmtCur(displayResult.totalCost) : '—'}</span>
-            </div>
-            <div className="ac-metric-card">
-              <span className="ac-metric-label">Orders per Year</span>
-              <span className="ac-metric-value">
-                {displayResult ? fmtNum(displayResult.annualOrders) : '—'}
-              </span>
             </div>
           </div>
           <div className="ac-export-actions">
