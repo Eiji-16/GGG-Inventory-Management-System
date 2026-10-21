@@ -94,6 +94,8 @@ function HistoryPanel({ onClose, history, onClear }) {
 export default function AutoCalculatorDesign({
   onNavigate,
   handoff,
+  onClearHandoff,
+  currentUser = '',
   safetyStock = SAFETY_STOCK_DEFAULTS,
   catalogRevision = 0,
 }) {
@@ -106,9 +108,15 @@ export default function AutoCalculatorDesign({
   const [productsError, setProductsError] = useState('');
   const [productsRetry, setProductsRetry] = useState(0);
   const [selectedProductId, setSelectedProductId] = useState('');
-  const selectedProduct = products.find(product => String(product.id) === String(selectedProductId)) || null;
-
+  const [forecastContext, setForecastContext] = useState(null);
   const [inputs, setInputs] = useState({ demand: '', orderCost: '', holdingCost: '' });
+  const selectedProduct = products.find(product => String(product.id) === String(selectedProductId)) || null;
+  const activeForecastContext = forecastContext
+    && String(forecastContext.productId) === String(selectedProductId)
+    && Number(inputs.demand) === Number(forecastContext.annualDemand)
+    ? forecastContext
+    : null;
+
   const [errors, setErrors] = useState({});
   const [result, setResult] = useState(null);
   const [saveStatus, setSaveStatus] = useState('');
@@ -171,7 +179,10 @@ export default function AutoCalculatorDesign({
       setProductsLoading(true);
       setProductsError('');
       try {
-        const response = await fetch('/api/products', { headers: { Accept: 'application/json' } });
+        const response = await fetch('/api/products', {
+          cache: 'no-store',
+          headers: { Accept: 'application/json' },
+        });
         if (!response.ok) throw new Error('Unable to load products.');
         const data = await response.json();
         if (!Array.isArray(data)) throw new Error('The products response was invalid.');
@@ -219,14 +230,35 @@ export default function AutoCalculatorDesign({
   ]);
 
   useEffect(() => {
-    if (!handoff?.productId || !products.length) return;
+    if (!handoff) {
+      if (forecastContext) {
+        setForecastContext(null);
+        if (selectedProduct) {
+          const historicalDemand = Number(selectedProduct.demandFromHistory) > 0
+            ? selectedProduct.demandFromHistory
+            : selectedProduct.annualDemand || 0;
+          setInputs((previous) => ({ ...previous, demand: String(historicalDemand) }));
+        }
+      }
+      return;
+    }
+    if (handoff.type !== 'forecast-eoq' || !handoff.productId || !products.length) return;
     const product = products.find(item => String(item.id) === String(handoff.productId));
-    if (!product) return;
+    if (!product) {
+      setForecastContext(null);
+      setErrors((previous) => ({
+        ...previous,
+        demand: 'The forecast product is no longer available. Select a current product and forecast again.',
+      }));
+      onClearHandoff?.();
+      return;
+    }
     const productPolicy = policyFor({
       productId: product.id,
       productName: product.name,
     }, safetyStock);
 
+    setForecastContext(handoff);
     setSelectedProductId(product.id);
     setInputs({
       demand: String(handoff.annualDemand ?? ''),
@@ -236,15 +268,21 @@ export default function AutoCalculatorDesign({
     setErrors(prev => ({ ...prev, demand: '' }));
     setResult(null);
     setSaveStatus('');
-  }, [handoff, products, safetyStock]);
+  }, [forecastContext, handoff, products, safetyStock, onClearHandoff, selectedProduct]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setInputs(prev => ({ ...prev, [name]: value }));
     setErrors(prev => ({ ...prev, [name]: '' }));
+    if (name === 'demand' && forecastContext) {
+      setForecastContext(null);
+      onClearHandoff?.();
+    }
   };
 
   const handleProductSelect = (e) => {
+    setForecastContext(null);
+    onClearHandoff?.();
     const id = e.target.value;
     setSelectedProductId(id);
     const p = products.find(pr => String(pr.id) === String(id));
@@ -265,17 +303,28 @@ export default function AutoCalculatorDesign({
   };
 
   /* Persist a computation (with "computed by") so it appears in Reports. */
-  const saveCalculation = async (formulaName, resultValue, unit, numericInputs) => {
+  const saveCalculation = async (calculation, numericInputs) => {
     const product = products.find(pr => String(pr.id) === String(selectedProductId));
     const response = await apiFetch('/calculations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        formula: formulaName,
-        result: resultValue,
-        unit,
-        product: product?.name || null,
+        formula: 'EOQ',
+        result: calculation.economicOrderQuantity,
+        unit: 'units',
+        productId: product?.id || null,
+        demandSource: activeForecastContext ? 'forecast' : 'historical',
         inputs: numericInputs,
+        forecast: activeForecastContext ? {
+          productId: activeForecastContext.productId,
+          periodType: activeForecastContext.periodType,
+          forecastPeriod: activeForecastContext.forecastPeriod,
+          baseForecast: activeForecastContext.baseForecast,
+          seasonalEnabled: activeForecastContext.seasonalEnabled,
+          seasonalEvent: activeForecastContext.seasonalEvent,
+          adjustmentPct: activeForecastContext.adjustmentPct,
+          adjustedForecast: activeForecastContext.adjustedForecast,
+        } : null,
       }),
     });
     if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) {
@@ -289,16 +338,16 @@ export default function AutoCalculatorDesign({
     setSaveStatus('');
     const errs = {};
     ORDER_QUANTITY_FORMULA.fields.forEach(field => {
-      const value = parseFloat(inputs[field.key]);
-      if (inputs[field.key] === '' || inputs[field.key] == null || isNaN(value) || value < 0) {
+      const value = Number(inputs[field.key]);
+      if (inputs[field.key] === '' || inputs[field.key] == null || !Number.isFinite(value) || value < 0) {
         errs[field.key] = `Enter a valid ${field.label}`;
       }
     });
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
-    const annualDemand = parseFloat(inputs.demand);
-    const orderingCost = parseFloat(inputs.orderCost);
-    const holdingCost = parseFloat(inputs.holdingCost);
+    const annualDemand = Number(inputs.demand);
+    const orderingCost = Number(inputs.orderCost);
+    const holdingCost = Number(inputs.holdingCost);
     if (!(annualDemand > 0 && orderingCost > 0 && holdingCost > 0)) {
       setErrors({
         demand: annualDemand > 0 ? '' : 'Enter a positive annual demand',
@@ -323,11 +372,10 @@ export default function AutoCalculatorDesign({
     setSaving(true);
     setSaveStatus('');
     try {
-      await saveCalculation('EOQ', Number(calculation.economicOrderQuantity.toFixed(2)), 'units', {
+      await saveCalculation(calculation, {
         annualDemand,
         orderingCost,
         holdingCost,
-        annualOrders: Number(calculation.annualOrders.toFixed(2)),
       });
       setSaveStatus('Calculation saved to Economic Order Quantity reports.');
     } catch {
@@ -342,6 +390,8 @@ export default function AutoCalculatorDesign({
     setErrors({});
     setResult(null);
     setSaveStatus('');
+    setForecastContext(null);
+    onClearHandoff?.();
   };
 
   const fmtNum = (v, d = 2) => v.toLocaleString('en-PH', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -351,6 +401,25 @@ export default function AutoCalculatorDesign({
     dateStyle: 'long',
     timeStyle: 'short',
   });
+
+  const reportContextRows = (calculation) => [
+    ['Product', selectedProduct?.name || 'Manual calculation'],
+    ['Product ID', selectedProduct?.id || '—'],
+    ['Demand source', activeForecastContext ? 'Forecast' : 'Historical / entered'],
+    ['Annual demand used', `${fmtNum(calculation.annualDemand, 0)} units/year`],
+    ...(activeForecastContext ? [
+      ['Forecast period', `${activeForecastContext.periodType}: ${activeForecastContext.forecastPeriod}`],
+      ['Base forecast', `${fmtNum(activeForecastContext.baseForecast, 1)} units/${activeForecastContext.periodType}`],
+      ['Seasonal adjustment', activeForecastContext.seasonalEnabled
+        ? `${activeForecastContext.seasonalEvent}: ${activeForecastContext.adjustmentPct >= 0 ? '+' : ''}${activeForecastContext.adjustmentPct}%`
+        : 'Off'],
+      ['Adjusted forecast', `${fmtNum(activeForecastContext.adjustedForecast, 1)} units/${activeForecastContext.periodType}`],
+      ['Annualization', `${activeForecastContext.annualPeriods} forecast periods/year; nearest whole unit`],
+    ] : []),
+    ['Recommended whole-unit order quantity', `${fmtWholeNum(calculation.economicOrderQuantity)} units/order`],
+    ['Computed at', reportGeneratedAt()],
+    ['Computed by', currentUser || '—'],
+  ];
 
   /* ===== REPORT EXPORTS ===== */
   const exportExcel = async () => {
@@ -365,8 +434,14 @@ export default function AutoCalculatorDesign({
           { label: 'Recommended order quantity', value: `${fmtWholeNum(displayResult.economicOrderQuantity)} units` },
           { label: 'Orders per year', value: fmtNum(displayResult.annualOrders) },
           { label: 'Total annual cost', value: formatCurrency(displayResult.totalCost) },
+          { label: 'Demand source', value: activeForecastContext ? 'Forecast' : 'Historical / entered' },
         ],
         sections: [
+          {
+            title: 'Demand source and forecast context',
+            headers: ['Metric', 'Value'],
+            rows: reportContextRows(displayResult),
+          },
           {
             title: 'Calculation inputs',
             headers: ['Input', 'Value', 'Unit'],
@@ -445,6 +520,7 @@ export default function AutoCalculatorDesign({
       ['Annual holding cost', formatCurrency(displayResult.annualHolding)],
       ['Total annual inventory cost', formatCurrency(displayResult.totalCost)],
     ];
+    const contextRows = reportContextRows(displayResult);
     const renderRows = (rows) => rows.map(([label, value]) => (
       `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`
     )).join('');
@@ -497,6 +573,7 @@ export default function AutoCalculatorDesign({
               <div class="muted">Based on the demand and cost values shown in this report.</div>
             </div>
             <div class="grid">
+              <section><h2>Demand source and forecast context</h2><table>${renderRows(contextRows)}</table></section>
               <section><h2>Calculation inputs</h2><table>${renderRows(inputRows)}</table></section>
               <section><h2>Inventory position</h2><table>${renderRows(inventoryRows)}</table></section>
             </div>
@@ -529,15 +606,21 @@ export default function AutoCalculatorDesign({
       </div>
 
       {/* ===== HANDOFF BANNER ===== */}
-      {handoff && (
+      {activeForecastContext && (
         <div className="ac-handoff-banner">
           <TrendingUp size={13} />
           <div>
-            <span>
-              Forecast received for <strong>{handoff.product}</strong> — annual demand is pre-filled with{' '}
-              <strong>{Number(handoff.annualDemand).toLocaleString()} units/year</strong>.
-            </span>
-            <small>For an accurate calculation, enter this product’s actual ordering cost and holding cost. The calculator will not estimate missing costs.</small>
+            <span><strong>Sourced from Forecast: {selectedProduct?.name}</strong></span>
+            <small>
+              Base forecast: {Number(activeForecastContext.baseForecast).toLocaleString()} units/{activeForecastContext.periodType}.
+              {' '}{activeForecastContext.seasonalEnabled
+                ? `${activeForecastContext.seasonalEvent} ${activeForecastContext.adjustmentPct >= 0 ? '+' : ''}${activeForecastContext.adjustmentPct}%`
+                : 'No seasonal adjustment'}.
+              {' '}Adjusted forecast: {Number(activeForecastContext.adjustedForecast).toLocaleString()} units/{activeForecastContext.periodType}.
+              {' '}Forecast period: {activeForecastContext.forecastPeriod}.
+              {' '}Annual demand used: {Number(activeForecastContext.annualDemand).toLocaleString()} units/year.
+              {' '}For an accurate calculation, enter actual ordering and holding costs.
+            </small>
           </div>
         </div>
       )}
@@ -550,7 +633,7 @@ export default function AutoCalculatorDesign({
             <span className="ac-formula-expr">{ORDER_QUANTITY_FORMULA.formula}</span>
           </div>
           <p className="ac-source-note ac-panel-description">{ORDER_QUANTITY_FORMULA.description}</p>
-          {handoff && (
+          {activeForecastContext && (
             <div className="ac-cost-input-notice" role="status">
               {inputs.orderCost && inputs.holdingCost
                 ? 'Both cost inputs are filled. Check that these are the actual costs for this product before computing.'
@@ -582,7 +665,9 @@ export default function AutoCalculatorDesign({
               </div>
             )}
             <p className="ac-source-note ac-demand-source">
-              <Boxes size={11} /> Annual demand uses units sold in the last 12 months.
+              <Boxes size={11} /> {activeForecastContext
+                ? `Sourced from Forecast: ${selectedProduct?.name}`
+                : 'Historical demand from units sold in the last 12 months.'}
             </p>
           </div>
 
@@ -674,6 +759,13 @@ export default function AutoCalculatorDesign({
               <span className="ac-metric-label">Annual Ordering Cost</span>
               <span className="ac-metric-value">{displayResult ? formatCurrency(displayResult.annualOrdering) : '—'}</span>
             </div>
+            {displayResult && (
+              <p className="ac-source-note ac-result-guidance" role="status">
+                {activeForecastContext
+                  ? `You should order approximately ${fmtWholeNum(displayResult.economicOrderQuantity)} units per order cycle based on forecasted demand.`
+                  : `Recommended order quantity: approximately ${fmtWholeNum(displayResult.economicOrderQuantity)} units per order cycle.`}
+              </p>
+            )}
             <div className="ac-metric-card">
               <span className="ac-metric-label">Annual Holding Cost</span>
               <span className="ac-metric-value">{displayResult ? formatCurrency(displayResult.annualHolding) : '—'}</span>

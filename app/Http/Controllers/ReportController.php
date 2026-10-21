@@ -126,7 +126,7 @@ class ReportController extends Controller
             ->orderByDesc('units')
             ->get();
 
-        $products = Product::whereIn('id', $out->pluck('product_id'))->get()->keyBy('id');
+        $products = Product::withTrashed()->whereIn('id', $out->pluck('product_id'))->get()->keyBy('id');
 
         $rows = [];
         $rank = 1;
@@ -187,8 +187,13 @@ class ReportController extends Controller
         $rows = $logs->map(fn (ActivityLog $log) => [
             'formula' => $log->meta['formula'] ?? '—',
             'product' => $log->meta['product'] ?? '—',
-            'result'  => isset($log->meta['result']) ? round((float) $log->meta['result'], 2) : null,
+            'productId' => $log->meta['productId'] ?? null,
+            'result'  => isset($log->meta['result']) ? (float) $log->meta['result'] : null,
             'unit'    => $log->meta['unit'] ?? '',
+            'demandSource' => $log->meta['demandSource'] ?? 'historical',
+            'annualDemand' => $log->meta['inputs']['annualDemand'] ?? null,
+            'forecast' => $log->meta['forecast'] ?? null,
+            'recommendedOrderQuantity' => $log->meta['recommendedOrderQuantity'] ?? null,
             'by'      => $log->meta['by'] ?? ($log->user?->name ?? '—'),
             'date'    => $log->created_at?->format('n/j/Y g:i A'),
         ])->all();

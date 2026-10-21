@@ -147,13 +147,19 @@ function StockControl({
     setStockError('');
     const [movementResponse, productResponse] = await Promise.all([
       fetch('/api/stock-movements', { headers: { Accept: 'application/json' } }),
-      fetch('/api/products', { headers: { Accept: 'application/json' } }),
+      fetch('/api/products', { cache: 'no-store', headers: { Accept: 'application/json' } }),
     ]);
     if (!movementResponse.ok) throw new Error(`Could not load stock movements (${movementResponse.status}).`);
     if (!productResponse.ok) throw new Error(`Could not load products (${productResponse.status}).`);
     const [movements, products] = await Promise.all([movementResponse.json(), productResponse.json()]);
     setStockFromDatabase(movements);
     setProductOptions(products);
+    if (formData.productId && !products.some((product) => product.id === formData.productId)) {
+      setFormData(emptyForm);
+      setOpeningStock('');
+      setIsModalOpen(false);
+      setEditId(null);
+    }
   };
 
   useEffect(() => {

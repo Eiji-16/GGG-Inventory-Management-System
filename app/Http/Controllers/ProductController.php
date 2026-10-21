@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -166,7 +165,7 @@ class ProductController extends Controller
     {
         do {
             $code = 'PRD-'.random_int(1000, 9999);
-        } while (Product::where('code', $code)->exists());
+        } while (Product::withTrashed()->where('code', $code)->exists());
 
         return $code;
     }

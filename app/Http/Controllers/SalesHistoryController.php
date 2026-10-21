@@ -7,6 +7,7 @@ use App\Models\SalesHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 /**
  * SalesHistoryController — /api/sales-history
@@ -31,7 +32,7 @@ class SalesHistoryController extends Controller
             ->orderBy('period_date');
 
         if ($code = $request->query('product')) {
-            $product = Product::where('code', $code)->firstOrFail();
+            $product = Product::withTrashed()->where('code', $code)->firstOrFail();
             $query->where('product_id', $product->id);
         }
 
@@ -42,7 +43,7 @@ class SalesHistoryController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'productId'  => ['required', 'string'],          // product code
+            'productId'  => ['required', 'string', Rule::exists('products', 'code')->whereNull('deleted_at')],
             'periodDate' => ['required', 'date'],
             'periodType' => ['sometimes', 'in:week,month,year'],
             'unitsSold'  => ['required', 'integer', 'min:0'],

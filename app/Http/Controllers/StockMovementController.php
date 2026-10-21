@@ -8,6 +8,7 @@ use App\Models\StockMovement;
 use App\Services\StockMovementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class StockMovementController extends Controller
 {
@@ -179,7 +180,7 @@ class StockMovementController extends Controller
     private function validatedMovement(Request $request, bool $updating): array
     {
         $rules = [
-            'productId'   => ['required_without:productName', 'nullable', 'string', 'exists:products,code'],
+            'productId'   => ['required_without:productName', 'nullable', 'string', Rule::exists('products', 'code')->whereNull('deleted_at')],
             'productName' => ['required_without:productId', 'nullable', 'string'],
             'type'        => ['required', 'in:Stock In,Stock Out,Adjustment,in,out'],
             'qty'         => ['required_unless:type,Adjustment', 'nullable', 'integer', 'min:1'],

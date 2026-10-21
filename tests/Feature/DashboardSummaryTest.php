@@ -97,4 +97,35 @@ class DashboardSummaryTest extends TestCase
             ->assertJsonPath('kpis.lowStockItems', 0)
             ->assertJsonPath('kpis.stockMovementsToday', 0);
     }
+
+    public function test_dashboard_excludes_archived_products_while_retaining_their_history(): void
+    {
+        $product = Product::create([
+            'code' => 'PRD-ARCHIVED',
+            'name' => 'Archived Product',
+            'stock_on_hand' => 0,
+        ]);
+        SalesHistory::create([
+            'product_id' => $product->id,
+            'period_date' => now()->startOfMonth()->toDateString(),
+            'units_sold' => 4,
+        ]);
+        StockMovement::create([
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'movement_type' => 'out',
+            'qty' => 4,
+            'remaining_stock' => 0,
+            'movement_date' => now()->toDateString(),
+        ]);
+        $product->delete();
+
+        $this->getJson('/api/dashboard/summary')
+            ->assertOk()
+            ->assertJsonPath('kpis.totalProducts', 0)
+            ->assertJsonMissing(['id' => 'PRD-ARCHIVED'])
+            ->assertJsonPath('salesHistory.0.productId', 'PRD-ARCHIVED')
+            ->assertJsonPath('salesHistory.0.productName', 'Archived Product')
+            ->assertJsonPath('stockMovements.0.productName', 'Archived Product');
+    }
 }

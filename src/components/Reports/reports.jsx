@@ -280,23 +280,36 @@ function DemandForecastSummaryTab({ data, loading }) {
 
 function AutoCalculatorSummaryTab({ data, loading }) {
   const rows = data?.rows || [];
+  const demandDetails = (forecast) => {
+    if (!forecast) return '—';
+    const seasonal = forecast.seasonalEnabled
+      ? `${forecast.seasonalEvent || 'Seasonal'} ${Number(forecast.adjustmentPct) >= 0 ? '+' : ''}${forecast.adjustmentPct}%`
+      : 'No seasonal adjustment';
+    return `${forecast.periodType} ${forecast.forecastPeriod}; base ${forecast.baseForecast}, ${seasonal}, adjusted ${forecast.adjustedForecast}`;
+  };
   return (
     <div>
       <PanelHeader title="AutoCalculator Summary" subtitle="Every AutoCalculator computation logged to date" />
       <div className="r-table-card">
         <table className="r-table">
           <thead>
-            <tr><th>Product</th><th>Formula</th><th>Result</th><th>Computed By</th><th>Date Computed</th></tr>
+            <tr><th>Product</th><th>Product ID</th><th>Formula</th><th>Demand Source</th><th>Annual Demand</th><th>Forecast Details</th><th>Result</th><th>Computed By</th><th>Date Computed</th></tr>
           </thead>
           <tbody>
-            {loading ? <EmptyRow cols={5} text="Loading…" />
-              : rows.length === 0 ? <EmptyRow cols={5} text="No computations logged yet — use the Auto Calculator." />
+            {loading ? <EmptyRow cols={9} text="Loading…" />
+              : rows.length === 0 ? <EmptyRow cols={9} text="No computations logged yet — use the Auto Calculator." />
               : rows.map((r, i) => (
                 <tr key={i}>
                   <td>{r.product || '—'}</td>
+                  <td>{r.productId || '—'}</td>
                   <td>{r.formula}</td>
+                  <td>{r.demandSource === 'forecast' ? 'Forecast' : 'Historical / entered'}</td>
+                  <td>{r.annualDemand != null ? `${Number(r.annualDemand).toLocaleString('en-PH')} units/year` : '—'}</td>
+                  <td>{demandDetails(r.forecast)}</td>
                   <td>{r.result != null
-                    ? `${r.formula === 'EOQ' ? Math.round(Number(r.result)).toLocaleString('en-PH') : r.result} ${r.unit || ''}`.trim()
+                    ? `${r.formula === 'EOQ'
+                      ? (r.recommendedOrderQuantity ?? Math.round(Number(r.result))).toLocaleString('en-PH')
+                      : r.result} ${r.unit || ''}`.trim()
                     : '—'}</td>
                   <td>{r.by || '—'}</td>
                   <td>{r.date}</td>

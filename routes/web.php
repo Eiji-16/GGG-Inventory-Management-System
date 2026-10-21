@@ -26,7 +26,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/profile/password', [ProfileController::class, 'changePassword']);
     Route::get('/profile/activity', [ProfileController::class, 'activity']);
 
-    // Auto Calculator — persist each computation (with "computed by") for Reports.
+});
+
+// EOQ is an administrator-only workflow; identify the authenticated user server-side.
+Route::middleware(['auth', 'active', 'role:super_admin,admin'])->group(function () {
     Route::post('/calculations', [CalculationController::class, 'store']);
 });
 

@@ -5,6 +5,7 @@ import exportReportWorkbook, { printReportPdf } from '../../utils/exportReportWo
 
 const FORECAST_METHOD = 'Weighted Moving Average';
 const FORECAST_METHOD_NOTE = 'Uses the most recent three selected periods with fixed weights of 1, 2, and 3; the newest period receives the greatest weight.';
+const HISTORY_PAGE_SIZE = 5;
 const EVENT_MONTHS = {
   Christmas: ['Nov', 'Dec'],
   Summer: ['Jun', 'Jul', 'Aug'],
@@ -118,11 +119,12 @@ const CalculatorIcon = () => (
   </svg>
 );
 
-export default function DemandForecastDesign({ onNavigate }) {
+export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, catalogRevision = 0 }) {
   const [products, setProducts] = useState([]);
   const [productId, setProductId] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [history, setHistory] = useState([]);
+  const [historyPage, setHistoryPage] = useState(1);
   const [forecast, setForecast] = useState(null);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -149,6 +151,22 @@ export default function DemandForecastDesign({ onNavigate }) {
     () => [...history].sort((a, b) => a.periodDate.localeCompare(b.periodDate)),
     [history]
   );
+  const newestHistoryFirst = useMemo(
+    () => [...history].sort((a, b) => (
+      b.periodDate.localeCompare(a.periodDate) || Number(b.id) - Number(a.id)
+    )),
+    [history]
+  );
+  const historyPageCount = Math.max(1, Math.ceil(newestHistoryFirst.length / HISTORY_PAGE_SIZE));
+  const activeHistoryPage = Math.min(historyPage, historyPageCount);
+  const visibleHistory = newestHistoryFirst.slice(
+    (activeHistoryPage - 1) * HISTORY_PAGE_SIZE,
+    activeHistoryPage * HISTORY_PAGE_SIZE
+  );
+  const firstVisibleHistoryRecord = newestHistoryFirst.length
+    ? (activeHistoryPage - 1) * HISTORY_PAGE_SIZE + 1
+    : 0;
+  const lastVisibleHistoryRecord = Math.min(activeHistoryPage * HISTORY_PAGE_SIZE, newestHistoryFirst.length);
   const overallAverage = useMemo(
     () => sortedHistory.length
       ? sortedHistory.reduce((total, row) => total + Number(row.unitsSold), 0) / sortedHistory.length
@@ -162,7 +180,7 @@ export default function DemandForecastDesign({ onNavigate }) {
     : null;
   const forecastDemand = adjustedDemand;
   const annualPeriods = selectedPeriodType === 'week' ? 52 : selectedPeriodType === 'year' ? 1 : 12;
-  const annualDemand = forecastDemand == null ? 0 : Math.ceil(forecastDemand * annualPeriods);
+  const annualDemand = forecastDemand == null ? 0 : Math.round(forecastDemand * annualPeriods);
   const periodAdjective = selectedPeriodType === 'week' ? 'weekly'
     : selectedPeriodType === 'year' ? 'yearly' : 'monthly';
   const periodUnit = selectedPeriodType === 'week' ? 'week'
@@ -173,12 +191,15 @@ export default function DemandForecastDesign({ onNavigate }) {
 
   useEffect(() => {
     let active = true;
-    requestJson('/api/products')
+    requestJson('/api/products', { cache: 'no-store' })
       .then((data) => {
         if (!active) return;
         const availableProducts = Array.isArray(data) ? data : [];
         setProducts(availableProducts);
-        if (availableProducts.length) setProductId(availableProducts[0].id);
+        setProductId((current) => {
+          if (!current) return availableProducts[0]?.id || '';
+          return availableProducts.some((product) => product.id === current) ? current : '';
+        });
       })
       .catch((loadError) => {
         if (active) setError(loadError.message || 'Could not load products.');
@@ -187,9 +208,10 @@ export default function DemandForecastDesign({ onNavigate }) {
         if (active) setLoadingProducts(false);
       });
     return () => { active = false; };
-  }, []);
+  }, [catalogRevision]);
 
   useEffect(() => {
+    setHistoryPage(1);
     setHistory([]);
     setForecast(null);
     setError('');
@@ -213,6 +235,10 @@ export default function DemandForecastDesign({ onNavigate }) {
       });
     return () => { active = false; };
   }, [productId, selectedPeriodType]);
+
+  useEffect(() => {
+    setHistoryPage((page) => Math.min(page, historyPageCount));
+  }, [historyPageCount]);
 
   useEffect(() => {
     if (!yearDropdownOpen) return;
@@ -281,6 +307,38 @@ export default function DemandForecastDesign({ onNavigate }) {
     }
   };
 
+  const computeEoqFromForecast = () => {
+    if (!selectedProduct || !productId) {
+      setError('Select a product before sending forecast demand to the EOQ calculator.');
+      return;
+    }
+    if (!forecast || forecast.product?.id !== selectedProduct.id || forecast.periodType !== selectedPeriodType) {
+      setError('Compute a current forecast for the selected product and period before continuing.');
+      return;
+    }
+    if (!Number.isFinite(annualDemand) || annualDemand <= 0 || !Number.isFinite(adjustedDemand)) {
+      setError('The forecast must produce a positive annual demand before it can be used for EOQ.');
+      return;
+    }
+
+    onNavigate?.('Auto-Calculator', {
+      type: 'forecast-eoq',
+      productId: selectedProduct.id,
+      productName: selectedProduct.name,
+      annualDemand,
+      baseForecast: Number(forecast.baseForecast),
+      adjustedForecast: Number(adjustedDemand),
+      seasonalEnabled: seasonalOn && seasonalAvailable,
+      seasonalEvent: seasonalOn && seasonalAvailable ? event : null,
+      adjustmentPct: effectivePct,
+      periodType: selectedPeriodType,
+      forecastPeriod: forecast.forecastPeriod,
+      annualPeriods,
+      source: 'forecast',
+      createdAt: new Date().toISOString(),
+    });
+  };
+
   const saveSales = async (submitEvent) => {
     submitEvent.preventDefault();
     if (!productId) return;
@@ -303,6 +361,7 @@ export default function DemandForecastDesign({ onNavigate }) {
       });
       const updatedHistory = await requestJson(`/api/sales-history?product=${encodeURIComponent(productId)}&periodType=${selectedPeriodType}`);
       setHistory(Array.isArray(updatedHistory) ? updatedHistory : []);
+      setHistoryPage(1);
       setForecast(null);
       setUnitsSold('');
       setNotice(`${periodAdjective[0].toUpperCase() + periodAdjective.slice(1)} sales saved. Recompute the forecast to use the updated history.`);
@@ -431,19 +490,6 @@ export default function DemandForecastDesign({ onNavigate }) {
     if (!opened) setError('The PDF report could not be opened. Allow pop-ups and try again.');
   };
 
-  const computeEoqFromForecast = () => {
-    if (selectedProduct && forecast && onNavigate) {
-      onNavigate('Auto-Calculator', {
-        product: selectedProduct.name,
-        productId: selectedProduct.id,
-        annualDemand,
-        forecastDemand,
-        forecastPeriod: forecast.forecastPeriod,
-        forecastPeriodType: selectedPeriodType,
-      });
-    }
-  };
-
   const chartRows = forecast
     ? [...sortedHistory.slice(-6), {
       id: 'forecast',
@@ -477,7 +523,16 @@ export default function DemandForecastDesign({ onNavigate }) {
               </div>
               <div className="f-field" style={{ minWidth: 190 }}>
                 <label htmlFor="forecast-product">Product</label>
-                <select id="forecast-product" value={productId} onChange={(e) => setProductId(e.target.value)} disabled={loadingProducts}>
+                <select
+                  id="forecast-product"
+                  value={productId}
+                  onChange={(e) => {
+                    onClearEoqHandoff?.();
+                    setForecast(null);
+                    setProductId(e.target.value);
+                  }}
+                  disabled={loadingProducts}
+                >
                   <option value="">{loadingProducts ? 'Loading products…' : 'Select a product'}</option>
                   {filteredProducts.map((product) => (
                     <option key={product.id} value={product.id}>{product.name} ({product.id})</option>
@@ -493,6 +548,7 @@ export default function DemandForecastDesign({ onNavigate }) {
                   onChange={(e) => {
                     const periodType = e.target.value;
                     setSelectedPeriodType(periodType);
+                    setForecast(null);
                     if (periodType !== 'month') setSeasonalOn(false);
                   }}
                   aria-label="Forecast period"
@@ -554,13 +610,22 @@ export default function DemandForecastDesign({ onNavigate }) {
                       <div className="f-val">{Math.round(Number(forecast.baseForecast))} <small>units</small></div>
                     </div>
                   </div>
-                  <button type="button" className="f-btn f-btn-link f-eoq-handoff" onClick={computeEoqFromForecast}>
-                    <CalculatorIcon /> Optional: Open EOQ Calculator
+                  <button type="button" className="f-btn f-btn-link f-eoq-handoff" onClick={computeEoqFromForecast} disabled={!selectedProduct || !forecast || annualDemand <= 0}>
+                    <CalculatorIcon /> Compute EOQ from Forecast
                   </button>
                   <p className="f-handoff-note">
-                    Opens EOQ with annual demand (D) set to {annualDemand.toLocaleString()} units/year.
-                    Ordering (S) and holding (H) costs are required to calculate an order size.
+                    Annual demand for EOQ: {annualDemand.toLocaleString()} units/year
+                    {' '}({forecastDemand.toLocaleString()} units/{periodUnit} × {annualPeriods} {periodUnit}{annualPeriods === 1 ? '' : 's'}, rounded to the nearest whole unit).
+                    Enter ordering (S) and holding (H) costs in the calculator.
                   </p>
+                  <div className="f-handoff-details">
+                    <span>Base: {Number(forecast.baseForecast).toLocaleString()} units/{periodUnit}</span>
+                    <span>{seasonalOn && seasonalAvailable
+                      ? `${event} adjustment: ${effectivePct >= 0 ? '+' : ''}${effectivePct}%`
+                      : 'Seasonal adjustment: off'}</span>
+                    <span>Adjusted: {adjustedDemand.toLocaleString()} units/{periodUnit}</span>
+                    <span>Period: {formatPeriod(forecast.forecastPeriod, selectedPeriodType)}</span>
+                  </div>
                 </>
               ) : (
                 <div className="f-result-placeholder">
@@ -767,7 +832,7 @@ export default function DemandForecastDesign({ onNavigate }) {
                   <tbody>
                     {loadingHistory ? (
                       <tr><td colSpan="3">Loading sales history…</td></tr>
-                    ) : [...sortedHistory].reverse().length ? [...sortedHistory].reverse().map((row) => (
+                    ) : visibleHistory.length ? visibleHistory.map((row) => (
                       <tr key={row.id}>
                         <td>{formatHistoryPeriod(row.periodDate, selectedPeriodType)}</td>
                         <td>{row.unitsSold}</td>
@@ -783,6 +848,34 @@ export default function DemandForecastDesign({ onNavigate }) {
                   </tbody>
                 </table>
               </div>
+              {!loadingHistory && newestHistoryFirst.length > 0 && (
+                <div className="f-history-pagination" aria-label="Historical sales pagination">
+                  <span className="f-history-page-summary">
+                    Showing {firstVisibleHistoryRecord}–{lastVisibleHistoryRecord} of {newestHistoryFirst.length} records
+                  </span>
+                  <div className="f-history-page-controls">
+                    <button
+                      type="button"
+                      className="f-history-page-button"
+                      onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}
+                      disabled={activeHistoryPage === 1}
+                    >
+                      Previous
+                    </button>
+                    <span className="f-history-page-label" aria-live="polite">
+                      Page {activeHistoryPage} of {historyPageCount}
+                    </span>
+                    <button
+                      type="button"
+                      className="f-history-page-button"
+                      onClick={() => setHistoryPage((page) => Math.min(historyPageCount, page + 1))}
+                      disabled={activeHistoryPage >= historyPageCount}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <section className="f-summary-card f-summary-compact f-area-summary">

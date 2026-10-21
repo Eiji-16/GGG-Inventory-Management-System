@@ -64,7 +64,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
 
   /* ===== LOAD PRODUCTS ===== */
   useEffect(() => {
-    fetch('/api/products', { headers: { Accept: 'application/json' } })
+    fetch('/api/products', { cache: 'no-store', headers: { Accept: 'application/json' } })
       .then((response) => {
         if (!response.ok) throw new Error(`GET /api/products failed (${response.status})`);
         return response.json();
@@ -301,7 +301,10 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
       closeModal();
 
       try {
-        const refreshResponse = await fetch('/api/products', { headers: { Accept: 'application/json' } });
+        const refreshResponse = await fetch('/api/products', {
+          cache: 'no-store',
+          headers: { Accept: 'application/json' },
+        });
         if (!refreshResponse.ok) throw new Error(`Refresh failed (${refreshResponse.status})`);
         const refreshedProducts = await refreshResponse.json();
         setProductsFromDatabase(refreshedProducts);

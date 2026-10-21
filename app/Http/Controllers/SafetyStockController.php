@@ -6,6 +6,7 @@ use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class SafetyStockController extends Controller
 {
@@ -30,7 +31,7 @@ class SafetyStockController extends Controller
     {
         $data = $request->validate([
             'policies' => ['required', 'array'],
-            'policies.*.productId' => ['required', 'string', 'distinct', 'exists:products,code'],
+            'policies.*.productId' => ['required', 'string', 'distinct', Rule::exists('products', 'code')->whereNull('deleted_at')],
             'policies.*.safetyStock' => ['required', 'integer', 'min:0'],
             'policies.*.annualDemand' => ['nullable', 'integer', 'min:0'],
             'policies.*.leadTimeDays' => ['nullable', 'integer', 'min:0'],

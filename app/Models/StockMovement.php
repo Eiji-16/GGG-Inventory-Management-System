@@ -36,6 +36,6 @@ class StockMovement extends Model
     /** The product this movement applies to. */
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Product::class)->withTrashed();
     }
 }

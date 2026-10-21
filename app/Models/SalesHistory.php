@@ -30,6 +30,6 @@ class SalesHistory extends Model
     /** The product these sales belong to. */
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Product::class)->withTrashed();
     }
 }

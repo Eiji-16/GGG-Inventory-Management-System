@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState, useRef } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -70,6 +70,35 @@ function mapSafetyStockPolicies(records) {
       configured: record.configured,
     }];
   }));
+}
+
+function eoqHandoffStorageKey(userId) {
+  return `ggg-inventory-forecast-eoq:${userId}`;
+}
+
+function readSavedEoqHandoff(userId) {
+  if (!userId || typeof window === 'undefined') return null;
+  try {
+    const saved = window.sessionStorage.getItem(eoqHandoffStorageKey(userId));
+    if (!saved) return null;
+    const handoff = JSON.parse(saved);
+    if (
+      handoff?.type !== 'forecast-eoq'
+      || !handoff.productId
+      || !Number.isFinite(Number(handoff.annualDemand))
+      || !Number.isFinite(Number(handoff.baseForecast))
+      || !Number.isFinite(Number(handoff.adjustedForecast))
+      || !['week', 'month', 'year'].includes(handoff.periodType)
+      || !handoff.forecastPeriod
+    ) {
+      window.sessionStorage.removeItem(eoqHandoffStorageKey(userId));
+      return null;
+    }
+    return handoff;
+  } catch (error) {
+    console.error('Could not restore the forecast EOQ handoff:', error);
+    return null;
+  }
 }
 
 function createNotifications(summary, policy) {
@@ -152,7 +181,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
   const [visitedViews, setVisitedViews] = useState(() => new Set(['Dashboard']));
   const mainContentRef = useRef(null);
   const viewScrollPositions = useRef({});
-  const [handoff, setHandoff] = useState(null); /* ===== HANDOFF ===== */
+  const [handoff, setHandoff] = useState(() => readSavedEoqHandoff(user?.id)); /* ===== HANDOFF ===== */
   const [safetyStock, setSafetyStock] = useState(SAFETY_STOCK_DEFAULTS); /* ===== SAFETY STOCK ===== */
   const [policyLoading, setPolicyLoading] = useState(true);
   const [policyError, setPolicyError] = useState('');
@@ -330,10 +359,33 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
       if (previous.has(view)) return previous;
       return new Set(previous).add(view);
     });
-    setHandoff(payload);
+    if (payload) {
+      setHandoff(payload);
+      if (payload.type === 'forecast-eoq' && user?.id) {
+        try {
+          window.sessionStorage.setItem(eoqHandoffStorageKey(user.id), JSON.stringify(payload));
+        } catch (storageError) {
+          console.error('Could not persist the forecast EOQ handoff:', storageError);
+        }
+      }
+    } else if (view === 'Auto-Calculator') {
+      setHandoff((current) => current || readSavedEoqHandoff(user?.id));
+    } else {
+      setHandoff(null);
+    }
     setActiveView(view);
     setIsSidebarOpen(false);
   };
+
+  const clearEoqHandoff = useCallback(() => {
+    setHandoff(null);
+    if (!user?.id) return;
+    try {
+      window.sessionStorage.removeItem(eoqHandoffStorageKey(user.id));
+    } catch (storageError) {
+      console.error('Could not clear the forecast EOQ handoff:', storageError);
+    }
+  }, [user?.id]);
 
   useLayoutEffect(() => {
     const mainContent = mainContentRef.current;
@@ -620,6 +672,8 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                   <AutoCalculator
                     onNavigate={handleNavigate}
                     handoff={handoff}
+                    onClearHandoff={clearEoqHandoff}
+                    currentUser={user?.name || ''}
                     safetyStock={safetyStock}
                     catalogRevision={policyRefreshKey}
                   />
@@ -627,7 +681,11 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
               )}
               {visitedViews.has('Forecasting') && canAccess('Forecasting') && (
                 <div className="app-view-panel" hidden={activeView !== 'Forecasting'}>
-                  <SalesForecasting onNavigate={handleNavigate} />
+                  <SalesForecasting
+                    onNavigate={handleNavigate}
+                    onClearEoqHandoff={clearEoqHandoff}
+                    catalogRevision={policyRefreshKey}
+                  />
                 </div>
               )}
               {visitedViews.has('Staffs') && canAccess('Staffs') && (

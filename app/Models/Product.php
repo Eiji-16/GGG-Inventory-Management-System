@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Product — the catalogue item. Central model the whole system revolves around.
@@ -15,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  */
 class Product extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'code',
         'name',
