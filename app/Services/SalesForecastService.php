@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\SalesSeasonalAdjustment;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
@@ -34,6 +35,19 @@ class SalesForecastService
             'year' => $lastPeriod->copy()->startOfYear()->addYear(),
             default => $lastPeriod->copy()->startOfMonth()->addMonth(),
         };
+        $seasonalAdjustment = $periodType === 'month'
+            ? SalesSeasonalAdjustment::query()
+                ->where('product_id', $product->id)
+                ->where('year', $forecastPeriod->year)
+                ->where('month', $forecastPeriod->month)
+                ->first()
+            : null;
+        $seasonalEvents = $seasonalAdjustment?->events ?? [];
+        $baseForecast = round(max(0, $forecast), 1);
+        $adjustmentPct = $seasonalAdjustment?->enabled
+            ? max(-100, min(1000, array_sum(array_column($seasonalEvents, 'adjustmentPct'))))
+            : 0.0;
+        $adjustedForecast = round(max(0, $baseForecast * (1 + $adjustmentPct / 100)), 1);
 
         return [
             'product' => [
@@ -45,7 +59,11 @@ class SalesForecastService
             ],
             'formula' => self::FORMULA,
             'periodType' => $periodType,
-            'baseForecast' => round(max(0, $forecast), 1),
+            'baseForecast' => $baseForecast,
+            'adjustedForecast' => $adjustedForecast,
+            'seasonalEnabled' => (bool) ($seasonalAdjustment?->enabled && $seasonalEvents),
+            'seasonalEvents' => $seasonalEvents,
+            'adjustmentPct' => round($adjustmentPct, 2),
             'forecastPeriod' => $forecastPeriod->toDateString(),
             'dataPoints' => $count,
             'averageDemand' => round(array_sum($units) / $count, 1),

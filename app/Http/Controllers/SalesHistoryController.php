@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * SalesHistoryController — /api/sales-history
@@ -72,6 +73,78 @@ class SalesHistoryController extends Controller
             ->firstOrFail();
 
         return response()->json($this->format($row), 201);
+    }
+
+    public function bulkStore(Request $request)
+    {
+        $data = $request->validate([
+            'productId' => ['required', 'string', Rule::exists('products', 'code')->whereNull('deleted_at')],
+            'periodType' => ['required', 'in:week,month,year'],
+            'records' => ['present', 'array', 'max:53'],
+            'records.*.periodDate' => ['required', 'date', 'distinct'],
+            'records.*.unitsSold' => ['required', 'integer', 'min:0'],
+            'deleteDates' => ['sometimes', 'array', 'max:53'],
+            'deleteDates.*' => ['required', 'date', 'distinct'],
+        ]);
+
+        $product = Product::where('code', $data['productId'])->firstOrFail();
+        $periodType = $data['periodType'];
+        $timestamp = now();
+        $records = collect($data['records'])->map(function (array $record) use ($product, $periodType, $timestamp): array {
+            return [
+                'product_id' => $product->id,
+                'period_date' => $this->normalizePeriod($record['periodDate'], $periodType),
+                'period_type' => $periodType,
+                'units_sold' => $record['unitsSold'],
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ];
+        });
+        if ($records->pluck('period_date')->unique()->count() !== $records->count()) {
+            throw ValidationException::withMessages([
+                'records' => 'Each sales period can only be submitted once.',
+            ]);
+        }
+        $deleteDates = collect($data['deleteDates'] ?? [])
+            ->map(fn (string $date): string => $this->normalizePeriod($date, $periodType))
+            ->all();
+        if (array_intersect($records->pluck('period_date')->all(), $deleteDates) !== []) {
+            throw ValidationException::withMessages([
+                'deleteDates' => 'A period cannot be saved and deleted in the same request.',
+            ]);
+        }
+
+        DB::transaction(function () use ($records, $deleteDates, $product, $periodType): void {
+            if ($records->isNotEmpty()) {
+                DB::table('sales_history')->upsert(
+                    $records->all(),
+                    ['product_id', 'period_type', 'period_date'],
+                    ['units_sold', 'updated_at']
+                );
+            }
+            if ($deleteDates !== []) {
+                $deleteQuery = SalesHistory::query()
+                    ->where('product_id', $product->id)
+                    ->where('period_type', $periodType)
+                    ->where(function ($query) use ($deleteDates): void {
+                        foreach ($deleteDates as $date) {
+                            $query->orWhereDate('period_date', $date);
+                        }
+                    });
+                $deleteQuery->delete();
+            }
+        });
+
+        $dates = $records->pluck('period_date')->merge($deleteDates)->unique()->all();
+        $saved = SalesHistory::query()
+            ->where('product_id', $product->id)
+            ->where('period_type', $periodType)
+            ->when($dates !== [], fn ($query) => $query->whereIn('period_date', $dates))
+            ->orderBy('period_date')
+            ->get()
+            ->map(fn (SalesHistory $row): array => $this->format($row));
+
+        return response()->json($saved);
     }
 
     /** DELETE /api/sales-history/{salesHistory} */

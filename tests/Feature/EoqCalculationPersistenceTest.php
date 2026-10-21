@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\SalesHistory;
+use App\Models\SalesSeasonalAdjustment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -62,6 +63,13 @@ class EoqCalculationPersistenceTest extends TestCase
                 'units_sold' => $units,
             ]);
         }
+        SalesSeasonalAdjustment::create([
+            'product_id' => $product->id,
+            'year' => 2026,
+            'month' => 5,
+            'enabled' => true,
+            'events' => [['name' => 'Christmas', 'adjustmentPct' => 25]],
+        ]);
 
         $this->actingAs($user)->postJson('/calculations', [
             'formula' => 'EOQ',

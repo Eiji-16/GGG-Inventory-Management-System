@@ -7,6 +7,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SafetyStockController;
 use App\Http\Controllers\SalesHistoryController;
+use App\Http\Controllers\SalesSeasonalAdjustmentController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierController;
 use Illuminate\Support\Facades\Route;
@@ -33,7 +34,10 @@ Route::middleware(['web', 'auth', 'active'])->group(function (): void {
         Route::apiResource('suppliers', SupplierController::class);
         Route::get('/sales-history', [SalesHistoryController::class, 'index']);
         Route::post('/sales-history', [SalesHistoryController::class, 'store']);
+        Route::put('/sales-history/bulk', [SalesHistoryController::class, 'bulkStore']);
         Route::delete('/sales-history/{salesHistory}', [SalesHistoryController::class, 'destroy']);
+        Route::get('/sales-seasonal-adjustments', [SalesSeasonalAdjustmentController::class, 'index']);
+        Route::put('/sales-seasonal-adjustments', [SalesSeasonalAdjustmentController::class, 'store']);
         Route::post('/forecasts', [ForecastController::class, 'store']);
 
     });

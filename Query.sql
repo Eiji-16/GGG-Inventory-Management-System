@@ -1,1 +1,0 @@
-UPDATE products SET stock_on_hand = 20 WHERE name = 'iPhone 11';

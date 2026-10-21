@@ -38,7 +38,7 @@ class CalculationController extends Controller
             'forecast.baseForecast' => ['required_if:demandSource,forecast', 'numeric', 'min:0'],
             'forecast.adjustedForecast' => ['required_if:demandSource,forecast', 'numeric', 'min:0'],
             'forecast.seasonalEnabled' => ['required_if:demandSource,forecast', 'boolean'],
-            'forecast.seasonalEvent' => ['nullable', 'string', 'max:100'],
+            'forecast.seasonalEvent' => ['nullable', 'string', 'max:2500'],
             'forecast.adjustmentPct' => ['required_if:demandSource,forecast', 'numeric', 'between:-100,1000'],
         ]);
 
@@ -83,6 +83,19 @@ class CalculationController extends Controller
 
             $seasonalEnabled = (bool) $submittedForecast['seasonalEnabled'];
             $adjustmentPct = (float) $submittedForecast['adjustmentPct'];
+            $seasonalEvent = $seasonalEnabled
+                ? implode(', ', array_column($currentForecast['seasonalEvents'], 'name'))
+                : null;
+            if (
+                $seasonalEnabled !== $currentForecast['seasonalEnabled']
+                || abs($adjustmentPct - $currentForecast['adjustmentPct']) > 0.00001
+                || abs((float) $submittedForecast['adjustedForecast'] - $currentForecast['adjustedForecast']) > 0.00001
+                || ($submittedForecast['seasonalEvent'] ?? null) !== $seasonalEvent
+            ) {
+                throw ValidationException::withMessages([
+                    'forecast' => 'Seasonal settings changed. Recompute the forecast before calculating EOQ.',
+                ]);
+            }
             if ($seasonalEnabled && $submittedForecast['periodType'] !== 'month') {
                 throw ValidationException::withMessages([
                     'forecast.seasonalEnabled' => 'Seasonal adjustments are available for monthly forecasts only.',
@@ -124,7 +137,7 @@ class CalculationController extends Controller
                 'forecastPeriod' => $currentForecast['forecastPeriod'],
                 'baseForecast' => (float) $currentForecast['baseForecast'],
                 'seasonalEnabled' => $seasonalEnabled,
-                'seasonalEvent' => $seasonalEnabled ? $submittedForecast['seasonalEvent'] : null,
+                'seasonalEvent' => $seasonalEvent,
                 'adjustmentPct' => $effectivePct,
                 'adjustedForecast' => $adjustedForecast,
                 'annualPeriods' => $annualPeriods,
