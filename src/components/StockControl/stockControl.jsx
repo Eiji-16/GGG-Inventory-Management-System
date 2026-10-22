@@ -822,11 +822,19 @@ function StockControl({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  /* The counter stores a signed change: positive adds stock, negative removes it. */
-  const adjustQuantity = (amount) => {
+  const decrementQty = () => {
     setFormData((prev) => ({
       ...prev,
-      qty: String((Number.isInteger(Number(prev.qty)) ? Number(prev.qty) : 0) + amount),
+      type: 'Stock Out',
+      qty: String(Math.max(1, Number(prev.qty || 1) - 1)),
+    }));
+  };
+
+  const incrementQty = () => {
+    setFormData((prev) => ({
+      ...prev,
+      type: 'Stock In',
+      qty: String(Number(prev.qty || 0) + 1),
     }));
   };
 
@@ -1351,11 +1359,11 @@ function StockControl({
                           <div className="sc-stepper">
                             <button
                               type="button"
-                              className="sc-stepper-btn sc-stepper-minus"
-                              aria-label="Decrease change quantity by one"
-                              onClick={() => adjustQuantity(-1)}
-                              disabled={currentOnHand !== null && Number(formData.qty) <= -currentOnHand}
-                              title="Decrease quantity by one"
+                              className={`sc-stepper-btn sc-stepper-minus${isOut ? ' is-active' : ''}`}
+                              aria-label="Minus — remove / sold"
+                              aria-pressed={isOut}
+                              onClick={decrementQty}
+                              title="Remove stock (counts as sold)"
                             >
                               <span>−</span>
                             </button>
@@ -1373,10 +1381,11 @@ function StockControl({
                             />
                             <button
                               type="button"
-                              className="sc-stepper-btn sc-stepper-plus"
-                              aria-label="Increase change quantity by one"
-                              onClick={() => adjustQuantity(1)}
-                              title="Increase quantity by one"
+                              className={`sc-stepper-btn sc-stepper-plus${!isOut ? ' is-active' : ''}`}
+                              aria-label="Plus — add stock"
+                              aria-pressed={!isOut}
+                              onClick={incrementQty}
+                              title="Add stock (received)"
                             >
                               <span>+</span>
                             </button>
@@ -1385,8 +1394,8 @@ function StockControl({
                             {!formData.productName
                               ? 'Select a product first.'
                               : editId === null
-                                ? `${currentOnHand} units on hand. + adds one; − removes one. Negative quantities record stock out.`
-                                : `${currentOnHand} units currently on hand. Saving applies this signed change; total after save: ${projectedRemaining ?? '—'} units.`}
+                                ? `${currentOnHand} on hand. Tap − to remove (counts as sold), + to add new stock.`
+                                : `${currentOnHand} on hand before this entry. Saving replaces it.`}
                           </span>
                         </>
                       )}
