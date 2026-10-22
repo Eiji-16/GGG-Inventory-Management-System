@@ -2069,3 +2069,31 @@
         animation-duration: 0.01ms !important;
     }
 }
+.f-sales-save-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.f-sales-save-status {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.f-sales-save-status.is-saved {
+    color: #32875a;
+}
+
+.f-sales-save-status.is-error {
+    color: var(--accent-low);
+}
+
+@media (max-width: 680px) {
+    .f-sales-save-actions {
+        justify-content: flex-start;
+    }
+}

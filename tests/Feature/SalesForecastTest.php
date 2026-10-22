@@ -185,6 +185,22 @@ class SalesForecastTest extends TestCase
             ->assertJsonValidationErrors('productId');
     }
 
+    public function test_forecast_ignores_zero_sales_periods_for_counts_and_calculations(): void
+    {
+        $product = $this->createProduct();
+        $this->addSales($product, '2026-01-01', 0);
+        $this->addSales($product, '2026-02-01', 30);
+
+        $this->postJson('/api/forecasts', [
+            'productId' => $product->code,
+        ])
+            ->assertOk()
+            ->assertJsonPath('dataPoints', 1)
+            ->assertJsonPath('averageDemand', 30)
+            ->assertJsonPath('baseForecast', 30)
+            ->assertJsonPath('forecastPeriod', '2026-03-01');
+    }
+
     public function test_sales_history_can_be_added_updated_and_deleted_for_forecasting(): void
     {
         $product = $this->createProduct();
@@ -341,6 +357,31 @@ class SalesForecastTest extends TestCase
             ],
         ])->assertUnprocessable()
             ->assertJsonValidationErrors('records');
+    }
+
+    public function test_reset_sales_history_deletes_only_the_selected_products_records(): void
+    {
+        $product = $this->createProduct('PRD-RESET');
+        $otherProduct = $this->createProduct('PRD-KEEP');
+        $this->addSales($product, '2026-01-01', 20);
+        $this->addSales($product, '2026-01-05', 8, 'week');
+        $this->addSales($otherProduct, '2026-01-01', 15);
+
+        $this->deleteJson('/api/sales-history/products/'.$product->code)
+        ->assertOk()
+        ->assertJsonPath('productId', $product->code)
+        ->assertJsonPath('deleted', 2);
+
+        $this->assertDatabaseMissing('sales_history', ['product_id' => $product->id]);
+        $this->assertDatabaseHas('sales_history', [
+        'product_id' => $otherProduct->id,
+        'period_type' => 'month',
+        'units_sold' => 15,
+        ]);
+        $this->assertDatabaseHas('products', [
+        'id' => $product->id,
+        'stock_on_hand' => 12,
+        ]);
     }
 
     private function createProduct(string $code = 'PRD-FORECAST'): Product

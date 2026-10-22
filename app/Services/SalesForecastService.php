@@ -15,6 +15,7 @@ class SalesForecastService
     {
         $history = $product->salesHistory()
             ->where('period_type', $periodType)
+            ->where('units_sold', '>', 0)
             ->orderBy('period_date')
             ->get(['id', 'period_date', 'units_sold']);
 

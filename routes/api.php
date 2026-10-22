@@ -35,6 +35,7 @@ Route::middleware(['web', 'auth', 'active'])->group(function (): void {
         Route::get('/sales-history', [SalesHistoryController::class, 'index']);
         Route::post('/sales-history', [SalesHistoryController::class, 'store']);
         Route::put('/sales-history/bulk', [SalesHistoryController::class, 'bulkStore']);
+        Route::delete('/sales-history/products/{productCode}', [SalesHistoryController::class, 'clearProduct']);
         Route::delete('/sales-history/{salesHistory}', [SalesHistoryController::class, 'destroy']);
         Route::get('/sales-seasonal-adjustments', [SalesSeasonalAdjustmentController::class, 'index']);
         Route::put('/sales-seasonal-adjustments', [SalesSeasonalAdjustmentController::class, 'store']);

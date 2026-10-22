@@ -6,6 +6,7 @@ import exportReportWorkbook, { printReportPdf } from '../../utils/exportReportWo
 const FORECAST_METHOD = 'Weighted Moving Average';
 const FORECAST_METHOD_NOTE = 'Uses the most recent three selected periods with fixed weights of 1, 2, and 3; the newest period receives the greatest weight.';
 const HISTORY_PAGE_SIZE = 4;
+const SALES_AUTOSAVE_DELAY = 700;
 
 const MONTH_OPTIONS = [
   { value: '01', label: 'January' },
@@ -249,6 +250,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
   const [productId, setProductId] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [history, setHistory] = useState([]);
+  const [historyContext, setHistoryContext] = useState('');
   const [historyPage, setHistoryPage] = useState(1);
   const [salesDrafts, setSalesDrafts] = useState({});
   const [forecast, setForecast] = useState(null);
@@ -256,6 +258,8 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [computing, setComputing] = useState(false);
   const [savingSales, setSavingSales] = useState(false);
+  const [resettingSales, setResettingSales] = useState(false);
+  const [salesAutoSave, setSalesAutoSave] = useState(null);
   const [selectedPeriodType, setSelectedPeriodType] = useState('month');
   const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
   const [error, setError] = useState('');
@@ -270,10 +274,16 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
   const [eventAdjustmentEnabled, setEventAdjustmentEnabled] = useState(false);
   const [savingEvents, setSavingEvents] = useState(false);
   const [eventFormError, setEventFormError] = useState('');
+  const salesSaveQueueRef = useRef(Promise.resolve());
+  const salesAutoSaveTimersRef = useRef(new Map());
+  const activeSalesContextRef = useRef({ productId, periodType: selectedPeriodType });
+  activeSalesContextRef.current = { productId, periodType: selectedPeriodType };
 
   const selectedProduct = products.find((product) => product.id === productId) || null;
   const sortedHistory = useMemo(
-    () => [...history].sort((a, b) => a.periodDate.localeCompare(b.periodDate)),
+    () => history
+      .filter((row) => Number.isFinite(Number(row.unitsSold)) && Number(row.unitsSold) > 0)
+      .sort((a, b) => a.periodDate.localeCompare(b.periodDate)),
     [history]
   );
   const periodRows = useMemo(() => {
@@ -296,7 +306,8 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
   const salesDraftKey = `${productId}|${selectedPeriodType}|${selectedPeriodType === 'year' ? 'all' : selectedYear}`;
   const currentSalesDraft = salesDrafts[salesDraftKey] || {};
   const completedPeriods = periodRows.filter(({ periodDate }) => (
-    (currentSalesDraft[periodDate] ?? '').trim() !== ''
+    Number.isFinite(Number(currentSalesDraft[periodDate]))
+      && Number(currentSalesDraft[periodDate]) > 0
   )).length;
   const historyPageCount = Math.max(1, Math.ceil(periodRows.length / HISTORY_PAGE_SIZE));
   const activeHistoryPage = Math.min(historyPage, historyPageCount);
@@ -335,6 +346,90 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
     ? Math.max(0, Math.ceil(forecastDemand - Number(selectedProduct.stock || 0)))
     : 0;
 
+  const queueSalesRequest = (request) => {
+    const queuedRequest = salesSaveQueueRef.current.then(request);
+    salesSaveQueueRef.current = queuedRequest.catch(() => {});
+    return queuedRequest;
+  };
+
+  const scheduleSalesAutoSave = (periodDate, value) => {
+    if (!productId) return;
+    const targetProductId = productId;
+    const targetPeriodType = selectedPeriodType;
+    const targetDraftKey = salesDraftKey;
+    const saveKey = `${targetProductId}|${targetPeriodType}|${periodDate}`;
+    const existingTimer = salesAutoSaveTimersRef.current.get(saveKey);
+    if (existingTimer) window.clearTimeout(existingTimer);
+    setSalesAutoSave({ key: saveKey, status: 'pending' });
+    setForecast(null);
+
+    const timer = window.setTimeout(async () => {
+      salesAutoSaveTimersRef.current.delete(saveKey);
+      const unitsText = String(value ?? '').trim();
+      const units = Number(unitsText);
+      if (unitsText && (!Number.isInteger(units) || units < 0)) {
+        const message = 'Enter a whole number of units that is zero or higher.';
+        setSalesAutoSave({ key: saveKey, status: 'error' });
+        setError(message);
+        return;
+      }
+
+      setSalesAutoSave({ key: saveKey, status: 'saving' });
+      try {
+        const savedRecords = await queueSalesRequest(() => requestJson('/api/sales-history/bulk', {
+          method: 'PUT',
+          body: JSON.stringify({
+            productId: targetProductId,
+            periodType: targetPeriodType,
+            records: unitsText ? [{ periodDate, unitsSold: units }] : [],
+            deleteDates: unitsText ? [] : [periodDate],
+          }),
+        }));
+        if (!Array.isArray(savedRecords)) {
+          throw new Error('The server did not confirm the saved sales record.');
+        }
+
+        const savedByDate = new Map(savedRecords.map((row) => [row.periodDate, String(row.unitsSold)]));
+        setSalesDrafts((current) => {
+          const currentDraft = current[targetDraftKey] || {};
+          if (String(currentDraft[periodDate] ?? '').trim() !== unitsText) return current;
+          return {
+            ...current,
+            [targetDraftKey]: {
+              ...currentDraft,
+              [periodDate]: savedByDate.get(periodDate) ?? '',
+            },
+          };
+        });
+        if (
+          activeSalesContextRef.current.productId === targetProductId
+          && activeSalesContextRef.current.periodType === targetPeriodType
+        ) {
+          setHistory((current) => [
+            ...current.filter((row) => row.periodDate !== periodDate),
+            ...savedRecords,
+          ]);
+          setForecast(null);
+        }
+        setSalesAutoSave((current) => (
+          current?.key === saveKey && current.status === 'saving'
+            ? { key: saveKey, status: 'saved' }
+            : current
+        ));
+      } catch (saveError) {
+        const message = saveError.message || 'Could not auto-save sales history.';
+        setSalesAutoSave((current) => (
+          current?.key === saveKey && current.status === 'saving'
+            ? { key: saveKey, status: 'error' }
+            : current
+        ));
+        setError(message);
+      }
+    }, SALES_AUTOSAVE_DELAY);
+
+    salesAutoSaveTimersRef.current.set(saveKey, timer);
+  };
+
   useEffect(() => {
     let active = true;
     requestJson('/api/products', { cache: 'no-store' })
@@ -359,6 +454,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
   useEffect(() => {
     setHistoryPage(1);
     setHistory([]);
+    setHistoryContext('');
     setForecast(null);
     setError('');
     setNotice('');
@@ -373,7 +469,9 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
       cache: 'no-store',
     })
       .then((data) => {
-        if (active) setHistory(Array.isArray(data) ? data : []);
+        if (!active) return;
+        setHistory(Array.isArray(data) ? data : []);
+        setHistoryContext(`${productId}|${selectedPeriodType}`);
       })
       .catch((loadError) => {
         if (active) setError(loadError.message || 'Could not load sales history.');
@@ -389,7 +487,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
   }, [historyPageCount]);
 
   useEffect(() => {
-    if (loadingHistory || !productId) return;
+    if (loadingHistory || !productId || historyContext !== `${productId}|${selectedPeriodType}`) return;
     const records = new Map(history.map((row) => [row.periodDate, String(row.unitsSold)]));
     setSalesDrafts((current) => {
       const draft = { ...(current[salesDraftKey] || {}) };
@@ -400,7 +498,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
       });
       return { ...current, [salesDraftKey]: draft };
     });
-  }, [history, loadingHistory, periodRows, productId, salesDraftKey]);
+  }, [history, historyContext, loadingHistory, periodRows, productId, salesDraftKey, selectedPeriodType]);
 
   useEffect(() => {
     setHistoryPage(1);
@@ -531,7 +629,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
       setError('Add a product before creating a forecast.');
       return;
     }
-    if (!history.length) {
+    if (!sortedHistory.length) {
       setError(`Add at least one ${periodUnit} of sales history before forecasting.`);
       return;
     }
@@ -588,7 +686,16 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
 
   const saveSales = async (submitEvent) => {
     submitEvent.preventDefault();
-    if (!productId) return;
+    if (!productId || resettingSales) return;
+    const targetProductId = productId;
+    const targetPeriodType = selectedPeriodType;
+    const targetDraftKey = salesDraftKey;
+    visiblePeriods.forEach(({ periodDate }) => {
+      const key = `${targetProductId}|${targetPeriodType}|${periodDate}`;
+      const timer = salesAutoSaveTimersRef.current.get(key);
+      if (timer) window.clearTimeout(timer);
+      salesAutoSaveTimersRef.current.delete(key);
+    });
     setSavingSales(true);
     setError('');
     setNotice('');
@@ -612,15 +719,15 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
         records.push({ periodDate: period.periodDate, unitsSold: units });
       }
 
-      const savedRecords = await requestJson('/api/sales-history/bulk', {
+      const savedRecords = await queueSalesRequest(() => requestJson('/api/sales-history/bulk', {
         method: 'PUT',
         body: JSON.stringify({
-          productId,
-          periodType: selectedPeriodType,
+          productId: targetProductId,
+          periodType: targetPeriodType,
           records,
           deleteDates,
         }),
-      });
+      }));
       if (!Array.isArray(savedRecords)) {
         throw new Error('The server did not confirm the saved sales records.');
       }
@@ -629,15 +736,20 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
         ...deleteDates,
       ]);
       const savedByDate = new Map(savedRecords.map((row) => [row.periodDate, String(row.unitsSold)]));
-      setHistory((current) => [
-        ...current.filter((row) => !affectedDates.has(row.periodDate)),
-        ...savedRecords,
-      ]);
-      setForecast(null);
+      if (
+        activeSalesContextRef.current.productId === targetProductId
+        && activeSalesContextRef.current.periodType === targetPeriodType
+      ) {
+        setHistory((current) => [
+          ...current.filter((row) => !affectedDates.has(row.periodDate)),
+          ...savedRecords,
+        ]);
+        setForecast(null);
+      }
       setSalesDrafts((current) => ({
         ...current,
-        [salesDraftKey]: {
-          ...(current[salesDraftKey] || {}),
+        [targetDraftKey]: {
+          ...(current[targetDraftKey] || {}),
           ...Object.fromEntries(visiblePeriods.map(({ periodDate }) => [
             periodDate,
             savedByDate.get(periodDate) ?? '',
@@ -651,6 +763,52 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
       setError(saveError.message || `Could not save ${periodPlural} sales.`);
     } finally {
       setSavingSales(false);
+    }
+  };
+
+  const resetSalesHistory = async () => {
+    if (!selectedProduct || resettingSales) return;
+    const targetProduct = selectedProduct;
+    const confirmed = window.confirm(
+      `Reset all historical sales data for ${targetProduct.name} (${targetProduct.id})? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const timerPrefix = `${targetProduct.id}|`;
+    for (const [key, timer] of salesAutoSaveTimersRef.current.entries()) {
+      if (key.startsWith(timerPrefix)) {
+        window.clearTimeout(timer);
+        salesAutoSaveTimersRef.current.delete(key);
+      }
+    }
+
+    setResettingSales(true);
+    setError('');
+    setNotice('');
+    try {
+      const result = await queueSalesRequest(() => requestJson(
+        `/api/sales-history/products/${encodeURIComponent(targetProduct.id)}`,
+        { method: 'DELETE' }
+      ));
+      if (result.productId !== targetProduct.id || !Number.isInteger(result.deleted)) {
+        throw new Error('The server did not confirm the sales history reset.');
+      }
+
+      setSalesDrafts((current) => Object.fromEntries(
+        Object.entries(current).filter(([key]) => !key.startsWith(timerPrefix))
+      ));
+      if (activeSalesContextRef.current.productId === targetProduct.id) {
+        setHistory([]);
+        setForecast(null);
+      }
+      setSalesAutoSave((current) => (
+        current?.key.startsWith(timerPrefix) ? null : current
+      ));
+      setNotice(`Historical sales data reset for ${targetProduct.name} (${targetProduct.id}).`);
+    } catch (resetError) {
+      setError(resetError.message || `Could not reset sales history for ${targetProduct.name}.`);
+    } finally {
+      setResettingSales(false);
     }
   };
 
@@ -820,11 +978,11 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                 </div>
                 <div className="f-stat-box">
                   <div className="f-lbl">Avg. {periodAdjective} sales</div>
-                  <div className="f-val">{history.length ? Math.round(overallAverage) : '—'} <small>units/{periodUnit}</small></div>
+                  <div className="f-val">{sortedHistory.length ? Math.round(overallAverage) : '—'} <small>units/{periodUnit}</small></div>
                 </div>
                 <div className="f-stat-box">
                   <div className="f-lbl">Data points</div>
-                  <div className="f-val">{history.length}</div>
+                  <div className="f-val">{sortedHistory.length}</div>
                 </div>
               </div>
             </div>
@@ -861,7 +1019,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                 </>
               ) : (
                 <div className="f-result-placeholder">
-                  {loadingHistory ? 'Loading sales history…' : history.length
+                  {loadingHistory ? 'Loading sales history…' : sortedHistory.length
                     ? `Compute the weighted moving average to see the ${periodAdjective} forecast.`
                     : 'Add sales history for this product, then compute a forecast.'}
                 </div>
@@ -912,14 +1070,33 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                   </h3>
                   <p className="f-sub">Enter actual units sold to improve your sales forecast.</p>
                 </div>
-                <button
-                  className="f-btn f-btn-primary f-monthly-save"
-                  type="submit"
-                  form="sales-history-form"
-                  disabled={!productId || savingSales || loadingHistory}
-                >
-                  {savingSales ? 'Saving…' : '✓ Save sales'}
-                </button>
+                <div className="f-sales-save-actions">
+                  {salesAutoSave?.key.startsWith(`${productId}|${selectedPeriodType}|`) && (
+                    <span
+                      className={`f-sales-save-status is-${salesAutoSave.status}`}
+                      role="status"
+                    >
+                      {salesAutoSave.status === 'saved' ? 'Saved'
+                        : salesAutoSave.status === 'error' ? 'Save failed' : 'Saving…'}
+                    </span>
+                  )}
+                  <button
+                    className="f-btn f-btn-primary f-monthly-save"
+                    type="submit"
+                    form="sales-history-form"
+                    disabled={!productId || savingSales || resettingSales || loadingHistory}
+                  >
+                    {savingSales ? 'Saving…' : '✓ Save sales'}
+                  </button>
+                  <button
+                    className="f-btn f-btn-ghost f-monthly-reset"
+                    type="button"
+                    onClick={resetSalesHistory}
+                    disabled={!productId || resettingSales || loadingHistory}
+                  >
+                    {resettingSales ? 'Resetting…' : 'Reset Sales History'}
+                  </button>
+                </div>
               </div>
               <div className="f-sales-timeline-bar">
                 <div className="f-sales-timeline-tabs" role="tablist" aria-label="Sales timeline">
@@ -974,14 +1151,18 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                         step="1"
                         placeholder="Enter units"
                         value={currentSalesDraft[period.periodDate] ?? ''}
-                        disabled={!productId || loadingHistory || savingSales}
-                        onChange={(e) => setSalesDrafts((current) => ({
-                          ...current,
-                          [salesDraftKey]: {
-                            ...(current[salesDraftKey] || {}),
-                            [period.periodDate]: e.target.value,
-                          },
-                        }))}
+                        disabled={!productId || loadingHistory || savingSales || resettingSales}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setSalesDrafts((current) => ({
+                            ...current,
+                            [salesDraftKey]: {
+                              ...(current[salesDraftKey] || {}),
+                              [period.periodDate]: value,
+                            },
+                          }));
+                          scheduleSalesAutoSave(period.periodDate, value);
+                        }}
                       />
                       <span>units</span>
                     </div>

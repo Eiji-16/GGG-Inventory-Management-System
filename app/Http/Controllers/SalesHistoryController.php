@@ -147,6 +147,18 @@ class SalesHistoryController extends Controller
         return response()->json($saved);
     }
 
+    /** DELETE /api/sales-history/products/{productCode} */
+    public function clearProduct(string $productCode)
+    {
+        $product = Product::where('code', $productCode)->firstOrFail();
+        $deleted = $product->salesHistory()->delete();
+
+        return response()->json([
+            'productId' => $product->code,
+            'deleted' => $deleted,
+        ]);
+    }
+
     /** DELETE /api/sales-history/{salesHistory} */
     public function destroy(SalesHistory $salesHistory)
     {
