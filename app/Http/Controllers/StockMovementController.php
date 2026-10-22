@@ -31,6 +31,7 @@ class StockMovementController extends Controller
     public function activities(Request $request): JsonResponse
     {
         $logs = ActivityLog::query()
+            ->with('user:id,name')
             ->where('action', 'like', 'stock.%')
             ->when($request->filled('productId'), function ($query) use ($request) {
                 $productId = $request->query('productId');
@@ -47,6 +48,7 @@ class StockMovementController extends Controller
             'id' => $log->id,
             'action' => $log->action,
             'description' => $log->description,
+            'userName' => $log->user?->name,
             'meta' => $log->meta ?? [],
             'createdAt' => $log->created_at?->toIso8601String(),
         ]));

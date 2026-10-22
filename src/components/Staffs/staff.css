@@ -728,8 +728,8 @@
     width: 200px;
     padding: 6px;
 
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
+    background: var(--dropdown-menu-bg);
+    border: 1px solid var(--dropdown-menu-border);
     border-radius: 8px;
     box-shadow: var(--shadow-hover, 0 10px 28px rgba(0, 0, 0, 0.28));
 }
@@ -740,7 +740,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--text-muted);
+    color: var(--dropdown-menu-muted);
 }
 
 .st-menu-item {
@@ -751,7 +751,7 @@
     width: 100%;
     padding: 8px 9px;
 
-    color: var(--text-primary);
+    color: var(--dropdown-menu-text);
     font-family: inherit;
     font-size: 12.5px;
     font-weight: 600;
@@ -766,13 +766,13 @@
 }
 
 .st-menu-item:hover {
-    background: var(--background-icon-active-color-theme, var(--static-bg-color));
+    background: var(--dropdown-menu-hover);
 }
 
 .st-menu-divider {
     height: 1px;
     margin: 6px 4px;
-    background: var(--border-color);
+    background: var(--dropdown-menu-hover);
 }
 
 .st-menu-locked {
@@ -783,7 +783,7 @@
     margin: 0;
     padding: 8px 9px;
 
-    color: var(--text-muted);
+    color: var(--dropdown-menu-muted);
     font-size: 11.5px;
     font-style: italic;
 }

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Product;
 use App\Models\StockMovement;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Tests\Concerns\AuthenticatesBusinessApi;
@@ -137,6 +138,29 @@ class StockMovementPersistenceTest extends TestCase
 
         $this->getJson('/api/stock-activities')->assertOk()->assertJsonCount(4);
         $this->assertDatabaseCount('activity_logs', 4);
+    }
+
+    public function test_stock_activity_includes_the_name_of_the_authenticated_user(): void
+    {
+        $staff = User::factory()->create([
+            'name' => 'Inventory Staff',
+            'role' => User::ROLE_STAFF,
+            'status' => User::STATUS_ACTIVE,
+        ]);
+        $this->actingAs($staff);
+        $product = $this->createProduct(10);
+
+        $this->postJson('/api/stock-movements', [
+            'productId' => $product->code,
+            'type' => 'Stock Out',
+            'qty' => 1,
+            'date' => now()->toDateString(),
+        ])->assertCreated();
+
+        $this->getJson('/api/stock-activities?productId='.$product->code)
+            ->assertOk()
+            ->assertJsonPath('0.userName', 'Inventory Staff')
+            ->assertJsonPath('0.action', 'stock.out');
     }
 
     public function test_edit_applies_the_new_movement_amount_to_current_stock(): void

@@ -4,6 +4,12 @@ import './dashboard.css';
 import { reorderPointFor } from '../../data/safetyStock';
 
 const fmt = (value) => Number(value || 0).toLocaleString('en-PH');
+const localDateString = () => {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+};
 const categoryColors = {
   phone: '#43D39E',
   keyboard: '#4F9CF9',
@@ -258,10 +264,8 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
     ).size;
     const hasSalesData = monthly.some((month) => month.units > 0);
     const hasMovementData = dailyMovements.some((day) => day.count > 0);
-    const today = summary.generatedAt?.slice(0, 10);
-    const movementsToday = today
-      ? stockMovements.filter((movement) => movement.date === today).length
-      : null;
+    const today = localDateString();
+    const movementsToday = stockMovements.filter((movement) => movement.date === today).length;
 
     return {
       products: stock,
@@ -431,38 +435,56 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             <div className="db-spark-wrap"><Sparkline values={derived.hasSalesData ? heroValues : []} stroke="var(--accent-high)" gid="dbSalesGrad" /></div>
           </div>
 
-          <div className="regionalBreakdown-card card">
-            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Inventory by Category</span><span className="db-card-sub">Products in each category</span></div><button className="db-open-arrow-btn" onClick={() => go('Product-Supplier')} aria-label="Open products" type="button"><OpenArrow /></button></div>
-            {derived.products.length ? (
-              <div className="db-donut-row">
-                <svg className="db-donut-svg" viewBox="0 0 120 120" aria-label="Inventory by category">
-                  {derived.donut.map((segment) => <path key={segment.name} d={segment.path} fill={segment.color} opacity="0.92" />)}
-                </svg>
-                <div className="db-donut-details">
-                  <strong className="db-donut-total">{fmt(derived.products.length)} products</strong>
-                  <div className="db-legend db-legend-col">
-                    {derived.categories.map((category) => <span key={category.name} className="db-legend-item"><i style={{ background: category.color }} />{category.name} {fmt(category.count)}</span>)}
-                  </div>
-                </div>
-              </div>
-            ) : <EmptyChart message="No products to group yet" />}
-          </div>
+          <div className="regionalBreakdown-card card" aria-hidden="true" />
 
           <div className="eoqActivity-card card">
-            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Supplier Coverage</span><span className="db-card-sub">Products linked to a supplier</span></div><button className="db-open-arrow-btn" onClick={() => go('Product-Supplier')} aria-label="Open suppliers" type="button"><OpenArrow /></button></div>
-            <div className="db-gauge-row db-coverage-row">
-              <svg className="db-gauge-svg db-coverage-svg" viewBox="0 0 120 74" aria-label={`${derived.supplierCoverage}% supplier coverage`}>
-                <path d={Arc({ cx: 60, cy: 60, radius: 46, start: 180, end: 360 })} fill="none" stroke="var(--static-bg-color)" strokeWidth="12" strokeLinecap="round" />
-                <path d={supplierGauge} fill="none" stroke="var(--accent-high)" strokeWidth="12" strokeLinecap="round" />
-                <text x="60" y="52" className="db-gauge-value db-coverage-value" textAnchor="middle">{derived.supplierCoverage}%</text>
-                <text x="60" y="66" className="db-gauge-label db-coverage-label" textAnchor="middle">covered</text>
-              </svg>
-              <div className="db-gauge-stats db-coverage-stats">
-                <div className="db-metric"><span className="db-metric-label">Suppliers</span><span className="db-metric-value">{fmt(summary.supplierCount)}</span></div>
-                <div className="db-metric"><span className="db-metric-label">Unassigned</span><span className="db-metric-value">{fmt(derived.unassignedProducts)}</span></div>
+            <button className="db-open-arrow-btn db-coverage-open-btn" onClick={() => go('Product-Supplier')} aria-label="Open suppliers" type="button"><OpenArrow /></button>
+            <div className="db-coverage-content">
+              <div className="db-coverage-section">
+                <div className="db-card-titles">
+                  <span className="db-card-title">Supplier Coverage</span>
+                  <span className="db-card-sub">Products linked to a supplier</span>
+                </div>
+                <div className="db-coverage-metrics">
+                  <div className="db-gauge-row db-coverage-row">
+                    <svg className="db-gauge-svg db-coverage-svg" viewBox="0 0 120 74" aria-label={`${derived.supplierCoverage}% supplier coverage`}>
+                      <path d={Arc({ cx: 60, cy: 60, radius: 46, start: 180, end: 360 })} fill="none" stroke="var(--static-bg-color)" strokeWidth="12" strokeLinecap="round" />
+                      <path d={supplierGauge} fill="none" stroke="var(--accent-high)" strokeWidth="12" strokeLinecap="round" />
+                      <text x="60" y="52" className="db-gauge-value db-coverage-value" textAnchor="middle">{derived.supplierCoverage}%</text>
+                      <text x="60" y="66" className="db-gauge-label db-coverage-label" textAnchor="middle">covered</text>
+                    </svg>
+                    <div className="db-gauge-stats db-coverage-stats">
+                      <div className="db-metric"><span className="db-metric-label">Suppliers</span><span className="db-metric-value">{fmt(summary.supplierCount)}</span></div>
+                      <div className="db-metric"><span className="db-metric-label">Unassigned</span><span className="db-metric-value">{fmt(derived.unassignedProducts)}</span></div>
+                    </div>
+                  </div>
+                  {derived.products.length === 0 && <span className="db-coverage-empty">No products assigned yet</span>}
+                </div>
+              </div>
+              <div className="db-category-section">
+                <div className="db-card-titles">
+                  <span className="db-card-title">Inventory by Category</span>
+                  <span className="db-card-sub">Products in each category</span>
+                </div>
+                <div className="db-category-metrics">
+                  {derived.products.length ? (
+                    <div className="db-donut-row">
+                      <svg className="db-donut-svg" viewBox="0 0 120 120" aria-label="Inventory by category">
+                        {derived.donut.length === 1
+                          ? <circle cx="60" cy="60" r="36" fill="none" stroke={derived.donut[0].color} strokeWidth="20" opacity="0.92" />
+                          : derived.donut.map((segment) => <path key={segment.name} d={segment.path} fill={segment.color} opacity="0.92" />)}
+                      </svg>
+                      <div className="db-donut-details">
+                        <strong className="db-donut-total">{fmt(derived.products.length)} products</strong>
+                        <div className="db-legend db-legend-col">
+                          {derived.categories.map((category) => <span key={category.name} className="db-legend-item"><i style={{ background: category.color }} />{category.name} {fmt(category.count)}</span>)}
+                        </div>
+                      </div>
+                    </div>
+                  ) : <EmptyChart message="No products to group yet" />}
+                </div>
               </div>
             </div>
-            {derived.products.length === 0 && <span className="db-coverage-empty">No products assigned yet</span>}
           </div>
 
           <div className="totalOrder-card card">

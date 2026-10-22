@@ -904,7 +904,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
                     </datalist>
                     <p className="ps-field-note">
                       Edit the supplier directly, or start typing to reuse a saved one. This supplier
-                      is used by Stock Movement and the Auto Calculator when a reorder is raised.
+                      is used by Stock Movement and the Economic Order Quantity Calculator when a reorder is raised.
                     </p>
                   </div>
                 </section>

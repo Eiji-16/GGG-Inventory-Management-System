@@ -11,6 +11,15 @@
     box-sizing: border-box;
 }
 
+:root {
+    --dropdown-menu-bg: #18294b;
+    --dropdown-menu-text: #f3f6fc;
+    --dropdown-menu-muted: #aebbd1;
+    --dropdown-menu-border: #cbd6e8;
+    --dropdown-menu-hover: #263b60;
+    --dropdown-menu-selected: #f5bd3b;
+}
+
 html,
 body,
 #root {
@@ -27,6 +36,16 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+}
+
+select option {
+    background: var(--dropdown-menu-bg);
+    color: var(--dropdown-menu-text);
+}
+
+select option:checked {
+    color: var(--dropdown-menu-selected);
+    font-weight: 700;
 }
 
 /* Let the React root fill the viewport so the app shell can manage its own

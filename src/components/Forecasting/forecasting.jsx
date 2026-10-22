@@ -245,6 +245,132 @@ function SalesYearSelect({ selectedYear, onChange }) {
   );
 }
 
+function ForecastProductSelect({ products, allProducts, productId, loading, onChange }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const containerRef = useRef(null);
+  const buttonRef = useRef(null);
+  const listRef = useRef(null);
+  const selectedProduct = allProducts.find((product) => String(product.id) === String(productId));
+  const selectedIndex = products.findIndex((product) => String(product.id) === String(productId)) + 1;
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const closeOnOutsideClick = (event) => {
+      if (!containerRef.current?.contains(event.target)) setIsOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    return () => document.removeEventListener('pointerdown', closeOnOutsideClick);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    listRef.current?.focus();
+    listRef.current?.querySelector(`[data-index="${activeIndex}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) setActiveIndex((current) => Math.min(current, products.length));
+  }, [isOpen, products.length]);
+
+  const openDropdown = (index = selectedIndex) => {
+    setActiveIndex(Math.max(0, Math.min(index, products.length)));
+    setIsOpen(true);
+  };
+
+  const selectProduct = (index) => {
+    onChange(index === 0 ? '' : String(products[index - 1].id));
+    setIsOpen(false);
+    buttonRef.current?.focus();
+  };
+
+  const handleListKeyDown = (event) => {
+    let nextIndex = activeIndex;
+    if (event.key === 'ArrowDown') nextIndex = Math.min(activeIndex + 1, products.length);
+    else if (event.key === 'ArrowUp') nextIndex = Math.max(activeIndex - 1, 0);
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = products.length;
+    else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      selectProduct(activeIndex);
+      return;
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setIsOpen(false);
+      buttonRef.current?.focus();
+      return;
+    } else return;
+
+    event.preventDefault();
+    setActiveIndex(nextIndex);
+  };
+
+  return (
+    <div className="f-year-select-wrap f-product-select-wrap" ref={containerRef}>
+      <button
+        ref={buttonRef}
+        id="forecast-product"
+        className={`f-custom-select-btn f-product-select-btn${isOpen ? ' is-open' : ''}`}
+        type="button"
+        role="combobox"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-controls="forecast-product-options"
+        aria-activedescendant={isOpen ? `forecast-product-option-${activeIndex}` : undefined}
+        disabled={loading}
+        onClick={() => (isOpen ? setIsOpen(false) : openDropdown())}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            openDropdown();
+          }
+        }}
+      >
+        {selectedProduct ? `${selectedProduct.name} (${selectedProduct.id})` : loading ? 'Loading products…' : 'Select a product'}
+      </button>
+      {isOpen && (
+        <div
+          ref={listRef}
+          id="forecast-product-options"
+          className="f-year-dropdown-menu"
+          role="listbox"
+          aria-label="Products"
+          aria-activedescendant={`forecast-product-option-${activeIndex}`}
+          tabIndex={0}
+          onKeyDown={handleListKeyDown}
+        >
+          <div
+            id="forecast-product-option-0"
+            className={`f-year-opt${activeIndex === 0 ? ' is-active' : ''}${!productId ? ' is-selected' : ''}`}
+            role="option"
+            aria-selected={!productId}
+            data-index="0"
+            onClick={() => selectProduct(0)}
+          >
+            Select a product
+          </div>
+          {products.length ? products.map((product, index) => {
+            const isSelected = String(product.id) === String(productId);
+            return (
+              <div
+                id={`forecast-product-option-${index + 1}`}
+                className={`f-year-opt${activeIndex === index + 1 ? ' is-active' : ''}${isSelected ? ' is-selected' : ''}`}
+                key={product.id}
+                role="option"
+                aria-selected={isSelected}
+                data-index={index + 1}
+                onClick={() => selectProduct(index + 1)}
+              >
+                {product.name} ({product.id})
+              </div>
+            );
+          }) : <div className="f-product-opt-empty">{loading ? 'Loading products…' : 'No products found'}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, catalogRevision = 0 }) {
   const [products, setProducts] = useState([]);
   const [productId, setProductId] = useState('');
@@ -940,21 +1066,17 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
               </div>
               <div className="f-field" style={{ minWidth: 190 }}>
                 <label htmlFor="forecast-product">Product</label>
-                <select
-                  id="forecast-product"
-                  value={productId}
-                  onChange={(e) => {
+                <ForecastProductSelect
+                  products={filteredProducts}
+                  allProducts={products}
+                  productId={productId}
+                  loading={loadingProducts}
+                  onChange={(value) => {
                     onClearEoqHandoff?.();
                     setForecast(null);
-                    setProductId(e.target.value);
+                    setProductId(value);
                   }}
-                  disabled={loadingProducts}
-                >
-                  <option value="">{loadingProducts ? 'Loading products…' : 'Select a product'}</option>
-                  {filteredProducts.map((product) => (
-                    <option key={product.id} value={product.id}>{product.name} ({product.id})</option>
-                  ))}
-                </select>
+                />
               </div>
               <div className="f-field">
                 <label>&nbsp;</label>

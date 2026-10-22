@@ -641,8 +641,8 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    background: var(--bg-card, #1b2436);
-    border: 1px solid var(--border-strong);
+    background: var(--dropdown-menu-bg);
+    border: 1px solid var(--dropdown-menu-border);
     border-radius: 8px;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
 }
@@ -651,22 +651,22 @@
     padding: 7px 10px;
     font-size: 12px;
     font-weight: 600;
-    color: var(--text-primary);
+    color: var(--dropdown-menu-text);
     background: transparent;
     border: none;
     border-radius: 6px;
     cursor: pointer;
     transition: background 0.15s ease;
 }
-.sc-sort-item:hover { background: var(--background-icon-active-color-theme); }
+.sc-sort-item:hover { background: var(--dropdown-menu-hover); }
 .sc-sort-item.is-active {
-    background: var(--background-icon-active-color-theme);
-    color: var(--accent, #E8C547);
+    background: var(--dropdown-menu-hover);
+    color: var(--dropdown-menu-selected);
 }
 .sc-sort-divider {
     height: 1px;
     margin: 4px 2px;
-    background: var(--hairline, var(--border-color));
+    background: var(--dropdown-menu-hover);
 }
 
 .sc-add-btn-primary {
@@ -1577,6 +1577,12 @@
     font-size: 0.74rem;
     line-height: 1.45;
     color: var(--text-primary);
+}
+
+.sc-activity-actor {
+    margin-top: 0.2rem;
+    color: var(--text-muted);
+    font-size: 0.68rem;
 }
 
 .sc-activity-time {

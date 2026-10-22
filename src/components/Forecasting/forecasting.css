@@ -206,6 +206,26 @@
     box-shadow: 0 0 0 3px var(--background-icon-active-color-theme);
 }
 
+.f-custom-select-btn.is-open {
+    border-color: var(--background-icon-active-color);
+}
+
+.f-custom-select-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+.f-product-select-wrap {
+    min-width: 0;
+}
+
+.f-product-select-btn {
+    min-height: 40px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .f-year-dropdown-menu {
     position: absolute;
     top: calc(100% + 4px);
@@ -216,8 +236,8 @@
     max-height: 152px;
     overflow-y: auto;
 
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
+    background: var(--dropdown-menu-bg);
+    border: 1px solid var(--dropdown-menu-border);
     border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
@@ -228,7 +248,7 @@
     height: 30px;
     padding: 0 12px;
 
-    color: var(--text-primary);
+    color: var(--dropdown-menu-text);
     font-family: 'IBM Plex Mono', monospace;
     font-size: 13px;
 
@@ -238,17 +258,23 @@
 }
 
 .f-year-opt:hover {
-    background: var(--background-icon-active-color-theme);
+    background: var(--dropdown-menu-hover);
 }
 
 .f-year-opt.is-active:not(.is-selected) {
-    background: var(--background-icon-active-color-theme);
+    background: var(--dropdown-menu-hover);
 }
 
 .f-year-opt.is-selected {
-    color: var(--background-icon-active-color);
+    color: var(--dropdown-menu-selected);
     font-weight: 800;
-    background: var(--background-icon-active-color-theme);
+    background: var(--dropdown-menu-hover);
+}
+
+.f-product-opt-empty {
+    padding: 8px 12px;
+    color: var(--dropdown-menu-muted);
+    font-size: 12px;
 }
 
 .f-year-dropdown-menu::-webkit-scrollbar {
@@ -283,8 +309,8 @@
 
     overflow: hidden;
 
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
+    background: var(--dropdown-menu-bg);
+    border: 1px solid var(--dropdown-menu-border);
     border-radius: 8px;
     box-shadow: var(--shadow-hover);
 }
@@ -297,7 +323,7 @@
 
     padding: 10px 12px;
 
-    color: var(--text-primary);
+    color: var(--dropdown-menu-text);
     font-size: 13px;
 
     cursor: pointer;
@@ -306,11 +332,11 @@
 }
 
 .f-search-opt:hover {
-    background: var(--background-icon-active-color-theme);
+    background: var(--dropdown-menu-hover);
 }
 
 .f-search-opt .f-search-id {
-    color: var(--text-muted);
+    color: var(--dropdown-menu-muted);
     font-size: 11px;
 }
 

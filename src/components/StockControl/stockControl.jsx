@@ -11,10 +11,8 @@ import {
   History,
   ArrowUpRight,
   ArrowDownRight,
-  ArrowRight,
   Download,
   Activity,
-  Info,
   PlusCircle,
   Pencil,
   Clock,
@@ -31,7 +29,6 @@ import {
   stockStatusFor,
   annualDemandFor,
   policyFor,
-  maximumInventoryFor,
   STATUS_LABEL,
 } from '../../data/safetyStock'; /* ===== SAFETY STOCK ===== */
 
@@ -98,7 +95,6 @@ function StockControl({
   const [historyProduct, setHistoryProduct] = useState(null);
   const [query, setQuery] = useState('');
   const [showActivity, setShowActivity] = useState(false);
-  const [showReorderPlan, setShowReorderPlan] = useState(false);
   const [activityLog, setActivityLog] = useState([]);
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityError, setActivityError] = useState('');
@@ -215,57 +211,6 @@ function StockControl({
   };
 
   const productById = useMemo(() => new Map(productOptions.map((product) => [product.id, product])), [productOptions]);
-  const reorderPlans = useMemo(() => productOptions.map((product) => {
-    const policy = policyFor({ productId: product.id, productName: product.name }, safetyStock);
-    const safetyStockValue = safetyPointFor({
-      productId: product.id,
-      productName: product.name,
-      safetyStock: product.safetyStock,
-    }, safetyStock);
-    const configuredDemand = Number(policy.annualDemand) > 0
-      ? policy.annualDemand
-      : product.annualDemand;
-    const historicalDemand = Number(product.demandFromHistory) > 0 ? product.demandFromHistory : '';
-    const annualDemandValue = Number(configuredDemand) > 0 ? configuredDemand : historicalDemand;
-    const maximumInventory = maximumInventoryFor(
-      annualDemandValue,
-      safetyStockValue,
-      policy.leadTimeDays,
-      policy.orderCycleDays
-    );
-    const currentStock = Number(product.stock) || 0;
-    const reorderPoint = reorderPointFor({
-      productId: product.id,
-      productName: product.name,
-      safetyStock: safetyStockValue,
-      annualDemand: annualDemandValue,
-      leadTimeDays: policy.leadTimeDays,
-    }, safetyStock);
-    const reorderDue = currentStock <= reorderPoint;
-
-    return {
-      id: product.id,
-      name: product.name,
-      currentStock,
-      safetyStock: safetyStockValue,
-      reorderPoint,
-      maximumInventory,
-      suggestedTopUp: reorderDue && maximumInventory !== null
-        ? Math.max(0, maximumInventory - currentStock)
-        : null,
-      reorderDue,
-    };
-  }), [productOptions, safetyStock]);
-  const reorderSummary = useMemo(() => reorderPlans.reduce((summary, plan) => {
-    if (!plan.reorderDue) {
-      summary.healthy += 1;
-    } else if (plan.maximumInventory === null) {
-      summary.needsSetup += 1;
-    } else {
-      summary.reorderNow += 1;
-    }
-    return summary;
-  }, { total: reorderPlans.length, healthy: 0, needsSetup: 0, reorderNow: 0 }), [reorderPlans]);
 
   /* ===== MOVEMENT COUNT PER PRODUCT =====
      Opening stock may only be set before the first movement exists — the same
@@ -822,19 +767,11 @@ function StockControl({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const decrementQty = () => {
+  /* The counter stores a signed change: positive adds stock, negative removes it. */
+  const adjustQuantity = (amount) => {
     setFormData((prev) => ({
       ...prev,
-      type: 'Stock Out',
-      qty: String(Math.max(1, Number(prev.qty || 1) - 1)),
-    }));
-  };
-
-  const incrementQty = () => {
-    setFormData((prev) => ({
-      ...prev,
-      type: 'Stock In',
-      qty: String(Number(prev.qty || 0) + 1),
+      qty: String((Number.isInteger(Number(prev.qty)) ? Number(prev.qty) : 0) + amount),
     }));
   };
 
@@ -1028,15 +965,6 @@ function StockControl({
           aria-label="Activity history"
         >
           <Activity size={14} />
-        </button>
-        <button
-          className="sc-add-btn sc-icon-only"
-          onClick={() => setShowReorderPlan(true)}
-          type="button"
-          title="View maximum inventory and reorder planning"
-          aria-label="Reorder plan"
-        >
-          <Info size={14} />
         </button>
       </div>
 
@@ -1359,11 +1287,11 @@ function StockControl({
                           <div className="sc-stepper">
                             <button
                               type="button"
-                              className={`sc-stepper-btn sc-stepper-minus${isOut ? ' is-active' : ''}`}
-                              aria-label="Minus — remove / sold"
-                              aria-pressed={isOut}
-                              onClick={decrementQty}
-                              title="Remove stock (counts as sold)"
+                              className="sc-stepper-btn sc-stepper-minus"
+                              aria-label="Decrease change quantity by one"
+                              onClick={() => adjustQuantity(-1)}
+                              disabled={currentOnHand !== null && Number(formData.qty) <= -currentOnHand}
+                              title="Decrease quantity by one"
                             >
                               <span>−</span>
                             </button>
@@ -1381,11 +1309,10 @@ function StockControl({
                             />
                             <button
                               type="button"
-                              className={`sc-stepper-btn sc-stepper-plus${!isOut ? ' is-active' : ''}`}
-                              aria-label="Plus — add stock"
-                              aria-pressed={!isOut}
-                              onClick={incrementQty}
-                              title="Add stock (received)"
+                              className="sc-stepper-btn sc-stepper-plus"
+                              aria-label="Increase change quantity by one"
+                              onClick={() => adjustQuantity(1)}
+                              title="Increase quantity by one"
                             >
                               <span>+</span>
                             </button>
@@ -1394,8 +1321,8 @@ function StockControl({
                             {!formData.productName
                               ? 'Select a product first.'
                               : editId === null
-                                ? `${currentOnHand} on hand. Tap − to remove (counts as sold), + to add new stock.`
-                                : `${currentOnHand} on hand before this entry. Saving replaces it.`}
+                                ? `${currentOnHand} units on hand. + adds one; − removes one. Negative quantities record stock out.`
+                                : `${currentOnHand} units currently on hand. Saving applies this signed change; total after save: ${projectedRemaining ?? '—'} units.`}
                           </span>
                         </>
                       )}
@@ -1606,6 +1533,7 @@ function StockControl({
                             <span className="sc-activity-action">{label}</span>
                           </div>
                           <div className="sc-activity-detail">{item.description}</div>
+                          <div className="sc-activity-actor">By {item.userName || 'Unknown user'}</div>
                           <div className="sc-activity-time">
                             <Clock size={10} />
                             {item.createdAt
@@ -1622,161 +1550,6 @@ function StockControl({
               )}
             </div>
           </div>
-        </div>,
-        document.body
-      )}
-
-      {showReorderPlan && createPortal(
-        <div className="sc-reorder-fullscreen-overlay">
-          <aside
-            className="sc-reorder-fullscreen"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="sc-reorder-planning-title"
-          >
-            <div className="sc-reorder-fullscreen-header">
-              <button
-                className="sc-reorder-back"
-                onClick={() => setShowReorderPlan(false)}
-                type="button"
-                aria-label="Close reorder plan"
-                title="Close"
-              >
-                <ArrowRight size={18} />
-              </button>
-              <div className="sc-reorder-fullscreen-title">
-                <div className="sc-modal-titles">
-                  <h2 id="sc-reorder-planning-title">Maximum Inventory &amp; Reorder Plan</h2>
-                  <p className="sc-modal-subtitle">
-                    Reorder point = safety stock + daily demand × lead time. Maximum inventory = safety stock + daily demand × (lead time + order cycle).
-                    Set lead time and order cycle in Settings → Advanced Options.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="sc-reorder-settings"
-                onClick={() => {
-                  setShowReorderPlan(false);
-                  onNavigate?.('Setting');
-                }}
-              >
-                Configure policy
-              </button>
-            </div>
-            <div className="sc-reorder-fullscreen-body">
-              <section className="sc-reorder-overview" aria-label="Reorder plan overview">
-                <div className="sc-reorder-overview-card">
-                  <span className="sc-reorder-overview-label">Products tracked</span>
-                  <strong>{reorderSummary.total}</strong>
-                  <small>items in your catalog</small>
-                </div>
-                <div className="sc-reorder-overview-card sc-reorder-overview-alert">
-                  <span className="sc-reorder-overview-label">Ready to reorder</span>
-                  <strong>{reorderSummary.reorderNow}</strong>
-                  <small>below trigger with a target set</small>
-                </div>
-                <div className="sc-reorder-overview-card sc-reorder-overview-setup">
-                  <span className="sc-reorder-overview-label">Needs policy setup</span>
-                  <strong>{reorderSummary.needsSetup}</strong>
-                  <small>configure demand and order timing</small>
-                </div>
-                <div className="sc-reorder-overview-card sc-reorder-overview-good">
-                  <span className="sc-reorder-overview-label">Above reorder point</span>
-                  <strong>{reorderSummary.healthy}</strong>
-                  <small>currently above the reorder point</small>
-                </div>
-              </section>
-
-              <section className="sc-reorder-formula" aria-label="Maximum inventory formula">
-                <span className="sc-reorder-formula-mark" aria-hidden="true">i</span>
-                <div>
-                  <strong>How the target is calculated</strong>
-                  <p>
-                    Reorder point = safety stock + (annual demand ÷ 365) × lead time.
-                    Maximum inventory = safety stock + (annual demand ÷ 365) × (lead time + order cycle).
-                    Suggested top-up is the amount needed to reach the maximum target when stock is at or below the reorder point.
-                  </p>
-                </div>
-              </section>
-
-              <div className="sc-reorder-section-heading">
-                <div>
-                  <h3>Product reorder status</h3>
-                  <p>Stock levels and suggested replenishment by product.</p>
-                </div>
-                <span className="sc-reorder-product-count">{reorderSummary.total} products</span>
-              </div>
-
-              <div className="sc-reorder-table-scroll">
-                <table className="sc-reorder-table">
-                  <thead>
-                    <tr>
-                      <th>Product</th>
-                      <th>Current stock</th>
-                      <th>Reorder point</th>
-                      <th>Maximum target</th>
-                      <th>Recommended action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stockLoading ? (
-                      <tr><td colSpan={5} className="sc-reorder-empty">Loading reorder plans…</td></tr>
-                    ) : reorderPlans.length ? reorderPlans.map((plan) => (
-                      <tr key={plan.id} className={plan.reorderDue ? 'is-reorder-due' : ''}>
-                        <td>
-                          <span className="sc-reorder-product-name">{plan.name}</span>
-                          <span className={`sc-reorder-status ${plan.reorderDue
-                            ? plan.maximumInventory === null ? 'is-setup' : 'is-due'
-                            : 'is-healthy'}`}>
-                            {plan.reorderDue
-                              ? plan.maximumInventory === null ? 'Setup needed' : 'Reorder due'
-                              : 'In range'}
-                          </span>
-                        </td>
-                        <td>
-                          <strong className={`sc-reorder-number${plan.reorderDue ? ' is-low' : ''}`}>{plan.currentStock}</strong>
-                          <small>units on hand</small>
-                        </td>
-                        <td>
-                          <strong className="sc-reorder-number">{plan.safetyStock}</strong>
-                          <small>units minimum</small>
-                        </td>
-                        <td>
-                          {plan.maximumInventory === null ? (
-                            <span className="sc-reorder-unconfigured">Not configured</span>
-                          ) : (
-                            <>
-                              <strong className="sc-reorder-number">{plan.maximumInventory}</strong>
-                              <small>units target</small>
-                            </>
-                          )}
-                        </td>
-                        <td>
-                          {plan.suggestedTopUp !== null ? (
-                            <span className="sc-reorder-top-up">
-                              <strong>+{plan.suggestedTopUp}</strong>
-                              <small>units to order</small>
-                            </span>
-                          ) : plan.reorderDue ? (
-                            <span className="sc-reorder-action-copy">Configure demand and order timing</span>
-                          ) : (
-                            <span className="sc-reorder-action-copy is-neutral">No reorder needed</span>
-                          )}
-                        </td>
-                      </tr>
-                    )) : (
-                      <tr><td colSpan={5} className="sc-reorder-empty">No products available for reorder planning.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <p className="sc-reorder-footnote">
-                Suggested quantities use current on-hand stock only. EOQ is a separate cost-based quantity and does not change the reorder trigger or maximum target.
-              </p>
-            </div>
-          </aside>
         </div>,
         document.body
       )}
@@ -1835,6 +1608,7 @@ function StockControl({
                             <span className="sc-activity-product">{item.meta?.product || '—'}</span>
                           </div>
                           <div className="sc-activity-detail">{item.description}</div>
+                          <div className="sc-activity-actor">By {item.userName || 'Unknown user'}</div>
                           <div className="sc-activity-time">
                             <Clock size={10} />
                             {item.createdAt

@@ -137,16 +137,68 @@
     gap: 10px;
 }
 
+.eoqActivity-card {
+    gap: 8px;
+    container-type: inline-size;
+}
+
+.db-coverage-open-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 1;
+}
+
+.db-coverage-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 18px;
+    flex: 1;
+    min-height: 0;
+}
+
+.db-coverage-section {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.db-category-section {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.db-coverage-section .db-card-title,
+.db-category-section .db-card-title {
+    font-size: 12px;
+}
+
+.db-coverage-section .db-card-sub,
+.db-category-section .db-card-sub {
+    font-size: 10px;
+}
+
+.db-coverage-metrics,
+.db-category-metrics {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    align-items: center;
+}
+
 .db-coverage-svg {
-    width: 120px;
+    width: 100px;
     max-width: 52%;
-    flex: 0 1 120px;
+    flex: 0 1 100px;
 }
 
 .db-coverage-stats {
     min-width: 0;
     flex: 1;
-    gap: 10px;
+    gap: 8px;
 }
 
 .db-coverage-stats .db-metric-value {
@@ -162,6 +214,41 @@
 
 .db-coverage-label {
     font-size: 8px;
+}
+
+.db-category-section .db-donut-row {
+    width: 100%;
+    gap: 10px;
+}
+
+.db-category-section .db-donut-svg {
+    width: 74px;
+    height: 74px;
+    flex: 0 0 74px;
+}
+
+.db-category-section .db-donut-details {
+    gap: 6px;
+}
+
+.db-category-section .db-donut-total {
+    font-size: 12px;
+}
+
+.db-category-section .db-legend-item {
+    font-size: 10px;
+}
+
+@container (max-width: 440px) {
+    .db-coverage-content {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+        min-height: 14rem;
+    }
+
+    .eoqActivity-card {
+        min-height: 15.5rem;
+    }
 }
 
 @keyframes cardEnter {
@@ -616,7 +703,7 @@
 /*==========COLUMN CHART (ORDERS)==========*/
 .db-col-chart {
     flex: 1;
-    min-height: 56px;
+    min-height: 76px;
     margin-top: 4px;
     display: flex;
     align-items: stretch;

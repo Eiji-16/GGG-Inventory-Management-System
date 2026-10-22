@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   LayoutDashboard,
   Users,
@@ -177,6 +178,10 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
   const roleLabel = { super_admin: 'Super Admin', admin: 'Admin', staff: 'Staff' }[role] || 'Staff';
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* ===== SIDEBAR ===== */
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const logoutProcessingRef = useRef(false);
+  const logoutCancelRef = useRef(null);
   const [activeView, setActiveView] = useState('Dashboard'); /* ===== ACTIVE VIEW ===== */
   const [visitedViews, setVisitedViews] = useState(() => new Set(['Dashboard']));
   const mainContentRef = useRef(null);
@@ -203,6 +208,18 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
   const notifRef = useRef(null); /* ===== NOTIFICATION REF ===== */
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  useEffect(() => {
+    if (!isLogoutConfirmOpen) return undefined;
+    logoutCancelRef.current?.focus();
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape' && !logoutProcessingRef.current) {
+        setIsLogoutConfirmOpen(false);
+      }
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [isLogoutConfirmOpen]);
 
   const saveNotificationPreferences = (next) => {
     notificationPreferencesRef.current = next;
@@ -347,7 +364,18 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
     }
   };
 
-  const handleLogout = () => onLogout?.();
+  const handleLogout = async () => {
+    if (logoutProcessingRef.current) return;
+    logoutProcessingRef.current = true;
+    setIsLoggingOut(true);
+    try {
+      await onLogout?.();
+      setIsLogoutConfirmOpen(false);
+    } finally {
+      logoutProcessingRef.current = false;
+      setIsLoggingOut(false);
+    }
+  };
 
   /* ===== NAVIGATION ===== */
   const handleNavigate = (view, payload = null) => {
@@ -460,7 +488,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
           <li className={`sidebar-item ${activeView === 'Auto-Calculator' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Auto-Calculator')}>
               <Calculator className="sidebar-icon" />
-              <span className="sidebar-label">Auto-Calculator</span>
+              <span className="sidebar-label">Economic Order Quantity Calculator</span>
             </button>
           </li>
           )}
@@ -502,7 +530,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
 
             <div className = "sub-sidebar-footer-item-logout">
               <div id="log-out" className="sidebar-item">
-                <button onClick={handleLogout}>
+                <button onClick={() => setIsLogoutConfirmOpen(true)}>
                   <LogOut className="sidebar-icon" />
                   <span className="sidebar-label">Logout</span>
                 </button>
@@ -533,7 +561,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                   {activeView === 'Dashboard' && 'Dashboard Overview'}
                   {activeView === 'Product-Supplier' && 'Product & Supplier'}
                   {activeView === 'Stock' && 'Stock Control'}
-                  {activeView === 'Auto-Calculator' && 'Auto Calculator'}
+                  {activeView === 'Auto-Calculator' && 'Economic Order Quantity Calculator'}
                   {activeView === 'Forecasting' && 'Sales Forecasting'}
                   {activeView === 'Reports' && 'Reports & Analytics'}
 
@@ -674,6 +702,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     handoff={handoff}
                     onClearHandoff={clearEoqHandoff}
                     currentUser={user?.name || ''}
+                    currentUserId={user?.id || ''}
                     safetyStock={safetyStock}
                     catalogRevision={policyRefreshKey}
                   />
@@ -719,6 +748,47 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
             </main>
         </div>
       </div>
+      {isLogoutConfirmOpen && createPortal(
+        <div
+          className="logout-confirm-overlay"
+          onClick={() => {
+            if (!logoutProcessingRef.current) setIsLogoutConfirmOpen(false);
+          }}
+        >
+          <section
+            className="logout-confirm-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="logout-confirm-title"
+            aria-describedby="logout-confirm-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <span className="logout-confirm-icon" aria-hidden="true"><LogOut size={20} /></span>
+            <h2 id="logout-confirm-title">Are you sure you want to log out?</h2>
+            <p id="logout-confirm-description">You will need to log in again to access your account.</p>
+            <div className="logout-confirm-actions">
+              <button
+                ref={logoutCancelRef}
+                type="button"
+                className="logout-confirm-cancel"
+                onClick={() => setIsLogoutConfirmOpen(false)}
+                disabled={isLoggingOut}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="logout-confirm-submit"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+              >
+                {isLoggingOut ? 'Logging Out…' : 'Yes, Log Out'}
+              </button>
+            </div>
+          </section>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

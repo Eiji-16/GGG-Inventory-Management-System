@@ -23,6 +23,45 @@ const ORDER_QUANTITY_FORMULA = {
   ],
 };
 
+const calculatorDraftStorageKey = (userId) => `ggg-inventory-eoq-calculator:${userId || 'default'}`;
+
+const readCalculatorDraft = (userId) => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const saved = window.localStorage.getItem(calculatorDraftStorageKey(userId));
+    if (!saved) return null;
+    const draft = JSON.parse(saved);
+    if (!draft || typeof draft !== 'object') return null;
+    const inputs = draft.inputs && typeof draft.inputs === 'object' ? draft.inputs : {};
+    const result = draft.result && typeof draft.result === 'object'
+      && ['economicOrderQuantity', 'annualOrdering', 'annualHolding', 'totalCost', 'annualOrders',
+        'annualDemand', 'orderingCost', 'holdingCost'].every((key) => Number.isFinite(draft.result[key]))
+      ? draft.result
+      : null;
+    const history = Array.isArray(draft.history)
+      ? draft.history.filter((item) => item && typeof item === 'object'
+        && typeof item.formulaName === 'string'
+        && typeof item.date === 'string'
+        && item.inputs && typeof item.inputs === 'object'
+        && Number.isFinite(item.result)
+        && typeof item.unit === 'string')
+      : [];
+    return {
+      selectedProductId: typeof draft.selectedProductId === 'string' ? draft.selectedProductId : '',
+      inputs: {
+        demand: typeof inputs.demand === 'string' ? inputs.demand : '',
+        orderCost: typeof inputs.orderCost === 'string' ? inputs.orderCost : '',
+        holdingCost: typeof inputs.holdingCost === 'string' ? inputs.holdingCost : '',
+      },
+      result,
+      history,
+    };
+  } catch (error) {
+    console.error('Could not restore the Economic Order Quantity Calculator draft:', error);
+    return null;
+  }
+};
+
 const calculateOrderQuantity = (annualDemand, orderingCost, holdingCost) => {
   const economicOrderQuantity = Math.sqrt((2 * annualDemand * orderingCost) / holdingCost);
   const annualOrdering = (annualDemand / economicOrderQuantity) * orderingCost;
@@ -96,10 +135,12 @@ export default function AutoCalculatorDesign({
   handoff,
   onClearHandoff,
   currentUser = '',
+  currentUserId = '',
   safetyStock = SAFETY_STOCK_DEFAULTS,
   catalogRevision = 0,
 }) {
   const { currency, currencySymbol, formatCurrency } = useCurrency();
+  const [savedDraft] = useState(() => readCalculatorDraft(currentUserId));
   const [showHistory, setShowHistory] = useState(false);
 
   /* ===== PRODUCTS (for auto-fill from Stock Control history) ===== */
@@ -107,9 +148,9 @@ export default function AutoCalculatorDesign({
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState('');
   const [productsRetry, setProductsRetry] = useState(0);
-  const [selectedProductId, setSelectedProductId] = useState('');
+  const [selectedProductId, setSelectedProductId] = useState(savedDraft?.selectedProductId || '');
   const [forecastContext, setForecastContext] = useState(null);
-  const [inputs, setInputs] = useState({ demand: '', orderCost: '', holdingCost: '' });
+  const [inputs, setInputs] = useState(savedDraft?.inputs || { demand: '', orderCost: '', holdingCost: '' });
   const selectedProduct = products.find(product => String(product.id) === String(selectedProductId)) || null;
   const activeForecastContext = forecastContext
     && String(forecastContext.productId) === String(selectedProductId)
@@ -118,7 +159,7 @@ export default function AutoCalculatorDesign({
     : null;
 
   const [errors, setErrors] = useState({});
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(savedDraft?.result || null);
   const [saveStatus, setSaveStatus] = useState('');
   const [saving, setSaving] = useState(false);
   const selectedPolicy = selectedProduct
@@ -170,7 +211,20 @@ export default function AutoCalculatorDesign({
   const displayResult = reorderRequired ? automaticResult : result;
 
   /* ===== HISTORY ===== */
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState(savedDraft?.history || []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(calculatorDraftStorageKey(currentUserId), JSON.stringify({
+        selectedProductId,
+        inputs,
+        result,
+        history,
+      }));
+    } catch (error) {
+      console.error('Could not save the Economic Order Quantity Calculator draft:', error);
+    }
+  }, [currentUserId, history, inputs, result, selectedProductId]);
 
   /* Load real products for the auto-fill dropdown. */
   useEffect(() => {
@@ -199,23 +253,22 @@ export default function AutoCalculatorDesign({
   }, [productsRetry, catalogRevision]);
 
   useEffect(() => {
+    if (productsLoading) return;
     if (selectedProductId && !products.some((product) => String(product.id) === String(selectedProductId))) {
       setSelectedProductId('');
       setInputs({ demand: '', orderCost: '', holdingCost: '' });
       setResult(null);
       setSaveStatus('');
     }
-  }, [products, selectedProductId]);
+  }, [products, productsLoading, selectedProductId]);
 
   useEffect(() => {
     if (!selectedProduct) return;
     setInputs((previous) => {
-      const orderCost = String(
-        selectedPolicy.orderingCost ?? selectedProduct.orderingCost ?? previous.orderCost
-      );
-      const holdingCost = String(
-        selectedPolicy.holdingCost ?? selectedProduct.holdingCost ?? previous.holdingCost
-      );
+      const orderCost = String(previous.orderCost || selectedPolicy.orderingCost
+        || selectedProduct.orderingCost || '');
+      const holdingCost = String(previous.holdingCost || selectedPolicy.holdingCost
+        || selectedProduct.holdingCost || '');
       if (orderCost === previous.orderCost && holdingCost === previous.holdingCost) return previous;
       return {
         ...previous,
@@ -595,7 +648,7 @@ export default function AutoCalculatorDesign({
       {/* Header */}
       <div className="ac-header">
         <div className="ac-page-heading">
-          <h1>Auto-Calculator</h1>
+          <h1>Economic Order Quantity Calculator</h1>
         </div>
         <div className="ac-header-actions">
           <button className="ac-icon-btn" onClick={() => setShowHistory(true)}><History size={13} /> History</button>

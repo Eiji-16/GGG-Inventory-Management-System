@@ -436,6 +436,106 @@ body {
     flex-shrink: 0 !important;
 }
 
+.logout-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(3, 8, 20, 0.68);
+    backdrop-filter: blur(4px);
+}
+
+.logout-confirm-modal {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: min(100%, 25rem);
+    box-sizing: border-box;
+    padding: 1.5rem;
+    color: var(--text-primary);
+    text-align: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.38);
+}
+
+.logout-confirm-icon {
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin-bottom: 0.9rem;
+    color: var(--accent-low);
+    background: var(--accent-low-soft);
+    border-radius: 50%;
+}
+
+.logout-confirm-modal h2 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 750;
+    line-height: 1.35;
+}
+
+.logout-confirm-modal p {
+    margin: 0.5rem 0 1.25rem;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+.logout-confirm-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.6rem;
+    width: 100%;
+}
+
+.logout-confirm-actions button {
+    min-height: 2.4rem;
+    padding: 0.55rem 1rem;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.logout-confirm-cancel {
+    color: var(--text-primary);
+    background: var(--static-bg-color);
+}
+
+.logout-confirm-cancel:hover:not(:disabled) {
+    border-color: var(--text-muted);
+}
+
+.logout-confirm-submit {
+    color: #fff;
+    background: var(--accent-low);
+    border-color: var(--accent-low) !important;
+}
+
+.logout-confirm-submit:hover:not(:disabled) {
+    filter: brightness(1.08);
+}
+
+.logout-confirm-actions button:focus-visible {
+    outline: 2px solid var(--accent-ring);
+    outline-offset: 2px;
+}
+
+.logout-confirm-actions button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
 
 .sidebar-footer-item .siderbar-item button {
     width: 2.1rem;
@@ -662,8 +762,8 @@ body {
   display: flex;
   flex-direction: column;
   max-height: min(30rem, 72vh);
-  background: var(--bg-card);
-  border: 1px solid var(--border-strong, var(--border-color));
+  background: var(--dropdown-menu-bg);
+  border: 1px solid var(--dropdown-menu-border);
   border-radius: 0.9rem;
   overflow: hidden;
   box-shadow: 0 1.25rem 3rem rgba(0, 0, 0, 0.4);
@@ -684,7 +784,7 @@ body {
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--hairline, var(--border-color));
+  border-bottom: 1px solid var(--dropdown-menu-hover);
 }
 
 .notif-box-title {
@@ -693,7 +793,7 @@ body {
   gap: 0.5rem;
   font-size: 0.9rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--dropdown-menu-text);
 }
 
 .notif-box-count {
@@ -713,7 +813,7 @@ body {
   font-size: 0.68rem;
   font-weight: 600;
   font-family: inherit;
-  color: var(--text-muted);
+  color: var(--dropdown-menu-muted);
   background: transparent;
   border: 1px solid transparent;
   border-radius: 0.5rem;
@@ -722,8 +822,8 @@ body {
 }
 
 .notif-box-action:hover:not(:disabled) {
-  color: var(--text-primary);
-  background: var(--background-icon-active-color-theme) !important;
+  color: var(--dropdown-menu-text);
+  background: var(--dropdown-menu-hover) !important;
 }
 
 .notif-box-action:disabled {
@@ -750,7 +850,7 @@ body {
   text-align: left;
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--hairline, var(--border-color));
+  border-bottom: 1px solid var(--dropdown-menu-hover);
   cursor: pointer;
   font-family: inherit;
   transition: background-color 0.15s ease;
@@ -761,7 +861,7 @@ body {
 }
 
 .notif-item:hover {
-  background: var(--background-icon-active-color-theme) !important;
+  background: var(--dropdown-menu-hover) !important;
 }
 
 /* Icon gives a little lift when its row is hovered. */
@@ -817,18 +917,18 @@ body {
   font-size: 0.78rem;
   font-weight: 600;
   line-height: 1.35;
-  color: var(--text-primary);
+  color: var(--dropdown-menu-text);
 }
 
 .notif-item-meta {
   font-size: 0.7rem;
   line-height: 1.35;
-  color: var(--text-muted);
+  color: var(--dropdown-menu-muted);
 }
 
 .notif-item-time {
   font-size: 0.63rem;
-  color: var(--text-muted);
+  color: var(--dropdown-menu-muted);
   opacity: 0.8;
   margin-top: 1px;
 }
@@ -850,7 +950,7 @@ body {
   justify-content: center;
   gap: 0.5rem;
   padding: 2.5rem 1rem;
-  color: var(--text-muted);
+  color: var(--dropdown-menu-muted);
   font-size: 0.78rem;
 }
 
@@ -858,7 +958,7 @@ body {
 .notif-box-footer {
   flex-shrink: 0;
   padding: 0.6rem 1rem;
-  border-top: 1px solid var(--hairline, var(--border-color));
+  border-top: 1px solid var(--dropdown-menu-hover);
 }
 
 .notif-box-clear {
@@ -867,9 +967,9 @@ body {
   font-size: 0.72rem;
   font-weight: 600;
   font-family: inherit;
-  color: var(--text-muted);
+  color: var(--dropdown-menu-muted);
   background: transparent;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--dropdown-menu-border);
   border-radius: 0.6rem;
   cursor: pointer;
   transition: all 0.18s ease;

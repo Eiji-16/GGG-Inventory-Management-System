@@ -10,7 +10,7 @@ const TABS = [
   'Stock Movement',
   'Top Moving Products',
   'Demand Forecast Summary',
-  'AutoCalculator Summary',
+  'Economic Order Quantity Calculator Summary',
   'Inventory Aging Report',
   'Reorder Point Report',
 ];
@@ -289,7 +289,7 @@ function AutoCalculatorSummaryTab({ data, loading }) {
   };
   return (
     <div>
-      <PanelHeader title="AutoCalculator Summary" subtitle="Every AutoCalculator computation logged to date" />
+      <PanelHeader title="Economic Order Quantity Calculator Summary" subtitle="Every Economic Order Quantity calculation logged to date" />
       <div className="r-table-card">
         <table className="r-table">
           <thead>
@@ -297,7 +297,7 @@ function AutoCalculatorSummaryTab({ data, loading }) {
           </thead>
           <tbody>
             {loading ? <EmptyRow cols={9} text="Loading…" />
-              : rows.length === 0 ? <EmptyRow cols={9} text="No computations logged yet — use the Auto Calculator." />
+              : rows.length === 0 ? <EmptyRow cols={9} text="No calculations logged yet — use the Economic Order Quantity Calculator." />
               : rows.map((r, i) => (
                 <tr key={i}>
                   <td>{r.product || '—'}</td>
