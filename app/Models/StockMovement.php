@@ -19,6 +19,7 @@ class StockMovement extends Model
         'movement_type',   // 'in' | 'out'
         'is_adjustment',
         'qty',
+        'unit_price',
         'variant_name',
         'remaining_stock',
         'notes',
@@ -28,6 +29,7 @@ class StockMovement extends Model
 
     protected $casts = [
         'qty'             => 'integer',
+        'unit_price'      => 'decimal:2',
         'is_adjustment'   => 'boolean',
         'remaining_stock' => 'integer',
         'movement_date'   => 'date',

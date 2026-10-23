@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import './forecasting.css';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook, { printReportPdf } from '../../utils/exportReportWorkbook';
+import PastSalesPanel from './pastSales';
 
 const FORECAST_METHOD = 'Weighted Moving Average';
-const FORECAST_METHOD_NOTE = 'Uses the most recent three selected periods with fixed weights of 1, 2, and 3; the newest period receives the greatest weight.';
+const FORECAST_METHOD_NOTE = 'Uses the three most recent completed periods with weights 1, 2 and 3; the newest period receives the greatest weight.';
 const HISTORY_PAGE_SIZE = 4;
 const SALES_AUTOSAVE_DELAY = 700;
 
@@ -371,191 +373,83 @@ function ForecastProductSelect({ products, allProducts, productId, loading, onCh
   );
 }
 
-export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, catalogRevision = 0 }) {
+const PERIOD_TYPES = ['week', 'month', 'year'];
+const SCOPE_LABELS = { all: 'All products', categories: 'Categories', products: 'Specific products' };
+const TABLE_PREVIEW_ROWS = 12;
+const EMPTY_EVENT = {
+  id: null,
+  name: '',
+  startDate: '',
+  endDate: '',
+  adjustmentPct: '',
+  scope: 'all',
+  categories: [],
+  productIds: [],
+  isActive: true,
+};
+
+function formatDate(date) {
+  if (!date) return '—';
+  return new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatSigned(value, digits = 1) {
+  if (value == null) return '—';
+  const number = Number(value);
+  return `${number > 0 ? '+' : ''}${number.toFixed(digits)}`;
+}
+
+function shortPeriodLabel(date, periodType = 'month') {
+  if (!date) return '';
+  const value = new Date(`${date}T00:00:00`);
+  if (periodType === 'year') return String(value.getFullYear());
+  if (periodType === 'week') return value.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return value.toLocaleDateString('en-US', { month: 'short' });
+}
+
+function eventScopeText(event) {
+  if (event.scope === 'categories') return event.categories.join(', ') || 'No categories';
+  if (event.scope === 'products') {
+    const names = event.productNames?.length ? event.productNames : event.productIds;
+    return names.length > 3 ? `${names.slice(0, 3).join(', ')} +${names.length - 3} more` : names.join(', ');
+  }
+  return 'All products';
+}
+
+export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, catalogRevision = 0, isActive = true }) {
+  const [view, setView] = useState('forecast');
   const [products, setProducts] = useState([]);
   const [productId, setProductId] = useState('');
   const [productSearch, setProductSearch] = useState('');
-  const [history, setHistory] = useState([]);
-  const [historyContext, setHistoryContext] = useState('');
-  const [historyPage, setHistoryPage] = useState(1);
-  const [salesDrafts, setSalesDrafts] = useState({});
+  const [selectedPeriodType, setSelectedPeriodType] = useState('month');
+  const [history, setHistory] = useState(null);
   const [forecast, setForecast] = useState(null);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [computing, setComputing] = useState(false);
-  const [savingSales, setSavingSales] = useState(false);
-  const [resettingSales, setResettingSales] = useState(false);
-  const [salesAutoSave, setSalesAutoSave] = useState(null);
-  const [selectedPeriodType, setSelectedPeriodType] = useState('month');
-  const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
+  const [showAllRows, setShowAllRows] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [seasonalConfigs, setSeasonalConfigs] = useState({});
-  const [eventsLoading, setEventsLoading] = useState(false);
-  const [eventsModalOpen, setEventsModalOpen] = useState(false);
-  const [selectedEventMonth, setSelectedEventMonth] = useState(() => String(new Date().getMonth() + 1).padStart(2, '0'));
-  const [selectedEventYear, setSelectedEventYear] = useState(() => String(new Date().getFullYear()));
-  const [eventRows, setEventRows] = useState([]);
-  const [eventDrafts, setEventDrafts] = useState({});
-  const [eventAdjustmentEnabled, setEventAdjustmentEnabled] = useState(false);
-  const [savingEvents, setSavingEvents] = useState(false);
+
+  const [events, setEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [eventsError, setEventsError] = useState('');
+  const [eventDraft, setEventDraft] = useState(null);
+  const [eventProductSearch, setEventProductSearch] = useState('');
+  const [savingEvent, setSavingEvent] = useState(false);
   const [eventFormError, setEventFormError] = useState('');
-  const salesSaveQueueRef = useRef(Promise.resolve());
-  const salesAutoSaveTimersRef = useRef(new Map());
-  const activeSalesContextRef = useRef({ productId, periodType: selectedPeriodType });
-  activeSalesContextRef.current = { productId, periodType: selectedPeriodType };
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deletingEvent, setDeletingEvent] = useState(false);
 
-  const selectedProduct = products.find((product) => product.id === productId) || null;
-  const sortedHistory = useMemo(
-    () => history
-      .filter((row) => Number.isFinite(Number(row.unitsSold)) && Number(row.unitsSold) > 0)
-      .sort((a, b) => a.periodDate.localeCompare(b.periodDate)),
-    [history]
-  );
-  const periodRows = useMemo(() => {
-    if (selectedPeriodType === 'month') {
-      return MONTH_OPTIONS.map(({ value, label }) => ({
-        key: `${selectedYear}-${value}`,
-        periodDate: `${selectedYear}-${value}-01`,
-        value,
-        label,
-      }));
+  useEffect(() => {
+    if (!isActive) {
+      setEventDraft(null);
+      setDeleteTarget(null);
     }
-    if (selectedPeriodType === 'week') return weeksInYear(selectedYear);
-    return YEAR_OPTIONS.map((year) => ({
-      key: year,
-      periodDate: `${year}-01-01`,
-      value: year.slice(-2),
-      label: year,
-    }));
-  }, [selectedPeriodType, selectedYear]);
-  const salesDraftKey = `${productId}|${selectedPeriodType}|${selectedPeriodType === 'year' ? 'all' : selectedYear}`;
-  const currentSalesDraft = salesDrafts[salesDraftKey] || {};
-  const completedPeriods = periodRows.filter(({ periodDate }) => (
-    Number.isFinite(Number(currentSalesDraft[periodDate]))
-      && Number(currentSalesDraft[periodDate]) > 0
-  )).length;
-  const historyPageCount = Math.max(1, Math.ceil(periodRows.length / HISTORY_PAGE_SIZE));
-  const activeHistoryPage = Math.min(historyPage, historyPageCount);
-  const visiblePeriods = periodRows.slice(
-    (activeHistoryPage - 1) * HISTORY_PAGE_SIZE,
-    activeHistoryPage * HISTORY_PAGE_SIZE
-  );
-  const overallAverage = useMemo(
-    () => sortedHistory.length
-      ? sortedHistory.reduce((total, row) => total + Number(row.unitsSold), 0) / sortedHistory.length
-      : 0,
-    [sortedHistory]
-  );
-  const seasonalAvailable = selectedPeriodType === 'month';
-  const effectivePct = Number(forecast?.adjustmentPct || 0);
-  const adjustedDemand = forecast
-    ? Number(forecast.adjustedForecast)
-    : null;
-  const forecastDemand = adjustedDemand;
-  const annualPeriods = selectedPeriodType === 'week' ? 52 : selectedPeriodType === 'year' ? 1 : 12;
-  const annualDemand = forecastDemand == null ? 0 : Math.round(forecastDemand * annualPeriods);
-  const periodAdjective = selectedPeriodType === 'week' ? 'weekly'
-    : selectedPeriodType === 'year' ? 'yearly' : 'monthly';
-  const periodUnit = selectedPeriodType === 'week' ? 'week'
-    : selectedPeriodType === 'year' ? 'year' : 'month';
-  const periodPlural = selectedPeriodType === 'week' ? 'weeks'
-    : selectedPeriodType === 'year' ? 'years' : 'months';
-  const suggestedPct = useMemo(() => {
-    if (!seasonalAvailable || overallAverage <= 0) return null;
-    const monthRows = sortedHistory.filter((row) => Number(row.periodDate.slice(5, 7)) === Number(selectedEventMonth));
-    if (monthRows.length < 2) return null;
-    const monthAverage = monthRows.reduce((total, row) => total + Number(row.unitsSold), 0) / monthRows.length;
-    return Math.round(((monthAverage - overallAverage) / overallAverage) * 100);
-  }, [overallAverage, selectedEventMonth, seasonalAvailable, sortedHistory]);
-  const reorderQuantity = selectedProduct && forecastDemand != null
-    ? Math.max(0, Math.ceil(forecastDemand - Number(selectedProduct.stock || 0)))
-    : 0;
+  }, [isActive]);
 
-  const queueSalesRequest = (request) => {
-    const queuedRequest = salesSaveQueueRef.current.then(request);
-    salesSaveQueueRef.current = queuedRequest.catch(() => {});
-    return queuedRequest;
-  };
-
-  const scheduleSalesAutoSave = (periodDate, value) => {
-    if (!productId) return;
-    const targetProductId = productId;
-    const targetPeriodType = selectedPeriodType;
-    const targetDraftKey = salesDraftKey;
-    const saveKey = `${targetProductId}|${targetPeriodType}|${periodDate}`;
-    const existingTimer = salesAutoSaveTimersRef.current.get(saveKey);
-    if (existingTimer) window.clearTimeout(existingTimer);
-    setSalesAutoSave({ key: saveKey, status: 'pending' });
-    setForecast(null);
-
-    const timer = window.setTimeout(async () => {
-      salesAutoSaveTimersRef.current.delete(saveKey);
-      const unitsText = String(value ?? '').trim();
-      const units = Number(unitsText);
-      if (unitsText && (!Number.isInteger(units) || units < 0)) {
-        const message = 'Enter a whole number of units that is zero or higher.';
-        setSalesAutoSave({ key: saveKey, status: 'error' });
-        setError(message);
-        return;
-      }
-
-      setSalesAutoSave({ key: saveKey, status: 'saving' });
-      try {
-        const savedRecords = await queueSalesRequest(() => requestJson('/api/sales-history/bulk', {
-          method: 'PUT',
-          body: JSON.stringify({
-            productId: targetProductId,
-            periodType: targetPeriodType,
-            records: unitsText ? [{ periodDate, unitsSold: units }] : [],
-            deleteDates: unitsText ? [] : [periodDate],
-          }),
-        }));
-        if (!Array.isArray(savedRecords)) {
-          throw new Error('The server did not confirm the saved sales record.');
-        }
-
-        const savedByDate = new Map(savedRecords.map((row) => [row.periodDate, String(row.unitsSold)]));
-        setSalesDrafts((current) => {
-          const currentDraft = current[targetDraftKey] || {};
-          if (String(currentDraft[periodDate] ?? '').trim() !== unitsText) return current;
-          return {
-            ...current,
-            [targetDraftKey]: {
-              ...currentDraft,
-              [periodDate]: savedByDate.get(periodDate) ?? '',
-            },
-          };
-        });
-        if (
-          activeSalesContextRef.current.productId === targetProductId
-          && activeSalesContextRef.current.periodType === targetPeriodType
-        ) {
-          setHistory((current) => [
-            ...current.filter((row) => row.periodDate !== periodDate),
-            ...savedRecords,
-          ]);
-          setForecast(null);
-        }
-        setSalesAutoSave((current) => (
-          current?.key === saveKey && current.status === 'saving'
-            ? { key: saveKey, status: 'saved' }
-            : current
-        ));
-      } catch (saveError) {
-        const message = saveError.message || 'Could not auto-save sales history.';
-        setSalesAutoSave((current) => (
-          current?.key === saveKey && current.status === 'saving'
-            ? { key: saveKey, status: 'error' }
-            : current
-        ));
-        setError(message);
-      }
-    }, SALES_AUTOSAVE_DELAY);
-
-    salesAutoSaveTimersRef.current.set(saveKey, timer);
-  };
-
+  /* ===== PRODUCTS ===== */
   useEffect(() => {
     let active = true;
     requestJson('/api/products', { cache: 'no-store' })
@@ -577,13 +471,26 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
     return () => { active = false; };
   }, [catalogRevision]);
 
+  /* ===== SEASONAL EVENTS ===== */
+  const loadEvents = () => {
+    setEventsLoading(true);
+    setEventsError('');
+    return requestJson('/api/seasonal-events', { cache: 'no-store' })
+      .then((data) => setEvents(Array.isArray(data) ? data : []))
+      .catch((loadError) => setEventsError(loadError.message || 'Could not load seasonal events.'))
+      .finally(() => setEventsLoading(false));
+  };
+
   useEffect(() => {
-    setHistoryPage(1);
-    setHistory([]);
-    setHistoryContext('');
+    loadEvents();
+  }, []);
+
+  /* ===== HISTORY (stock-out sales) + AUTOMATIC WMA FORECAST ===== */
+  useEffect(() => {
+    setHistory(null);
     setForecast(null);
     setError('');
-    setNotice('');
+    setShowAllRows(false);
     if (!productId) {
       setLoadingHistory(false);
       return undefined;
@@ -591,197 +498,71 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
 
     let active = true;
     setLoadingHistory(true);
-    requestJson(`/api/sales-history?product=${encodeURIComponent(productId)}&periodType=${selectedPeriodType}`, {
-      cache: 'no-store',
-    })
-      .then((data) => {
+    const query = `product=${encodeURIComponent(productId)}&periodType=${selectedPeriodType}`;
+    requestJson(`/api/forecasts/history?${query}`, { cache: 'no-store' })
+      .then(async (data) => {
         if (!active) return;
-        setHistory(Array.isArray(data) ? data : []);
-        setHistoryContext(`${productId}|${selectedPeriodType}`);
+        setHistory(data);
+        if (!data?.dataPoints) return;
+        setComputing(true);
+        try {
+          const result = await requestJson('/api/forecasts', {
+            method: 'POST',
+            body: JSON.stringify({ productId, periodType: selectedPeriodType }),
+          });
+          if (active) setForecast(result);
+        } finally {
+          if (active) setComputing(false);
+        }
       })
       .catch((loadError) => {
-        if (active) setError(loadError.message || 'Could not load sales history.');
+        if (active) setError(loadError.message || 'Could not load the sales history.');
       })
       .finally(() => {
         if (active) setLoadingHistory(false);
       });
     return () => { active = false; };
-  }, [productId, selectedPeriodType]);
+  }, [productId, selectedPeriodType, refreshKey, catalogRevision]);
 
-  useEffect(() => {
-    setHistoryPage((page) => Math.min(page, historyPageCount));
-  }, [historyPageCount]);
-
-  useEffect(() => {
-    if (loadingHistory || !productId || historyContext !== `${productId}|${selectedPeriodType}`) return;
-    const records = new Map(history.map((row) => [row.periodDate, String(row.unitsSold)]));
-    setSalesDrafts((current) => {
-      const draft = { ...(current[salesDraftKey] || {}) };
-      periodRows.forEach(({ periodDate }) => {
-        if (!Object.prototype.hasOwnProperty.call(draft, periodDate)) {
-          draft[periodDate] = records.get(periodDate) ?? '';
-        }
-      });
-      return { ...current, [salesDraftKey]: draft };
-    });
-  }, [history, historyContext, loadingHistory, periodRows, productId, salesDraftKey, selectedPeriodType]);
-
-  useEffect(() => {
-    setHistoryPage(1);
-  }, [selectedYear, selectedPeriodType, productId]);
-
-  useEffect(() => {
-    setSelectedEventYear(selectedYear);
-  }, [selectedYear]);
-
-  useEffect(() => {
-    setSeasonalConfigs({});
-    setEventsModalOpen(false);
-    if (!productId) {
-      setEventsLoading(false);
-      return undefined;
-    }
-
-    let active = true;
-    setEventsLoading(true);
-    requestJson(`/api/sales-seasonal-adjustments?product=${encodeURIComponent(productId)}`)
-      .then((data) => {
-        if (!active) return;
-        const configs = Object.fromEntries((Array.isArray(data) ? data : []).map((config) => [
-          seasonalKey(config.year, config.month),
-          { enabled: config.enabled, events: config.events || [] },
-        ]));
-        setSeasonalConfigs(configs);
-      })
-      .catch((loadError) => {
-        if (active) setError(loadError.message || 'Could not load seasonal events.');
-      })
-      .finally(() => {
-        if (active) setEventsLoading(false);
-      });
-    return () => { active = false; };
-  }, [productId]);
+  const selectedProduct = products.find((product) => product.id === productId) || null;
+  const historyRows = forecast?.history || history?.rows || [];
+  const dataPoints = forecast?.dataPoints ?? history?.dataPoints ?? 0;
+  const overallAverage = historyRows.length
+    ? historyRows.reduce((total, row) => total + Number(row.unitsSold), 0) / historyRows.length
+    : 0;
+  const adjustedDemand = forecast ? Number(forecast.adjustedForecast) : null;
+  const forecastDemand = adjustedDemand;
+  const effectivePct = Number(forecast?.adjustmentPct || 0);
+  const annualPeriods = selectedPeriodType === 'week' ? 52 : selectedPeriodType === 'year' ? 1 : 12;
+  const annualDemand = forecastDemand == null ? 0 : Math.round(forecastDemand * annualPeriods);
+  const periodAdjective = selectedPeriodType === 'week' ? 'weekly'
+    : selectedPeriodType === 'year' ? 'yearly' : 'monthly';
+  const periodUnit = selectedPeriodType;
+  const periodPlural = `${selectedPeriodType}s`;
+  const reorderQuantity = selectedProduct && forecastDemand != null
+    ? Math.max(0, Math.ceil(forecastDemand - Number(selectedProduct.stock || 0)))
+    : 0;
+  const confidence = forecast?.confidence || (dataPoints >= 6 ? 'High' : dataPoints >= 3 ? 'Medium' : 'Low');
+  const visibleRows = showAllRows ? historyRows : historyRows.slice(-TABLE_PREVIEW_ROWS);
+  const hiddenRowCount = historyRows.length - visibleRows.length;
 
   const filteredProducts = products.filter((product) => {
     const query = productSearch.trim().toLowerCase();
-    return !query || [product.name, product.id, product.brand, product.category]
+    return !query || [product.name, product.id, product.brand, product.category, ...(product.variants || [])]
       .some((value) => String(value || '').toLowerCase().includes(query));
   });
+  const categories = useMemo(
+    () => [...new Set(products.map((product) => product.category).filter(Boolean))].sort(),
+    [products]
+  );
 
-  const saveSeasonalConfig = async (year, month, config) => {
-    if (!productId) return false;
-    setSavingEvents(true);
-    setEventFormError('');
-    try {
-      const saved = await requestJson('/api/sales-seasonal-adjustments', {
-        method: 'PUT',
-        body: JSON.stringify({
-          productId,
-          year: Number(year),
-          month: Number(month),
-          enabled: Boolean(config.enabled),
-          events: config.events,
-        }),
-      });
-      const key = seasonalKey(saved.year, saved.month);
-      setSeasonalConfigs((current) => ({
-        ...current,
-        [key]: { enabled: saved.enabled, events: saved.events || [] },
-      }));
-      setEventDrafts((current) => ({
-        ...current,
-        [seasonalDraftKey(productId, year, month)]: saved.events || [],
-      }));
-      if (forecast?.forecastPeriod?.slice(0, 7) === key) setForecast(null);
-      return true;
-    } catch (saveError) {
-      const message = saveError.message || 'Could not save seasonal events.';
-      setEventFormError(message);
-      setError(message);
-      return false;
-    } finally {
-      setSavingEvents(false);
-    }
-  };
-
-  const openEventsModal = (month = selectedEventMonth, year = selectedYear) => {
-    const targetYear = String(year);
-    const targetMonth = String(month).padStart(2, '0');
-    setSelectedEventYear(targetYear);
-    setSelectedEventMonth(targetMonth);
-    const key = seasonalKey(targetYear, targetMonth);
-    const config = seasonalConfigs[key];
-    const rows = eventDrafts[seasonalDraftKey(productId, targetYear, targetMonth)] ?? config?.events ?? [];
-    setEventRows(rows.length ? rows.map((item) => ({ ...item })) : [{ name: '', adjustmentPct: '' }]);
-    setEventAdjustmentEnabled(Boolean(config?.enabled));
-    setEventFormError('');
-    setEventsModalOpen(true);
-  };
-
-  const updateEventRows = (update) => {
-    const rows = update(eventRows);
-    setEventRows(rows);
-    setEventDrafts((current) => ({
-      ...current,
-      [seasonalDraftKey(productId, selectedEventYear, selectedEventMonth)]: rows,
-    }));
-  };
-
-  const saveEvents = async (submitEvent) => {
-    submitEvent.preventDefault();
-    const events = [];
-    for (const [index, row] of eventRows.entries()) {
-      const name = row.name.trim();
-      const pctText = String(row.adjustmentPct).trim();
-      if (!name && !pctText) continue;
-      const pct = Number(pctText);
-      if (!name || !pctText || !Number.isFinite(pct) || pct < -100 || pct > 1000) {
-        setEventFormError(`Complete event ${index + 1} with a name and a percentage from -100 to 1000.`);
-        return;
-      }
-      events.push({ name, adjustmentPct: pct });
-    }
-    const saved = await saveSeasonalConfig(selectedEventYear, selectedEventMonth, {
-      enabled: eventAdjustmentEnabled,
-      events,
-    });
-    if (!saved) return;
-    setEventsModalOpen(false);
-    setNotice(`Seasonal events saved for ${MONTH_OPTIONS[Number(selectedEventMonth) - 1].label} ${selectedEventYear}.`);
-  };
-
-  const computeForecast = async () => {
-    if (!productId) {
-      setError('Add a product before creating a forecast.');
-      return;
-    }
-    if (!sortedHistory.length) {
-      setError(`Add at least one ${periodUnit} of sales history before forecasting.`);
-      return;
-    }
-    setComputing(true);
-    setError('');
+  const recomputeForecast = () => {
     setNotice('');
-    try {
-      const result = await requestJson('/api/forecasts', {
-        method: 'POST',
-        body: JSON.stringify({ productId, periodType: selectedPeriodType }),
-      });
-      setForecast(result);
-    } catch (computeError) {
-      setForecast(null);
-      setError(computeError.message || 'Could not compute the forecast.');
-    } finally {
-      setComputing(false);
-    }
+    setRefreshKey((key) => key + 1);
   };
 
   const computeEoqFromForecast = () => {
-    if (!selectedProduct || !productId) {
-      setError('Select a product before sending forecast demand to the EOQ calculator.');
-      return;
-    }
-    if (!forecast || forecast.product?.id !== selectedProduct.id || forecast.periodType !== selectedPeriodType) {
+    if (!selectedProduct || !forecast || forecast.product?.id !== selectedProduct.id || forecast.periodType !== selectedPeriodType) {
       setError('Compute a current forecast for the selected product and period before continuing.');
       return;
     }
@@ -810,178 +591,55 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
     });
   };
 
-  const saveSales = async (submitEvent) => {
-    submitEvent.preventDefault();
-    if (!productId || resettingSales) return;
-    const targetProductId = productId;
-    const targetPeriodType = selectedPeriodType;
-    const targetDraftKey = salesDraftKey;
-    visiblePeriods.forEach(({ periodDate }) => {
-      const key = `${targetProductId}|${targetPeriodType}|${periodDate}`;
-      const timer = salesAutoSaveTimersRef.current.get(key);
-      if (timer) window.clearTimeout(timer);
-      salesAutoSaveTimersRef.current.delete(key);
-    });
-    setSavingSales(true);
-    setError('');
-    setNotice('');
-    try {
-      const existingByPeriod = new Map(history.map((row) => [row.periodDate, row]));
-      const draft = salesDrafts[salesDraftKey] || {};
-      const records = [];
-      const deleteDates = [];
-      for (const period of visiblePeriods) {
-        const existing = existingByPeriod.get(period.periodDate);
-        const unitsText = String(draft[period.periodDate] ?? '').trim();
-        if (!unitsText) {
-          if (existing) deleteDates.push(period.periodDate);
-          continue;
-        }
-        const units = Number(unitsText);
-        if (!Number.isInteger(units) || units < 0) {
-          setError(`${period.label}: enter a whole number of units that is zero or higher.`);
-          return;
-        }
-        records.push({ periodDate: period.periodDate, unitsSold: units });
-      }
-
-      const savedRecords = await queueSalesRequest(() => requestJson('/api/sales-history/bulk', {
-        method: 'PUT',
-        body: JSON.stringify({
-          productId: targetProductId,
-          periodType: targetPeriodType,
-          records,
-          deleteDates,
-        }),
-      }));
-      if (!Array.isArray(savedRecords)) {
-        throw new Error('The server did not confirm the saved sales records.');
-      }
-      const affectedDates = new Set([
-        ...records.map(({ periodDate }) => periodDate),
-        ...deleteDates,
-      ]);
-      const savedByDate = new Map(savedRecords.map((row) => [row.periodDate, String(row.unitsSold)]));
-      if (
-        activeSalesContextRef.current.productId === targetProductId
-        && activeSalesContextRef.current.periodType === targetPeriodType
-      ) {
-        setHistory((current) => [
-          ...current.filter((row) => !affectedDates.has(row.periodDate)),
-          ...savedRecords,
-        ]);
-        setForecast(null);
-      }
-      setSalesDrafts((current) => ({
-        ...current,
-        [targetDraftKey]: {
-          ...(current[targetDraftKey] || {}),
-          ...Object.fromEntries(visiblePeriods.map(({ periodDate }) => [
-            periodDate,
-            savedByDate.get(periodDate) ?? '',
-          ])),
-        },
-      }));
-      setNotice(records.length || deleteDates.length
-        ? `${periodAdjective[0].toUpperCase() + periodAdjective.slice(1)} sales saved. Recompute the forecast to use the updated history.`
-        : 'Sales data is already up to date.');
-    } catch (saveError) {
-      setError(saveError.message || `Could not save ${periodPlural} sales.`);
-    } finally {
-      setSavingSales(false);
-    }
-  };
-
-  const resetSalesHistory = async () => {
-    if (!selectedProduct || resettingSales) return;
-    const targetProduct = selectedProduct;
-    const confirmed = window.confirm(
-      `Reset all historical sales data for ${targetProduct.name} (${targetProduct.id})? This cannot be undone.`
-    );
-    if (!confirmed) return;
-
-    const timerPrefix = `${targetProduct.id}|`;
-    for (const [key, timer] of salesAutoSaveTimersRef.current.entries()) {
-      if (key.startsWith(timerPrefix)) {
-        window.clearTimeout(timer);
-        salesAutoSaveTimersRef.current.delete(key);
-      }
-    }
-
-    setResettingSales(true);
-    setError('');
-    setNotice('');
-    try {
-      const result = await queueSalesRequest(() => requestJson(
-        `/api/sales-history/products/${encodeURIComponent(targetProduct.id)}`,
-        { method: 'DELETE' }
-      ));
-      if (result.productId !== targetProduct.id || !Number.isInteger(result.deleted)) {
-        throw new Error('The server did not confirm the sales history reset.');
-      }
-
-      setSalesDrafts((current) => Object.fromEntries(
-        Object.entries(current).filter(([key]) => !key.startsWith(timerPrefix))
-      ));
-      if (activeSalesContextRef.current.productId === targetProduct.id) {
-        setHistory([]);
-        setForecast(null);
-      }
-      setSalesAutoSave((current) => (
-        current?.key.startsWith(timerPrefix) ? null : current
-      ));
-      setNotice(`Historical sales data reset for ${targetProduct.name} (${targetProduct.id}).`);
-    } catch (resetError) {
-      setError(resetError.message || `Could not reset sales history for ${targetProduct.name}.`);
-    } finally {
-      setResettingSales(false);
-    }
-  };
+  /* ===== EXPORT ===== */
+  const wmaTableRows = () => [
+    ...historyRows.map((row) => [
+      formatHistoryPeriod(row.periodDate, selectedPeriodType),
+      Number(row.unitsSold),
+      row.weight ?? '—',
+      row.wmaForecast ?? '—',
+      row.variance == null ? '—' : formatSigned(row.variance),
+    ]),
+    [`${formatHistoryPeriod(forecast.forecastPeriod, selectedPeriodType)} (forecast)`, '—', '—', Number(forecast.baseForecast).toFixed(1), '—'],
+  ];
+  const calculationRows = () => [
+    ['Product', selectedProduct.name],
+    ['Product ID', selectedProduct.id],
+    ['Forecast method', FORECAST_METHOD],
+    ['Sales data source', 'Stock Out transactions (Stock Movement Tracking)'],
+    ['Forecast period', formatPeriod(forecast.forecastPeriod, selectedPeriodType)],
+    [`WMA forecast (units/${periodUnit})`, Number(forecast.baseForecast).toFixed(1)],
+    ['Seasonal events', forecast.seasonalEnabled ? forecast.seasonalEvents.map((item) => `${item.name} (${formatSigned(item.adjustmentPct, 0)}%)`).join(', ') : 'None'],
+    ['Seasonal adjustment', `${effectivePct}%`],
+    [`Adjusted forecast (units/${periodUnit})`, Number(adjustedDemand).toFixed(1)],
+    ['Annual estimate (units)', annualDemand],
+    ['Confidence', confidence],
+    ['Mean absolute deviation', forecast.meanAbsoluteDeviation ?? '—'],
+  ];
+  const exportSummary = () => [
+    { label: 'WMA forecast', value: `${Number(forecast.baseForecast).toFixed(1)} units/${periodUnit}` },
+    { label: 'Adjusted forecast', value: `${Number(adjustedDemand).toFixed(1)} units/${periodUnit}` },
+    { label: 'Annual estimate', value: `${annualDemand} units` },
+    { label: 'History periods', value: dataPoints },
+  ];
+  const exportSections = () => [
+    { title: 'Forecast calculation', headers: ['Metric', 'Value'], rows: calculationRows() },
+    { title: 'Weighted moving average table', headers: ['Period', 'Actual sales', 'Weight', 'WMA forecast', 'Variance'], rows: wmaTableRows() },
+  ];
 
   const exportForecastExcel = async () => {
     if (!forecast || !selectedProduct) return;
     setError('');
-    const sections = [
-      {
-        title: 'Forecast calculation',
-        headers: ['Metric', 'Value'],
-        rows: [
-          ['Product', selectedProduct.name],
-          ['Product ID', selectedProduct.id],
-          ['Forecast method', FORECAST_METHOD],
-          ['Forecast period', formatPeriod(forecast.forecastPeriod, selectedPeriodType)],
-          [`Base forecast (units/${selectedPeriodType})`, Number(forecast.baseForecast).toFixed(1)],
-          ['Seasonal events', forecast.seasonalEnabled ? forecast.seasonalEvents.map((item) => item.name).join(', ') : 'None'],
-          ['Seasonal adjustment', `${effectivePct}%`],
-          [`Adjusted demand (units/${selectedPeriodType})`, Number(adjustedDemand).toFixed(1)],
-          ['Annualized demand (units)', annualDemand],
-        ],
-      },
-      {
-        title: 'Historical sales data',
-        headers: ['Period', 'Units sold'],
-        rows: sortedHistory.map((row) => [
-          formatHistoryPeriod(row.periodDate, selectedPeriodType),
-          Number(row.unitsSold),
-        ]),
-      },
-    ];
-    const summary = [
-      { label: 'Base forecast', value: `${Number(forecast.baseForecast).toFixed(1)} units/${selectedPeriodType}` },
-      { label: 'Adjusted demand', value: `${Number(adjustedDemand).toFixed(1)} units/${selectedPeriodType}` },
-      { label: 'Annualized demand', value: `${annualDemand} units` },
-      { label: 'History periods', value: sortedHistory.length },
-    ];
     try {
       await exportReportWorkbook({
         title: 'Sales Forecast Report',
         subtitle: `Weighted moving average forecast for ${selectedProduct.name}`,
         fileName: `sales-forecast-${selectedProduct.id}`,
-        sections,
-        summary,
-        scope: `Forecast period: ${formatPeriod(forecast.forecastPeriod, selectedPeriodType)}.`,
+        sections: exportSections(),
+        summary: exportSummary(),
+        scope: `Forecast period: ${formatPeriod(forecast.forecastPeriod, selectedPeriodType)}. Actual sales are stock-out quantities per completed ${periodUnit}.`,
         note: 'Seasonal adjustment is applied after the base weighted moving average forecast.',
-        columnWidths: [38, 30],
+        columnWidths: [34, 26, 14, 18, 16],
       });
     } catch (exportError) {
       console.error('Could not export sales forecast:', exportError);
@@ -995,55 +653,107 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
     const opened = printReportPdf({
       title: 'Sales Forecast Report',
       subtitle: `Weighted moving average forecast for ${selectedProduct.name}`,
-      summary: [
-        { label: 'Base forecast', value: `${Number(forecast.baseForecast).toFixed(1)} units/${selectedPeriodType}` },
-        { label: 'Adjusted demand', value: `${Number(adjustedDemand).toFixed(1)} units/${selectedPeriodType}` },
-        { label: 'Annualized demand', value: `${annualDemand} units` },
-        { label: 'History periods', value: sortedHistory.length },
-      ],
-      sections: [
-        {
-          title: 'Forecast calculation',
-          headers: ['Metric', 'Value'],
-          rows: [
-            ['Product', selectedProduct.name],
-            ['Product ID', selectedProduct.id],
-            ['Forecast method', FORECAST_METHOD],
-            ['Forecast period', formatPeriod(forecast.forecastPeriod, selectedPeriodType)],
-            [`Base forecast (units/${selectedPeriodType})`, Number(forecast.baseForecast).toFixed(1)],
-            ['Seasonal events', forecast.seasonalEnabled ? forecast.seasonalEvents.map((item) => item.name).join(', ') : 'None'],
-            ['Seasonal adjustment', `${effectivePct}%`],
-            [`Adjusted demand (units/${selectedPeriodType})`, Number(adjustedDemand).toFixed(1)],
-            ['Annualized demand (units)', annualDemand],
-          ],
-        },
-        {
-          title: 'Historical sales data',
-          headers: ['Period', 'Units sold'],
-          rows: sortedHistory.map((row) => [
-            formatHistoryPeriod(row.periodDate, selectedPeriodType),
-            Number(row.unitsSold),
-          ]),
-        },
-      ],
-      scope: `Forecast period: ${formatPeriod(forecast.forecastPeriod, selectedPeriodType)}.`,
+      summary: exportSummary(),
+      sections: exportSections(),
+      scope: `Forecast period: ${formatPeriod(forecast.forecastPeriod, selectedPeriodType)}. Actual sales are stock-out quantities per completed ${periodUnit}.`,
       note: 'Seasonal adjustment is applied after the base weighted moving average forecast.',
     });
     if (!opened) setError('The PDF report could not be opened. Allow pop-ups and try again.');
   };
 
-  const chartHistory = sortedHistory.slice(forecast ? -5 : -6);
+  /* ===== SEASONAL EVENT FORM ===== */
+  const openEventForm = (event = null) => {
+    setEventDraft(event
+      ? {
+        ...EMPTY_EVENT,
+        ...event,
+        adjustmentPct: String(event.adjustmentPct),
+        categories: [...(event.categories || [])],
+        productIds: [...(event.productIds || [])],
+      }
+      : { ...EMPTY_EVENT });
+    setEventProductSearch('');
+    setEventFormError('');
+  };
+
+  const updateDraft = (changes) => setEventDraft((current) => ({ ...current, ...changes }));
+
+  const toggleDraftList = (key, value) => setEventDraft((current) => {
+    const list = current[key] || [];
+    return { ...current, [key]: list.includes(value) ? list.filter((item) => item !== value) : [...list, value] };
+  });
+
+  const saveEvent = async (submitEvent) => {
+    submitEvent.preventDefault();
+    const draft = eventDraft;
+    const name = draft.name.trim();
+    const pct = Number(String(draft.adjustmentPct).trim());
+    if (!name) return setEventFormError('Enter an event name.');
+    if (!draft.startDate || !draft.endDate) return setEventFormError('Choose the start and end dates.');
+    if (draft.endDate < draft.startDate) return setEventFormError('The end date must be on or after the start date.');
+    if (String(draft.adjustmentPct).trim() === '' || !Number.isFinite(pct) || pct < -100 || pct > 1000) {
+      return setEventFormError('Enter an adjustment from -100% to 1000%.');
+    }
+    if (draft.scope === 'categories' && draft.categories.length === 0) return setEventFormError('Select at least one category.');
+    if (draft.scope === 'products' && draft.productIds.length === 0) return setEventFormError('Select at least one product.');
+
+    setSavingEvent(true);
+    setEventFormError('');
+    try {
+      await requestJson(draft.id ? `/api/seasonal-events/${draft.id}` : '/api/seasonal-events', {
+        method: draft.id ? 'PUT' : 'POST',
+        body: JSON.stringify({
+          name,
+          startDate: draft.startDate,
+          endDate: draft.endDate,
+          adjustmentPct: pct,
+          scope: draft.scope,
+          categories: draft.scope === 'categories' ? draft.categories : undefined,
+          productIds: draft.scope === 'products' ? draft.productIds : undefined,
+          isActive: Boolean(draft.isActive),
+        }),
+      });
+      await loadEvents();
+      setEventDraft(null);
+      setNotice(`Seasonal event “${name}” saved. Forecasts now include it for the affected products.`);
+      setRefreshKey((key) => key + 1);
+    } catch (saveError) {
+      setEventFormError(saveError.message || 'Could not save the seasonal event.');
+    } finally {
+      setSavingEvent(false);
+    }
+  };
+
+  const deleteEvent = async () => {
+    if (!deleteTarget) return;
+    setDeletingEvent(true);
+    try {
+      await requestJson(`/api/seasonal-events/${deleteTarget.id}`, { method: 'DELETE' });
+      await loadEvents();
+      setNotice(`Seasonal event “${deleteTarget.name}” deleted.`);
+      setDeleteTarget(null);
+      setRefreshKey((key) => key + 1);
+    } catch (deleteError) {
+      setEventsError(deleteError.message || 'Could not delete the seasonal event.');
+    } finally {
+      setDeletingEvent(false);
+    }
+  };
+
+  const eventProductMatches = products.filter((product) => {
+    const query = eventProductSearch.trim().toLowerCase();
+    return !query || [product.name, product.id, product.category]
+      .some((value) => String(value || '').toLowerCase().includes(query));
+  }).slice(0, 60);
+
+  /* ===== CHART ===== */
+  const chartHistory = historyRows.slice(-8);
   const chartRows = forecast
-    ? [...chartHistory, {
-      id: 'forecast',
-      periodDate: forecast.forecastPeriod,
-      unitsSold: forecastDemand,
-      periodType: selectedPeriodType,
-      isForecast: true,
-    }]
+    ? [...chartHistory, { periodDate: forecast.forecastPeriod, unitsSold: forecastDemand, isForecast: true }]
     : chartHistory;
   const chartMax = Math.max(1, ...chartRows.map((row) => Number(row.unitsSold)));
-  const confidence = forecast?.dataPoints >= 12 ? 'High' : forecast?.dataPoints >= 6 ? 'Medium' : 'Low';
+
+  const busy = loadingHistory || computing;
 
   return (
     <div className="f-root">
@@ -1051,451 +761,443 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
         <main className="f-main">
           {error && <div className="f-warning-banner" role="alert">{error}</div>}
           {notice && <div className="f-notice-banner" role="status">{notice}</div>}
-          <div className="f-grid">
-            <div className="f-controls-bar f-area-controls">
-              <div className="f-field f-grow f-search-wrap">
-                <label htmlFor="forecast-product-search">Search product</label>
-                <input
-                  id="forecast-product-search"
-                  type="text"
-                  placeholder="Search by name, ID, brand or category…"
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                />
-                <SearchIcon />
-              </div>
-              <div className="f-field" style={{ minWidth: 190 }}>
-                <label htmlFor="forecast-product">Product</label>
-                <ForecastProductSelect
-                  products={filteredProducts}
-                  allProducts={products}
-                  productId={productId}
-                  loading={loadingProducts}
-                  onChange={(value) => {
-                    onClearEoqHandoff?.();
-                    setForecast(null);
-                    setProductId(value);
-                  }}
-                />
-              </div>
-              <div className="f-field">
-                <label>&nbsp;</label>
-                <button className="f-btn f-btn-primary" onClick={computeForecast} disabled={computing || loadingProducts || loadingHistory || eventsLoading || !productId}>
-                  {computing ? 'Computing…' : 'Compute Forecast'}
-                </button>
-              </div>
-            </div>
 
-            <div className="f-card f-area-product">
-              <h3>{selectedProduct?.name || 'Select a product'}</h3>
-              <p className="f-sub">
-                {selectedProduct
-                  ? [selectedProduct.id, selectedProduct.category, selectedProduct.brand].filter(Boolean).join(' · ')
-                  : 'Choose an inventory product to see its forecast.'}
-              </p>
-              <div className="f-stat-row">
-                <div className="f-stat-box">
-                  <div className="f-lbl">Current stock</div>
-                  <div className="f-val">{selectedProduct ? Number(selectedProduct.stock || 0) : '—'} <small>units</small></div>
-                </div>
-                <div className="f-stat-box">
-                  <div className="f-lbl">Avg. {periodAdjective} sales</div>
-                  <div className="f-val">{sortedHistory.length ? Math.round(overallAverage) : '—'} <small>units/{periodUnit}</small></div>
-                </div>
-                <div className="f-stat-box">
-                  <div className="f-lbl">Data points</div>
-                  <div className="f-val">{sortedHistory.length}</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="f-card f-area-result">
-              <div className="f-card-head">
-                <h3>Forecast Result</h3>
-                {forecast && (
-                  <span className={`f-confidence-pill f-conf-${confidence}`}>
-                    <span className="f-dot" /><span>{confidence}</span>
-                  </span>
-                )}
-              </div>
-              {forecast ? (
-                <>
-                  <div className="f-result-big">
-                    <div className="f-num">{Math.round(forecastDemand)}</div>
-                    <div className="f-lbl">Predicted units — {formatPeriod(forecast.forecastPeriod, selectedPeriodType)}</div>
-                  </div>
-                  <div className="f-stat-row">
-                    <div className="f-stat-box">
-                      <div className="f-lbl">Base forecast</div>
-                      <div className="f-val">{Math.round(Number(forecast.baseForecast))} <small>units</small></div>
-                    </div>
-                  </div>
-                  <button type="button" className="f-btn f-btn-link f-eoq-handoff" onClick={computeEoqFromForecast} disabled={!selectedProduct || !forecast || annualDemand <= 0}>
-                    <CalculatorIcon /> Compute EOQ from Forecast
-                  </button>
-                  <p className="f-handoff-note">
-                    Annual demand for EOQ: {annualDemand.toLocaleString()} units/year
-                    {' '}({forecastDemand.toLocaleString()} units/{periodUnit} × {annualPeriods} {periodUnit}{annualPeriods === 1 ? '' : 's'}, rounded to the nearest whole unit).
-                    Enter ordering (S) and holding (H) costs in the calculator.
-                  </p>
-                </>
-              ) : (
-                <div className="f-result-placeholder">
-                  {loadingHistory ? 'Loading sales history…' : sortedHistory.length
-                    ? `Compute the weighted moving average to see the ${periodAdjective} forecast.`
-                    : 'Add sales history for this product, then compute a forecast.'}
-                </div>
+          <div className="f-view-tabs" role="tablist" aria-label="Forecasting sections">
+            <button type="button" role="tab" aria-selected={view === 'forecast'} className={view === 'forecast' ? 'is-active' : ''} onClick={() => setView('forecast')}>
+              Sales Forecasting (WMA)
+            </button>
+            <button type="button" role="tab" aria-selected={view === 'past'} className={view === 'past' ? 'is-active' : ''} onClick={() => setView('past')}>
+              Past Sales
+            </button>
+            <button type="button" role="tab" aria-selected={view === 'seasonal'} className={view === 'seasonal' ? 'is-active' : ''} onClick={() => setView('seasonal')}>
+              Seasonal Adjustments
+              {events.filter((event) => event.status === 'Active').length > 0 && (
+                <span className="f-view-tab-count">{events.filter((event) => event.status === 'Active').length} active</span>
               )}
-            </div>
+            </button>
+          </div>
 
-            <div className="f-card f-area-chart">
-              <h3>Sales History &amp; Forecast</h3>
-              <p className="f-sub">{selectedPeriodType[0].toUpperCase() + selectedPeriodType.slice(1)} sales history and the next-period projection</p>
-              <div className="f-chart-wrap">
-                {chartRows.length ? (
-                  <div className="f-forecast-chart" role="img" aria-label={`${periodAdjective} sales history and demand forecast bar chart`}>
-                    {chartRows.map((row) => (
-                      <div className={`f-forecast-bar-item${row.isForecast ? ' is-forecast' : ''}`} key={row.id}>
-                        <span className="f-forecast-bar-value">{Number(row.unitsSold).toFixed(row.isForecast ? 1 : 0)}</span>
-                        <div className="f-forecast-bar-track">
-                          <div className="f-forecast-bar" style={{ width: `${Math.max(2, Number(row.unitsSold) / chartMax * 100)}%` }} />
-                        </div>
-                        <span className="f-forecast-bar-label">{formatHistoryPeriod(row.periodDate, selectedPeriodType)}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="f-chart-placeholder">{loadingHistory ? 'Loading sales data…' : 'Add sales history to display demand.'}</div>
-                )}
-              </div>
-            </div>
-
-            <div className="f-card f-area-export">
-              <h3>Export</h3>
-              <div className="f-download-actions">
-                <button className="f-btn f-btn-ghost f-btn-sm" onClick={exportForecastExcel} type="button" disabled={!forecast}>
-                  <FileIcon /> Excel
-                </button>
-                <button className="f-btn f-btn-ghost f-btn-sm" onClick={exportForecastPdf} type="button" disabled={!forecast}>
-                  <FileIcon /> PDF
-                </button>
-              </div>
-            </div>
-
-            <div className="f-card f-area-history f-monthly-history-card f-sales-management-card">
-              <div className="f-monthly-history-header">
-                <div>
-                  <span className="f-monthly-eyebrow">Sales Management</span>
-                  <h3>
-                    Historical sales data
-                    {selectedPeriodType !== 'year' && <span className="f-sales-header-year">{selectedYear}</span>}
-                  </h3>
-                  <p className="f-sub">Enter actual units sold to improve your sales forecast.</p>
+          {view === 'forecast' && (
+            <div className="fx-layout">
+              {/* ===== TOOLBAR ===== */}
+              <div className="fx-toolbar">
+                <div className="f-field f-grow f-search-wrap">
+                  <label htmlFor="forecast-product-search">Search product</label>
+                  <input
+                    id="forecast-product-search"
+                    type="text"
+                    placeholder="Name, ID, brand, category or variant…"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                  />
+                  <SearchIcon />
                 </div>
-                <div className="f-sales-save-actions">
-                  {salesAutoSave?.key.startsWith(`${productId}|${selectedPeriodType}|`) && (
-                    <span
-                      className={`f-sales-save-status is-${salesAutoSave.status}`}
-                      role="status"
-                    >
-                      {salesAutoSave.status === 'saved' ? 'Saved'
-                        : salesAutoSave.status === 'error' ? 'Save failed' : 'Saving…'}
-                    </span>
-                  )}
-                  <button
-                    className="f-btn f-btn-primary f-monthly-save"
-                    type="submit"
-                    form="sales-history-form"
-                    disabled={!productId || savingSales || resettingSales || loadingHistory}
-                  >
-                    {savingSales ? 'Saving…' : '✓ Save sales'}
-                  </button>
-                  <button
-                    className="f-btn f-btn-ghost f-monthly-reset"
-                    type="button"
-                    onClick={resetSalesHistory}
-                    disabled={!productId || resettingSales || loadingHistory}
-                  >
-                    {resettingSales ? 'Resetting…' : 'Reset Sales History'}
-                  </button>
+                <div className="f-field fx-product-field">
+                  <label htmlFor="forecast-product">Product</label>
+                  <ForecastProductSelect
+                    products={filteredProducts}
+                    allProducts={products}
+                    productId={productId}
+                    loading={loadingProducts}
+                    onChange={(value) => {
+                      onClearEoqHandoff?.();
+                      setProductId(value);
+                    }}
+                  />
                 </div>
-              </div>
-              <div className="f-sales-timeline-bar">
-                <div className="f-sales-timeline-tabs" role="tablist" aria-label="Sales timeline">
-                  {['week', 'month', 'year'].map((periodType) => (
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={selectedPeriodType === periodType}
-                      className={selectedPeriodType === periodType ? 'is-active' : ''}
-                      key={periodType}
-                      disabled={computing || savingSales}
-                      onClick={() => {
-                        setSelectedPeriodType(periodType);
-                        setForecast(null);
-                      }}
-                    >
-                      {periodType[0].toUpperCase() + periodType.slice(1)}
-                    </button>
-                  ))}
-                </div>
-                {selectedPeriodType !== 'year' && (
-                  <div className="f-field f-sales-year-select">
-                    <label htmlFor="sales-year-select">Sales year</label>
-                    <SalesYearSelect selectedYear={selectedYear} onChange={setSelectedYear} />
-                  </div>
-                )}
-                <span className="f-monthly-progress">
-                  <strong>{completedPeriods}</strong> of {periodRows.length} {periodPlural} completed
-                </span>
-              </div>
-
-              <form id="sales-history-form" onSubmit={saveSales} className="f-monthly-entry">
-                <div className={`f-monthly-table-head${selectedPeriodType === 'month' ? ' has-events' : ''}`}>
-                  <span>{selectedPeriodType === 'month' ? 'Month' : selectedPeriodType === 'week' ? 'Week' : 'Year'}</span>
-                  <span>Units sold</span>
-                  {selectedPeriodType === 'month' && <span>Events</span>}
-                </div>
-                {visiblePeriods.map((period) => (
-                  <div className={`f-monthly-row${selectedPeriodType === 'month' ? ' has-events' : ''}`} key={period.key}>
-                    <div className="f-monthly-name">
-                      <span className="f-monthly-number">{period.value}</span>
-                      <span>
-                        <strong>{period.label}</strong>
-                        {selectedPeriodType !== 'year' && <small>{selectedPeriodType === 'month' ? selectedYear : formatPeriod(period.periodDate, 'week')}</small>}
-                      </span>
-                    </div>
-                    <div className="f-monthly-units">
-                      <input
-                        aria-label={`${period.label} units sold`}
-                        type="number"
-                        min="0"
-                        step="1"
-                        placeholder="Enter units"
-                        value={currentSalesDraft[period.periodDate] ?? ''}
-                        disabled={!productId || loadingHistory || savingSales || resettingSales}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setSalesDrafts((current) => ({
-                            ...current,
-                            [salesDraftKey]: {
-                              ...(current[salesDraftKey] || {}),
-                              [period.periodDate]: value,
-                            },
-                          }));
-                          scheduleSalesAutoSave(period.periodDate, value);
-                        }}
-                      />
-                      <span>units</span>
-                    </div>
-                    {selectedPeriodType === 'month' && (
+                <div className="f-field">
+                  <label>Forecast by</label>
+                  <div className="fx-segmented" role="tablist" aria-label="Forecast period">
+                    {PERIOD_TYPES.map((periodType) => (
                       <button
                         type="button"
-                        className="f-btn f-btn-ghost f-btn-sm f-month-event-button"
-                        onClick={() => openEventsModal(period.value, selectedYear)}
-                        disabled={!productId || eventsLoading || savingEvents}
-                        aria-label={`Manage events for ${period.label} ${selectedYear}`}
+                        role="tab"
+                        aria-selected={selectedPeriodType === periodType}
+                        className={selectedPeriodType === periodType ? 'is-active' : ''}
+                        key={periodType}
+                        disabled={busy}
+                        onClick={() => setSelectedPeriodType(periodType)}
                       >
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                          <rect x="3.5" y="5" width="17" height="15" rx="2" />
-                          <path d="M7.5 3.5v3M16.5 3.5v3M3.5 9h17M8 13h3M8 16h3M14 13h2" />
-                        </svg>
-                        {seasonalConfigs[seasonalKey(selectedYear, period.value)]?.events?.length > 0 && (
-                          <span className="f-month-event-count">
-                            {seasonalConfigs[seasonalKey(selectedYear, period.value)].events.length}
-                          </span>
-                        )}
+                        {periodType[0].toUpperCase() + periodType.slice(1)}
                       </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="f-field">
+                  <label>&nbsp;</label>
+                  <button className="f-btn f-btn-ghost fx-refresh" onClick={recomputeForecast} disabled={busy || loadingProducts || !productId} type="button">
+                    {busy ? 'Computing…' : 'Recompute'}
+                  </button>
+                </div>
+              </div>
+
+              {/* ===== WMA TABLE + CHART (Figure 11) ===== */}
+              <section className="fx-card" aria-busy={busy}>
+                <header className="fx-card-head">
+                  <div className="fx-title">
+                    <h2>{selectedProduct?.name || 'Select a product'}</h2>
+                    <p>
+                      {selectedProduct
+                        ? [selectedProduct.id, selectedProduct.category, `${Number(selectedProduct.stock || 0)} in stock`].filter(Boolean).join(' · ')
+                        : 'Choose a product to see its weighted moving average forecast.'}
+                    </p>
+                  </div>
+                  <div className="fx-pills">
+                    {forecast && (
+                      <span className={`fx-pill fx-conf-${confidence}`} title={`${dataPoints} completed ${dataPoints === 1 ? periodUnit : periodPlural} of sales`}>
+                        {confidence} confidence
+                      </span>
+                    )}
+                    {forecast?.seasonalEnabled && (
+                      <span className="fx-pill fx-pill-gold">Seasonal adj. active {formatSigned(effectivePct, 0)}%</span>
                     )}
                   </div>
-                ))}
-              </form>
-              <div className="f-monthly-pagination" aria-label={`${periodPlural} sales pages`}>
-                <button
-                  type="button"
-                  aria-label={`Previous ${periodPlural}`}
-                  onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}
-                  disabled={activeHistoryPage === 1}
-                >
-                  ‹
-                </button>
-                <span>Page {activeHistoryPage} of {historyPageCount}</span>
-                <button
-                  type="button"
-                  aria-label={`Next ${periodPlural}`}
-                  onClick={() => setHistoryPage((page) => Math.min(historyPageCount, page + 1))}
-                  disabled={activeHistoryPage >= historyPageCount}
-                >
-                  ›
-                </button>
-              </div>
-              <div className="f-monthly-help">
-                <span>{selectedPeriodType === 'month'
-                  ? 'Clear a saved month and save to remove it. Events are stored for the selected month and year.'
-                  : 'Blank periods are left unchanged unless they contain a saved value that you cleared.'}</span>
-                <span className="f-forecast-method-note">
-                  <strong>{FORECAST_METHOD}</strong> · {FORECAST_METHOD_NOTE}
-                </span>
-              </div>
-            </div>
+                </header>
 
-            {eventsModalOpen && seasonalAvailable && (
-              <div className="f-event-modal-backdrop" role="presentation" onMouseDown={(e) => {
-                if (e.target === e.currentTarget && !savingEvents) setEventsModalOpen(false);
-              }}>
-                <section className="f-event-modal" role="dialog" aria-modal="true" aria-labelledby="sales-events-title">
-                  <header className="f-event-modal-header">
-                    <div>
-                      <span className="f-monthly-eyebrow">Monthly seasonal adjustment</span>
-                      <h3 id="sales-events-title">Manage sales events</h3>
-                      <p className="f-sub">Events only affect the forecast for their assigned month and year.</p>
-                    </div>
-                    <button type="button" className="f-event-close" aria-label="Close event manager" onClick={() => setEventsModalOpen(false)} disabled={savingEvents}>×</button>
-                  </header>
-                  <form className="f-event-modal-body" onSubmit={saveEvents}>
-                    <div className="f-event-period-display" aria-label={`Events apply to ${MONTH_OPTIONS[Number(selectedEventMonth) - 1].label} ${selectedEventYear}`}>
-                      <span>Selected month</span>
-                      <strong>{MONTH_OPTIONS[Number(selectedEventMonth) - 1].label} {selectedEventYear}</strong>
-                    </div>
-                    <div className="f-event-adjustment-toggle">
-                      <div>
-                        <strong>Seasonal Adjustment</strong>
-                        <small>Apply this month’s saved event percentages after WMA.</small>
-                      </div>
-                      <label className="f-switch">
-                        <input
-                          type="checkbox"
-                          checked={eventAdjustmentEnabled}
-                          onChange={(e) => setEventAdjustmentEnabled(e.target.checked)}
-                          disabled={savingEvents}
-                        />
-                        <span className="f-slider" />
-                      </label>
-                    </div>
-                    <div className="f-event-column-labels">
-                      <span>Event name</span>
-                      <span>Percentage adjustment</span>
-                    </div>
-                    {eventRows.map((row, index) => (
-                      <div className="f-event-row" key={index}>
-                        <div className="f-field">
-                          <input
-                            aria-label={`Event ${index + 1} name`}
-                            type="text"
-                            maxLength="120"
-                            placeholder="e.g. Holiday sale"
-                            value={row.name}
-                            onChange={(e) => updateEventRows((current) => current.map((item, rowIndex) => (
-                              rowIndex === index ? { ...item, name: e.target.value } : item
-                            )))}
-                          />
-                        </div>
-                        <div className="f-event-adjustment">
-                          <input
-                            aria-label={`Event ${index + 1} percentage adjustment`}
-                            type="number"
-                            min="-100"
-                            max="1000"
-                            step="0.01"
-                            placeholder="e.g. 15 or -10"
-                            value={row.adjustmentPct}
-                            onChange={(e) => updateEventRows((current) => current.map((item, rowIndex) => (
-                              rowIndex === index ? { ...item, adjustmentPct: e.target.value } : item
-                            )))}
-                          />
-                          <span>%</span>
-                        </div>
-                        <button
-                          type="button"
-                          className="f-btn f-btn-ghost f-btn-sm f-event-suggestion"
-                          onClick={() => {
-                            if (suggestedPct == null) return;
-                            updateEventRows((current) => current.map((item, rowIndex) => (
-                              rowIndex === index ? { ...item, adjustmentPct: String(suggestedPct) } : item
-                            )));
-                          }}
-                          disabled={suggestedPct == null}
-                        >
-                          Suggested Adjustment
-                        </button>
-                      </div>
-                    ))}
-                    <p className="f-event-suggestion-note">
-                      {suggestedPct == null
-                        ? 'Suggestion unavailable: at least two years of sales for this month and non-zero overall history are needed.'
-                        : `Historical comparison suggests ${suggestedPct >= 0 ? '+' : ''}${suggestedPct}% for ${MONTH_OPTIONS[Number(selectedEventMonth) - 1].label}.`}
-                    </p>
-                    <p className="f-event-suggestion-note">Clear both fields on an event row and save to remove it.</p>
-                    <button
-                      type="button"
-                      className="f-btn f-btn-ghost f-btn-sm"
-                      onClick={() => updateEventRows((current) => [...current, { name: '', adjustmentPct: '' }])}
-                      disabled={savingEvents || eventRows.length >= 20}
-                    >
-                      + Add Event
-                    </button>
-                    {eventFormError && <p className="f-event-form-error" role="alert">{eventFormError}</p>}
-                    <footer className="f-event-modal-footer">
-                      <button type="button" className="f-btn f-btn-ghost f-btn-sm" onClick={() => setEventsModalOpen(false)} disabled={savingEvents}>Cancel</button>
-                      <button type="submit" className="f-btn f-btn-primary f-btn-sm" disabled={savingEvents}>
-                        {savingEvents ? 'Saving…' : 'Save Events'}
-                      </button>
-                    </footer>
-                  </form>
-                </section>
-              </div>
-            )}
+                <div className="fx-table-wrap">
+                  <table className="fx-table">
+                    <thead>
+                      <tr>
+                        <th>{selectedPeriodType === 'week' ? 'Week' : selectedPeriodType === 'year' ? 'Year' : 'Month'}</th>
+                        <th className="fx-num">Actual Sales</th>
+                        <th className="fx-num">Weight</th>
+                        <th className="fx-num">WMA Forecast</th>
+                        <th className="fx-num">Variance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {busy && historyRows.length === 0 ? (
+                        <tr><td colSpan={5} className="fx-empty">Loading sales history…</td></tr>
+                      ) : historyRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="fx-empty">
+                            {productId ? (
+                              <>
+                                No completed {periodPlural} of sales yet. Sales appear here automatically from Stock Out transactions in Stock Control
+                                {selectedPeriodType !== 'week' && (
+                                  <>, or add her earlier sales in{' '}
+                                    <button type="button" className="fx-inline-link" onClick={() => setView('past')}>Past Sales</button>
+                                  </>
+                                )}.
+                              </>
+                            ) : 'Select a product.'}
+                          </td>
+                        </tr>
+                      ) : (
+                        <>
+                          {hiddenRowCount > 0 && (
+                            <tr>
+                              <td colSpan={5} className="fx-more">
+                                <button type="button" onClick={() => setShowAllRows(true)}>
+                                  Show {hiddenRowCount} earlier {hiddenRowCount === 1 ? periodUnit : periodPlural}
+                                </button>
+                              </td>
+                            </tr>
+                          )}
+                          {visibleRows.map((row) => (
+                            <tr key={row.periodDate} className={row.weight ? 'is-weighted' : ''}>
+                              <td>
+                                {formatHistoryPeriod(row.periodDate, selectedPeriodType)}
+                                {(row.source === 'past' || row.source === 'mixed') && (
+                                  <span className="fx-src" title={row.source === 'past' ? 'From Past Sales (entered or imported)' : 'Past Sales + Stock Out records'}>
+                                    {row.source === 'past' ? 'Past' : 'Past + Stock'}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="fx-num">{Number(row.unitsSold).toLocaleString()}</td>
+                              <td className="fx-num">{row.weight ? <span className="fx-weight">×{row.weight}</span> : '—'}</td>
+                              <td className="fx-num">{row.wmaForecast == null ? '—' : Number(row.wmaForecast).toFixed(1)}</td>
+                              <td className={`fx-num ${row.variance == null ? '' : row.variance >= 0 ? 'fx-up' : 'fx-down'}`}>
+                                {formatSigned(row.variance)}
+                              </td>
+                            </tr>
+                          ))}
+                          {forecast && (
+                            <tr className="fx-forecast-row">
+                              <td>
+                                {formatHistoryPeriod(forecast.forecastPeriod, selectedPeriodType)}
+                                <span className="fx-tag">Forecast</span>
+                              </td>
+                              <td className="fx-num">—</td>
+                              <td className="fx-num">—</td>
+                              <td className="fx-num"><strong>{Number(forecast.baseForecast).toFixed(1)}</strong></td>
+                              <td className="fx-num">—</td>
+                            </tr>
+                          )}
+                        </>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
 
-            <section className="f-summary-card f-summary-compact f-area-summary">
-              <div className="f-summary-head">
-                <div className="f-summary-title">
-                  <h2>{selectedProduct?.name || 'Forecast summary'}</h2>
-                  <span className="f-meta">{selectedProduct?.id || 'Select a product to begin'}</span>
+                {chartRows.length > 0 && (
+                  <div className="fx-chart" role="img" aria-label={`${periodAdjective} units sold and next-period forecast`}>
+                    <div className="fx-bars">
+                      {chartRows.map((row) => {
+                        const value = Number(row.unitsSold);
+                        return (
+                          <div className={`fx-bar-col${row.isForecast ? ' is-forecast' : ''}`} key={`${row.periodDate}-${row.isForecast ? 'f' : 'a'}`}>
+                            <span className="fx-bar-value">{row.isForecast ? value.toFixed(1) : value.toLocaleString()}</span>
+                            <div className="fx-bar-track">
+                              <div className="fx-bar" style={{ height: `${Math.max(2, (value / chartMax) * 100)}%` }} />
+                            </div>
+                            <span className="fx-bar-label" title={formatHistoryPeriod(row.periodDate, selectedPeriodType)}>{shortPeriodLabel(row.periodDate, selectedPeriodType)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="fx-legend">
+                      <span><i className="fx-dot-actual" />Actual</span>
+                      {forecast && <span><i className="fx-dot-forecast" />Forecast{forecast.seasonalEnabled ? ' (adjusted)' : ''}</span>}
+                    </div>
+                  </div>
+                )}
+
+                <p className="fx-note">
+                  <strong>{FORECAST_METHOD}:</strong> {FORECAST_METHOD_NOTE} Actual sales are the Stock Out quantities recorded in Stock Control for each completed {periodUnit}{selectedPeriodType !== 'week' ? ' (rows marked Past come from Past Sales)' : ''};
+                  Variance = Actual − WMA Forecast.
+                </p>
+              </section>
+
+              {/* ===== ADJUSTED FORECAST OUTPUT ===== */}
+              <section className="fx-card">
+                <header className="fx-card-head">
+                  <div className="fx-title">
+                    <h2>Adjusted Forecast Output</h2>
+                    <p>{forecast ? `Forecast for ${formatPeriod(forecast.forecastPeriod, selectedPeriodType)}` : 'Waiting for a forecast'}</p>
+                  </div>
+                  {forecast?.seasonalEnabled && (
+                    <div className="fx-pills">
+                      {forecast.seasonalEvents.map((item) => (
+                        <span className="fx-pill fx-pill-gold" key={item.id}>{formatSigned(item.adjustmentPct, 0)}% {item.name}</span>
+                      ))}
+                    </div>
+                  )}
+                </header>
+
+                <div className="fx-output">
+                  <div className="fx-stat">
+                    <span>WMA Base</span>
+                    <strong>{forecast ? Number(forecast.baseForecast).toFixed(1) : '—'}</strong>
+                    <small>units / {periodUnit}</small>
+                  </div>
+                  <div className="fx-stat fx-stat-main">
+                    <span>Adjusted ({forecast ? formatPeriod(forecast.forecastPeriod, selectedPeriodType) : periodUnit})</span>
+                    <strong>{forecast ? Number(adjustedDemand).toFixed(1) : '—'}</strong>
+                    <small>{forecast ? `${formatSigned(effectivePct, 0)}% seasonal` : 'units'}</small>
+                  </div>
+                  <div className="fx-stat">
+                    <span>Annual Estimate</span>
+                    <strong>{forecast ? annualDemand.toLocaleString() : '—'}</strong>
+                    <small>{forecast ? `${Number(adjustedDemand).toFixed(1)} × ${annualPeriods}` : 'units / year'}</small>
+                  </div>
+                </div>
+
+                <dl className="fx-facts">
+                  <div><dt>Current stock</dt><dd>{selectedProduct ? `${Number(selectedProduct.stock || 0)} units` : '—'}</dd></div>
+                  <div><dt>Suggested reorder</dt><dd>{forecast ? `${reorderQuantity} units` : '—'}</dd></div>
+                  <div><dt>Avg. {periodAdjective} sales</dt><dd>{historyRows.length ? `${Math.round(overallAverage)} units` : '—'}</dd></div>
+                  <div><dt>Avg. variance</dt><dd>{forecast?.meanAbsoluteDeviation != null ? `±${forecast.meanAbsoluteDeviation}` : '—'}</dd></div>
+                </dl>
+
+                {forecast && dataPoints < 3 && (
+                  <p className="fx-warning" role="note">
+                    Only {dataPoints} completed {dataPoints === 1 ? periodUnit : periodPlural} of sales — this forecast may not be reliable yet.
+                  </p>
+                )}
+
+                <div className="fx-actions">
+                  <button type="button" className="f-btn f-btn-primary" onClick={computeEoqFromForecast} disabled={!forecast || annualDemand <= 0}>
+                    <CalculatorIcon /> Compute EOQ from Forecast
+                  </button>
+                  <button type="button" className="f-btn f-btn-ghost" onClick={exportForecastExcel} disabled={!forecast}>
+                    <FileIcon /> Excel
+                  </button>
+                  <button type="button" className="f-btn f-btn-ghost" onClick={exportForecastPdf} disabled={!forecast}>
+                    <FileIcon /> PDF
+                  </button>
                 </div>
                 {forecast && (
-                  <span className={`f-confidence-pill f-conf-${confidence}`}>
-                    <span className="f-dot" /><span>{confidence}</span>
-                  </span>
+                  <p className="fx-handoff">
+                    Sends {annualDemand.toLocaleString()} units/year to the EOQ Calculator as annual demand.
+                  </p>
                 )}
-              </div>
-              <div className="f-summary-grid">
-                <div className="f-summary-item">
-                  <div className="f-lbl">Current stock</div>
-                  <div className="f-val">{selectedProduct ? `${selectedProduct.stock || 0} units` : '—'}</div>
-                </div>
-                <div className="f-summary-item">
-                  <div className="f-lbl">Forecasted</div>
-                  <div className="f-val">{forecast ? `${forecast.baseForecast} units/${periodUnit}` : '—'}</div>
-                </div>
-                <div className="f-summary-item">
-                  <div className="f-lbl">Adjusted demand</div>
-                  <div className="f-val">{adjustedDemand == null ? '—' : `${adjustedDemand.toFixed(1)} units/${periodUnit}`}</div>
-                </div>
-                <div className="f-summary-item">
-                  <div className="f-lbl">Suggested reorder</div>
-                  <div className="f-val">{forecast ? `${reorderQuantity} units` : '—'}</div>
-                </div>
-                <div className="f-summary-item">
-                  <div className="f-lbl">Forecast method</div>
-                  <div className="f-val">{FORECAST_METHOD}</div>
-                </div>
-                <div className="f-summary-item">
-                  <div className="f-lbl">Forecast period</div>
-                  <div className="f-val">{forecast ? formatPeriod(forecast.forecastPeriod, selectedPeriodType) : `Next ${periodUnit}`}</div>
-                </div>
-              </div>
-            </section>
-
-            <div className="f-card f-area-reorder">
-              <h3>Suggested Reorder Quantity</h3>
-              <p className="f-sub">Forecasted {periodAdjective} demand minus current stock</p>
-              <div className="f-reorder-figure">
-                <span className="f-num">{forecast ? reorderQuantity : '—'}</span>
-                <span className="f-unit">units</span>
-              </div>
+              </section>
             </div>
+          )}
 
-          </div>
+          {view === 'past' && (
+            <PastSalesPanel
+              products={products}
+              productId={productId}
+              onProductChange={(value) => { onClearEoqHandoff?.(); setProductId(value); }}
+              onChanged={() => setRefreshKey((key) => key + 1)}
+            />
+          )}
+
+          {view === 'seasonal' && (
+            <section className="f-card f-seasonal-panel">
+              <div className="f-seasonal-head">
+                <div>
+                  <h3>Seasonal Events</h3>
+                  <p className="f-sub">
+                    Flag promotions and holidays. An active event raises or lowers the WMA forecast of its affected products
+                    whenever its dates overlap the forecast period.
+                  </p>
+                </div>
+                <button type="button" className="f-btn f-btn-primary" onClick={() => openEventForm()}>
+                  + Add Event
+                </button>
+              </div>
+
+              {eventsError && <div className="f-warning-banner" role="alert">{eventsError}</div>}
+
+              {eventsLoading ? (
+                <p className="f-event-empty">Loading seasonal events…</p>
+              ) : events.length === 0 ? (
+                <p className="f-event-empty">No seasonal events yet. Add one such as “Christmas Sale, Dec 1–25, +35%”.</p>
+              ) : (
+                <ul className="f-event-list">
+                  {events.map((event) => (
+                    <li className="f-event-item" key={event.id}>
+                      <div className="f-event-info">
+                        <strong>{event.name}</strong>
+                        <span>{formatDate(event.startDate)} – {formatDate(event.endDate)} · {eventScopeText(event)}</span>
+                      </div>
+                      <span className={`f-event-pct${event.adjustmentPct < 0 ? ' is-negative' : ''}`}>
+                        {formatSigned(event.adjustmentPct, 0)}%
+                      </span>
+                      <span className={`f-event-status is-${event.status.toLowerCase()}`}>{event.status}</span>
+                      <div className="f-event-actions">
+                        <button type="button" className="f-btn f-btn-ghost f-btn-sm" onClick={() => openEventForm(event)}>Edit</button>
+                        <button type="button" className="f-btn f-btn-ghost f-btn-sm f-event-delete" onClick={() => setDeleteTarget(event)}>Delete</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+
+          {eventDraft && createPortal(
+            <div className="f-event-modal-backdrop" role="presentation" onMouseDown={(e) => {
+              if (e.target === e.currentTarget && !savingEvent) setEventDraft(null);
+            }}>
+              <section className="f-event-modal" role="dialog" aria-modal="true" aria-labelledby="seasonal-event-title">
+                <header className="f-event-modal-header">
+                  <div>
+                    <span className="f-monthly-eyebrow">Seasonal adjustment</span>
+                    <h3 id="seasonal-event-title">{eventDraft.id ? 'Edit seasonal event' : 'Add seasonal event'}</h3>
+                    <p className="f-sub">The percentage is applied after the WMA forecast for every affected product.</p>
+                  </div>
+                  <button type="button" className="f-event-close" aria-label="Close" onClick={() => setEventDraft(null)} disabled={savingEvent}>×</button>
+                </header>
+                <form className="f-event-modal-body" onSubmit={saveEvent}>
+                  <div className="f-field">
+                    <label htmlFor="event-name">Event name</label>
+                    <input id="event-name" type="text" maxLength="120" placeholder="e.g. Christmas Sale" value={eventDraft.name} onChange={(e) => updateDraft({ name: e.target.value })} />
+                  </div>
+                  <div className="f-event-form-row">
+                    <div className="f-field">
+                      <label htmlFor="event-start">Start date</label>
+                      <input id="event-start" type="date" value={eventDraft.startDate} onChange={(e) => updateDraft({ startDate: e.target.value })} />
+                    </div>
+                    <div className="f-field">
+                      <label htmlFor="event-end">End date</label>
+                      <input id="event-end" type="date" min={eventDraft.startDate || undefined} value={eventDraft.endDate} onChange={(e) => updateDraft({ endDate: e.target.value })} />
+                    </div>
+                    <div className="f-field">
+                      <label htmlFor="event-pct">Adjustment (%)</label>
+                      <input id="event-pct" type="number" min="-100" max="1000" step="0.01" placeholder="e.g. 35 or -10" value={eventDraft.adjustmentPct} onChange={(e) => updateDraft({ adjustmentPct: e.target.value })} />
+                    </div>
+                  </div>
+
+                  <fieldset className="f-scope-options">
+                    <legend>Affected products</legend>
+                    {Object.entries(SCOPE_LABELS).map(([value, label]) => (
+                      <label key={value} className={eventDraft.scope === value ? 'is-selected' : ''}>
+                        <input type="radio" name="event-scope" value={value} checked={eventDraft.scope === value} onChange={() => updateDraft({ scope: value })} />
+                        {label}
+                      </label>
+                    ))}
+                  </fieldset>
+
+                  {eventDraft.scope === 'categories' && (
+                    <div className="f-check-list" role="group" aria-label="Categories">
+                      {categories.length === 0 ? <p className="f-event-empty">No product categories found.</p> : categories.map((category) => (
+                        <label key={category}>
+                          <input type="checkbox" checked={eventDraft.categories.includes(category)} onChange={() => toggleDraftList('categories', category)} />
+                          {category}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {eventDraft.scope === 'products' && (
+                    <>
+                      <div className="f-field">
+                        <label htmlFor="event-product-search">Find products ({eventDraft.productIds.length} selected)</label>
+                        <input id="event-product-search" type="text" placeholder="Search by name, ID or category…" value={eventProductSearch} onChange={(e) => setEventProductSearch(e.target.value)} />
+                      </div>
+                      <div className="f-check-list" role="group" aria-label="Products">
+                        {eventProductMatches.map((product) => (
+                          <label key={product.id}>
+                            <input type="checkbox" checked={eventDraft.productIds.includes(product.id)} onChange={() => toggleDraftList('productIds', product.id)} />
+                            {product.name} <small>{product.id}</small>
+                          </label>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  <div className="f-event-adjustment-toggle">
+                    <div>
+                      <strong>Event is active</strong>
+                      <small>Paused events are kept but ignored by the forecast.</small>
+                    </div>
+                    <label className="f-switch">
+                      <input type="checkbox" checked={eventDraft.isActive} onChange={(e) => updateDraft({ isActive: e.target.checked })} />
+                      <span className="f-slider" />
+                    </label>
+                  </div>
+
+                  {eventFormError && <p className="f-event-form-error" role="alert">{eventFormError}</p>}
+                  <footer className="f-event-modal-footer">
+                    <button type="button" className="f-btn f-btn-ghost f-btn-sm" onClick={() => setEventDraft(null)} disabled={savingEvent}>Cancel</button>
+                    <button type="submit" className="f-btn f-btn-primary f-btn-sm" disabled={savingEvent}>
+                      {savingEvent ? 'Saving…' : 'Save Event'}
+                    </button>
+                  </footer>
+                </form>
+              </section>
+            </div>,
+            document.body
+          )}
+
+          {deleteTarget && createPortal(
+            <div className="f-event-modal-backdrop f-reset-modal-backdrop" role="presentation" onMouseDown={(e) => {
+              if (e.target === e.currentTarget && !deletingEvent) setDeleteTarget(null);
+            }}>
+              <section className="f-event-modal f-reset-modal" role="alertdialog" aria-modal="true" aria-labelledby="event-delete-title">
+                <header className="f-event-modal-header">
+                  <div>
+                    <span className="f-monthly-eyebrow">Seasonal adjustment</span>
+                    <h3 id="event-delete-title">Delete “{deleteTarget.name}”?</h3>
+                  </div>
+                </header>
+                <div className="f-event-modal-body">
+                  <p className="f-reset-description">Forecasts will no longer include this event’s {formatSigned(deleteTarget.adjustmentPct, 0)}% adjustment.</p>
+                  <footer className="f-event-modal-footer">
+                    <button type="button" className="f-btn f-btn-ghost f-btn-sm" onClick={() => setDeleteTarget(null)} disabled={deletingEvent}>Cancel</button>
+                    <button type="button" className="f-btn f-btn-sm f-reset-confirm" onClick={deleteEvent} disabled={deletingEvent}>
+                      {deletingEvent ? 'Deleting…' : 'Delete event'}
+                    </button>
+                  </footer>
+                </div>
+              </section>
+            </div>,
+            document.body
+          )}
         </main>
       </div>
     </div>

@@ -101,6 +101,7 @@ function Arc({ cx, cy, radius, start, end }) {
 
 function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = true }) {
   const [range, setRange] = useState(12);
+  const [hoveredSalesMonth, setHoveredSalesMonth] = useState(null);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -328,6 +329,12 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
               <div className="db-skel-line db-skel-title" />
               <div className="db-skel-row" /><div className="db-skel-row" /><div className="db-skel-row" />
             </div>
+            <div className="totalCustomer-card card db-skel-card">
+              <div className="db-skel-line db-skel-title" />
+              <div className="db-skel-line db-skel-big" />
+              <div className="db-skel-line db-skel-sub" />
+              <div className="db-skel-spark" />
+            </div>
             {isSuperAdmin && (
               <div className="totalStaff-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-line db-skel-big" /></div>
             )}
@@ -388,7 +395,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <div className="db-seg">
                   {[6, 12].map((months) => (
-                    <button key={months} className={`db-seg-btn ${range === months ? 'active' : ''}`} onClick={() => setRange(months)}>
+                    <button key={months} className={`db-seg-btn ${range === months ? 'active' : ''}`} onClick={() => { setRange(months); setHoveredSalesMonth(null); }}>
                       {months}M
                     </button>
                   ))}
@@ -398,11 +405,51 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             </div>
             <div className={`db-hero-plot${heroPoints.length ? '' : ' db-chart-empty-plot'}`}>
               {heroPoints.length ? (
-                <svg className="db-hero-svg" viewBox="0 0 520 150" preserveAspectRatio="none" aria-label="Monthly units sold">
-                  {[16, 57, 98, 138].map((y) => <line key={y} x1="0" y1={y} x2="520" y2={y} stroke="var(--hairline)" />)}
-                  <path d={heroLine} fill="none" stroke="var(--accent)" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
-                  {heroPoints.map(([x, y], index) => <circle key={index} cx={x} cy={y} r="3.5" fill="var(--accent)" stroke="var(--bg-card)" strokeWidth="2" vectorEffect="non-scaling-stroke" />)}
-                </svg>
+                <>
+                  <svg className="db-hero-svg" viewBox="0 0 520 150" preserveAspectRatio="none" aria-label="Monthly units sold">
+                    {[16, 57, 98, 138].map((y) => <line key={y} x1="0" y1={y} x2="520" y2={y} stroke="var(--hairline)" />)}
+                    <path d={heroLine} fill="none" stroke="var(--accent)" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+                    {heroPoints.map(([x, y], index) => (
+                      <g
+                        key={derived.monthly[index].key}
+                        className="db-hero-point"
+                        tabIndex={0}
+                        role="img"
+                        aria-label={`${derived.monthly[index].label}: ${fmt(derived.monthly[index].units)} units sold`}
+                        onMouseEnter={() => setHoveredSalesMonth(index)}
+                        onMouseLeave={() => setHoveredSalesMonth(null)}
+                        onFocus={() => setHoveredSalesMonth(index)}
+                        onBlur={() => setHoveredSalesMonth(null)}
+                      >
+                        <circle className="db-hero-hit-area" cx={x} cy={y} r="12" />
+                        <circle
+                          className="db-hero-point-dot"
+                          cx={x}
+                          cy={y}
+                          r={hoveredSalesMonth === index ? '5' : '3.5'}
+                          fill="var(--accent)"
+                          stroke="var(--bg-card)"
+                          strokeWidth="2"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      </g>
+                    ))}
+                  </svg>
+                  {hoveredSalesMonth !== null && derived.monthly[hoveredSalesMonth] && (
+                    <div
+                      className={`db-hero-tooltip${heroPoints[hoveredSalesMonth][0] > 390 ? ' db-hero-tooltip-left' : ''}`}
+                      style={{
+                        left: `${(heroPoints[hoveredSalesMonth][0] / 520) * 100}%`,
+                        top: `${(heroPoints[hoveredSalesMonth][1] / 150) * 100}%`,
+                      }}
+                      role="status"
+                      aria-live="polite"
+                    >
+                      <span>{derived.monthly[hoveredSalesMonth].label}</span>
+                      <strong>{fmt(derived.monthly[hoveredSalesMonth].units)} units sold</strong>
+                    </div>
+                  )}
+                </>
               ) : <EmptyChart message="No sales recorded in this period" />}
             </div>
             {heroPoints.length > 0 && <div className="db-hero-xaxis">{derived.monthly.map((month) => <span key={month.key}>{month.label}</span>)}</div>}

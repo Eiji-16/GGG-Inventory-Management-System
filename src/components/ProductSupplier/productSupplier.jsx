@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Search, Plus, Edit, Trash2, X, Package, Info, Download, AlertTriangle, Upload, Image as ImageIcon, ArrowUpDown } from 'lucide-react';
 
 import './productSupplier.css';
+import SupplierRecords from './supplierRecords';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
 
@@ -39,6 +40,10 @@ const DETAIL_FIELDS = [
 function ProductSupplier({ onNavigate, onCatalogChange }) {
   const PAGE_SIZE = 10;
   const [productsFromDatabase, setProductsFromDatabase] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState('');
+  const [productsRetry, setProductsRetry] = useState(0);
+  const [section, setSection] = useState('products'); /* ===== PRODUCTS | SUPPLIERS ===== */
   const [suppliers, setSuppliers] = useState([]); /* ===== SUPPLIER LIST (type-ahead + reuse) ===== */
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [cursor, setCursor] = useState(0); /* ===== PAGE START ===== */
@@ -64,14 +69,23 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
 
   /* ===== LOAD PRODUCTS ===== */
   useEffect(() => {
+    setProductsLoading(true);
+    setProductsError('');
     fetch('/api/products', { cache: 'no-store', headers: { Accept: 'application/json' } })
       .then((response) => {
         if (!response.ok) throw new Error(`GET /api/products failed (${response.status})`);
         return response.json();
       })
-      .then((data) => setProductsFromDatabase(data))
-      .catch((error) => console.error('Could not load products:', error));
-  }, []);
+      .then((data) => {
+        if (!Array.isArray(data)) throw new Error('The products response was invalid.');
+        setProductsFromDatabase(data);
+      })
+      .catch((error) => {
+        console.error('Could not load products:', error);
+        setProductsError(error.message || 'Could not load products.');
+      })
+      .finally(() => setProductsLoading(false));
+  }, [productsRetry]);
 
   /* ===== LOAD SUPPLIERS (for the picker dropdown) ===== */
   useEffect(() => {
@@ -90,7 +104,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
     const matched = !q
       ? productsFromDatabase
       : productsFromDatabase.filter((p) =>
-          [p.id, p.name, p.category, p.brand, p.model, p.unitMeasure, p.supplierName, p.supplierContact]
+          [p.id, p.name, (p.variants || []).join(' '), p.category, p.brand, p.model, p.unitMeasure, p.supplierName, p.supplierContact]
             .some((field) => String(field ?? '').toLowerCase().includes(q))
         );
 
@@ -371,7 +385,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
   /* ===== EXPORT FORMATTED PRODUCT WORKBOOK ===== */
   const exportProducts = async () => {
     if (filteredProducts.length === 0) return;
-    const headers = ['Product ID', 'Product Name', 'Category', 'Brand', 'Model', 'Unit Measure', 'Supplier', 'Supplier Contact'];
+    const headers = ['Product ID', 'Product Name', 'Variant', 'Category', 'Brand', 'Model', 'Unit Measure', 'Supplier', 'Supplier Contact'];
     setExportError('');
     try {
       await exportReportWorkbook({
@@ -384,6 +398,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
           rows: filteredProducts.map((product) => [
             product.id,
             product.name,
+            (product.variants || []).join(', '),
             product.category,
             product.brand,
             product.model,
@@ -398,7 +413,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
           { label: 'Suppliers', value: new Set(filteredProducts.map((product) => product.supplierName).filter(Boolean)).size },
         ],
         scope: query.trim() ? `Filtered by: ${query.trim()}` : 'All matching product records',
-        columnWidths: [16, 28, 20, 20, 18, 18, 28, 28],
+        columnWidths: [16, 28, 24, 20, 20, 18, 18, 28, 28],
       });
     } catch (error) {
       console.error('Could not export product and supplier directory:', error);
@@ -407,6 +422,23 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
   };
 /* ===== PRODUCT DATA END ===== */
   return (
+    <div className="ps-section-root">
+      <div className="ps-section-tabs" role="tablist" aria-label="Management sections">
+        <button type="button" role="tab" aria-selected={section === 'products'} className={section === 'products' ? 'is-active' : ''} onClick={() => setSection('products')}>
+          Products
+        </button>
+        <button type="button" role="tab" aria-selected={section === 'suppliers'} className={section === 'suppliers' ? 'is-active' : ''} onClick={() => setSection('suppliers')}>
+          Suppliers
+        </button>
+      </div>
+      {section === 'suppliers' ? (
+        <SupplierRecords
+          onSuppliersChange={() => {
+            setProductsRetry((retry) => retry + 1);
+            onCatalogChange?.();
+          }}
+        />
+      ) : (
     <div className="ps-table-parent">
       {exportError && <p className="ps-export-error" role="alert">{exportError}</p>}
       {/* ===== SEARCH BAR ===== */}
@@ -496,7 +528,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
       </div>
 
       {/* ===== TABLE ===== */}
-      <div className="ps-table-scroll" ref={tableRef}>
+      <div className="ps-table-scroll" ref={tableRef} aria-busy={productsLoading}>
         <table className="ps-table">
           <thead>
             <tr>
@@ -511,6 +543,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
               <th>Product ID</th>
               <th className="ps-th-pic">Picture</th>
               <th className="ps-th-left">Product Name{sortIndicator('name')}</th>
+              <th className="ps-th-left">Variant</th>
               <th>Category{sortIndicator('category')}</th>
               <th>Brand{sortIndicator('brand')}</th>
               <th>Model</th>
@@ -520,7 +553,30 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
             </tr>
           </thead>
           <tbody>
-            {visibleProducts.map((product, idx) => (
+            {productsLoading ? Array.from({ length: 6 }, (_, index) => (
+              <tr className="ps-skeleton-row" key={`loading-${index}`} aria-hidden="true">
+                <td><span className="ps-skeleton-block ps-skeleton-check" /></td>
+                <td><span className="ps-skeleton-block ps-skeleton-short" /></td>
+                <td className="ps-td-pic"><span className="ps-skeleton-block ps-skeleton-thumb" /></td>
+                <td><span className="ps-skeleton-block ps-skeleton-wide" /></td>
+                <td><span className="ps-skeleton-block ps-skeleton-short" /></td>
+                <td><span className="ps-skeleton-block ps-skeleton-short" /></td>
+                <td><span className="ps-skeleton-block ps-skeleton-short" /></td>
+                <td><span className="ps-skeleton-block ps-skeleton-short" /></td>
+                <td><span className="ps-skeleton-block ps-skeleton-short" /></td>
+                <td><span className="ps-skeleton-block ps-skeleton-wide" /></td>
+                <td><span className="ps-skeleton-block ps-skeleton-actions" /></td>
+              </tr>
+            )) : productsError ? (
+              <tr>
+                <td colSpan={11} className="ps-empty-state" role="alert">
+                  {productsError}{' '}
+                  <button type="button" className="ps-retry-btn" onClick={() => setProductsRetry((retry) => retry + 1)}>
+                    Retry
+                  </button>
+                </td>
+              </tr>
+            ) : visibleProducts.map((product) => (
               <tr
                 className={`ps-row-clickable ${selectedIds.has(product.id) ? 'is-selected' : ''}`}
                 key={product.id}
@@ -554,6 +610,18 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
                   <span className="ps-name-cell">
                     <span className="ps-name-text">{product.name}</span>
                   </span>
+                </td>
+                <td className="ps-td-left" data-label="Variant" title={(product.variants || []).join(', ')}>
+                  {product.variants?.length ? (
+                    <span className="ps-variant-list">
+                      {product.variants.slice(0, 3).map((variant) => (
+                        <span className="ps-variant-chip" key={variant}>{variant}</span>
+                      ))}
+                      {product.variants.length > 3 && (
+                        <span className="ps-variant-chip ps-variant-more">+{product.variants.length - 3}</span>
+                      )}
+                    </span>
+                  ) : <span className="ps-td-muted">—</span>}
                 </td>
                 <td data-label="Category">{product.category || '—'}</td>
                 <td data-label="Brand">{product.brand || '—'}</td>
@@ -594,9 +662,9 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
               </tr>
             ))}
 
-            {visibleProducts.length === 0 && (
+            {!productsLoading && !productsError && visibleProducts.length === 0 && (
               <tr>
-                <td colSpan={10} className="ps-empty-state">
+                <td colSpan={11} className="ps-empty-state">
                   {productsFromDatabase.length === 0
                     ? 'No products registered yet. Click “Add” to register one.'
                     : 'No products match your search.'}
@@ -963,6 +1031,8 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
           </div>
         </div>,
         document.body
+      )}
+    </div>
       )}
     </div>
   );

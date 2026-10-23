@@ -9,8 +9,10 @@ import {
   EyeOff,
   RotateCcw,
   Check,
+  Info,
 } from 'lucide-react';
 import './settings.css';
+import { readShowFieldHints, saveShowFieldHints } from '../../fieldHints';
 import { SAFETY_STOCK_DEFAULTS, DEFAULT_SAFETY_STOCK } from '../../data/safetyStock';
 import { CURRENCIES, useCurrency } from '../../CurrencyContext';
 
@@ -45,6 +47,13 @@ function Settings({
   const [currencySaving, setCurrencySaving] = useState(false);
   const [currencyError, setCurrencyError] = useState('');
   const [currencySaved, setCurrencySaved] = useState(false);
+  const [showFieldHints, setShowFieldHints] = useState(readShowFieldHints);
+
+  const toggleFieldHints = () => {
+    const next = !showFieldHints;
+    setShowFieldHints(next);
+    saveShowFieldHints(next);
+  };
 
   useEffect(() => {
     setDraft(safetyStock);
@@ -227,6 +236,33 @@ function Settings({
               </button>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* ===== FIELD DESCRIPTIONS ===== */}
+      <div className="s-card">
+        <div className="s-row">
+          <div className="s-row-info">
+            <div className="s-row-icon">
+              <Info size={16} />
+            </div>
+            <div>
+              <div className="s-row-title" id="s-hints-title">Show field descriptions</div>
+              <div className="s-row-desc">
+                Short helper notes under inputs and info lines, like “About 20–25% of the unit cost per year”.
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={showFieldHints}
+            aria-labelledby="s-hints-title"
+            className={`s-switch${showFieldHints ? ' is-on' : ''}`}
+            onClick={toggleFieldHints}
+          >
+            <span className="s-switch-knob" aria-hidden="true" />
+          </button>
         </div>
       </div>
 

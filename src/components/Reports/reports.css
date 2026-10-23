@@ -345,3 +345,61 @@
     padding: 0.6rem 0.8rem;
     margin-top: 0.9rem;
 }
+/*==========EXPORT ACTIONS (PDF + Excel)==========*/
+.r-export-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/*==========FAST & SLOW MOVING==========*/
+.r-fs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+}
+.r-fs-card { margin-bottom: 1.25rem; }
+.r-fs-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.r-fs-row {
+    display: grid;
+    grid-template-columns: minmax(0, 9rem) 1fr 3rem;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+}
+.r-fs-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.r-fs-track {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--overlay-soft, rgba(0,0,0,0.06));
+    overflow: hidden;
+}
+.r-fs-bar { display: block; height: 100%; border-radius: 999px; transition: width 0.3s ease; }
+.r-fs-fast { background: var(--accent-high); }
+.r-fs-slow { background: var(--accent-low); }
+.r-fs-value { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.r-fs-empty { padding: 18px 0; text-align: center; color: var(--text-muted, #888); font-size: 12px; }
+.r-fs-trend-bar { width: 60%; max-width: 36px; background: var(--accent-med, var(--accent-high)); }
+.r-fs-trend-value { font-size: 10px; font-weight: 700; color: var(--text-muted, #888); }
+
+@media (max-width: 760px) {
+    .r-fs-grid { grid-template-columns: 1fr; gap: 0; }
+}
+@media (max-width: 640px) {
+    .r-export-actions { align-self: flex-start; }
+}
+
+/*==========EOQ SUMMARY: DEMAND DETAILS==========*/
+.r-detail {
+    display: grid;
+    gap: 2px;
+    min-width: 220px;
+}
+.r-detail-main strong { font-weight: 800; }
+.r-detail-sub,
+.r-detail-muted {
+    color: var(--text-muted, #888);
+    font-size: 11px;
+    line-height: 1.4;
+}

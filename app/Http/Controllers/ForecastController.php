@@ -14,6 +14,24 @@ class ForecastController extends Controller
     {
     }
 
+    /**
+     * GET /api/forecasts/history?product={code}&periodType=month
+     *
+     * Stock-out sales per completed period with WMA weights, past WMA
+     * forecasts and variances — shown before a forecast is computed.
+     */
+    public function history(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'product' => ['required', 'string'],
+            'periodType' => ['sometimes', 'in:week,month,year'],
+        ]);
+
+        $product = Product::withTrashed()->where('code', $data['product'])->firstOrFail();
+
+        return response()->json($this->forecaster->history($product, $data['periodType'] ?? 'month'));
+    }
+
     /** POST /api/forecasts */
     public function store(Request $request): JsonResponse
     {

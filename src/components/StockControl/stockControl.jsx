@@ -22,6 +22,7 @@ import {
 
 import './stockControl.css';
 import apiFetch from '../../apiFetch';
+import { useCurrency } from '../../CurrencyContext';
 import {
   SAFETY_STOCK_DEFAULTS,
   safetyPointFor,
@@ -41,6 +42,7 @@ const emptyForm = {
   category: '',
   type: 'Stock In',
   qty: '',
+  unitPrice: '',
   notes: '',
   recordedBy: '',
 };
@@ -85,6 +87,7 @@ function StockControl({
   catalogRevision = 0,
   onInventoryChanged,
 }) {
+  const { formatCurrency } = useCurrency();
   const [stockFromDatabase, setStockFromDatabase] = useState([]);
   const [stockLoading, setStockLoading] = useState(true);
   const [stockError, setStockError] = useState('');
@@ -299,7 +302,7 @@ function StockControl({
   const projectedChange = Number.isInteger(parsedQty) ? parsedQty : null;
   const isOut = projectedChange !== null && projectedChange < 0;
   const validMovementQuantity = projectedChange !== null
-    && projectedChange !== 0
+    && (projectedChange !== 0 || editId !== null)
     && currentOnHand !== null
     && projectedChange >= -currentOnHand;
 
@@ -420,7 +423,7 @@ function StockControl({
       setStockError('The Excel export could not be loaded. Please refresh the page and try again.');
       return;
     }
-    const headers = ['Date', 'Product', 'Variant', 'Type', 'Changes', 'Total Qty', 'Stock Status', 'Notes', 'Recorded By'];
+    const headers = ['Date', 'Product', 'Variant', 'Type', 'Changes', 'Total Qty', 'Stock Status', 'Notes', 'Recorded By', 'Unit Price'];
     const exportedAt = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
     const uniqueProducts = new Set(visibleRows.map(({ row }) => row.productId)).size;
     const stockInCount = visibleRows.filter(({ row }) => row.type === 'Stock In').length;
@@ -450,6 +453,7 @@ function StockControl({
           STATUS_LABEL[status] || status,
           row.notes || '—',
           row.recordedBy || '—',
+          row.unitPrice != null ? Number(row.unitPrice) : '—',
         ],
         status,
       };
@@ -458,7 +462,7 @@ function StockControl({
     const rows = [
       ['GGG INVENTORY MANAGEMENT SYSTEM'],
       ['STOCK MOVEMENT REPORT'],
-      [`Generated: ${exportedAt}`, '', '', '', '', '', '', '', `Records: ${visibleRows.length}`],
+      [`Generated: ${exportedAt}`, '', '', '', '', '', '', '', '', `Records: ${visibleRows.length}`],
       ['MOVEMENT SUMMARY', '', '', '', '', '', '', '', ''],
       [],
       [],
@@ -473,23 +477,23 @@ function StockControl({
     const lastDataRow = 7 + bodyRows.length;
 
     worksheet['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },
-      { s: { r: 3, c: 0 }, e: { r: 3, c: 8 } },
-      { s: { r: 6, c: 0 }, e: { r: 6, c: 8 } },
-      { s: { r: 9 + bodyRows.length, c: 1 }, e: { r: 9 + bodyRows.length, c: 8 } },
-      { s: { r: 10 + bodyRows.length, c: 1 }, e: { r: 10 + bodyRows.length, c: 8 } },
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } },
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 9 } },
+      { s: { r: 6, c: 0 }, e: { r: 6, c: 9 } },
+      { s: { r: 9 + bodyRows.length, c: 1 }, e: { r: 9 + bodyRows.length, c: 9 } },
+      { s: { r: 10 + bodyRows.length, c: 1 }, e: { r: 10 + bodyRows.length, c: 9 } },
     ];
     worksheet['!cols'] = [
       { wch: 17 }, { wch: 25 }, { wch: 17 }, { wch: 16 }, { wch: 13 },
-      { wch: 14 }, { wch: 17 }, { wch: 34 }, { wch: 20 },
+      { wch: 14 }, { wch: 17 }, { wch: 34 }, { wch: 20 }, { wch: 14 },
     ];
     worksheet['!rows'] = [
       { hpt: 30 }, { hpt: 25 }, { hpt: 22 }, { hpt: 21 }, { hpt: 22 }, { hpt: 30 },
       { hpt: 22 }, { hpt: 25 },
       ...bodyRows.map(() => ({ hpt: 22 })),
     ];
-    worksheet['!autofilter'] = { ref: `A8:I${lastDataRow + 1}` };
+    worksheet['!autofilter'] = { ref: `A8:J${lastDataRow + 1}` };
     worksheet['!freeze'] = {
       xSplit: 0,
       ySplit: 8,
@@ -527,7 +531,7 @@ function StockControl({
       font: { name: 'Aptos', sz: 10, color: { rgb: '5B6877' } },
       alignment: { vertical: 'center' },
     });
-    setCellStyle('I3', {
+    setCellStyle('J3', {
       font: { name: 'Aptos', sz: 10, bold: true, color: { rgb: '176B57' } },
       alignment: { horizontal: 'right', vertical: 'center' },
     });
@@ -545,7 +549,7 @@ function StockControl({
       ['A', 'B', 'Records', visibleRows.length],
       ['C', 'D', 'Products', uniqueProducts],
       ['E', 'F', 'Stock In', stockInCount],
-      ['G', 'I', 'Stock Out', stockOutCount],
+      ['G', 'J', 'Stock Out', stockOutCount],
     ];
     summaryRanges.forEach(([start, end, label, value]) => {
       setCellStyle(`${start}5`, summaryLabel);
@@ -676,6 +680,7 @@ function StockControl({
           variantName: formData.variantName || null,
           type: 'Stock In',
           qty: value,
+          unitPrice: formData.unitPrice === '' ? null : Number(formData.unitPrice),
           notes: formData.notes || 'Opening stock',
           recordedBy: formData.recordedBy || null,
           date: formData.date || null,
@@ -711,6 +716,7 @@ function StockControl({
       category: movement.category || '',
       type: change < 0 ? 'Stock Out' : 'Stock In',
       qty: '0',
+      unitPrice: movement.unitPrice != null ? String(movement.unitPrice) : '',
       notes: movement.notes || '',
       recordedBy: movement.recordedBy || '',
     });
@@ -788,6 +794,37 @@ function StockControl({
     /* The signed quantity determines whether this is Stock In or Stock Out. */
     const signedAmount = Number(formData.qty);
 
+    /* Editing with a change of 0 updates only the details (variant, price,
+       notes, recorded by) and keeps the transaction's quantity as it is. */
+    if (editId !== null && signedAmount === 0) {
+      try {
+        const response = await apiFetch(`/api/stock-movements/${editId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            detailsOnly: true,
+            variantName: formData.variantName || null,
+            notes: formData.notes || null,
+            recordedBy: formData.recordedBy || null,
+            unitPrice: formData.unitPrice === '' ? null : Number(formData.unitPrice),
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const validationError = result.errors ? Object.values(result.errors).flat()[0] : result.message;
+          throw new Error(validationError || `Save failed (${response.status}).`);
+        }
+        setStockError('');
+        closeModal();
+        await refreshStockData();
+        await loadStockActivities();
+        if (historyProduct && historyProduct !== '—') await loadStockActivities(historyProduct);
+      } catch (error) {
+        setStockError(error.message || 'Could not save the changes.');
+      }
+      return;
+    }
+
     if (!Number.isInteger(signedAmount) || signedAmount === 0) {
       setStockError('Use + or − to enter a non-zero stock change.');
       return;
@@ -814,6 +851,7 @@ function StockControl({
       date: formData.date || null,
       type: isStockOut ? 'Stock Out' : 'Stock In',
       qty: amount,
+      unitPrice: formData.unitPrice === '' ? null : Number(formData.unitPrice),
     };
 
     try {
@@ -994,6 +1032,7 @@ function StockControl({
               <th>Type</th>
               <th className="sc-th-quantity" title="Latest signed change for this product.">Change</th>
               <th className="sc-th-quantity" title="Current total stock for this product.">Total Qty</th>
+              <th className="sc-th-quantity" title="Unit price recorded on this transaction (cost on Stock In, selling price on Stock Out).">Price</th>
               <th>Reorder Point</th>
               <th className="sc-th-left">Notes</th>
               <th>Recorded by</th>
@@ -1002,7 +1041,7 @@ function StockControl({
           </thead>
           <tbody>
             {stockLoading ? (
-              <tr><td colSpan={11} className="sc-empty-state">Loading stock movements…</td></tr>
+              <tr><td colSpan={12} className="sc-empty-state">Loading stock movements…</td></tr>
             ) : visibleRows.map(({ row: stock, id, totalQty, latestChange }) => {
               const product = productById.get(stock.productId);
               const statusRow = {
@@ -1063,6 +1102,13 @@ function StockControl({
                     </span>
                   </td>
                   <td className="sc-td-nowrap sc-td-strong" data-label="Total Qty">{after}</td>
+                  <td
+                    className="sc-td-nowrap"
+                    data-label="Price"
+                    title={stock.unitPrice != null ? `${formatCurrency(stock.unitPrice)} × ${stock.qty} = ${formatCurrency(Number(stock.unitPrice) * Number(stock.qty || 0))}` : 'No price recorded'}
+                  >
+                    {stock.unitPrice != null ? formatCurrency(stock.unitPrice) : '—'}
+                  </td>
                   <td data-label="Reorder Point">
                     {status ? (
                       <span
@@ -1125,7 +1171,7 @@ function StockControl({
 
             {!stockLoading && !stockError && visibleRows.length === 0 && (
               <tr>
-                <td colSpan={11} className="sc-empty-state">
+                <td colSpan={12} className="sc-empty-state">
                   {stockFromDatabase.length === 0
                     ? 'No stock movements recorded yet. Click “Add Item” to record one.'
                     : 'No movements match your search.'}
@@ -1328,6 +1374,45 @@ function StockControl({
                       )}
                     </div>
                   </div>
+
+                  {/* ===== PRICE + NOTES (below quantity) ===== */}
+                  <div className="sc-form-row">
+                    <div className="sc-form-group">
+                      <label htmlFor="unitPrice">Unit Price</label>
+                      <input
+                        id="unitPrice"
+                        name="unitPrice"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={formData.unitPrice}
+                        onChange={handleFormChange}
+                        placeholder="e.g. 299.00"
+                      />
+                      <span className="sc-field-hint">
+                        {(() => {
+                          if (formData.unitPrice === '' || !(Number(formData.unitPrice) >= 0)) {
+                            return 'Optional · cost per unit (Stock In) or selling price per unit (Stock Out).';
+                          }
+                          const units = canSetOpeningStock ? Number(openingStock) : Math.abs(Number(projectedChange));
+                          return Number.isFinite(units) && units > 0
+                            ? `Total: ${formatCurrency(Number(formData.unitPrice) * units)} for ${units} unit${units === 1 ? '' : 's'}`
+                            : `${formatCurrency(Number(formData.unitPrice))} per unit`;
+                        })()}
+                      </span>
+                    </div>
+                    <div className="sc-form-group">
+                      <label htmlFor="notes">Notes</label>
+                      <input
+                        id="notes"
+                        name="notes"
+                        value={formData.notes}
+                        onChange={handleFormChange}
+                        placeholder="Delivery reference, sales batch…"
+                      />
+                    </div>
+                  </div>
                 </section>
 
                 <section className="sc-form-section">
@@ -1403,16 +1488,6 @@ function StockControl({
                     </div>
                   )}
 
-                  <div className="sc-form-group sc-form-group-wide">
-                    <label htmlFor="notes">Notes</label>
-                    <input
-                      id="notes"
-                      name="notes"
-                      value={formData.notes}
-                      onChange={handleFormChange}
-                      placeholder="Delivery reference, sales batch, reason for adjustment…"
-                    />
-                  </div>
                 </section>
               </div>
 

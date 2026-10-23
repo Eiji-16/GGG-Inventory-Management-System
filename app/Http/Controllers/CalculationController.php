@@ -31,7 +31,7 @@ class CalculationController extends Controller
             'inputs.annualDemand' => ['required', 'numeric', 'gt:0'],
             'inputs.orderingCost' => ['required', 'numeric', 'gt:0'],
             'inputs.holdingCost' => ['required', 'numeric', 'gt:0'],
-            'forecast' => ['required_if:demandSource,forecast', 'array'],
+            'forecast' => ['required_if:demandSource,forecast', 'nullable', 'array'],
             'forecast.productId' => ['required_if:demandSource,forecast', 'string', 'same:productId'],
             'forecast.periodType' => ['required_if:demandSource,forecast', Rule::in(['week', 'month', 'year'])],
             'forecast.forecastPeriod' => ['required_if:demandSource,forecast', 'date_format:Y-m-d'],
@@ -94,11 +94,6 @@ class CalculationController extends Controller
             ) {
                 throw ValidationException::withMessages([
                     'forecast' => 'Seasonal settings changed. Recompute the forecast before calculating EOQ.',
-                ]);
-            }
-            if ($seasonalEnabled && $submittedForecast['periodType'] !== 'month') {
-                throw ValidationException::withMessages([
-                    'forecast.seasonalEnabled' => 'Seasonal adjustments are available for monthly forecasts only.',
                 ]);
             }
             if ($seasonalEnabled && empty($submittedForecast['seasonalEvent'])) {

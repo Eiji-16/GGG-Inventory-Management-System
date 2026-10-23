@@ -3,11 +3,13 @@
 use App\Http\Controllers\DashboardSummaryController;
 use App\Http\Controllers\CurrencyPreferenceController;
 use App\Http\Controllers\ForecastController;
+use App\Http\Controllers\PastSalesController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SafetyStockController;
 use App\Http\Controllers\SalesHistoryController;
 use App\Http\Controllers\SalesSeasonalAdjustmentController;
+use App\Http\Controllers\SeasonalEventController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierController;
 use Illuminate\Support\Facades\Route;
@@ -39,7 +41,12 @@ Route::middleware(['web', 'auth', 'active'])->group(function (): void {
         Route::delete('/sales-history/{salesHistory}', [SalesHistoryController::class, 'destroy']);
         Route::get('/sales-seasonal-adjustments', [SalesSeasonalAdjustmentController::class, 'index']);
         Route::put('/sales-seasonal-adjustments', [SalesSeasonalAdjustmentController::class, 'store']);
+        Route::get('/forecasts/history', [ForecastController::class, 'history']);
         Route::post('/forecasts', [ForecastController::class, 'store']);
+        Route::apiResource('seasonal-events', SeasonalEventController::class)->except('show');
+        Route::get('/past-sales', [PastSalesController::class, 'index']);
+        Route::put('/past-sales', [PastSalesController::class, 'save']);
+        Route::post('/past-sales/import', [PastSalesController::class, 'import']);
 
     });
 

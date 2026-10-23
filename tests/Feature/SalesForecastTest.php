@@ -3,403 +3,306 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
-use App\Models\SalesHistory;
-use App\Models\SalesSeasonalAdjustment;
+use App\Models\SeasonalEvent;
+use App\Models\StockMovement;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
+use Illuminate\Support\Carbon;
 use Tests\Concerns\AuthenticatesBusinessApi;
+use Tests\TestCase;
 
+/**
+ * Sales Forecasting: Weighted Moving Average over Stock Out transactions
+ * (Stock Movement Tracking), with seasonal events applied afterwards.
+ */
 class SalesForecastTest extends TestCase
 {
     use RefreshDatabase;
     use AuthenticatesBusinessApi;
 
-    public function test_forecast_always_uses_weighted_moving_average(): void
+    protected function tearDown(): void
     {
-        $product = $this->createProduct();
-        $this->addSales($product, '2026-01-01', 1000);
-        $this->addSales($product, '2026-02-01', 10);
-        $this->addSales($product, '2026-03-01', 20);
-        $this->addSales($product, '2026-04-01', 40);
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
 
-        $this->postJson('/api/forecasts', [
-            'productId' => $product->code,
-        ])
+    public function test_monthly_forecast_uses_completed_months_of_stock_out_sales(): void
+    {
+        $this->travelTo(Carbon::parse('2026-05-15'));
+        $product = $this->createProduct();
+        $this->stockOut($product, '2026-01-05', 600);
+        $this->stockOut($product, '2026-01-20', 400);      // January total = 1000
+        $this->stockOut($product, '2026-02-10', 10);
+        $this->stockOut($product, '2026-03-10', 20);
+        $this->stockOut($product, '2026-04-10', 40);
+        $this->stockOut($product, '2026-05-02', 999);      // current month — not complete, ignored
+        $this->stockIn($product, '2026-03-01', 500);       // deliveries are not sales
+        $this->stockOut($product, '2026-04-12', 77, adjustment: true); // corrections are not sales
+
+        $this->postJson('/api/forecasts', ['productId' => $product->code])
             ->assertOk()
-            ->assertJsonPath('product.id', $product->code)
             ->assertJsonPath('formula', 'Weighted Moving Average')
-            ->assertJsonPath('baseForecast', 28.3)
+            ->assertJsonPath('source', 'stock_movements')
             ->assertJsonPath('forecastPeriod', '2026-05-01')
             ->assertJsonPath('dataPoints', 4)
-            ->assertJsonPath('averageDemand', 267.5);
+            // (10×1 + 20×2 + 40×3) ÷ 6 = 28.3
+            ->assertJsonPath('baseForecast', 28.3)
+            ->assertJsonPath('adjustedForecast', 28.3)
+            ->assertJsonPath('seasonalEnabled', false)
+            ->assertJsonPath('confidence', 'Medium')
+            ->assertJsonPath('history.0.unitsSold', 1000)
+            ->assertJsonPath('history.0.weight', null)
+            ->assertJsonPath('history.1.weight', 1)
+            ->assertJsonPath('history.3.weight', 3)
+            // April forecast = (1000×1 + 10×2 + 20×3) ÷ 6 = 180; variance 40 − 180 = −140
+            ->assertJsonPath('history.3.wmaForecast', 180)
+            ->assertJsonPath('history.3.variance', -140);
     }
 
-    public function test_weekly_forecast_uses_weekly_history_and_returns_the_next_week(): void
+    public function test_months_without_sales_count_as_zero(): void
     {
+        $this->travelTo(Carbon::parse('2026-04-10'));
         $product = $this->createProduct();
-        $this->addSales($product, '2026-03-02', 10, 'week');
-        $this->addSales($product, '2026-03-09', 20, 'week');
-        $this->addSales($product, '2026-03-16', 30, 'week');
-        $this->addSales($product, '2026-03-23', 40, 'week');
+        $this->stockOut($product, '2026-01-15', 30);
+        $this->stockOut($product, '2026-03-15', 30);
 
-        $this->postJson('/api/forecasts', [
-            'productId' => $product->code,
-            'periodType' => 'week',
-        ])
+        $this->getJson('/api/forecasts/history?product='.$product->code)
+            ->assertOk()
+            ->assertJsonPath('dataPoints', 3)
+            ->assertJsonPath('rows.1.periodDate', '2026-02-01')
+            ->assertJsonPath('rows.1.unitsSold', 0)
+            // (30×1 + 0×2 + 30×3) ÷ 6 = 20
+            ->assertJsonPath('nextForecast', 20);
+    }
+
+    public function test_weekly_forecast_groups_stock_outs_by_monday_weeks(): void
+    {
+        $this->travelTo(Carbon::parse('2026-03-31'));           // Tuesday; current week starts Mar 30
+        $product = $this->createProduct();
+        $this->stockOut($product, '2026-03-04', 10);            // week of Mar 2
+        $this->stockOut($product, '2026-03-10', 20);            // week of Mar 9
+        $this->stockOut($product, '2026-03-17', 30);            // week of Mar 16
+        $this->stockOut($product, '2026-03-28', 40);            // week of Mar 23 (Saturday)
+
+        $this->postJson('/api/forecasts', ['productId' => $product->code, 'periodType' => 'week'])
             ->assertOk()
             ->assertJsonPath('periodType', 'week')
-            ->assertJsonPath('baseForecast', 33.3)
             ->assertJsonPath('forecastPeriod', '2026-03-30')
-            ->assertJsonPath('dataPoints', 4);
+            ->assertJsonPath('forecastPeriodEnd', '2026-04-05')
+            ->assertJsonPath('dataPoints', 4)
+            // (20×1 + 30×2 + 40×3) ÷ 6 = 33.3
+            ->assertJsonPath('baseForecast', 33.3);
     }
 
-    public function test_yearly_forecast_uses_yearly_history_and_returns_the_next_year(): void
+    public function test_yearly_forecast_uses_completed_years(): void
     {
+        $this->travelTo(Carbon::parse('2025-06-01'));
         $product = $this->createProduct();
-        $this->addSales($product, '2022-09-14', 10, 'year');
-        $this->addSales($product, '2023-06-10', 20, 'year');
-        $this->addSales($product, '2024-11-20', 40, 'year');
+        $this->stockOut($product, '2022-09-14', 10);
+        $this->stockOut($product, '2023-06-10', 20);
+        $this->stockOut($product, '2024-11-20', 40);
 
-        $this->postJson('/api/forecasts', [
-            'productId' => $product->code,
-            'periodType' => 'year',
-        ])
+        $this->postJson('/api/forecasts', ['productId' => $product->code, 'periodType' => 'year'])
             ->assertOk()
-            ->assertJsonPath('periodType', 'year')
-            ->assertJsonPath('baseForecast', 28.3)
             ->assertJsonPath('forecastPeriod', '2025-01-01')
-            ->assertJsonPath('dataPoints', 3);
+            ->assertJsonPath('dataPoints', 3)
+            ->assertJsonPath('baseForecast', 28.3);
     }
 
-    public function test_monthly_forecast_applies_only_saved_events_for_its_forecast_month_and_year(): void
+    public function test_active_seasonal_events_adjust_the_forecast_for_matching_products(): void
     {
-        $product = $this->createProduct();
-        $this->addSales($product, '2026-01-01', 10);
-        $this->addSales($product, '2026-02-01', 20);
-        $this->addSales($product, '2026-03-01', 40);
-        SalesSeasonalAdjustment::create([
-            'product_id' => $product->id,
-            'year' => 2026,
-            'month' => 4,
-            'enabled' => true,
-            'events' => [
-                ['name' => 'Spring Sale', 'adjustmentPct' => 20],
-                ['name' => 'Local Festival', 'adjustmentPct' => 10],
-            ],
-        ]);
-        SalesSeasonalAdjustment::create([
-            'product_id' => $product->id,
-            'year' => 2027,
-            'month' => 4,
-            'enabled' => true,
-            'events' => [['name' => 'Different year', 'adjustmentPct' => 90]],
-        ]);
+        $this->travelTo(Carbon::parse('2026-04-10'));
+        $product = $this->createProduct(category: 'Tops');
+        $other = $this->createProduct('PRD-OTHER', 'Bags');
+        foreach ([['2026-01-10', 10], ['2026-02-10', 20], ['2026-03-10', 40]] as [$date, $qty]) {
+            $this->stockOut($product, $date, $qty);
+        }
 
-        $this->postJson('/api/forecasts', [
-            'productId' => $product->code,
-            'periodType' => 'month',
-        ])
+        $this->event('Spring Sale', '2026-04-01', '2026-04-30', 20);                                   // all products
+        $this->event('Tops Promo', '2026-04-15', '2026-05-15', 10, 'categories', categories: ['Tops']); // overlaps April
+        $this->event('Bag Week', '2026-04-01', '2026-04-30', 50, 'products', productIds: [$other->code]);
+        $this->event('Paused', '2026-04-01', '2026-04-30', 90, active: false);
+        $this->event('Christmas', '2026-12-01', '2026-12-25', 35);                                      // not this month
+
+        $this->postJson('/api/forecasts', ['productId' => $product->code])
             ->assertOk()
             ->assertJsonPath('forecastPeriod', '2026-04-01')
             ->assertJsonPath('baseForecast', 28.3)
-            ->assertJsonPath('adjustmentPct', 30)
-            ->assertJsonPath('adjustedForecast', 36.8)
             ->assertJsonPath('seasonalEnabled', true)
-            ->assertJsonPath('seasonalEvents.0.name', 'Spring Sale');
+            ->assertJsonCount(2, 'seasonalEvents')
+            ->assertJsonPath('seasonalEvents.0.name', 'Spring Sale')
+            ->assertJsonPath('seasonalEvents.1.name', 'Tops Promo')
+            ->assertJsonPath('adjustmentPct', 30)
+            // 28.3 × 1.30 = 36.8
+            ->assertJsonPath('adjustedForecast', 36.8);
     }
 
-    public function test_seasonal_events_are_saved_per_product_year_and_month(): void
+    public function test_seasonal_events_also_apply_to_weekly_forecasts(): void
     {
+        $this->travelTo(Carbon::parse('2026-12-02'));            // week of Nov 30 – Dec 6
         $product = $this->createProduct();
+        foreach (['2026-11-10', '2026-11-17', '2026-11-24'] as $date) {
+            $this->stockOut($product, $date, 12);
+        }
+        $this->event('Christmas Sale', '2026-12-01', '2026-12-25', 50);
 
-        $this->putJson('/api/sales-seasonal-adjustments', [
-            'productId' => $product->code,
-            'year' => 2026,
-            'month' => 4,
-            'enabled' => true,
-            'events' => [
-                ['name' => 'Spring Sale', 'adjustmentPct' => 12.5],
-                ['name' => 'Holiday', 'adjustmentPct' => -5],
-            ],
-        ])
+        $this->postJson('/api/forecasts', ['productId' => $product->code, 'periodType' => 'week'])
             ->assertOk()
-            ->assertJsonPath('enabled', true)
-            ->assertJsonCount(2, 'events')
-            ->assertJsonPath('events.0.adjustmentPct', 12.5);
+            ->assertJsonPath('forecastPeriod', '2026-11-30')
+            ->assertJsonPath('baseForecast', 12)
+            ->assertJsonPath('adjustmentPct', 50)
+            ->assertJsonPath('adjustedForecast', 18);
+    }
 
-        $this->getJson('/api/sales-seasonal-adjustments?product='.$product->code)
+    public function test_forecast_requires_completed_stock_out_sales(): void
+    {
+        $this->travelTo(Carbon::parse('2026-04-10'));
+        $product = $this->createProduct();
+        $this->stockOut($product, '2026-04-02', 5);              // only the current month
+
+        $this->getJson('/api/forecasts/history?product='.$product->code)
             ->assertOk()
-            ->assertJsonCount(1)
-            ->assertJsonPath('0.year', 2026)
-            ->assertJsonPath('0.month', 4)
-            ->assertJsonPath('0.events.1.name', 'Holiday');
+            ->assertJsonPath('dataPoints', 0)
+            ->assertJsonCount(0, 'rows');
 
-        $this->putJson('/api/sales-seasonal-adjustments', [
-            'productId' => $product->code,
-            'year' => 2026,
-            'month' => 4,
-            'enabled' => false,
-            'events' => [],
-        ])->assertOk()->assertJsonCount(0, 'events');
-
-        $this->assertDatabaseCount('sales_seasonal_adjustments', 1);
+        $this->postJson('/api/forecasts', ['productId' => $product->code])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('productId');
     }
 
-    public function test_seasonal_adjustments_reject_values_below_negative_one_hundred_percent(): void
+    public function test_legacy_formula_input_cannot_change_the_forecast_method(): void
     {
+        $this->travelTo(Carbon::parse('2026-04-10'));
         $product = $this->createProduct();
+        foreach ([['2026-01-10', 10], ['2026-02-10', 20], ['2026-03-10', 40]] as [$date, $qty]) {
+            $this->stockOut($product, $date, $qty);
+        }
 
-        $this->putJson('/api/sales-seasonal-adjustments', [
-            'productId' => $product->code,
-            'year' => 2026,
-            'month' => 4,
-            'enabled' => true,
-            'events' => [['name' => 'Invalid', 'adjustmentPct' => -101]],
-        ])->assertUnprocessable()
-            ->assertJsonValidationErrors('events.0.adjustmentPct');
-    }
-
-    public function test_legacy_formula_input_cannot_change_the_fixed_forecast_method(): void
-    {
-        $product = $this->createProduct();
-        $this->addSales($product, '2026-01-01', 10);
-        $this->addSales($product, '2026-02-01', 20);
-        $this->addSales($product, '2026-03-01', 40);
-
-        $this->postJson('/api/forecasts', [
-            'productId' => $product->code,
-            'formula' => 'Linear Trend Regression',
-        ])
+        $this->postJson('/api/forecasts', ['productId' => $product->code, 'formula' => 'Linear Trend Regression'])
             ->assertOk()
             ->assertJsonPath('formula', 'Weighted Moving Average')
             ->assertJsonPath('baseForecast', 28.3);
     }
 
-    public function test_forecasting_requires_existing_sales_history(): void
+    public function test_confidence_follows_the_number_of_completed_periods(): void
     {
+        $this->travelTo(Carbon::parse('2026-08-10'));
         $product = $this->createProduct();
+        foreach (['2026-02-10', '2026-03-10', '2026-04-10', '2026-05-10', '2026-06-10', '2026-07-10'] as $date) {
+            $this->stockOut($product, $date, 10);
+        }
 
-        $this->postJson('/api/forecasts', [
-            'productId' => $product->code,
-        ])->assertUnprocessable()
-            ->assertJsonValidationErrors('productId');
-    }
-
-    public function test_forecast_ignores_zero_sales_periods_for_counts_and_calculations(): void
-    {
-        $product = $this->createProduct();
-        $this->addSales($product, '2026-01-01', 0);
-        $this->addSales($product, '2026-02-01', 30);
-
-        $this->postJson('/api/forecasts', [
-            'productId' => $product->code,
-        ])
+        $this->postJson('/api/forecasts', ['productId' => $product->code])
             ->assertOk()
-            ->assertJsonPath('dataPoints', 1)
-            ->assertJsonPath('averageDemand', 30)
-            ->assertJsonPath('baseForecast', 30)
-            ->assertJsonPath('forecastPeriod', '2026-03-01');
+            ->assertJsonPath('dataPoints', 6)
+            ->assertJsonPath('confidence', 'High');
     }
 
-    public function test_sales_history_can_be_added_updated_and_deleted_for_forecasting(): void
+    public function test_seasonal_events_can_be_created_listed_updated_and_deleted(): void
     {
+        $this->travelTo(Carbon::parse('2026-12-10'));
         $product = $this->createProduct();
 
-        $entry = $this->postJson('/api/sales-history', [
-            'productId' => $product->code,
-            'periodDate' => '2026-02-19',
-            'unitsSold' => 15,
-        ])
-            ->assertCreated()
-            ->assertJsonPath('periodDate', '2026-02-01')
-            ->assertJsonPath('periodType', 'month')
-            ->assertJsonPath('unitsSold', 15)
+        $created = $this->postJson('/api/seasonal-events', [
+            'name' => 'Christmas Sale',
+            'startDate' => '2026-12-01',
+            'endDate' => '2026-12-25',
+            'adjustmentPct' => 35,
+            'scope' => 'products',
+            'productIds' => [$product->code],
+        ])->assertCreated()
+            ->assertJsonPath('status', 'Active')
+            ->assertJsonPath('productNames.0', $product->name)
             ->json();
 
-        $this->postJson('/api/sales-history', [
-            'productId' => $product->code,
-            'periodDate' => '2026-02-01',
-            'unitsSold' => 22,
-        ])->assertCreated()->assertJsonPath('unitsSold', 22);
-
-        $this->assertDatabaseCount('sales_history', 1);
-        $this->getJson('/api/sales-history?product='.$product->code)
+        $this->getJson('/api/seasonal-events')
             ->assertOk()
             ->assertJsonCount(1)
-            ->assertJsonPath('0.unitsSold', 22);
+            ->assertJsonPath('0.name', 'Christmas Sale')
+            ->assertJsonPath('0.adjustmentPct', 35);
 
-        $this->deleteJson('/api/sales-history/'.$entry['id'])
-            ->assertOk()
-            ->assertJsonPath('deleted', true);
-        $this->assertDatabaseCount('sales_history', 0);
-    }
-
-    public function test_weekly_sales_history_normalizes_weeks_and_keeps_monthly_data_separate(): void
-    {
-        $product = $this->createProduct();
-
-        $this->postJson('/api/sales-history', [
-            'productId' => $product->code,
-            'periodDate' => '2026-03-04',
-            'periodType' => 'week',
-            'unitsSold' => 12,
-        ])->assertCreated()
-            ->assertJsonPath('periodDate', '2026-03-02')
-            ->assertJsonPath('periodType', 'week');
-
-        $this->postJson('/api/sales-history', [
-            'productId' => $product->code,
-            'periodDate' => '2026-03-06',
-            'periodType' => 'week',
-            'unitsSold' => 18,
-        ])->assertCreated()->assertJsonPath('unitsSold', 18);
-
-        $this->postJson('/api/sales-history', [
-            'productId' => $product->code,
-            'periodDate' => '2026-03-02',
-            'periodType' => 'month',
-            'unitsSold' => 45,
-        ])->assertCreated()->assertJsonPath('periodDate', '2026-03-01');
-
-        $this->assertDatabaseCount('sales_history', 2);
-        $this->getJson('/api/sales-history?product='.$product->code.'&periodType=week')
-            ->assertOk()
-            ->assertJsonCount(1)
-            ->assertJsonPath('0.unitsSold', 18);
-        $this->getJson('/api/sales-history?product='.$product->code)
-            ->assertOk()
-            ->assertJsonCount(1)
-            ->assertJsonPath('0.periodType', 'month')
-            ->assertJsonPath('0.unitsSold', 45);
-    }
-
-    public function test_bulk_sales_history_saves_and_deletes_only_the_submitted_periods(): void
-    {
-        $product = $this->createProduct();
-        $this->addSales($product, '2025-01-01', 8);
-        $this->addSales($product, '2026-01-01', 12);
-        $this->addSales($product, '2026-01-05', 4, 'week');
-
-        $this->putJson('/api/sales-history/bulk', [
-            'productId' => $product->code,
-            'periodType' => 'month',
-            'records' => [
-                ['periodDate' => '2026-02-11', 'unitsSold' => 24],
-            ],
-            'deleteDates' => ['2026-01-01'],
+        $this->putJson('/api/seasonal-events/'.$created['id'], [
+            'name' => 'Christmas Sale',
+            'startDate' => '2026-12-01',
+            'endDate' => '2026-12-25',
+            'adjustmentPct' => -10,
+            'scope' => 'all',
+            'isActive' => false,
         ])->assertOk()
-            ->assertJsonCount(1)
-            ->assertJsonPath('0.periodDate', '2026-02-01')
-            ->assertJsonPath('0.unitsSold', 24);
+            ->assertJsonPath('adjustmentPct', -10)
+            ->assertJsonPath('scope', 'all')
+            ->assertJsonPath('productIds', [])
+            ->assertJsonPath('status', 'Paused');
 
-        $this->assertDatabaseHas('sales_history', [
-            'product_id' => $product->id,
-            'period_type' => 'month',
-            'period_date' => '2025-01-01 00:00:00',
-            'units_sold' => 8,
-        ]);
-        $this->assertDatabaseHas('sales_history', [
-            'product_id' => $product->id,
-            'period_type' => 'week',
-            'period_date' => '2026-01-05 00:00:00',
-            'units_sold' => 4,
-        ]);
-        $this->assertDatabaseHas('sales_history', [
-            'product_id' => $product->id,
-            'period_type' => 'month',
-            'period_date' => '2026-02-01',
-            'units_sold' => 24,
-        ]);
-        $this->assertDatabaseMissing('sales_history', [
-            'product_id' => $product->id,
-            'period_type' => 'month',
-            'period_date' => '2026-01-01 00:00:00',
-        ]);
-
-        $this->getJson('/api/sales-history?product='.$product->code.'&periodType=month')
-            ->assertOk()
-            ->assertJsonCount(2)
-            ->assertJsonPath('0.productId', $product->code)
-            ->assertJsonPath('0.periodType', 'month')
-            ->assertJsonPath('0.periodDate', '2025-01-01')
-            ->assertJsonPath('0.unitsSold', 8)
-            ->assertJsonPath('1.periodDate', '2026-02-01')
-            ->assertJsonPath('1.unitsSold', 24);
-
-        $this->getJson('/api/sales-history?product='.$product->code.'&periodType=week')
-            ->assertOk()
-            ->assertJsonCount(1)
-            ->assertJsonPath('0.productId', $product->code)
-            ->assertJsonPath('0.periodType', 'week')
-            ->assertJsonPath('0.periodDate', '2026-01-05')
-            ->assertJsonPath('0.unitsSold', 4);
+        $this->deleteJson('/api/seasonal-events/'.$created['id'])->assertOk();
+        $this->assertDatabaseCount('seasonal_events', 0);
     }
 
-    public function test_bulk_sales_history_rejects_negative_units_and_duplicate_normalized_weeks(): void
+    public function test_seasonal_event_validation(): void
     {
-        $product = $this->createProduct();
-
-        $this->putJson('/api/sales-history/bulk', [
-            'productId' => $product->code,
-            'periodType' => 'month',
-            'records' => [
-                ['periodDate' => '2026-01-01', 'unitsSold' => -1],
-            ],
+        $this->postJson('/api/seasonal-events', [
+            'name' => 'Backwards',
+            'startDate' => '2026-12-25',
+            'endDate' => '2026-12-01',
+            'adjustmentPct' => -101,
+            'scope' => 'categories',
+            'categories' => [],
         ])->assertUnprocessable()
-            ->assertJsonValidationErrors('records.0.unitsSold');
-
-        $this->putJson('/api/sales-history/bulk', [
-            'productId' => $product->code,
-            'periodType' => 'week',
-            'records' => [
-                ['periodDate' => '2026-03-02', 'unitsSold' => 5],
-                ['periodDate' => '2026-03-04', 'unitsSold' => 8],
-            ],
-        ])->assertUnprocessable()
-            ->assertJsonValidationErrors('records');
+            ->assertJsonValidationErrors(['endDate', 'adjustmentPct', 'categories']);
     }
 
-    public function test_reset_sales_history_deletes_only_the_selected_products_records(): void
-    {
-        $product = $this->createProduct('PRD-RESET');
-        $otherProduct = $this->createProduct('PRD-KEEP');
-        $this->addSales($product, '2026-01-01', 20);
-        $this->addSales($product, '2026-01-05', 8, 'week');
-        $this->addSales($otherProduct, '2026-01-01', 15);
-
-        $this->deleteJson('/api/sales-history/products/'.$product->code)
-        ->assertOk()
-        ->assertJsonPath('productId', $product->code)
-        ->assertJsonPath('deleted', 2);
-
-        $this->assertDatabaseMissing('sales_history', ['product_id' => $product->id]);
-        $this->assertDatabaseHas('sales_history', [
-        'product_id' => $otherProduct->id,
-        'period_type' => 'month',
-        'units_sold' => 15,
-        ]);
-        $this->assertDatabaseHas('products', [
-        'id' => $product->id,
-        'stock_on_hand' => 12,
-        ]);
-    }
-
-    private function createProduct(string $code = 'PRD-FORECAST'): Product
+    private function createProduct(string $code = 'PRD-FORECAST', ?string $category = null): Product
     {
         return Product::create([
             'code' => $code,
-            'name' => 'Forecast Test Item',
+            'name' => 'Forecast Item '.$code,
+            'category' => $category,
             'stock_on_hand' => 12,
         ]);
     }
 
-    private function addSales(Product $product, string $periodDate, int $units, string $periodType = 'month'): void
+    private function stockOut(Product $product, string $date, int $qty, bool $adjustment = false): void
     {
-        SalesHistory::create([
+        $this->movement($product, $date, $qty, 'out', $adjustment);
+    }
+
+    private function stockIn(Product $product, string $date, int $qty): void
+    {
+        $this->movement($product, $date, $qty, 'in', false);
+    }
+
+    private function movement(Product $product, string $date, int $qty, string $type, bool $adjustment): void
+    {
+        StockMovement::create([
             'product_id' => $product->id,
-            'period_date' => $periodDate,
-            'period_type' => $periodType,
-            'units_sold' => $units,
+            'product_name' => $product->name,
+            'product_category' => $product->category,
+            'movement_type' => $type,
+            'is_adjustment' => $adjustment,
+            'qty' => $qty,
+            'remaining_stock' => 0,
+            'movement_date' => $date,
+        ]);
+    }
+
+    private function event(
+        string $name,
+        string $start,
+        string $end,
+        float $pct,
+        string $scope = 'all',
+        array $categories = [],
+        array $productIds = [],
+        bool $active = true,
+    ): void {
+        SeasonalEvent::create([
+            'name' => $name,
+            'start_date' => $start,
+            'end_date' => $end,
+            'adjustment_pct' => $pct,
+            'scope' => $scope,
+            'categories' => $scope === 'categories' ? $categories : null,
+            'product_ids' => $scope === 'products' ? $productIds : null,
+            'is_active' => $active,
         ]);
     }
 }

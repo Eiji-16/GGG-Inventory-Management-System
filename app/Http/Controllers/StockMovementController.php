@@ -66,6 +66,32 @@ class StockMovementController extends Controller
     /** PUT/PATCH /api/stock-movements/{stockMovement} */
     public function update(Request $request, StockMovement $stockMovement): JsonResponse
     {
+        // Details-only edit: keep quantity, type and balances; update the rest.
+        if ($request->boolean('detailsOnly')) {
+            $data = $request->validate([
+                'variantName' => ['nullable', 'string', 'max:255'],
+                'notes'       => ['nullable', 'string', 'max:255'],
+                'recordedBy'  => ['nullable', 'string', 'max:255'],
+                'unitPrice'   => ['nullable', 'numeric', 'min:0', 'max:9999999999'],
+            ]);
+            $stockMovement->update([
+                'variant_name' => $data['variantName'] ?? null,
+                'notes'        => $data['notes'] ?? null,
+                'recorded_by'  => $data['recordedBy'] ?? null,
+                'unit_price'   => $data['unitPrice'] ?? null,
+            ]);
+            $movement = $stockMovement->fresh()->loadMissing('product');
+            ActivityLog::record('stock.edit', "Updated details of {$movement->product_name} movement", 'boxes', [
+                'productId'  => $movement->product?->code,
+                'product'    => $movement->product_name,
+                'movementId' => $movement->id,
+                'type'       => $movement->is_adjustment ? 'Adjustment' : ($movement->movement_type === 'in' ? 'Stock In' : 'Stock Out'),
+                'date'       => $movement->movement_date?->toDateString(),
+            ]);
+
+            return response()->json($this->format($movement));
+        }
+
         $before = $this->activitySnapshot($stockMovement->loadMissing('product'));
         $movement = $this->stockMovements->replace(
             $stockMovement,
@@ -188,6 +214,7 @@ class StockMovementController extends Controller
             'qty'         => ['required_unless:type,Adjustment', 'nullable', 'integer', 'min:1'],
             'countedStock'=> ['required_if:type,Adjustment', 'nullable', 'integer', 'min:0'],
             'variantName' => ['nullable', 'string', 'max:255'],
+            'unitPrice'   => ['nullable', 'numeric', 'min:0', 'max:9999999999'],
             'notes'       => ['nullable', 'string', 'max:255'],
             'recordedBy'  => ['nullable', 'string', 'max:255'],
             'date'        => [$updating ? 'sometimes' : 'nullable', 'date'],
@@ -209,6 +236,7 @@ class StockMovementController extends Controller
                 ? 'Adjustment'
                 : ($movement->movement_type === 'in' ? 'Stock In' : 'Stock Out'),
             'qty'            => $movement->qty,
+            'unitPrice'      => $movement->unit_price !== null ? (float) $movement->unit_price : null,
             'variance'       => $movement->is_adjustment
                 ? ($movement->movement_type === 'in' ? (int) $movement->qty : -(int) $movement->qty)
                 : null,

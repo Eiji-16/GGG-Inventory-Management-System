@@ -48,6 +48,23 @@ select option:checked {
     font-weight: 700;
 }
 
+/* Settings → "Show field descriptions" off: hide the small helper notes under
+   inputs and the explanatory info lines. Errors and live values stay visible. */
+html[data-field-hints="hidden"] :is(
+    .eq-hint,
+    .eq-note,
+    .sc-field-hint,
+    .sc-status-preview-note,
+    .ps-field-note,
+    .ps-detail-hint,
+    .ps-issue-help,
+    .fx-note,
+    .ra-help,
+    .r-supplier-note:not([role="alert"])
+) {
+    display: none !important;
+}
+
 /* Let the React root fill the viewport so the app shell can manage its own
    layout/scroll instead of the body scrolling. */
 #root {

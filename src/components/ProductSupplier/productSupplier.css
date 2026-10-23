@@ -15,6 +15,48 @@
     font-size: 12px;
 }
 
+.ps-skeleton-row td { height: 46px; }
+.ps-skeleton-block {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    height: 12px;
+    border-radius: 5px;
+    background: var(--static-bg-color, rgba(255, 255, 255, 0.05));
+}
+.ps-skeleton-block::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--background-icon-active-color-theme, rgba(255, 255, 255, 0.08)) 50%,
+        transparent 100%
+    );
+    animation: ps-shimmer 1.3s ease-in-out infinite;
+}
+.ps-skeleton-check { width: 14px; }
+.ps-skeleton-thumb { width: 30px; height: 30px; margin: auto; }
+.ps-skeleton-short { width: 68%; }
+.ps-skeleton-wide { width: 88%; }
+.ps-skeleton-actions { width: 44px; margin: auto; }
+.ps-retry-btn {
+    padding: 4px 9px;
+    color: var(--text-primary);
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    cursor: pointer;
+}
+@keyframes ps-shimmer {
+    100% { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ps-skeleton-block::after { animation: none; }
+}
+
 /*==========SEARCH BAR==========*/
 .ps-navigation-bar{
     background: transparent;
@@ -1158,4 +1200,63 @@
     min-width: 80px;
     text-align: center;
     user-select: none;
+}
+/* ===== VARIANT COLUMN (colors recorded in Stock Movement) ===== */
+.ps-variant-list {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-width: 220px;
+}
+
+.ps-variant-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: var(--static-bg-color);
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.ps-variant-more {
+    color: var(--text-muted);
+}
+
+/* ===== PRODUCTS | SUPPLIERS TABS ===== */
+.ps-section-root {
+    display: grid;
+    gap: 12px;
+}
+
+.ps-section-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    padding: 4px;
+    background: var(--static-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+}
+
+.ps-section-tabs button {
+    min-height: 34px;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.ps-section-tabs button.is-active {
+    color: var(--icon-active-color);
+    background: var(--background-icon-active-color);
+}
+
+.ps-supplier-table {
+    min-width: 640px;
 }

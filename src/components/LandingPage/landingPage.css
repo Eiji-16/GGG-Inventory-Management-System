@@ -1516,3 +1516,31 @@ body {
         scroll-behavior: auto !important;
     }
 }
+
+/* ===== REORDER ALERTS COUNT BADGE (sidebar) ===== */
+.sidebar-count-badge {
+    position: absolute;
+    top: -5px;
+    right: -7px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 16px;
+    text-align: center;
+    background: var(--accent-low, #c4432e);
+    border-radius: 999px;
+    pointer-events: none;
+}
+
+/* ===== KEEP WIDE PAGES INSIDE THE VIEWPORT =====
+   Flex children default to min-width:auto, so a wide table or tab bar
+   stretched the whole shell past the screen. min-width:0 lets those
+   inner areas scroll on their own instead. */
+.main-wrapper,
+.main-content-window,
+.app-view-panel {
+    min-width: 0;
+}

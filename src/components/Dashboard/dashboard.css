@@ -173,12 +173,12 @@
 
 .db-coverage-section .db-card-title,
 .db-category-section .db-card-title {
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .db-coverage-section .db-card-sub,
 .db-category-section .db-card-sub {
-    font-size: 10px;
+    font-size: 10.5px;
 }
 
 .db-coverage-metrics,
@@ -190,9 +190,9 @@
 }
 
 .db-coverage-svg {
-    width: 100px;
-    max-width: 52%;
-    flex: 0 1 100px;
+    width: 116px;
+    max-width: 55%;
+    flex: 0 1 116px;
 }
 
 .db-coverage-stats {
@@ -202,29 +202,29 @@
 }
 
 .db-coverage-stats .db-metric-value {
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.15;
     font-variant-numeric: tabular-nums;
 }
 
 .db-coverage-value {
-    font-size: 18px;
+    font-size: 20px;
     font-variant-numeric: tabular-nums;
 }
 
 .db-coverage-label {
-    font-size: 8px;
+    font-size: 8.5px;
 }
 
 .db-category-section .db-donut-row {
     width: 100%;
-    gap: 10px;
+    gap: 12px;
 }
 
 .db-category-section .db-donut-svg {
-    width: 74px;
-    height: 74px;
-    flex: 0 0 74px;
+    width: 88px;
+    height: 88px;
+    flex: 0 0 88px;
 }
 
 .db-category-section .db-donut-details {
@@ -232,11 +232,11 @@
 }
 
 .db-category-section .db-donut-total {
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .db-category-section .db-legend-item {
-    font-size: 10px;
+    font-size: 11px;
 }
 
 @container (max-width: 440px) {
@@ -247,7 +247,7 @@
     }
 
     .eoqActivity-card {
-        min-height: 15.5rem;
+        min-height: 17rem;
     }
 }
 
@@ -271,7 +271,8 @@
 .db-skel-chart,
 .db-skel-fill,
 .db-skel-big,
-.db-skel-row {
+.db-skel-row,
+.db-skel-spark {
     position: relative;
     overflow: hidden;
     border-radius: 6px;
@@ -282,7 +283,8 @@
 .db-skel-chart::after,
 .db-skel-fill::after,
 .db-skel-big::after,
-.db-skel-row::after {
+.db-skel-row::after,
+.db-skel-spark::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -303,6 +305,7 @@
 .db-skel-big   { height: 34px; width: 60%; margin-top: 4px; }
 .db-skel-chart { flex: 1; min-height: 120px; margin-top: 6px; }
 .db-skel-fill  { flex: 1; min-height: 70px; margin-top: 4px; }
+.db-skel-spark { flex: 1; min-height: 34px; margin-top: auto; }
 .db-skel-row   { height: 26px; width: 100%; }
 .db-skel-note {
     margin: 10px 2px 0;
@@ -314,7 +317,8 @@
     .db-skel-chart::after,
     .db-skel-fill::after,
     .db-skel-big::after,
-    .db-skel-row::after { animation: none; }
+    .db-skel-row::after,
+    .db-skel-spark::after { animation: none; }
 }
 
 /*==========STAGGER DELAY==========*/
@@ -479,6 +483,7 @@
 
 /*==========HERO (SALES ANALYTICS)==========*/
 .db-hero-plot {
+    position: relative;
     flex: 1;
     min-height: 72px;
     width: 100%;
@@ -490,6 +495,47 @@
     min-height: 72px;
     display: block;
 }
+
+.db-hero-point {
+    cursor: crosshair;
+    outline: none;
+}
+
+.db-hero-hit-area {
+    fill: transparent;
+    pointer-events: all;
+}
+
+.db-hero-point:focus-visible .db-hero-point-dot {
+    stroke: var(--text-primary);
+    stroke-width: 3;
+}
+
+.db-hero-tooltip {
+    position: absolute;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 7px 10px;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    box-shadow: var(--shadow-card);
+    font-size: 10px;
+    line-height: 1.2;
+    pointer-events: none;
+    transform: translate(10px, -50%);
+    white-space: nowrap;
+}
+
+.db-hero-tooltip-left {
+    transform: translate(calc(-100% - 10px), -50%);
+}
+
+.db-hero-tooltip span { color: var(--text-muted); }
+.db-hero-tooltip strong { font-size: 11px; }
 
 .db-hero-xaxis {
     display: flex;
@@ -900,7 +946,7 @@
 .eoqActivity-card {
     grid-column: 3 / span 3;
     grid-row: 3;
-    min-height: 9rem;
+    min-height: 10rem;
 }
 
 .totalOrder-card {
@@ -1009,7 +1055,7 @@
     .eoqActivity-card {
         grid-column: 3 / span 2;
         grid-row: 3;
-        min-height: 9rem;
+        min-height: 10rem;
     }
 
     .totalOrder-card {
@@ -1049,6 +1095,7 @@
     .parent-without-user-accounts .eoqActivity-card {
         grid-column: 3 / span 2;
         grid-row: 3;
+        min-height: 10rem;
     }
 
     .parent-without-user-accounts .totalOrder-card {
@@ -1142,6 +1189,10 @@
         min-height: 9rem;
     }
 
+    .eoqActivity-card {
+        min-height: 10rem;
+    }
+
     .regionalBreakdown-card {
         min-height: 11.5rem;
     }
@@ -1180,6 +1231,17 @@
 
     .parent-without-user-accounts .productSales-card {
         min-height: 10.5rem;
+    }
+
+    .totalOrder-card,
+    .parent-without-user-accounts .totalOrder-card {
+        grid-column: 1 / -1;
+        grid-row: auto;
+        min-height: 11rem;
+    }
+
+    .totalOrder-card .db-col-chart {
+        min-height: 88px;
     }
 }
 
@@ -1229,7 +1291,7 @@
 
     .salesAnalytics-card { min-height: 10.5rem; }
     .regionalBreakdown-card { min-height: 11.5rem; }
-    .eoqActivity-card { min-height: 9rem; }
+    .eoqActivity-card { min-height: 10rem; }
     .totalOrder-card { min-height: 7.5rem; }
     .productSales-card,
     .lowStockalerts-card,

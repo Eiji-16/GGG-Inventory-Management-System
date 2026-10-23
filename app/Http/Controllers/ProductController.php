@@ -29,9 +29,25 @@ class ProductController extends Controller
             ->groupBy('product_id')
             ->pluck('total', 'product_id');
 
+        // Variants (e.g. colors) recorded for each product in Stock Movement.
+        $variants = \App\Models\StockMovement::query()
+            ->whereNotNull('variant_name')
+            ->where('variant_name', '!=', '')
+            ->select('product_id', 'variant_name')
+            ->distinct()
+            ->orderBy('variant_name')
+            ->get()
+            ->groupBy('product_id')
+            ->map(fn ($rows) => $rows->pluck('variant_name')
+                ->map(fn ($name) => trim($name))
+                ->unique(fn ($name) => mb_strtolower($name))
+                ->values()
+                ->all());
+
         return response()->json($products->map(fn ($p) => $this->format(
             $p,
-            (int) ($demand[$p->id] ?? 0)
+            (int) ($demand[$p->id] ?? 0),
+            $variants[$p->id] ?? []
         )));
     }
 
@@ -187,8 +203,19 @@ class ProductController extends Controller
         return null;
     }
 
-    private function format(Product $p, int $demandFromHistory = 0): array
+    private function format(Product $p, int $demandFromHistory = 0, ?array $variants = null): array
     {
+        $variants ??= \App\Models\StockMovement::query()
+            ->where('product_id', $p->id)
+            ->whereNotNull('variant_name')
+            ->where('variant_name', '!=', '')
+            ->orderBy('variant_name')
+            ->pluck('variant_name')
+            ->map(fn ($name) => trim($name))
+            ->unique(fn ($name) => mb_strtolower($name))
+            ->values()
+            ->all();
+
         return [
             'id'              => $p->code,
             'name'            => $p->name,
@@ -197,6 +224,7 @@ class ProductController extends Controller
             'model'           => $p->model,
             'unitMeasure'     => $p->unit_measure,
             'image'           => $p->image,
+            'variants'        => $variants,
             'stock'           => $p->stock_on_hand,
             'supplierName'    => $p->supplier?->name,
             'supplierContact' => $p->supplier?->contact,
@@ -204,7 +232,9 @@ class ProductController extends Controller
             'supplierInfo'    => $p->supplier?->name,
             'safetyStock'     => $p->safetyStock?->safety_stock,
             'annualDemand'    => $p->safetyStock?->annual_demand,
-            'leadTimeDays'    => $p->safetyStock?->lead_time_days,
+            // Product policy lead time first, then the supplier's lead time.
+            'leadTimeDays'    => $p->safetyStock?->lead_time_days ?? $p->supplier?->lead_time_days,
+            'supplierLeadTimeDays' => $p->supplier?->lead_time_days,
             'orderCycleDays'  => $p->safetyStock?->order_cycle_days,
             'orderingCost'    => auth()->user()?->isAdminOrAbove() ? $p->safetyStock?->ordering_cost : null,
             'holdingCost'     => auth()->user()?->isAdminOrAbove() ? $p->safetyStock?->holding_cost : null,

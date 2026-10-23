@@ -25,7 +25,7 @@ class ReorderPointService
     public function forProduct(Product $product): int
     {
         $safetyStock = (int) ($product->safetyStock?->safety_stock ?? 20);
-        $leadTimeDays = $product->safetyStock?->lead_time_days;
+        $leadTimeDays = $product->safetyStock?->lead_time_days ?? $product->supplier?->lead_time_days;
         $annualDemand = $this->annualDemand($product);
 
         if ($leadTimeDays === null || $annualDemand <= 0) {

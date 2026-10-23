@@ -4,8 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\ActivityLog;
 use App\Models\Product;
-use App\Models\SalesHistory;
-use App\Models\SalesSeasonalAdjustment;
+use App\Models\SeasonalEvent;
+use App\Models\StockMovement;
+use Illuminate\Support\Carbon;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -43,32 +44,49 @@ class EoqCalculationPersistenceTest extends TestCase
         $this->assertSame(45, $log->meta['recommendedOrderQuantity']);
     }
 
+    public function test_historical_eoq_saves_when_the_screen_sends_an_empty_forecast(): void
+    {
+        $user = User::factory()->create([
+            'role' => User::ROLE_SUPER_ADMIN,
+            'status' => User::STATUS_ACTIVE,
+        ]);
+
+        // Exactly what a non-forecast calculation from the screen may send.
+        $this->actingAs($user)->postJson('/calculations', [
+            'formula' => 'EOQ',
+            'result' => 200,
+            'unit' => 'units',
+            'productId' => null,
+            'demandSource' => 'historical',
+            'inputs' => ['annualDemand' => 1200, 'orderingCost' => 400, 'holdingCost' => 24],
+            'forecast' => null,
+        ])->assertCreated()
+            ->assertJsonPath('recommendedOrderQuantity', 200);
+    }
+
     public function test_forecast_eoq_revalidates_current_wma_and_saves_seasonal_metadata(): void
     {
         $user = User::factory()->create([
             'role' => User::ROLE_SUPER_ADMIN,
             'status' => User::STATUS_ACTIVE,
         ]);
+        $this->travelTo(Carbon::parse('2026-05-15'));
         $product = $this->createProduct();
         foreach ([
-            ['2026-01-01', 1000],
-            ['2026-02-01', 10],
-            ['2026-03-01', 20],
-            ['2026-04-01', 40],
+            ['2026-01-10', 1000],
+            ['2026-02-10', 10],
+            ['2026-03-10', 20],
+            ['2026-04-10', 40],
         ] as [$date, $units]) {
-            SalesHistory::create([
-                'product_id' => $product->id,
-                'period_date' => $date,
-                'period_type' => 'month',
-                'units_sold' => $units,
-            ]);
+            $this->stockOut($product, $date, $units);
         }
-        SalesSeasonalAdjustment::create([
-            'product_id' => $product->id,
-            'year' => 2026,
-            'month' => 5,
-            'enabled' => true,
-            'events' => [['name' => 'Christmas', 'adjustmentPct' => 25]],
+        SeasonalEvent::create([
+            'name' => 'Christmas',
+            'start_date' => '2026-05-01',
+            'end_date' => '2026-05-31',
+            'adjustment_pct' => 25,
+            'scope' => 'all',
+            'is_active' => true,
         ]);
 
         $this->actingAs($user)->postJson('/calculations', [
@@ -116,18 +134,14 @@ class EoqCalculationPersistenceTest extends TestCase
             'role' => User::ROLE_ADMIN,
             'status' => User::STATUS_ACTIVE,
         ]);
+        $this->travelTo(Carbon::parse('2026-05-15'));
         $product = $this->createProduct();
         foreach ([
-            ['2026-02-01', 10],
-            ['2026-03-01', 20],
-            ['2026-04-01', 40],
+            ['2026-02-10', 10],
+            ['2026-03-10', 20],
+            ['2026-04-10', 40],
         ] as [$date, $units]) {
-            SalesHistory::create([
-                'product_id' => $product->id,
-                'period_date' => $date,
-                'period_type' => 'month',
-                'units_sold' => $units,
-            ]);
+            $this->stockOut($product, $date, $units);
         }
 
         $this->actingAs($user)->postJson('/calculations', [
@@ -170,6 +184,19 @@ class EoqCalculationPersistenceTest extends TestCase
                 'holdingCost' => 50,
             ],
         ])->assertForbidden();
+    }
+
+    private function stockOut(Product $product, string $date, int $qty): void
+    {
+        StockMovement::create([
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'movement_type' => 'out',
+            'is_adjustment' => false,
+            'qty' => $qty,
+            'remaining_stock' => 0,
+            'movement_date' => $date,
+        ]);
     }
 
     private function createProduct(): Product

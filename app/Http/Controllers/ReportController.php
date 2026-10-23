@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\Product;
-use App\Models\SalesHistory;
 use App\Models\StockMovement;
 use App\Services\ReorderPointService;
 use App\Services\SalesForecastService;
@@ -33,6 +32,7 @@ class ReportController extends Controller
             'stockSummary'   => $this->stockSummary($products),
             'stockMovement'  => $this->stockMovement(),
             'topMoving'      => $this->topMoving(),
+            'fastSlowMoving' => $this->fastSlowMoving($products),
             'demandForecast' => $this->demandForecast($products),
             'autoCalculator' => $this->autoCalculatorLog(),
             'inventoryAging' => $this->inventoryAging($products),
@@ -143,26 +143,100 @@ class ReportController extends Controller
         return ['rows' => $rows];
     }
 
-    /** Weighted moving average using the latest three recorded monthly periods. */
+    /**
+     * Fast- vs slow-moving products and the weekly sales trend.
+     * "Sales" are non-adjustment stock-out movements from Stock Movement Tracking.
+     * Fast = most units sold in the last 90 days; slow = in-stock items with the
+     * fewest units sold in the same window (including items with no sales).
+     */
+    private function fastSlowMoving($products): array
+    {
+        $windowDays = 90;
+        $since = now()->subDays($windowDays)->toDateString();
+
+        $sold = StockMovement::where('movement_type', 'out')
+            ->where('is_adjustment', false)
+            ->where('movement_date', '>=', $since)
+            ->selectRaw('product_id, SUM(qty) as units')
+            ->groupBy('product_id')
+            ->pluck('units', 'product_id');
+
+        $items = $products->map(fn (Product $p) => [
+            'product'   => $p->name,
+            'category'  => $p->category ?? '—',
+            'unitsSold' => (int) ($sold[$p->id] ?? 0),
+            'stock'     => (int) $p->stock_on_hand,
+        ]);
+
+        // Rank every product that sold or still has stock, then split the
+        // ranking: the top half (max 5) is fast-moving, the bottom half of the
+        // in-stock items (max 5) is slow-moving. The lists never overlap, so a
+        // small catalog still shows both sides.
+        $ranked = $items->filter(fn ($i) => $i['unitsSold'] > 0 || $i['stock'] > 0)
+            ->sortBy([['unitsSold', 'desc'], ['stock', 'asc']])
+            ->values();
+        $fastCount = min(5, (int) ceil($ranked->count() / 2));
+        $fast = $ranked->take($fastCount)->filter(fn ($i) => $i['unitsSold'] > 0)->values();
+
+        $fastNames = $fast->pluck('product')->all();
+        $slow = $ranked->filter(fn ($i) => $i['stock'] > 0 && ! in_array($i['product'], $fastNames, true))
+            ->sortBy([['unitsSold', 'asc'], ['stock', 'desc']])
+            ->take(5)
+            ->values();
+
+        $rows = [];
+        foreach ($fast as $i => $item) {
+            $rows[] = ['rank' => $i + 1, 'movement' => 'Fast-Moving'] + $item;
+        }
+        foreach ($slow as $i => $item) {
+            $rows[] = ['rank' => $i + 1, 'movement' => 'Slow-Moving'] + $item;
+        }
+
+        // Weekly sales trend: stock-out units for the last 8 weeks (Monday start).
+        $weeks = 8;
+        $firstWeek = now()->startOfWeek(\Illuminate\Support\Carbon::MONDAY)->subWeeks($weeks - 1);
+        $trend = [];
+        for ($w = 0; $w < $weeks; $w++) {
+            $start = $firstWeek->copy()->addWeeks($w);
+            $trend[$start->toDateString()] = ['period' => $start->format('M j'), 'units' => 0];
+        }
+        $outs = StockMovement::where('movement_type', 'out')
+            ->where('is_adjustment', false)
+            ->where('movement_date', '>=', $firstWeek->toDateString())
+            ->get(['qty', 'movement_date']);
+        foreach ($outs as $m) {
+            $key = \Illuminate\Support\Carbon::parse($m->movement_date)
+                ->startOfWeek(\Illuminate\Support\Carbon::MONDAY)
+                ->toDateString();
+            if (isset($trend[$key])) {
+                $trend[$key]['units'] += (int) $m->qty;
+            }
+        }
+
+        return [
+            'windowDays' => $windowDays,
+            'fast'       => $fast->all(),
+            'slow'       => $slow->all(),
+            'rows'       => $rows,
+            'trend'      => array_values($trend),
+        ];
+    }
+
+    /** WMA of the latest three completed months of stock-out sales. */
     private function demandForecast($products): array
     {
         $rows = [];
         foreach ($products as $p) {
-            $salesQuery = SalesHistory::where('product_id', $p->id)
-                ->where('period_type', 'month');
-            $periodCount = (clone $salesQuery)->count();
-            $history = $salesQuery
-                ->orderByDesc('period_date')
-                ->limit(3)
-                ->pluck('units_sold')
-                ->reverse()
-                ->values();
-            if ($history->isEmpty()) continue;
+            $series = $this->forecasts->salesSeries($p, 'month');
+            $periodCount = count($series);
+            if ($periodCount === 0) continue;
 
-            $forecast = round($this->forecasts->weightedMovingAverage($history->map(fn ($units) => (float) $units)->all()), 1);
+            $forecast = round($this->forecasts->weightedMovingAverage(
+                array_map(fn (array $row) => (float) $row['unitsSold'], $series)
+            ), 1);
             $stock = (int) $p->stock_on_hand;
             $suggested = max(0, (int) ceil($forecast - $stock + $this->reorderPointFor($p)));
-            $confidence = $periodCount >= 6 ? 'High' : ($periodCount >= 3 ? 'Medium' : 'Low');
+            $confidence = $this->forecasts->confidenceFor($periodCount);
 
             $rows[] = [
                 'product'          => $p->name,

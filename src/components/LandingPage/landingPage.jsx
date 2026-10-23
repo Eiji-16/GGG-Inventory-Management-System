@@ -19,7 +19,8 @@ import {
   Menu,
   X,
   UsersRound,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  BellRing
 } from 'lucide-react'; /* ===== ICONS ===== */
 
 import './landingPage.css'; /* ===== STYLES ===== */
@@ -31,6 +32,7 @@ import AutoCalculator from '../AutoCalculator/autoCal'; /* ===== CALCULATOR ====
 import SalesForecasting from '../Forecasting/forecasting'; /* ===== FORECASTING ===== */
 import ReportAnalytics from '../Reports/reports'; /* ===== REPORTS ===== */
 import StockManagement from '../StockControl/stockControl'; /* ===== STOCK ===== */
+import ReorderAlerts from '../ReorderAlerts/reorderAlerts'; /* ===== REORDER ALERTS ===== */
 import Settings from '../Settings/Settings'; /* ===== SETTINGS ===== */
 import Profile from '../Profile/profile'; /* ===== PROFILE ===== */
 import Staffs from '../Staffs/staffs'; /* ===== STAFFS ===== */
@@ -121,7 +123,7 @@ function createNotifications(summary, policy) {
       title: outOfStock ? `${product.name} is out of stock` : `${product.name} is below safety stock`,
       meta: `${stock} on hand · reorder point ${reorderPoint}`,
       time: 'Current stock',
-      view: 'Stock',
+      view: 'Reorder-Alerts',
       read: false,
     });
   });
@@ -164,6 +166,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
     Dashboard:          ['super_admin', 'admin', 'staff'],
     'Product-Supplier': ['super_admin', 'admin'],
     Stock:              ['super_admin', 'admin', 'staff'],
+    'Reorder-Alerts':   ['super_admin', 'admin', 'staff'],
     'Auto-Calculator':  ['super_admin', 'admin'],
     Forecasting:        ['super_admin', 'admin'],
     Reports:            ['super_admin', 'admin', 'staff'],
@@ -192,6 +195,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
   const [policyError, setPolicyError] = useState('');
   const [policyRefreshKey, setPolicyRefreshKey] = useState(0);
   const [notifications, setNotifications] = useState([]); /* ===== NOTIFICATION STATE ===== */
+  const [reorderAlertCount, setReorderAlertCount] = useState(0); /* ===== SIDEBAR BADGE ===== */
   const notificationPreferenceKey = `ggg-inventory-notifications:${user?.id ?? user?.email ?? 'account'}`;
   const notificationPreferencesRef = useRef(null);
   const notificationPreferenceOwnerRef = useRef(notificationPreferenceKey);
@@ -241,6 +245,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
       .then((summary) => {
         if (!active) return;
         const current = createNotifications(summary, safetyStock);
+        setReorderAlertCount(current.filter((notification) => notification.id.startsWith('stock-')).length);
         const activeStockIds = new Set(current
           .filter((notification) => notification.id.startsWith('stock-'))
           .map((notification) => notification.id));
@@ -475,6 +480,17 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
               <span className="sidebar-label">Stock Control</span>
             </button>
           </li>
+          <li className={`sidebar-item ${activeView === 'Reorder-Alerts' ? 'active' : ''}`}>
+            <button onClick={() => handleNavigate('Reorder-Alerts')} title={reorderAlertCount ? `${reorderAlertCount} items need reorder` : 'Reorder Alerts'}>
+              <BellRing className="sidebar-icon" />
+              <span className="sidebar-label">Reorder Alerts</span>
+              {reorderAlertCount > 0 && (
+                <span className="sidebar-count-badge" aria-label={`${reorderAlertCount} items need reorder`}>
+                  {reorderAlertCount > 99 ? '99+' : reorderAlertCount}
+                </span>
+              )}
+            </button>
+          </li>
           {canAccess('Auto-Calculator') && <li className="sidebar-section-label">Planning</li>}
           {canAccess('Forecasting') && (
           <li className={`sidebar-item ${activeView === 'Forecasting' ? 'active' : ''}`}>
@@ -561,6 +577,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                   {activeView === 'Dashboard' && 'Dashboard Overview'}
                   {activeView === 'Product-Supplier' && 'Product & Supplier'}
                   {activeView === 'Stock' && 'Stock Control'}
+                  {activeView === 'Reorder-Alerts' && 'Auto Reorder Alerts'}
                   {activeView === 'Auto-Calculator' && 'Economic Order Quantity Calculator'}
                   {activeView === 'Forecasting' && 'Sales Forecasting'}
                   {activeView === 'Reports' && 'Reports & Analytics'}
@@ -574,6 +591,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                   {activeView === 'Dashboard' && 'Detailed Information about your store'}
                   {activeView === 'Product-Supplier' && 'Item specifications and supplier information'}
                   {activeView === 'Stock' && 'Product details and assigned supplier tracking'}
+                  {activeView === 'Reorder-Alerts' && 'Products that have reached their reorder point'}
                   {activeView === 'Auto-Calculator' && 'Optimize product order sizes and minimize supplier carrying costs'}
                   {activeView === 'Forecasting' && 'Analyze historical trends to project future inventory demand'}
                   {activeView === 'Reports' && 'Review inventory performance, optimization metrics, and forecasting trends'}
@@ -695,6 +713,16 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                   />
                 </div>
               )}
+              {visitedViews.has('Reorder-Alerts') && canAccess('Reorder-Alerts') && (
+                <div className="app-view-panel" hidden={activeView !== 'Reorder-Alerts'}>
+                  <ReorderAlerts
+                    onNavigate={handleNavigate}
+                    safetyStock={safetyStock}
+                    catalogRevision={policyRefreshKey}
+                    canComputeEoq={canAccess('Auto-Calculator')}
+                  />
+                </div>
+              )}
               {visitedViews.has('Auto-Calculator') && canAccess('Auto-Calculator') && (
                 <div className="app-view-panel" hidden={activeView !== 'Auto-Calculator'}>
                   <AutoCalculator
@@ -714,6 +742,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     onNavigate={handleNavigate}
                     onClearEoqHandoff={clearEoqHandoff}
                     catalogRevision={policyRefreshKey}
+                    isActive={activeView === 'Forecasting'}
                   />
                 </div>
               )}

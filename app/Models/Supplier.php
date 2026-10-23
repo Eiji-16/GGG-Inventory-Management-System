@@ -15,6 +15,11 @@ class Supplier extends Model
         'name',
         'contact',
         'company',
+        'lead_time_days',
+    ];
+
+    protected $casts = [
+        'lead_time_days' => 'integer',
     ];
 
     /** Products supplied by this company. */

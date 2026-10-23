@@ -60,6 +60,53 @@ const initialsOf = (name) =>
     .map((part) => part[0].toUpperCase())
     .join('') || '?';
 
+function ProfileSkeleton() {
+  return (
+    <div className="pf-root pf-loading" aria-busy="true" aria-label="Loading profile">
+      <div className="pf-grid" aria-hidden="true">
+        <section className="pf-card pf-area-identity">
+          <span className="pf-skeleton pf-skeleton-avatar" />
+          <div className="pf-skeleton-identity">
+            <span className="pf-skeleton pf-skeleton-name" />
+            <span className="pf-skeleton pf-skeleton-detail" />
+            <span className="pf-skeleton pf-skeleton-role" />
+          </div>
+          <span className="pf-skeleton pf-skeleton-button" />
+        </section>
+        <section className="pf-card pf-area-details">
+          <span className="pf-skeleton pf-skeleton-heading" />
+          <span className="pf-skeleton pf-skeleton-detail" />
+          <div className="pf-skeleton-fields">
+            {Array.from({ length: 4 }, (_, index) => (
+              <span className="pf-skeleton pf-skeleton-field" key={index} />
+            ))}
+          </div>
+        </section>
+        <section className="pf-card pf-area-permissions">
+          <span className="pf-skeleton pf-skeleton-heading" />
+          <span className="pf-skeleton pf-skeleton-detail" />
+          {Array.from({ length: 4 }, (_, index) => (
+            <span className="pf-skeleton pf-skeleton-permission" key={index} />
+          ))}
+        </section>
+        <section className="pf-card pf-area-security">
+          <span className="pf-skeleton pf-skeleton-heading" />
+          <span className="pf-skeleton pf-skeleton-detail" />
+          <span className="pf-skeleton pf-skeleton-security" />
+        </section>
+        <section className="pf-card pf-area-activity">
+          <span className="pf-skeleton pf-skeleton-heading" />
+          <span className="pf-skeleton pf-skeleton-detail" />
+          {Array.from({ length: 3 }, (_, index) => (
+            <span className="pf-skeleton pf-skeleton-activity" key={index} />
+          ))}
+        </section>
+      </div>
+      <p className="pf-skeleton-status" role="status">Loading profile…</p>
+    </div>
+  );
+}
+
 export default function Profile() {
   const [user, setUser] = useState(null);
   const [draft, setDraft] = useState(null);
@@ -152,7 +199,7 @@ export default function Profile() {
 
   const permissions = useMemo(() => (user ? ROLE_MATRIX[user.role] ?? [] : []), [user]);
 
-  if (loading) return <div className="pf-root"><p className="pf-sub">Loading profile…</p></div>;
+  if (loading) return <ProfileSkeleton />;
   if (error) return <div className="pf-root"><p className="pf-sub" role="alert">{error}</p></div>;
   if (!user) return null;
 
@@ -276,7 +323,11 @@ export default function Profile() {
           <p className="pf-sub">Actions recorded under this account</p>
           <div className="pf-scroll">
             {activityLoading ? (
-              <p className="pf-sub">Loading activity…</p>
+              <div className="pf-activity-skeleton" aria-busy="true" aria-label="Loading activity">
+                {Array.from({ length: 3 }, (_, index) => (
+                  <span className="pf-skeleton pf-skeleton-activity" key={index} />
+                ))}
+              </div>
             ) : activity.length === 0 ? (
               <p className="pf-sub">No activity recorded yet.</p>
             ) : (

@@ -18,7 +18,7 @@ class SupplierController extends Controller
     /** GET /api/suppliers */
     public function index()
     {
-        $suppliers = Supplier::orderBy('name')->get();
+        $suppliers = Supplier::with(['products' => fn ($q) => $q->orderBy('name')])->orderBy('name')->get();
 
         return response()->json($suppliers->map(fn ($s) => $this->format($s)));
     }
@@ -36,12 +36,14 @@ class SupplierController extends Controller
             'name'    => ['required', 'string', 'max:255', 'unique:suppliers,name'],
             'contact' => ['nullable', 'string', 'max:255'],
             'company' => ['nullable', 'string', 'max:255'],
+            'leadTimeDays' => ['nullable', 'integer', 'min:0', 'max:365'],
         ]);
 
         $supplier = Supplier::create([
             'name'    => $data['name'],
             'contact' => $data['contact'] ?? null,
             'company' => $data['company'] ?? $data['name'],
+            'lead_time_days' => $data['leadTimeDays'] ?? null,
         ]);
 
         return response()->json($this->format($supplier), 201);
@@ -54,6 +56,7 @@ class SupplierController extends Controller
             'name'    => ['sometimes', 'string', 'max:255', 'unique:suppliers,name,'.$supplier->id],
             'contact' => ['nullable', 'string', 'max:255'],
             'company' => ['nullable', 'string', 'max:255'],
+            'leadTimeDays' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:365'],
         ]);
 
         $supplier->update(array_filter([
@@ -61,6 +64,9 @@ class SupplierController extends Controller
             'contact' => $data['contact'] ?? null,
             'company' => $data['company'] ?? null,
         ], fn ($v) => $v !== null));
+        if (array_key_exists('leadTimeDays', $data)) {
+            $supplier->update(['lead_time_days' => $data['leadTimeDays']]);
+        }
 
         return response()->json($this->format($supplier->fresh()));
     }
@@ -81,7 +87,12 @@ class SupplierController extends Controller
             'name'         => $s->name,
             'contact'      => $s->contact,
             'company'      => $s->company,
-            'productCount' => $s->products()->count(),
+            'leadTimeDays' => $s->lead_time_days,
+            'productCount' => $s->relationLoaded('products') ? $s->products->count() : $s->products()->count(),
+            'products'     => ($s->relationLoaded('products') ? $s->products : $s->products()->orderBy('name')->get())
+                ->map(fn ($p) => ['id' => $p->code, 'name' => $p->name, 'category' => $p->category])
+                ->values()
+                ->all(),
         ];
     }
 }

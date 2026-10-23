@@ -1,27 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, History, Download, TrendingUp, Boxes } from 'lucide-react';
+import { X, History, Download, TrendingUp, Calculator, Info } from 'lucide-react';
 import './autoCal.css';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
 import { useCurrency } from '../../CurrencyContext';
 import {
-  maximumInventoryFor,
+  DEFAULT_SAFETY_STOCK,
   policyFor,
-  reorderPointFor,
+  safetyPointFor,
   SAFETY_STOCK_DEFAULTS,
 } from '../../data/safetyStock';
 
-const ORDER_QUANTITY_FORMULA = {
-  fullName: 'Economic Order Quantity',
-  description: 'Computes the optimal order quantity to minimize total inventory costs including ordering and holding costs.',
-  formula: '√[(2 × annual demand × ordering cost) ÷ holding cost]',
-  fields: [
-    { key: 'demand',      label: 'Annual Demand',  placeholder: '', unit: 'units/year' },
-    { key: 'orderCost',   label: 'Ordering Cost',  placeholder: '', unit: 'per order' },
-    { key: 'holdingCost', label: 'Holding Cost', placeholder: '', unit: 'per unit/year' },
-  ],
-};
+/* ==========================================================================
+   ECONOMIC ORDER QUANTITY CALCULATOR (Figure 10)
+   EOQ = √(2 × D × S ÷ H)
+     D = annual demand (units/year)      — from the forecast or past 12 months
+     S = ordering cost (per order)       — entered by the owner
+     H = holding cost (per unit / year)  — entered by the owner
+   Reorder point = safety stock + (D ÷ 365 × lead time in days)
+   ========================================================================== */
+
+const EOQ_FORMULA = '√(2 × annual demand × ordering cost ÷ holding cost)';
+const EMPTY_INPUTS = { demand: '', orderCost: '', holdingCost: '', leadTime: '', safetyStock: '' };
+const INPUT_KEYS = Object.keys(EMPTY_INPUTS);
 
 const calculatorDraftStorageKey = (userId) => `ggg-inventory-eoq-calculator:${userId || 'default'}`;
 
@@ -33,11 +35,6 @@ const readCalculatorDraft = (userId) => {
     const draft = JSON.parse(saved);
     if (!draft || typeof draft !== 'object') return null;
     const inputs = draft.inputs && typeof draft.inputs === 'object' ? draft.inputs : {};
-    const result = draft.result && typeof draft.result === 'object'
-      && ['economicOrderQuantity', 'annualOrdering', 'annualHolding', 'totalCost', 'annualOrders',
-        'annualDemand', 'orderingCost', 'holdingCost'].every((key) => Number.isFinite(draft.result[key]))
-      ? draft.result
-      : null;
     const history = Array.isArray(draft.history)
       ? draft.history.filter((item) => item && typeof item === 'object'
         && typeof item.formulaName === 'string'
@@ -48,12 +45,7 @@ const readCalculatorDraft = (userId) => {
       : [];
     return {
       selectedProductId: typeof draft.selectedProductId === 'string' ? draft.selectedProductId : '',
-      inputs: {
-        demand: typeof inputs.demand === 'string' ? inputs.demand : '',
-        orderCost: typeof inputs.orderCost === 'string' ? inputs.orderCost : '',
-        holdingCost: typeof inputs.holdingCost === 'string' ? inputs.holdingCost : '',
-      },
-      result,
+      inputs: Object.fromEntries(INPUT_KEYS.map((key) => [key, typeof inputs[key] === 'string' ? inputs[key] : ''])),
       history,
     };
   } catch (error) {
@@ -62,58 +54,63 @@ const readCalculatorDraft = (userId) => {
   }
 };
 
-const calculateOrderQuantity = (annualDemand, orderingCost, holdingCost) => {
+/** Pure EOQ math — every value shown on screen comes from here. */
+export const calculateOrderQuantity = ({ annualDemand, orderingCost, holdingCost, leadTimeDays = 0, safetyStock = 0 }) => {
   const economicOrderQuantity = Math.sqrt((2 * annualDemand * orderingCost) / holdingCost);
-  const annualOrdering = (annualDemand / economicOrderQuantity) * orderingCost;
+  const annualOrders = annualDemand / economicOrderQuantity;
+  const annualOrdering = annualOrders * orderingCost;
   const annualHolding = (economicOrderQuantity / 2) * holdingCost;
-
+  const dailyDemand = annualDemand / 365;
+  const leadTimeDemand = dailyDemand * leadTimeDays;
   return {
     economicOrderQuantity,
+    recommendedOrder: Math.max(1, Math.round(economicOrderQuantity)),
+    annualOrders,
     annualOrdering,
     annualHolding,
     totalCost: annualOrdering + annualHolding,
-    annualOrders: annualDemand / economicOrderQuantity,
+    dailyDemand,
+    leadTimeDemand,
+    reorderPoint: Math.ceil(safetyStock + leadTimeDemand),
+    daysBetweenOrders: 365 / annualOrders,
     annualDemand,
     orderingCost,
     holdingCost,
+    leadTimeDays,
+    safetyStock,
   };
 };
 
+const sameInputs = (a, b) => INPUT_KEYS.every((key) => String(a?.[key] ?? '') === String(b?.[key] ?? ''));
+
 /* ===== HISTORY SIDE PANEL ===== */
 function HistoryPanel({ onClose, history, onClear }) {
-  const fullHistoryName = (name) => name === 'EOQ' ? 'Economic Order Quantity' : name;
-  const fullInputName = (name) => ({
-    D: 'Annual Demand',
-    S: 'Ordering Cost',
-    H: 'Holding Cost',
-  }[name] || name);
-
   return createPortal(
     <div className="ac-modal-overlay" onClick={onClose}>
-      <div className="ac-modal ac-modal-wide" onClick={e => e.stopPropagation()}>
+      <div className="ac-modal ac-modal-wide" onClick={(e) => e.stopPropagation()}>
         <div className="ac-modal-header">
-          <h3 className="ac-modal-title">Economic Order Quantity Calculation History</h3>
-          <button className="ac-modal-close" onClick={onClose}><X size={14} /></button>
+          <h3 className="ac-modal-title">Calculation History (this browser)</h3>
+          <button className="ac-modal-close" onClick={onClose} aria-label="Close history"><X size={14} /></button>
         </div>
         <div className="ac-modal-body">
           {history.length === 0 ? (
             <p className="ac-source-note" style={{ textAlign: 'center', padding: '20px 0' }}>
-              No calculations yet. Compute an economic order quantity and it will be logged here.
+              No calculations yet. Every Compute EOQ is listed here and saved to Reports → Economic Order Quantity Calculator Summary.
             </p>
           ) : (
             <div className="ac-history-list">
               {history.map((h, i) => (
                 <div className="ac-history-item" key={i}>
                   <div className="ac-history-top">
-                    <span className="ac-history-formula">{fullHistoryName(h.formulaName)}</span>
+                    <span className="ac-history-formula">{h.product || h.formulaName}</span>
                     <span className="ac-history-date">{h.date}</span>
                   </div>
                   <div className="ac-history-inputs">
                     {Object.entries(h.inputs).map(([k, v]) => (
-                      <span key={k} className="ac-history-input-chip">{fullInputName(k)}: {v}</span>
+                      <span key={k} className="ac-history-input-chip">{k}: {v}</span>
                     ))}
                   </div>
-                  <div className="ac-history-result">Result: <strong>{Math.round(Number(h.result)).toLocaleString('en-PH')} {h.unit}</strong></div>
+                  <div className="ac-history-result">Order <strong>{Math.round(Number(h.result)).toLocaleString('en-PH')} {h.unit}</strong> each time</div>
                 </div>
               ))}
             </div>
@@ -128,6 +125,24 @@ function HistoryPanel({ onClose, history, onClear }) {
   );
 }
 
+/* ===== ONE LABELLED INPUT WITH A HINT ===== */
+function Field({ id, label, hint, prefix, suffix, error, tag, children, ...inputProps }) {
+  return (
+    <div className="eq-field">
+      <div className="eq-label-row">
+        <label htmlFor={id}>{label}</label>
+        {tag}
+      </div>
+      <div className={`eq-input-wrap${error ? ' has-error' : ''}`}>
+        {prefix && <span className="eq-affix">{prefix}</span>}
+        <input id={id} type="number" min="0" step="any" inputMode="decimal" {...inputProps} />
+        {suffix && <span className="eq-affix eq-suffix">{suffix}</span>}
+      </div>
+      {error ? <span className="eq-error" role="alert">{error}</span> : hint && <span className="eq-hint">{hint}</span>}
+      {children}
+    </div>
+  );
+}
 
 /* ===== MAIN COMPONENT ===== */
 export default function AutoCalculatorDesign({
@@ -143,193 +158,118 @@ export default function AutoCalculatorDesign({
   const [savedDraft] = useState(() => readCalculatorDraft(currentUserId));
   const [showHistory, setShowHistory] = useState(false);
 
-  /* ===== PRODUCTS (for auto-fill from Stock Control history) ===== */
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState('');
   const [productsRetry, setProductsRetry] = useState(0);
   const [selectedProductId, setSelectedProductId] = useState(savedDraft?.selectedProductId || '');
   const [forecastContext, setForecastContext] = useState(null);
-  const [inputs, setInputs] = useState(savedDraft?.inputs || { demand: '', orderCost: '', holdingCost: '' });
-  const selectedProduct = products.find(product => String(product.id) === String(selectedProductId)) || null;
+  const [demandSource, setDemandSource] = useState('manual'); // forecast | history | manual
+  const [inputs, setInputs] = useState(savedDraft?.inputs || EMPTY_INPUTS);
+  const [errors, setErrors] = useState({});
+  const [result, setResult] = useState(null);
+  const [resultInputs, setResultInputs] = useState(null);
+  const [saveStatus, setSaveStatus] = useState({ type: '', text: '' });
+  const [saving, setSaving] = useState(false);
+  const [history, setHistory] = useState(savedDraft?.history || []);
+  const [unitCost, setUnitCost] = useState('');
+  const [showEstimator, setShowEstimator] = useState(false);
+
+  const selectedProduct = products.find((product) => String(product.id) === String(selectedProductId)) || null;
   const activeForecastContext = forecastContext
     && String(forecastContext.productId) === String(selectedProductId)
     && Number(inputs.demand) === Number(forecastContext.annualDemand)
     ? forecastContext
     : null;
-
-  const [errors, setErrors] = useState({});
-  const [result, setResult] = useState(savedDraft?.result || null);
-  const [saveStatus, setSaveStatus] = useState('');
-  const [saving, setSaving] = useState(false);
-  const selectedPolicy = selectedProduct
-    ? policyFor({
-        productId: selectedProduct.id,
-        productName: selectedProduct.name,
-      }, safetyStock)
-    : {};
-  const reorderDemand = inputs.demand || selectedProduct?.annualDemand || selectedProduct?.demandFromHistory;
-  const reorderPoint = selectedProduct
-    ? reorderPointFor({
-        productId: selectedProduct.id,
-        productName: selectedProduct.name,
-        safetyStock: selectedProduct.safetyStock,
-        annualDemand: reorderDemand,
-        leadTimeDays: selectedProduct.leadTimeDays,
-      }, safetyStock)
-    : null;
-  const maximumInventory = selectedProduct
-    ? maximumInventoryFor(
-        reorderDemand,
-        selectedProduct.safetyStock ?? selectedPolicy.safetyStock,
-        selectedPolicy.leadTimeDays ?? selectedProduct.leadTimeDays,
-        selectedPolicy.orderCycleDays ?? selectedProduct.orderCycleDays,
-      )
-    : null;
+  const resultIsStale = Boolean(result && !sameInputs(inputs, resultInputs));
   const currentStock = selectedProduct ? Number(selectedProduct.stock ?? 0) : null;
-  const selectedSafetyStock = selectedProduct
-    ? Number(selectedProduct.safetyStock ?? selectedPolicy.safetyStock ?? 0)
-    : null;
-  const reorderRequired = reorderPoint !== null && currentStock !== null && currentStock <= reorderPoint;
-  const annualDemandForCalculation = Number(reorderDemand);
-  const orderingCostForCalculation = Number(
-    inputs.orderCost !== '' ? inputs.orderCost : selectedPolicy.orderingCost ?? selectedProduct?.orderingCost
-  );
-  const holdingCostForCalculation = Number(
-    inputs.holdingCost !== '' ? inputs.holdingCost : selectedPolicy.holdingCost ?? selectedProduct?.holdingCost
-  );
-  const automaticResult = reorderRequired
-    && annualDemandForCalculation > 0
-    && orderingCostForCalculation > 0
-    && holdingCostForCalculation > 0
-    ? calculateOrderQuantity(
-      annualDemandForCalculation,
-      orderingCostForCalculation,
-      holdingCostForCalculation,
-    )
-    : null;
-  const displayResult = reorderRequired ? automaticResult : result;
-
-  /* ===== HISTORY ===== */
-  const [history, setHistory] = useState(savedDraft?.history || []);
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(calculatorDraftStorageKey(currentUserId), JSON.stringify({
-        selectedProductId,
-        inputs,
-        result,
-        history,
-      }));
+      window.localStorage.setItem(calculatorDraftStorageKey(currentUserId), JSON.stringify({ selectedProductId, inputs, history }));
     } catch (error) {
       console.error('Could not save the Economic Order Quantity Calculator draft:', error);
     }
-  }, [currentUserId, history, inputs, result, selectedProductId]);
+  }, [currentUserId, history, inputs, selectedProductId]);
 
-  /* Load real products for the auto-fill dropdown. */
+  /* Products for the picker and for auto-filling demand, costs, lead time and safety stock. */
   useEffect(() => {
     let active = true;
-    const loadProducts = async () => {
-      setProductsLoading(true);
-      setProductsError('');
-      try {
-        const response = await fetch('/api/products', {
-          cache: 'no-store',
-          headers: { Accept: 'application/json' },
-        });
+    setProductsLoading(true);
+    setProductsError('');
+    fetch('/api/products', { cache: 'no-store', headers: { Accept: 'application/json' } })
+      .then((response) => {
         if (!response.ok) throw new Error('Unable to load products.');
-        const data = await response.json();
+        return response.json();
+      })
+      .then((data) => {
         if (!Array.isArray(data)) throw new Error('The products response was invalid.');
         if (active) setProducts(data);
-      } catch {
-        if (active) setProductsError('Products could not be loaded. You can still enter the calculation inputs manually.');
-      } finally {
-        if (active) setProductsLoading(false);
-      }
-    };
-
-    loadProducts();
+      })
+      .catch(() => { if (active) setProductsError('Products could not be loaded. You can still type the inputs yourself.'); })
+      .finally(() => { if (active) setProductsLoading(false); });
     return () => { active = false; };
   }, [productsRetry, catalogRevision]);
 
-  useEffect(() => {
-    if (productsLoading) return;
-    if (selectedProductId && !products.some((product) => String(product.id) === String(selectedProductId))) {
-      setSelectedProductId('');
-      setInputs({ demand: '', orderCost: '', holdingCost: '' });
-      setResult(null);
-      setSaveStatus('');
-    }
-  }, [products, productsLoading, selectedProductId]);
+  /** Everything a product can pre-fill, from the forecast handoff or its own records. */
+  const defaultsFor = (product, demandOverride) => {
+    const policy = policyFor({ productId: product.id, productName: product.name }, safetyStock);
+    const historyDemand = Number(product.demandFromHistory) > 0 ? product.demandFromHistory : (product.annualDemand || 0);
+    const leadTime = policy.leadTimeDays !== '' && policy.leadTimeDays != null ? policy.leadTimeDays : product.leadTimeDays;
+    return {
+      demand: String(demandOverride ?? historyDemand ?? ''),
+      orderCost: String(product.orderingCost ?? policy.orderingCost ?? ''),
+      holdingCost: String(product.holdingCost ?? policy.holdingCost ?? ''),
+      leadTime: leadTime === null || leadTime === undefined || leadTime === '' ? '' : String(leadTime),
+      safetyStock: String(safetyPointFor({ productId: product.id, productName: product.name, safetyStock: product.safetyStock }, safetyStock) ?? DEFAULT_SAFETY_STOCK),
+    };
+  };
 
-  useEffect(() => {
-    if (!selectedProduct) return;
-    setInputs((previous) => {
-      const orderCost = String(previous.orderCost || selectedPolicy.orderingCost
-        || selectedProduct.orderingCost || '');
-      const holdingCost = String(previous.holdingCost || selectedPolicy.holdingCost
-        || selectedProduct.holdingCost || '');
-      if (orderCost === previous.orderCost && holdingCost === previous.holdingCost) return previous;
-      return {
-        ...previous,
-        orderCost: String(orderCost),
-        holdingCost: String(holdingCost),
-      };
-    });
-  }, [
-    selectedProduct,
-    selectedPolicy.orderingCost,
-    selectedPolicy.holdingCost,
-  ]);
+  const clearResult = () => {
+    setResult(null);
+    setResultInputs(null);
+    setSaveStatus({ type: '', text: '' });
+  };
 
+  /* Handoffs: "Compute EOQ from Forecast" (type forecast-eoq) and "Order Now" /
+     the Stock Control EOQ shortcut (productId only). */
   useEffect(() => {
-    if (!handoff) {
-      if (forecastContext) {
-        setForecastContext(null);
-        if (selectedProduct) {
-          const historicalDemand = Number(selectedProduct.demandFromHistory) > 0
-            ? selectedProduct.demandFromHistory
-            : selectedProduct.annualDemand || 0;
-          setInputs((previous) => ({ ...previous, demand: String(historicalDemand) }));
-        }
-      }
-      return;
-    }
-    if (handoff.type !== 'forecast-eoq' || !handoff.productId || !products.length) return;
-    const product = products.find(item => String(item.id) === String(handoff.productId));
+    if (!handoff || productsLoading) return;
+    const product = products.find((item) => String(item.id) === String(handoff.productId));
     if (!product) {
-      setForecastContext(null);
-      setErrors((previous) => ({
-        ...previous,
-        demand: 'The forecast product is no longer available. Select a current product and forecast again.',
-      }));
+      if (handoff.productId) {
+        setErrors({ demand: 'That product is no longer available. Select a current product.' });
+      }
       onClearHandoff?.();
       return;
     }
-    const productPolicy = policyFor({
-      productId: product.id,
-      productName: product.name,
-    }, safetyStock);
-
-    setForecastContext(handoff);
-    setSelectedProductId(product.id);
-    setInputs({
-      demand: String(handoff.annualDemand ?? ''),
-      orderCost: String(product.orderingCost ?? productPolicy.orderingCost ?? ''),
-      holdingCost: String(product.holdingCost ?? productPolicy.holdingCost ?? ''),
-    });
-    setErrors(prev => ({ ...prev, demand: '' }));
-    setResult(null);
-    setSaveStatus('');
-  }, [forecastContext, handoff, products, safetyStock, onClearHandoff, selectedProduct]);
+    if (handoff.type === 'forecast-eoq') {
+      setForecastContext(handoff);
+      setDemandSource('forecast');
+      setInputs(defaultsFor(product, handoff.annualDemand));
+    } else {
+      setForecastContext(null);
+      const demand = Number(handoff.annualDemand) > 0 ? handoff.annualDemand : undefined;
+      setDemandSource('history');
+      setInputs(defaultsFor(product, demand));
+      onClearHandoff?.();
+    }
+    setSelectedProductId(String(product.id));
+    setErrors({});
+    clearResult();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handoff, products, productsLoading]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setInputs(prev => ({ ...prev, [name]: value }));
-    setErrors(prev => ({ ...prev, [name]: '' }));
-    if (name === 'demand' && forecastContext) {
-      setForecastContext(null);
-      onClearHandoff?.();
+    setInputs((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: '' }));
+    if (name === 'demand') {
+      setDemandSource('manual');
+      if (forecastContext) {
+        setForecastContext(null);
+        onClearHandoff?.();
+      }
     }
   };
 
@@ -338,26 +278,15 @@ export default function AutoCalculatorDesign({
     onClearHandoff?.();
     const id = e.target.value;
     setSelectedProductId(id);
-    const p = products.find(pr => String(pr.id) === String(id));
-    const demandValue = p
-      ? (Number(p.demandFromHistory) > 0 ? p.demandFromHistory : (p.annualDemand || 0))
-      : '';
-    const productPolicy = p
-      ? policyFor({ productId: p.id, productName: p.name }, safetyStock)
-      : {};
-    setInputs({
-      demand: String(demandValue),
-      orderCost: String(p?.orderingCost ?? productPolicy.orderingCost ?? ''),
-      holdingCost: String(p?.holdingCost ?? productPolicy.holdingCost ?? ''),
-    });
-    setErrors(prev => ({ ...prev, demand: '' }));
-    setResult(null);
-    setSaveStatus('');
+    const product = products.find((p) => String(p.id) === String(id));
+    setInputs(product ? defaultsFor(product) : EMPTY_INPUTS);
+    setDemandSource(product ? 'history' : 'manual');
+    setErrors({});
+    clearResult();
   };
 
   /* Persist a computation (with "computed by") so it appears in Reports. */
-  const saveCalculation = async (calculation, numericInputs) => {
-    const product = products.find(pr => String(pr.id) === String(selectedProductId));
+  const saveCalculation = async (calculation) => {
     const response = await apiFetch('/calculations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -365,491 +294,382 @@ export default function AutoCalculatorDesign({
         formula: 'EOQ',
         result: calculation.economicOrderQuantity,
         unit: 'units',
-        productId: product?.id || null,
+        productId: selectedProduct?.id || null,
         demandSource: activeForecastContext ? 'forecast' : 'historical',
-        inputs: numericInputs,
-        forecast: activeForecastContext ? {
-          productId: activeForecastContext.productId,
-          periodType: activeForecastContext.periodType,
-          forecastPeriod: activeForecastContext.forecastPeriod,
-          baseForecast: activeForecastContext.baseForecast,
-          seasonalEnabled: activeForecastContext.seasonalEnabled,
-          seasonalEvent: activeForecastContext.seasonalEvent,
-          adjustmentPct: activeForecastContext.adjustmentPct,
-          adjustedForecast: activeForecastContext.adjustedForecast,
-        } : null,
+        inputs: {
+          annualDemand: calculation.annualDemand,
+          orderingCost: calculation.orderingCost,
+          holdingCost: calculation.holdingCost,
+        },
+        ...(activeForecastContext ? {
+          forecast: {
+            productId: activeForecastContext.productId,
+            periodType: activeForecastContext.periodType,
+            forecastPeriod: activeForecastContext.forecastPeriod,
+            baseForecast: activeForecastContext.baseForecast,
+            seasonalEnabled: activeForecastContext.seasonalEnabled,
+            seasonalEvent: activeForecastContext.seasonalEvent,
+            adjustmentPct: activeForecastContext.adjustmentPct,
+            adjustedForecast: activeForecastContext.adjustedForecast,
+          },
+        } : {}),
       }),
     });
-    if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) {
-      throw new Error('Calculation could not be saved.');
+    const saved = await response.json().catch(() => ({}));
+    if (!response.ok || saved.saved !== true) {
+      const message = saved.errors ? Object.values(saved.errors).flat()[0] : saved.message;
+      throw new Error(message || 'Calculation could not be saved.');
     }
-    const saved = await response.json();
-    if (saved.saved !== true) throw new Error('Calculation could not be saved.');
   };
 
   const handleCompute = async () => {
-    setSaveStatus('');
+    const value = (key) => Number(inputs[key]);
+    const blank = (key) => String(inputs[key] ?? '').trim() === '';
     const errs = {};
-    ORDER_QUANTITY_FORMULA.fields.forEach(field => {
-      const value = Number(inputs[field.key]);
-      if (inputs[field.key] === '' || inputs[field.key] == null || !Number.isFinite(value) || value < 0) {
-        errs[field.key] = `Enter a valid ${field.label}`;
-      }
-    });
-    if (Object.keys(errs).length) { setErrors(errs); return; }
+    if (blank('demand') || !(value('demand') > 0)) errs.demand = 'Enter the units sold per year (more than 0).';
+    if (blank('orderCost') || !(value('orderCost') > 0)) errs.orderCost = 'Enter the cost of placing one order (more than 0).';
+    if (blank('holdingCost') || !(value('holdingCost') > 0)) errs.holdingCost = 'Enter the yearly cost of keeping one unit (more than 0).';
+    if (!blank('leadTime') && !(value('leadTime') >= 0)) errs.leadTime = 'Lead time must be 0 or more days.';
+    if (!blank('safetyStock') && !(value('safetyStock') >= 0)) errs.safetyStock = 'Safety stock must be 0 or more units.';
+    setErrors(errs);
+    if (Object.keys(errs).length) return;
 
-    const annualDemand = Number(inputs.demand);
-    const orderingCost = Number(inputs.orderCost);
-    const holdingCost = Number(inputs.holdingCost);
-    if (!(annualDemand > 0 && orderingCost > 0 && holdingCost > 0)) {
-      setErrors({
-        demand: annualDemand > 0 ? '' : 'Enter a positive annual demand',
-        orderCost: orderingCost > 0 ? '' : 'Enter a positive ordering cost',
-        holdingCost: holdingCost > 0 ? '' : 'Enter a positive holding cost',
-      });
-      return;
-    }
-    const calculation = calculateOrderQuantity(annualDemand, orderingCost, holdingCost);
+    const calculation = calculateOrderQuantity({
+      annualDemand: value('demand'),
+      orderingCost: value('orderCost'),
+      holdingCost: value('holdingCost'),
+      leadTimeDays: blank('leadTime') ? 0 : value('leadTime'),
+      safetyStock: blank('safetyStock') ? 0 : value('safetyStock'),
+    });
     setResult(calculation);
-    setHistory(prev => [{
+    setResultInputs({ ...inputs });
+    setHistory((prev) => [{
       formulaName: 'Economic Order Quantity',
+      product: selectedProduct?.name || 'Manual calculation',
       date: new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }),
       inputs: {
-        'Annual Demand': annualDemand,
-        'Ordering Cost': orderingCost,
-        'Holding Cost': holdingCost,
+        'Annual demand': calculation.annualDemand,
+        'Ordering cost': calculation.orderingCost,
+        'Holding cost': calculation.holdingCost,
+        'Lead time (days)': calculation.leadTimeDays,
+        'Safety stock': calculation.safetyStock,
       },
       result: calculation.economicOrderQuantity,
       unit: 'units',
-    }, ...prev]);
+    }, ...prev].slice(0, 50));
+
     setSaving(true);
-    setSaveStatus('');
+    setSaveStatus({ type: '', text: '' });
     try {
-      await saveCalculation(calculation, {
-        annualDemand,
-        orderingCost,
-        holdingCost,
-      });
-      setSaveStatus('Calculation saved to Economic Order Quantity reports.');
-    } catch {
-      setSaveStatus('The result is available, but it could not be saved to reports. Please try again.');
+      await saveCalculation(calculation);
+      setSaveStatus({ type: 'ok', text: 'Saved to Reports → Economic Order Quantity Calculator Summary.' });
+    } catch (error) {
+      setSaveStatus({ type: 'error', text: `The result is shown, but it could not be saved to Reports: ${error.message}` });
     } finally {
       setSaving(false);
     }
   };
 
   const handleReset = () => {
-    setInputs({ demand: '', orderCost: '', holdingCost: '' });
+    setInputs(selectedProduct ? defaultsFor(selectedProduct) : EMPTY_INPUTS);
+    setDemandSource(selectedProduct ? 'history' : 'manual');
     setErrors({});
-    setResult(null);
-    setSaveStatus('');
+    clearResult();
     setForecastContext(null);
     onClearHandoff?.();
   };
 
-  const fmtNum = (v, d = 2) => v.toLocaleString('en-PH', { minimumFractionDigits: d, maximumFractionDigits: d });
-  const fmtWholeNum = (v) => Math.round(v).toLocaleString('en-PH');
+  const applyEstimate = () => {
+    const cost = Number(unitCost);
+    if (!(cost > 0)) return;
+    setInputs((prev) => ({ ...prev, holdingCost: String(Math.round(cost * 0.2 * 100) / 100) }));
+    setErrors((prev) => ({ ...prev, holdingCost: '' }));
+    setShowEstimator(false);
+  };
 
-  const reportGeneratedAt = () => new Date().toLocaleString('en-PH', {
-    dateStyle: 'long',
-    timeStyle: 'short',
-  });
+  const fmt = (v, d = 0) => Number(v).toLocaleString('en-PH', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const fmtSmart = (v) => fmt(v, Number.isInteger(Number(v)) ? 0 : 2);
 
-  const reportContextRows = (calculation) => [
-    ['Product', selectedProduct?.name || 'Manual calculation'],
-    ['Product ID', selectedProduct?.id || '—'],
-    ['Demand source', activeForecastContext ? 'Forecast' : 'Historical / entered'],
-    ['Annual demand used', `${fmtNum(calculation.annualDemand, 0)} units/year`],
-    ...(activeForecastContext ? [
-      ['Forecast period', `${activeForecastContext.periodType}: ${activeForecastContext.forecastPeriod}`],
-      ['Base forecast', `${fmtNum(activeForecastContext.baseForecast, 1)} units/${activeForecastContext.periodType}`],
-      ['Seasonal adjustment', activeForecastContext.seasonalEnabled
-        ? `${activeForecastContext.seasonalEvent}: ${activeForecastContext.adjustmentPct >= 0 ? '+' : ''}${activeForecastContext.adjustmentPct}%`
-        : 'Off'],
-      ['Adjusted forecast', `${fmtNum(activeForecastContext.adjustedForecast, 1)} units/${activeForecastContext.periodType}`],
-      ['Annualization', `${activeForecastContext.annualPeriods} forecast periods/year; nearest whole unit`],
-    ] : []),
-    ['Recommended whole-unit order quantity', `${fmtWholeNum(calculation.economicOrderQuantity)} units/order`],
-    ['Computed at', reportGeneratedAt()],
-    ['Computed by', currentUser || '—'],
-  ];
+  const demandTag = activeForecastContext
+    ? <span className="eq-tag eq-tag-gold">From forecast</span>
+    : demandSource === 'history' && selectedProduct
+      ? <span className="eq-tag">Last 12 months of sales</span>
+      : null;
+
+  const forecastLine = activeForecastContext && (() => {
+    const unit = activeForecastContext.periodType;
+    const per = Number(activeForecastContext.adjustedForecast);
+    const periods = activeForecastContext.annualPeriods || (unit === 'week' ? 52 : unit === 'year' ? 1 : 12);
+    const seasonal = activeForecastContext.seasonalEnabled
+      ? ` (includes ${activeForecastContext.adjustmentPct >= 0 ? '+' : ''}${activeForecastContext.adjustmentPct}% ${activeForecastContext.seasonalEvent})`
+      : '';
+    return `${fmtSmart(per)} units/${unit} × ${periods} = ${fmt(activeForecastContext.annualDemand)} units/year${seasonal}`;
+  })();
+
+  const stockStatus = result && selectedProduct && currentStock !== null
+    ? currentStock <= result.reorderPoint
+      ? { tone: 'due', text: `Current stock is ${fmt(currentStock)} unit${currentStock === 1 ? '' : 's'} — at or below the reorder point. Order ${fmt(result.recommendedOrder)} units now.` }
+      : { tone: 'ok', text: `Current stock is ${fmt(currentStock)} units — above the reorder point, no order needed yet.` }
+    : null;
 
   /* ===== REPORT EXPORTS ===== */
+  const reportRows = (r) => ({
+    context: [
+      ['Product', selectedProduct?.name || 'Manual calculation'],
+      ['Product ID', selectedProduct?.id || '—'],
+      ['Demand source', activeForecastContext ? `Forecast — ${forecastLine}` : demandSource === 'history' ? 'Last 12 months of sales' : 'Entered manually'],
+      ['Computed by', currentUser || '—'],
+      ['Computed at', new Date().toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' })],
+    ],
+    inputs: [
+      ['Annual demand (D)', `${fmtSmart(r.annualDemand)} units/year`],
+      ['Ordering cost (S)', `${formatCurrency(r.orderingCost)} per order`],
+      ['Holding cost (H)', `${formatCurrency(r.holdingCost)} per unit/year`],
+      ['Lead time', `${fmtSmart(r.leadTimeDays)} days`],
+      ['Safety stock', `${fmtSmart(r.safetyStock)} units`],
+    ],
+    results: [
+      ['Economic order quantity', `${fmt(r.recommendedOrder)} units per order (exact ${fmt(r.economicOrderQuantity, 2)})`],
+      ['Reorder point', `${fmt(r.reorderPoint)} units`],
+      ['Orders per year', `${fmt(r.annualOrders, 1)} (about every ${fmt(r.daysBetweenOrders)} days)`],
+      ['Annual ordering cost', formatCurrency(r.annualOrdering)],
+      ['Annual holding cost', formatCurrency(r.annualHolding)],
+      ['Total annual cost', formatCurrency(r.totalCost)],
+    ],
+  });
+
   const exportExcel = async () => {
-    if (!displayResult) return;
-    setSaveStatus('');
+    if (!result) return;
+    const rows = reportRows(result);
     try {
       await exportReportWorkbook({
         title: 'Economic Order Quantity Report',
-        subtitle: `Inventory order planning for ${selectedProduct?.name || 'manual calculation'}`,
-        fileName: `eoq-report-${selectedProduct?.id || 'manual-calculation'}`,
+        subtitle: `Order planning for ${selectedProduct?.name || 'manual calculation'}`,
+        fileName: `eoq-report-${selectedProduct?.id || 'manual'}`,
         summary: [
-          { label: 'Recommended order quantity', value: `${fmtWholeNum(displayResult.economicOrderQuantity)} units` },
-          { label: 'Orders per year', value: fmtNum(displayResult.annualOrders) },
-          { label: 'Total annual cost', value: formatCurrency(displayResult.totalCost) },
-          { label: 'Demand source', value: activeForecastContext ? 'Forecast' : 'Historical / entered' },
+          { label: 'Order quantity', value: `${fmt(result.recommendedOrder)} units` },
+          { label: 'Reorder point', value: `${fmt(result.reorderPoint)} units` },
+          { label: 'Orders per year', value: fmt(result.annualOrders, 1) },
+          { label: 'Total annual cost', value: formatCurrency(result.totalCost) },
         ],
         sections: [
-          {
-            title: 'Demand source and forecast context',
-            headers: ['Metric', 'Value'],
-            rows: reportContextRows(displayResult),
-          },
-          {
-            title: 'Calculation inputs',
-            headers: ['Input', 'Value', 'Unit'],
-            rows: [
-              ['Annual demand', fmtNum(displayResult.annualDemand), 'units/year'],
-              ['Ordering cost', formatCurrency(displayResult.orderingCost), `${currency}/order`],
-              ['Holding cost', formatCurrency(displayResult.holdingCost), `${currency}/unit/year`],
-            ],
-          },
-          {
-            title: 'Inventory position',
-            headers: ['Metric', 'Value', 'Unit'],
-            rows: selectedProduct
-              ? [
-                ['Current stock', currentStock, 'units'],
-                ['Reorder point', reorderPoint, 'units'],
-                ...(maximumInventory === null ? [] : [['Maximum inventory', maximumInventory, 'units']]),
-              ]
-              : [['Inventory position', 'Not linked to a selected product', '']],
-          },
-          {
-            title: 'EOQ results',
-            headers: ['Result', 'Value', 'Unit'],
-            rows: [
-              ['Economic order quantity', fmtWholeNum(displayResult.economicOrderQuantity), 'units/order'],
-              ['Orders per year', fmtNum(displayResult.annualOrders), 'orders/year'],
-              ['Annual ordering cost', formatCurrency(displayResult.annualOrdering), `${currency}/year`],
-              ['Annual holding cost', formatCurrency(displayResult.annualHolding), `${currency}/year`],
-              ['Total annual inventory cost', formatCurrency(displayResult.totalCost), `${currency}/year`],
-            ],
-          },
+          { title: 'Product and demand', headers: ['Item', 'Value'], rows: rows.context },
+          { title: 'Inputs', headers: ['Input', 'Value'], rows: rows.inputs },
+          { title: 'Results', headers: ['Result', 'Value'], rows: rows.results },
         ],
-        scope: `Formula: ${ORDER_QUANTITY_FORMULA.formula}`,
-        note: 'This is a planning recommendation, not a purchase order. Verify costs and supplier availability before ordering.',
-        columnWidths: [34, 28, 22],
+        scope: `EOQ = ${EOQ_FORMULA}; Reorder point = safety stock + (annual demand ÷ 365 × lead time).`,
+        note: 'Planning recommendation only — confirm supplier prices and availability before ordering.',
+        columnWidths: [30, 60],
       });
     } catch (error) {
       console.error('Could not export Economic Order Quantity report:', error);
-      setSaveStatus('The report could not be exported. Please try again.');
+      setSaveStatus({ type: 'error', text: 'The Excel report could not be exported. Please try again.' });
     }
   };
 
-  /* Opens a formatted report for printing or saving as PDF. */
   const exportPdf = () => {
-    if (!displayResult) return;
+    if (!result) return;
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      setSaveStatus('The report could not be opened. Allow pop-ups, then try exporting again.');
+      setSaveStatus({ type: 'error', text: 'The report could not be opened. Allow pop-ups, then try again.' });
       return;
     }
-
-    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
-    }[character]));
-    const generatedAt = reportGeneratedAt();
-    const productName = selectedProduct?.name || 'Manual calculation';
-    const inventoryRows = selectedProduct
-      ? [
-        ['Current stock', `${currentStock} units`],
-        ['Reorder point', `${reorderPoint} units`],
-        ...(maximumInventory === null ? [] : [['Maximum inventory', `${maximumInventory} units`]]),
-      ]
-      : [['Inventory position', 'Not linked to a selected product']];
-    const inputRows = [
-      ['Annual demand', `${fmtNum(displayResult.annualDemand)} units/year`],
-      ['Ordering cost', formatCurrency(displayResult.orderingCost)],
-      ['Holding cost', `${formatCurrency(displayResult.holdingCost)} per unit/year`],
-    ];
-    const resultRows = [
-      ['Orders per year', `${fmtNum(displayResult.annualOrders)} orders`],
-      ['Annual ordering cost', formatCurrency(displayResult.annualOrdering)],
-      ['Annual holding cost', formatCurrency(displayResult.annualHolding)],
-      ['Total annual inventory cost', formatCurrency(displayResult.totalCost)],
-    ];
-    const contextRows = reportContextRows(displayResult);
-    const renderRows = (rows) => rows.map(([label, value]) => (
-      `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`
-    )).join('');
-
-    printWindow.document.write(`<!doctype html>
-      <html lang="en">
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>EOQ Report - ${escapeHtml(productName)}</title>
-          <style>
-            * { box-sizing: border-box; }
-            body { margin: 0; padding: 40px; color: #172033; font: 14px/1.5 Arial, sans-serif; }
-            main { max-width: 760px; margin: 0 auto; }
-            header { display: flex; justify-content: space-between; gap: 24px; padding-bottom: 22px; border-bottom: 3px solid #176b57; }
-            .brand { color: #176b57; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-            h1 { margin: 7px 0 4px; font-size: 25px; }
-            .muted { color: #667085; font-size: 12px; }
-            .report-meta { text-align: right; }
-            .hero { margin: 24px 0; padding: 22px; border-radius: 12px; background: #f0f7f4; }
-            .hero-label { color: #52635d; font-size: 12px; font-weight: 700; text-transform: uppercase; }
-            .hero-value { margin: 4px 0; color: #176b57; font-size: 38px; font-weight: 700; }
-            .hero-value small { font-size: 16px; font-weight: 500; }
-            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
-            section { margin-bottom: 20px; }
-            h2 { margin: 0 0 8px; font-size: 14px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { padding: 8px 4px; border-bottom: 1px solid #e5e9ed; text-align: left; font-size: 12px; }
-            th { color: #667085; font-weight: 500; }
-            td { text-align: right; font-weight: 600; }
-            .formula { padding: 12px; border: 1px solid #e5e9ed; border-radius: 8px; background: #fafbfc; }
-            footer { margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e9ed; color: #667085; font-size: 11px; }
-            @media print { body { padding: 18mm; } }
-            @media (max-width: 600px) { body { padding: 20px; } .grid { grid-template-columns: 1fr; } header { flex-direction: column; } .report-meta { text-align: left; } }
-          </style>
-        </head>
-        <body>
-          <main>
-            <header>
-              <div>
-                <div class="brand">GGG Inventory Management System</div>
-                <h1>Economic Order Quantity Report</h1>
-                <div class="muted">Product: ${escapeHtml(productName)}</div>
-              </div>
-              <div class="report-meta muted">Generated<br><strong>${escapeHtml(generatedAt)}</strong></div>
-            </header>
-            <div class="hero">
-              <div class="hero-label">Recommended order quantity</div>
-              <div class="hero-value">${escapeHtml(fmtWholeNum(displayResult.economicOrderQuantity))} <small>units per order</small></div>
-              <div class="muted">Based on the demand and cost values shown in this report.</div>
-            </div>
-            <div class="grid">
-              <section><h2>Demand source and forecast context</h2><table>${renderRows(contextRows)}</table></section>
-              <section><h2>Calculation inputs</h2><table>${renderRows(inputRows)}</table></section>
-              <section><h2>Inventory position</h2><table>${renderRows(inventoryRows)}</table></section>
-            </div>
-            <section><h2>Annual cost and order plan</h2><table>${renderRows(resultRows)}</table></section>
-            <section>
-              <h2>Formula</h2>
-              <div class="formula">EOQ = √[(2 × annual demand × ordering cost) ÷ holding cost]<br><span class="muted">Entered values are used as provided; verify that costs and demand reflect current business data.</span></div>
-            </section>
-            <footer>This report is a planning recommendation only. It does not create or place a purchase order. Confirm supplier availability and actual costs before ordering.</footer>
-          </main>
-          <script>window.addEventListener('load', () => { window.focus(); window.print(); });</script>
-        </body>
-      </html>`);
+    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const rows = reportRows(result);
+    const table = (list) => list.map(([label, value]) => `<tr><th>${esc(label)}</th><td>${esc(value)}</td></tr>`).join('');
+    printWindow.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8">
+      <title>EOQ Report - ${esc(selectedProduct?.name || 'Manual calculation')}</title>
+      <style>
+        * { box-sizing: border-box; } body { margin: 0; padding: 36px; color: #172033; font: 13px/1.5 Arial, sans-serif; }
+        main { max-width: 760px; margin: 0 auto; } header { padding-bottom: 16px; border-bottom: 3px solid #176b57; }
+        .brand { color: #176b57; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+        h1 { margin: 6px 0 2px; font-size: 24px; } .muted { color: #667085; font-size: 12px; }
+        .hero { margin: 20px 0; padding: 18px 20px; border-radius: 12px; background: #f0f7f4; }
+        .hero b { display: block; color: #176b57; font-size: 34px; } h2 { margin: 18px 0 6px; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; } th, td { padding: 7px 4px; border-bottom: 1px solid #e5e9ed; text-align: left; }
+        th { width: 40%; color: #667085; font-weight: 500; } td { font-weight: 600; }
+        .formula { margin-top: 16px; padding: 10px 12px; border: 1px solid #e5e9ed; border-radius: 8px; background: #fafbfc; }
+        @media print { body { padding: 16mm; } }
+      </style></head><body><main>
+      <header><div class="brand">GGG Inventory Management System</div><h1>Economic Order Quantity Report</h1>
+      <div class="muted">${esc(selectedProduct?.name || 'Manual calculation')}</div></header>
+      <div class="hero"><span class="muted">Recommended order quantity</span><b>${esc(fmt(result.recommendedOrder))} units per order</b>
+      <span>When stock drops to <strong>${esc(fmt(result.reorderPoint))} units</strong>, reorder ${esc(fmt(result.recommendedOrder))} units.</span></div>
+      <h2>Product and demand</h2><table>${table(rows.context)}</table>
+      <h2>Inputs</h2><table>${table(rows.inputs)}</table>
+      <h2>Results</h2><table>${table(rows.results)}</table>
+      <div class="formula">EOQ = ${esc(EOQ_FORMULA)} = √(2 × ${esc(fmtSmart(result.annualDemand))} × ${esc(fmtSmart(result.orderingCost))} ÷ ${esc(fmtSmart(result.holdingCost))}) = ${esc(fmt(result.economicOrderQuantity, 2))}<br>
+      Reorder point = ${esc(fmtSmart(result.safetyStock))} + (${esc(fmtSmart(result.annualDemand))} ÷ 365 × ${esc(fmtSmart(result.leadTimeDays))}) = ${esc(fmt(result.reorderPoint))} units</div>
+      </main><script>window.addEventListener('load', () => { window.focus(); window.print(); });</script></body></html>`);
     printWindow.document.close();
   };
 
+  const productOptions = useMemo(() => [...products].sort((a, b) => String(a.name).localeCompare(String(b.name))), [products]);
+
   return (
-    <div className="ac-root">
-      {/* Header */}
-      <div className="ac-header">
-        <div className="ac-page-heading">
-          <h1>Economic Order Quantity Calculator</h1>
-        </div>
-        <div className="ac-header-actions">
-          <button className="ac-icon-btn" onClick={() => setShowHistory(true)}><History size={13} /> History</button>
-          <button className="ac-icon-btn ac-icon-btn-link" onClick={() => onNavigate && onNavigate('Forecasting')}>
-            <TrendingUp size={13} /> Forecast Integration
+    <div className="ac-root eq-root">
+      {/* ===== HEADER ===== */}
+      <div className="eq-header">
+        <p className="eq-intro">
+          Find <strong>how many units to order each time</strong> at the lowest total ordering + storage cost,
+          and <strong>when to reorder</strong>.
+        </p>
+        <div className="eq-header-actions">
+          <button className="ac-icon-btn" type="button" onClick={() => setShowHistory(true)}><History size={13} /> History</button>
+          <button className="ac-icon-btn ac-icon-btn-link" type="button" onClick={() => onNavigate && onNavigate('Forecasting')}>
+            <TrendingUp size={13} /> Go to Forecasting
           </button>
         </div>
       </div>
 
-      {/* ===== HANDOFF BANNER ===== */}
       {activeForecastContext && (
-        <div className="ac-handoff-banner">
-          <TrendingUp size={13} />
-          <div>
-            <span><strong>Sourced from Forecast: {selectedProduct?.name}</strong></span>
-            <small>
-              Base forecast: {Number(activeForecastContext.baseForecast).toLocaleString()} units/{activeForecastContext.periodType}.
-              {' '}{activeForecastContext.seasonalEnabled
-                ? `${activeForecastContext.seasonalEvent} ${activeForecastContext.adjustmentPct >= 0 ? '+' : ''}${activeForecastContext.adjustmentPct}%`
-                : 'No seasonal adjustment'}.
-              {' '}Adjusted forecast: {Number(activeForecastContext.adjustedForecast).toLocaleString()} units/{activeForecastContext.periodType}.
-              {' '}Forecast period: {activeForecastContext.forecastPeriod}.
-              {' '}Annual demand used: {Number(activeForecastContext.annualDemand).toLocaleString()} units/year.
-              {' '}For an accurate calculation, enter actual ordering and holding costs.
-            </small>
-          </div>
+        <div className="eq-banner" role="status">
+          <TrendingUp size={15} />
+          <span><strong>Annual demand from forecast</strong> ({selectedProduct?.name}, {activeForecastContext.forecastPeriod?.slice(0, 7)}): {forecastLine}</span>
         </div>
       )}
 
-      {/* ===== CALCULATOR BODY ===== */}
-      <div className="ac-workspace">
-        <section className="ac-panel ac-input-panel" aria-labelledby="ac-input-title">
-          <div className="ac-panel-heading">
-            <h2 id="ac-input-title">Inputs</h2>
-            <span className="ac-formula-expr">{ORDER_QUANTITY_FORMULA.formula}</span>
-          </div>
-          <p className="ac-source-note ac-panel-description">{ORDER_QUANTITY_FORMULA.description}</p>
-          {activeForecastContext && (
-            <div className="ac-cost-input-notice" role="status">
-              {inputs.orderCost && inputs.holdingCost
-                ? 'Both cost inputs are filled. Check that these are the actual costs for this product before computing.'
-                : `Still needed: ${[
-                  !inputs.orderCost && 'ordering cost per order',
-                  !inputs.holdingCost && 'holding cost per unit/year',
-                ].filter(Boolean).join(' and ')}.`}
+      <div className="eq-grid">
+        {/* ===== INPUTS ===== */}
+        <section className="eq-card" aria-labelledby="eq-inputs-title">
+          <h2 id="eq-inputs-title">Inputs</h2>
+
+          <div className="eq-form">
+            <div className="eq-field eq-span-2">
+              <label htmlFor="ac-product-select">Product</label>
+              <select id="ac-product-select" className="eq-select" value={selectedProductId} onChange={handleProductSelect} disabled={productsLoading}>
+                <option value="">{productsLoading ? 'Loading products…' : '— Select a product (fills in the values below) —'}</option>
+                {productOptions.map((product) => (
+                  <option key={product.id} value={product.id}>{product.name} ({product.id})</option>
+                ))}
+              </select>
+              {productsError && (
+                <span className="eq-error" role="alert">{productsError} <button type="button" className="eq-link" onClick={() => setProductsRetry((r) => r + 1)}>Retry</button></span>
+              )}
             </div>
+
+            <Field
+              id="eq-demand" name="demand" label="Annual Demand (D)" suffix="units/yr"
+              value={inputs.demand} onChange={handleInputChange} error={errors.demand} tag={demandTag}
+              hint={activeForecastContext ? 'Forecast for the next 12 months' : 'Units expected to sell per year'}
+            />
+            <Field
+              id="eq-order-cost" name="orderCost" label="Ordering Cost (S)" prefix={currencySymbol} suffix="/order"
+              value={inputs.orderCost} onChange={handleInputChange} error={errors.orderCost}
+              hint="Delivery + transfer + transport, per order"
+            />
+            <Field
+              id="eq-holding-cost" name="holdingCost" label="Holding Cost (H)" prefix={currencySymbol} suffix="/unit/yr"
+              value={inputs.holdingCost} onChange={handleInputChange} error={errors.holdingCost}
+              tag={!showEstimator && <button type="button" className="eq-link" onClick={() => setShowEstimator(true)}>Estimate</button>}
+              hint="About 20–25% of the unit cost per year"
+            >
+              {showEstimator && (
+                <div className="eq-estimator">
+                  <input type="number" min="0" step="any" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} aria-label="Unit cost" placeholder={`Unit cost ${currencySymbol}`} />
+                  <button type="button" className="ac-btn-reset" onClick={applyEstimate} disabled={!(Number(unitCost) > 0)}>
+                    Use 20%{Number(unitCost) > 0 ? ` = ${currencySymbol}${fmtSmart(Math.round(Number(unitCost) * 0.2 * 100) / 100)}` : ''}
+                  </button>
+                  <button type="button" className="eq-link" onClick={() => setShowEstimator(false)}>Cancel</button>
+                </div>
+              )}
+            </Field>
+            <div className="eq-pair">
+              <Field
+                id="eq-lead-time" name="leadTime" label="Lead Time" suffix="days"
+                value={inputs.leadTime} onChange={handleInputChange} error={errors.leadTime}
+                hint="Supplier delivery time"
+              />
+              <Field
+                id="eq-safety-stock" name="safetyStock" label="Safety Stock" suffix="units"
+                value={inputs.safetyStock} onChange={handleInputChange} error={errors.safetyStock}
+                hint="Extra buffer units"
+              />
+            </div>
+          </div>
+
+          {currency !== 'PHP' && (
+            <p className="eq-note"><Info size={12} /> Amounts are in {currency}. To use pesos, change it in Settings → Currency.</p>
           )}
 
-          <div className="ac-product-selector">
-            <label className="ac-label" htmlFor="ac-product-select">Auto-fill from product</label>
-            <select
-              id="ac-product-select"
-              className="ac-input"
-              value={selectedProductId}
-              onChange={handleProductSelect}
-              disabled={productsLoading}
-            >
-              <option value="">{productsLoading ? 'Loading products…' : '— Select a product —'}</option>
-              {products.map((product) => (
-                <option key={product.id} value={product.id}>{product.name}</option>
-              ))}
-            </select>
-            {productsError && (
-              <div className="ac-product-error" role="alert">
-                <span>{productsError}</span>
-                <button type="button" onClick={() => setProductsRetry(retry => retry + 1)}>Retry</button>
-              </div>
-            )}
-            <p className="ac-source-note ac-demand-source">
-              <Boxes size={11} /> {activeForecastContext
-                ? `Sourced from Forecast: ${selectedProduct?.name}`
-                : 'Historical demand from units sold in the last 12 months.'}
-            </p>
-          </div>
-
-          <div className="ac-inputs-grid">
-            {ORDER_QUANTITY_FORMULA.fields.map((field) => (
-              <div className="ac-input-group" key={field.key}>
-                <label className="ac-label" htmlFor={`ac-input-${field.key}`}>{field.label}</label>
-                <div className="ac-input-row">
-                  <input
-                    id={`ac-input-${field.key}`}
-                    className={`ac-input${errors[field.key] ? ' ac-input-error' : ''}`}
-                    type="number"
-                    name={field.key}
-                    value={inputs[field.key] ?? ''}
-                    onChange={handleInputChange}
-                    placeholder={field.placeholder}
-                    min="0"
-                  />
-                  {field.unit && (
-                    <span className="ac-unit">
-                      {field.key === 'demand' ? field.unit : `${currencySymbol} ${field.unit}`}
-                    </span>
-                  )}
-                </div>
-                {errors[field.key] && <span className="ac-field-error">{errors[field.key]}</span>}
-              </div>
-            ))}
-          </div>
-
-          <div className="ac-actions">
+          <div className="eq-actions">
             <button className="ac-btn-compute" onClick={handleCompute} type="button" disabled={saving}>
-              {saving ? 'Saving…' : 'Compute EOQ'}
+              <Calculator size={14} /> {saving ? 'Saving…' : 'Compute EOQ'}
             </button>
             <button className="ac-btn-reset" onClick={handleReset} type="button" disabled={saving}>Reset</button>
           </div>
         </section>
 
-        <section className="ac-panel ac-result-panel" aria-labelledby="ac-result-title">
-          <div className="ac-panel-heading">
-            <h2 id="ac-result-title">Computation Result</h2>
-            <span className="ac-result-section-label">{ORDER_QUANTITY_FORMULA.fullName}</span>
-          </div>
-          <div className="ac-result-main">
-            <span className="ac-result-eyebrow">Economic Order Quantity</span>
-            <div key={displayResult ? `order-quantity-${displayResult.economicOrderQuantity}` : 'order-quantity-empty'} className={`ac-result-value${displayResult ? ' has-result' : ''}`}>
-              {displayResult ? fmtWholeNum(displayResult.economicOrderQuantity) : '—'}
+        {/* ===== RESULT ===== */}
+        <section className="eq-card eq-result" aria-labelledby="eq-result-title" aria-live="polite">
+          <h2 id="eq-result-title">Computation Result</h2>
+
+          {!result ? (
+            <div className="eq-empty">
+              <Calculator size={28} />
+              <p>Fill in the inputs and click <strong>Compute EOQ</strong>.</p>
+              <span>The result shows how many units to order each time and when to reorder.</span>
             </div>
-            <div className="ac-result-unit">
-              {displayResult ? 'units per order' : 'Calculate the recommended order quantity'}
-            </div>
-          </div>
-          {(selectedProduct || displayResult) && (
-            <div className={`ac-policy-strip${reorderRequired ? ' is-due' : ''}`} role="status">
-              {selectedProduct && (
-                <>
-                  <div className="ac-policy-stat">
-                    <span>Reorder Point</span>
-                    <strong>{reorderPoint} <small>units</small></strong>
-                  </div>
-                  <div className="ac-policy-stat">
-                    <span>Safety Stock</span>
-                    <strong>{selectedSafetyStock} <small>units</small></strong>
-                  </div>
-                </>
+          ) : (
+            <>
+              {resultIsStale && (
+                <p className="eq-stale" role="status">Inputs changed — click <strong>Compute EOQ</strong> again to update this result.</p>
               )}
-              <div className="ac-policy-stat">
-                <span>Orders per Year</span>
-                <strong>{displayResult ? fmtNum(displayResult.annualOrders) : '—'} <small>orders</small></strong>
+
+              <div className="eq-hero">
+                <span>Economic Order Quantity</span>
+                <strong>{fmt(result.recommendedOrder)}</strong>
+                <em>units per order</em>
+                <small>√(2 × {fmtSmart(result.annualDemand)} × {fmtSmart(result.orderingCost)} ÷ {fmtSmart(result.holdingCost)}) = {fmt(result.economicOrderQuantity, 2)}</small>
               </div>
-              {selectedProduct && maximumInventory !== null && (
-                <div className="ac-policy-stat">
-                  <span>Maximum Inventory</span>
-                  <strong>{maximumInventory} <small>units</small></strong>
+
+              <div className="eq-stats">
+                <div>
+                  <span>Reorder Point</span>
+                  <strong>{fmt(result.reorderPoint)} <small>units</small></strong>
+                  <em>{fmtSmart(result.safetyStock)} + {fmtSmart(result.annualDemand)} ÷ 365 × {fmtSmart(result.leadTimeDays)} days</em>
                 </div>
-              )}
-              {selectedProduct && (
-                <p className="ac-policy-message">
-                  {reorderRequired
-                    ? automaticResult
-                      ? `Current stock is at the reorder trigger. Recommended order: ${fmtWholeNum(automaticResult.economicOrderQuantity)} units.`
-                      : 'Current stock is at the reorder trigger. Add demand and cost values to calculate an order recommendation.'
-                    : `Current stock: ${currentStock} units. Reorder point is safety stock plus demand during lead time.`}
-                </p>
-              )}
-            </div>
-          )}
-          <div className="ac-metrics-grid">
-            <div className="ac-metric-card">
-              <span className="ac-metric-label">Annual Ordering Cost</span>
-              <span className="ac-metric-value">{displayResult ? formatCurrency(displayResult.annualOrdering) : '—'}</span>
-            </div>
-            {displayResult && (
-              <p className="ac-source-note ac-result-guidance" role="status">
-                {activeForecastContext
-                  ? `You should order approximately ${fmtWholeNum(displayResult.economicOrderQuantity)} units per order cycle based on forecasted demand.`
-                  : `Recommended order quantity: approximately ${fmtWholeNum(displayResult.economicOrderQuantity)} units per order cycle.`}
+                <div>
+                  <span>Safety Stock</span>
+                  <strong>{fmtSmart(result.safetyStock)} <small>units</small></strong>
+                  <em>buffer for late sales/deliveries</em>
+                </div>
+                <div>
+                  <span>Orders per Year</span>
+                  <strong>{fmt(result.annualOrders, 1)}</strong>
+                  <em>about every {fmt(result.daysBetweenOrders)} days</em>
+                </div>
+              </div>
+
+              <p className="eq-sentence">
+                When stock drops to <strong>{fmt(result.reorderPoint)} units</strong>, a reorder alert appears — order <strong>{fmt(result.recommendedOrder)} units</strong> each time.
               </p>
-            )}
-            <div className="ac-metric-card">
-              <span className="ac-metric-label">Annual Holding Cost</span>
-              <span className="ac-metric-value">{displayResult ? formatCurrency(displayResult.annualHolding) : '—'}</span>
-            </div>
-            <div className="ac-metric-card ac-metric-card-accent">
-              <span className="ac-metric-label">Total Annual Cost</span>
-              <span className="ac-metric-value">{displayResult ? formatCurrency(displayResult.totalCost) : '—'}</span>
-            </div>
-          </div>
-          <div className="ac-export-actions">
-            <button className="ac-btn-reset ac-export-btn" onClick={exportExcel} disabled={!displayResult} type="button">
-              <Download size={13} /> Export Excel
-            </button>
-            <button className="ac-btn-reset ac-export-btn" onClick={exportPdf} disabled={!displayResult} type="button">
-              <Download size={13} /> Export PDF
-            </button>
-          </div>
-          {saveStatus && (
-            <p className={`ac-save-status${saveStatus.startsWith('The result') || saveStatus.startsWith('The report') ? ' is-error' : ''}`} role={saveStatus.startsWith('The result') || saveStatus.startsWith('The report') ? 'alert' : 'status'} aria-live="polite">
-              {saveStatus}
-            </p>
+              {stockStatus && <p className={`eq-status is-${stockStatus.tone}`}>{stockStatus.text}</p>}
+
+              <table className="eq-costs">
+                <tbody>
+                  <tr><th>Annual ordering cost</th><td>{fmt(result.annualOrders, 1)} orders × {formatCurrency(result.orderingCost)}</td><td>{formatCurrency(result.annualOrdering)}</td></tr>
+                  <tr><th>Annual holding cost</th><td>{fmt(result.economicOrderQuantity, 1)} ÷ 2 avg. units × {formatCurrency(result.holdingCost)}</td><td>{formatCurrency(result.annualHolding)}</td></tr>
+                  <tr className="eq-total"><th>Total annual cost</th><td /><td>{formatCurrency(result.totalCost)}</td></tr>
+                </tbody>
+              </table>
+              <p className="eq-note"><Info size={12} /> At the EOQ the ordering and holding costs are equal — that balance is what makes it the cheapest order size.</p>
+
+              <div className="eq-actions">
+                <button className="ac-btn-reset" onClick={exportExcel} type="button"><Download size={13} /> Export Excel</button>
+                <button className="ac-btn-reset" onClick={exportPdf} type="button"><Download size={13} /> Export PDF</button>
+              </div>
+            </>
+          )}
+
+          {saveStatus.text && (
+            <p className={`eq-save is-${saveStatus.type}`} role={saveStatus.type === 'error' ? 'alert' : 'status'}>{saveStatus.text}</p>
           )}
         </section>
       </div>
 
       {showHistory && (
-        <HistoryPanel
-          onClose={() => setShowHistory(false)}
-          history={history}
-          onClear={() => setHistory([])}
-        />
+        <HistoryPanel onClose={() => setShowHistory(false)} history={history} onClear={() => setHistory([])} />
       )}
     </div>
   );

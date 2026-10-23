@@ -6,6 +6,10 @@ import LandingPage from '../components/LandingPage/landingPage';
 import './app-error.css';
 import { readSavedTheme, saveTheme } from '../theme';
 import { CurrencyProvider } from '../CurrencyContext';
+import { applyShowFieldHints, readShowFieldHints } from '../fieldHints';
+
+// Apply the saved "Show field descriptions" choice before the first render.
+applyShowFieldHints(readShowFieldHints());
 
 function App() {
     const [authStatus, setAuthStatus] = useState('checking');
