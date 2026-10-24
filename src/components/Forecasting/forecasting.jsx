@@ -439,6 +439,8 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
   const [eventProductSearch, setEventProductSearch] = useState('');
   const [savingEvent, setSavingEvent] = useState(false);
   const [eventFormError, setEventFormError] = useState('');
+  const [suggestion, setSuggestion] = useState(null);
+  const [suggesting, setSuggesting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletingEvent, setDeletingEvent] = useState(false);
 
@@ -609,7 +611,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
     ['Sales data source', 'Stock Out transactions (Stock Movement Tracking)'],
     ['Forecast period', formatPeriod(forecast.forecastPeriod, selectedPeriodType)],
     [`WMA forecast (units/${periodUnit})`, Number(forecast.baseForecast).toFixed(1)],
-    ['Seasonal events', forecast.seasonalEnabled ? forecast.seasonalEvents.map((item) => `${item.name} (${formatSigned(item.adjustmentPct, 0)}%)`).join(', ') : 'None'],
+    ['Seasonal events', forecast.seasonalEnabled ? forecast.seasonalEvents.map((item) => `${item.name} (${formatSigned(item.adjustmentPct, 0)}% on ${item.appliedDays ?? item.overlapDays}/${forecast.periodDays} days → ${formatSigned(item.contributionPct ?? item.adjustmentPct, 2)}%)`).join(', ') : 'None'],
     ['Seasonal adjustment', `${effectivePct}%`],
     [`Adjusted forecast (units/${periodUnit})`, Number(adjustedDemand).toFixed(1)],
     ['Annual estimate (units)', annualDemand],
@@ -674,9 +676,45 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
       : { ...EMPTY_EVENT });
     setEventProductSearch('');
     setEventFormError('');
+    setSuggestion(null);
   };
 
   const updateDraft = (changes) => setEventDraft((current) => ({ ...current, ...changes }));
+
+  /* ===== SUGGEST ADJUSTMENT =====
+     Asks the server how the affected products sold in the same month(s) of
+     earlier years compared with their WMA forecast. Never overwrites the
+     field on its own; the owner clicks "Use" or keeps typing their own. */
+  const suggestAdjustment = async () => {
+    const draft = eventDraft;
+    if (!draft.startDate || !draft.endDate || draft.endDate < draft.startDate) {
+      return setSuggestion({ suggestedPct: null, message: 'Choose valid start and end dates first.' });
+    }
+    if (draft.scope === 'categories' && draft.categories.length === 0) {
+      return setSuggestion({ suggestedPct: null, message: 'Select at least one category first.' });
+    }
+    if (draft.scope === 'products' && draft.productIds.length === 0) {
+      return setSuggestion({ suggestedPct: null, message: 'Select at least one product first.' });
+    }
+    setSuggesting(true);
+    try {
+      const result = await requestJson('/api/seasonal-events/suggest', {
+        method: 'POST',
+        body: JSON.stringify({
+          startDate: draft.startDate,
+          endDate: draft.endDate,
+          scope: draft.scope,
+          categories: draft.scope === 'categories' ? draft.categories : undefined,
+          productIds: draft.scope === 'products' ? draft.productIds : undefined,
+        }),
+      });
+      setSuggestion(result);
+    } catch (suggestError) {
+      setSuggestion({ suggestedPct: null, message: suggestError.message || 'Could not suggest an adjustment.' });
+    } finally {
+      setSuggesting(false);
+    }
+  };
 
   const toggleDraftList = (key, value) => setEventDraft((current) => {
     const list = current[key] || [];
@@ -849,7 +887,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                       </span>
                     )}
                     {forecast?.seasonalEnabled && (
-                      <span className="fx-pill fx-pill-gold">Seasonal adj. active {formatSigned(effectivePct, 0)}%</span>
+                      <span className="fx-pill fx-pill-gold">Seasonal adj. active {formatSigned(effectivePct, 1)}%</span>
                     )}
                   </div>
                 </header>
@@ -969,7 +1007,13 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                   {forecast?.seasonalEnabled && (
                     <div className="fx-pills">
                       {forecast.seasonalEvents.map((item) => (
-                        <span className="fx-pill fx-pill-gold" key={item.id}>{formatSigned(item.adjustmentPct, 0)}% {item.name}</span>
+                        <span
+                          className="fx-pill fx-pill-gold"
+                          key={item.id}
+                          title={`${item.name}: ${formatSigned(item.adjustmentPct, 0)}% on ${item.appliedDays ?? item.overlapDays} of ${forecast.periodDays} days${item.appliedDays < item.overlapDays ? ` (${item.overlapDays - item.appliedDays} day(s) covered by a stronger event)` : ''}`}
+                        >
+                          {formatSigned(item.contributionPct ?? item.adjustmentPct, 1)}% {item.name}
+                        </span>
                       ))}
                     </div>
                   )}
@@ -984,7 +1028,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                   <div className="fx-stat fx-stat-main">
                     <span>Adjusted ({forecast ? formatPeriod(forecast.forecastPeriod, selectedPeriodType) : periodUnit})</span>
                     <strong>{forecast ? Number(adjustedDemand).toFixed(1) : '—'}</strong>
-                    <small>{forecast ? `${formatSigned(effectivePct, 0)}% seasonal` : 'units'}</small>
+                    <small>{forecast ? `${formatSigned(effectivePct, 1)}% seasonal` : 'units'}</small>
                   </div>
                   <div className="fx-stat">
                     <span>Annual Estimate</span>
@@ -1088,7 +1132,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                   <div>
                     <span className="f-monthly-eyebrow">Seasonal adjustment</span>
                     <h3 id="seasonal-event-title">{eventDraft.id ? 'Edit seasonal event' : 'Add seasonal event'}</h3>
-                    <p className="f-sub">The percentage is applied after the WMA forecast for every affected product.</p>
+                    <p className="f-sub">Applied after the WMA forecast, only for the days the event covers. If events overlap, the stronger one counts on shared days.</p>
                   </div>
                   <button type="button" className="f-event-close" aria-label="Close" onClick={() => setEventDraft(null)} disabled={savingEvent}>×</button>
                 </header>
@@ -1110,6 +1154,25 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                       <label htmlFor="event-pct">Adjustment (%)</label>
                       <input id="event-pct" type="number" min="-100" max="1000" step="0.01" placeholder="e.g. 35 or -10" value={eventDraft.adjustmentPct} onChange={(e) => updateDraft({ adjustmentPct: e.target.value })} />
                     </div>
+                  </div>
+
+                  <div className="f-suggest">
+                    <button type="button" className="f-btn f-btn-ghost f-btn-sm" onClick={suggestAdjustment} disabled={suggesting || savingEvent}>
+                      {suggesting ? 'Checking past sales…' : 'Suggest Adjustment'}
+                    </button>
+                    {suggestion && (
+                      <div className={`f-suggest-result${suggestion.suggestedPct == null ? ' is-empty' : ''}`} role="status">
+                        {suggestion.suggestedPct != null && (
+                          <strong>{formatSigned(suggestion.suggestedPct, 0)}%</strong>
+                        )}
+                        <span>{suggestion.message}</span>
+                        {suggestion.suggestedPct != null && (
+                          <button type="button" className="f-btn f-btn-primary f-btn-sm" onClick={() => updateDraft({ adjustmentPct: String(suggestion.suggestedPct) })}>
+                            Use {formatSigned(suggestion.suggestedPct, 0)}%
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <fieldset className="f-scope-options">

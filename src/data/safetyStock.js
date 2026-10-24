@@ -5,13 +5,9 @@
    BACKEND: a single config value; store in a `settings` table or app config. */
 export const DEFAULT_SAFETY_STOCK = 20;
 
-/* Fallback policy used only until the persisted per-product records load. */
-export const SAFETY_STOCK_DEFAULTS = {
-  'Premium Calfskin Band': { safetyStock: 25, annualDemand: 960, leadTimeDays: '', orderCycleDays: '' },
-  'Water-Resistant Diver Strap': { safetyStock: 45, annualDemand: 1240, leadTimeDays: '', orderCycleDays: '' },
-  'Precision Steel Chronograph': { safetyStock: 40, annualDemand: 1500, leadTimeDays: '', orderCycleDays: '' },
-  'Sapphire Crystal Glass Face': { safetyStock: 60, annualDemand: 2100, leadTimeDays: '', orderCycleDays: '' },
-};
+/* Empty until the saved per-product policies load from the server. (The old
+   sample entries from a demo store were removed.) */
+export const SAFETY_STOCK_DEFAULTS = {};
 
 export const policyFor = (row, policy = SAFETY_STOCK_DEFAULTS) => (
   policy?.[row?.productId] || policy?.[row?.productName] || {}
@@ -31,9 +27,10 @@ export const safetyPointFor = (row, policy = SAFETY_STOCK_DEFAULTS) => {
 export const reorderPointFor = (row, policy = SAFETY_STOCK_DEFAULTS) => {
   const safetyStock = safetyPointFor(row, policy);
   const configured = policyFor(row, policy);
+  // Annual demand = real sales (last 12 months), never a typed policy value.
   const annualDemandValue = row?.annualDemand !== null && row?.annualDemand !== undefined
     ? row.annualDemand
-    : configured.annualDemand ?? row?.demandFromHistory;
+    : row?.demandFromHistory;
   const annualDemand = Number(annualDemandValue);
   const configuredLeadTime = configured.leadTimeDays;
   const leadTimeValue = configuredLeadTime !== '' && configuredLeadTime !== null && configuredLeadTime !== undefined
@@ -52,32 +49,9 @@ export const reorderPointFor = (row, policy = SAFETY_STOCK_DEFAULTS) => {
   return Math.ceil(safetyStock + (annualDemand / 365) * leadTimeDays);
 };
 
-/* Annual Demand */
-export const annualDemandFor = (productId, policy = SAFETY_STOCK_DEFAULTS, productName = '') => (
-  policyFor({ productId, productName }, policy).annualDemand ?? ''
-);
-
-/* Maximum stock target = safety stock + expected demand during lead time and order cycle. */
-export const maximumInventoryFor = (annualDemand, safetyStock, leadTimeDays, orderCycleDays) => {
-  const demand = Number(annualDemand);
-  const safety = Number(safetyStock);
-  const leadTime = Number(leadTimeDays);
-  const orderCycle = Number(orderCycleDays);
-
-  if (
-    annualDemand === '' || annualDemand === null || annualDemand === undefined ||
-    leadTimeDays === '' || leadTimeDays === null || leadTimeDays === undefined ||
-    orderCycleDays === '' || orderCycleDays === null || orderCycleDays === undefined ||
-    !Number.isFinite(demand) || demand <= 0 ||
-    !Number.isFinite(safety) || safety < 0 ||
-    !Number.isFinite(leadTime) || leadTime < 0 ||
-    !Number.isFinite(orderCycle) || orderCycle <= 0
-  ) {
-    return null;
-  }
-
-  return Math.ceil(safety + (demand / 365) * (leadTime + orderCycle));
-};
+/* Annual demand from the policy was removed (demand comes from real sales).
+   Kept so older callers still work; always empty now. */
+export const annualDemandFor = () => '';
 
 /* Stock Status */
 export const stockStatusFor = (row, policy = SAFETY_STOCK_DEFAULTS) => {

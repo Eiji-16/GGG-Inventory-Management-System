@@ -25,6 +25,7 @@ class Product extends Model
         'brand',
         'model',
         'unit_measure',
+        'variants',
         'image',
         'supplier_id',
         'stock_on_hand',
@@ -33,6 +34,7 @@ class Product extends Model
 
     protected $casts = [
         'stock_on_hand' => 'integer',
+        'variants'      => 'array',
         'unit_cost'     => 'decimal:2',
     ];
 

@@ -85,6 +85,7 @@ const sameInputs = (a, b) => INPUT_KEYS.every((key) => String(a?.[key] ?? '') ==
 
 /* ===== HISTORY SIDE PANEL ===== */
 function HistoryPanel({ onClose, history, onClear }) {
+  const { formatCurrency } = useCurrency();
   return createPortal(
     <div className="ac-modal-overlay" onClick={onClose}>
       <div className="ac-modal ac-modal-wide" onClick={(e) => e.stopPropagation()}>
@@ -107,7 +108,7 @@ function HistoryPanel({ onClose, history, onClear }) {
                   </div>
                   <div className="ac-history-inputs">
                     {Object.entries(h.inputs).map(([k, v]) => (
-                      <span key={k} className="ac-history-input-chip">{k}: {v}</span>
+                      <span key={k} className="ac-history-input-chip">{k}: {/cost/i.test(k) && v !== '' && v != null ? formatCurrency(v) : v}</span>
                     ))}
                   </div>
                   <div className="ac-history-result">Order <strong>{Math.round(Number(h.result)).toLocaleString('en-PH')} {h.unit}</strong> each time</div>
@@ -165,6 +166,7 @@ export default function AutoCalculatorDesign({
   const [selectedProductId, setSelectedProductId] = useState(savedDraft?.selectedProductId || '');
   const [forecastContext, setForecastContext] = useState(null);
   const [demandSource, setDemandSource] = useState('manual'); // forecast | history | manual
+  const [forecastFallback, setForecastFallback] = useState('');
   const [inputs, setInputs] = useState(savedDraft?.inputs || EMPTY_INPUTS);
   const [errors, setErrors] = useState({});
   const [result, setResult] = useState(null);
@@ -174,6 +176,7 @@ export default function AutoCalculatorDesign({
   const [history, setHistory] = useState(savedDraft?.history || []);
   const [unitCost, setUnitCost] = useState('');
   const [showEstimator, setShowEstimator] = useState(false);
+  const [costSave, setCostSave] = useState({ state: 'idle', text: '' });
 
   const selectedProduct = products.find((product) => String(product.id) === String(selectedProductId)) || null;
   const activeForecastContext = forecastContext
@@ -225,6 +228,40 @@ export default function AutoCalculatorDesign({
     };
   };
 
+  /* ===== SAVE COSTS AS PRODUCT DEFAULTS =====
+     Ordering and holding cost used to be typed in Settings → Advanced. They
+     are EOQ inputs, so they are saved here and pre-fill next time. */
+  const savedCosts = selectedProduct
+    && String(selectedProduct.orderingCost ?? '') !== ''
+    && Number(selectedProduct.orderingCost) === Number(inputs.orderCost)
+    && Number(selectedProduct.holdingCost) === Number(inputs.holdingCost);
+  const canSaveCosts = Boolean(selectedProduct) && Number(inputs.orderCost) > 0 && Number(inputs.holdingCost) > 0 && !savedCosts;
+
+  const saveCostDefaults = async () => {
+    if (!canSaveCosts) return;
+    setCostSave({ state: 'saving', text: '' });
+    try {
+      const response = await apiFetch(`/api/products/${encodeURIComponent(selectedProduct.id)}/eoq-costs`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ orderingCost: Number(inputs.orderCost), holdingCost: Number(inputs.holdingCost) }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = data.errors ? Object.values(data.errors).flat()[0] : data.message;
+        throw new Error(message || `Could not save the costs (${response.status}).`);
+      }
+      setProducts((prev) => prev.map((product) => (String(product.id) === String(selectedProduct.id)
+        ? { ...product, orderingCost: data.orderingCost, holdingCost: data.holdingCost }
+        : product)));
+      setCostSave({ state: 'saved', text: `Saved for ${selectedProduct.name}. They’ll fill in automatically next time.` });
+    } catch (error) {
+      setCostSave({ state: 'error', text: error.message || 'Could not save the costs.' });
+    }
+  };
+
+  useEffect(() => { setCostSave({ state: 'idle', text: '' }); }, [selectedProductId]);
+
   const clearResult = () => {
     setResult(null);
     setResultInputs(null);
@@ -243,6 +280,7 @@ export default function AutoCalculatorDesign({
       onClearHandoff?.();
       return;
     }
+    setForecastFallback(handoff.type === 'forecast-eoq' ? '' : (handoff.forecastUnavailable || ''));
     if (handoff.type === 'forecast-eoq') {
       setForecastContext(handoff);
       setDemandSource('forecast');
@@ -522,6 +560,13 @@ export default function AutoCalculatorDesign({
         </div>
       </div>
 
+      {!activeForecastContext && demandSource === 'history' && forecastFallback && (
+        <div className="eq-banner" role="status">
+          <TrendingUp size={15} />
+          <span><strong>No forecast yet — using actual sales.</strong> {forecastFallback} Annual demand below is the last 12 months of recorded sales, not a forecast.</span>
+        </div>
+      )}
+
       {activeForecastContext && (
         <div className="eq-banner" role="status">
           <TrendingUp size={15} />
@@ -574,6 +619,20 @@ export default function AutoCalculatorDesign({
                 </div>
               )}
             </Field>
+            {selectedProduct && (
+              <div className="eq-cost-save">
+                {savedCosts ? (
+                  <span className="eq-cost-save-ok">✓ These are {selectedProduct.name}’s saved costs</span>
+                ) : (
+                  <button type="button" className="eq-link" onClick={saveCostDefaults} disabled={!canSaveCosts || costSave.state === 'saving'}>
+                    {costSave.state === 'saving' ? 'Saving…' : `Save these costs as default for ${selectedProduct.name}`}
+                  </button>
+                )}
+                {costSave.text && costSave.state !== 'saved' && (
+                  <span className={costSave.state === 'error' ? 'eq-error' : 'eq-cost-save-ok'} role="status">{costSave.text}</span>
+                )}
+              </div>
+            )}
             <div className="eq-pair">
               <Field
                 id="eq-lead-time" name="leadTime" label="Lead Time" suffix="days"

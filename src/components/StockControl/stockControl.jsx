@@ -23,6 +23,7 @@ import {
 import './stockControl.css';
 import apiFetch from '../../apiFetch';
 import { useCurrency } from '../../CurrencyContext';
+import { buildForecastHandoff } from '../../utils/forecastHandoff';
 import {
   SAFETY_STOCK_DEFAULTS,
   safetyPointFor,
@@ -65,6 +66,13 @@ const todayLocal = () => {
 };
 
 /* ===== SIGNED QTY ===== */
+/* Variants a transaction can use for this product (see Product & Supplier). */
+const variantChoicesFor = (product) => {
+  if (!product) return [];
+  const defined = product.definedVariants || [];
+  return defined.length ? defined : (product.recordedVariants || product.variants || []);
+};
+
 const signedQty = (row) => {
   if (row.type === 'Adjustment') return Number(row.variance) || 0;
   const qty = Number(row.qty) || 0;
@@ -86,8 +94,9 @@ function StockControl({
   handoff = null,
   catalogRevision = 0,
   onInventoryChanged,
+  currentUserName = '',
 }) {
-  const { formatCurrency } = useCurrency();
+  const { currency, currencySymbol, formatCurrency } = useCurrency();
   const [stockFromDatabase, setStockFromDatabase] = useState([]);
   const [stockLoading, setStockLoading] = useState(true);
   const [stockError, setStockError] = useState('');
@@ -208,12 +217,24 @@ function StockControl({
       productId,
       productName: picked?.name || '',
       category: picked ? (picked.category || '') : prev.category,
+      // Variants belong to a product, so clear one that the new product lacks.
+      variantName: variantChoicesFor(picked).includes(prev.variantName) ? prev.variantName : '',
     }));
     // Seed the opening-stock editor with the product's current balance.
     setOpeningStock(picked ? String(picked.stock ?? 0) : '');
   };
 
   const productById = useMemo(() => new Map(productOptions.map((product) => [product.id, product])), [productOptions]);
+
+  /* ===== VARIANT CHOICES =====
+     Picked from the product's own list (set in Product & Supplier). Products
+     without a list yet fall back to names used on earlier transactions. The
+     row's current value is always kept so editing an older row loses nothing. */
+  const selectedVariantChoices = (() => {
+    const choices = [...variantChoicesFor(productById.get(formData.productId))];
+    if (formData.variantName && !choices.includes(formData.variantName)) choices.push(formData.variantName);
+    return choices;
+  })();
 
   /* ===== MOVEMENT COUNT PER PRODUCT =====
      Opening stock may only be set before the first movement exists — the same
@@ -332,13 +353,17 @@ function StockControl({
     }, safetyStock);
 
   /* ===== SEND TO CALCULATOR ===== */
-  const computeEoqFor = (row) => {
+  // Navigation only — sends the product's forecast demand to the EOQ
+  // Calculator (falls back to the previous demand figure if no forecast yet).
+  const computeEoqFor = async (row) => {
     if (!onNavigate) return;
-    onNavigate('Auto-Calculator', {
+    const { handoff, reason } = await buildForecastHandoff(row.productId, row.productName);
+    onNavigate('Auto-Calculator', handoff || {
       product: row.productName,
       productId: row.productId,
     annualDemand: productById.get(row.productId)?.annualDemand
       || annualDemandFor(row.productId, safetyStock, row.productName),
+      forecastUnavailable: reason,
     });
   };
 
@@ -349,41 +374,38 @@ function StockControl({
       .some((field) => String(field || '').toLowerCase().includes(q))
   );
 
-  // Keep a fallback current balance for movements whose product record cannot
-  // be matched by ID. Use the full ledger, not the filtered rows.
-  const ordered = [...stockFromDatabase].sort((a, b) =>
-    new Date(a.date) - new Date(b.date) || Number(a.id) - Number(b.id)
-  );
+  // DISPLAY ONLY — nothing here changes stock. Each row shows its OWN signed
+  // change and the balance right after it. That balance comes from the
+  // product ledger (date, then id order), which uses the server's
+  // remaining_stock — recalculated by the backend after every add/edit/delete.
+  const balanceAfterById = new Map();
   const latestTotals = new Map();
-  const latestChanges = new Map();
-  ordered.forEach((row) => {
-    const key = row.productId || row.productName || '—';
-    latestTotals.set(key, row.remainingStock);
-    latestChanges.set(key, { delta: signedQty(row), type: row.type, date: row.date });
+  ledgers.forEach((ledger, key) => {
+    ledger.movements.forEach((movement) => balanceAfterById.set(movement.id, movement.balance));
+    const last = ledger.movements[ledger.movements.length - 1];
+    if (last) latestTotals.set(key, last.balance);
   });
 
-  // Show the latest movement's change on every row for the product; total qty
-  // remains the product's current overall balance.
   const mapped = filtered.map((row) => {
     const key = row.productId || row.productName || '—';
     const product = productById.get(row.productId)
       || productOptions.find((item) => item.name === row.productName);
+    // Current on-hand for the product (unchanged source); used only for the
+    // reorder-status badge, which describes the product today.
     const productStock = row.totalQty ?? product?.stock;
     const latestTotal = latestTotals.get(key);
     const total = productStock !== null && productStock !== '' && Number.isFinite(Number(productStock))
       ? Number(productStock)
-      : latestTotal !== null && latestTotal !== '' && Number.isFinite(Number(latestTotal))
+      : latestTotal !== null && latestTotal !== undefined && Number.isFinite(Number(latestTotal))
         ? Number(latestTotal)
         : 0;
+    const after = balanceAfterById.get(row.id);
     return {
       row,
       id: row.id,
       totalQty: total,
-      latestChange: latestChanges.get(key) || {
-        delta: signedQty(row),
-        type: row.type,
-        date: row.date,
-      },
+      change: signedQty(row),
+      balanceAfter: Number.isFinite(Number(after)) ? Number(after) : Number(row.remainingStock) || 0,
     };
   });
 
@@ -396,10 +418,10 @@ function StockControl({
         cmp = String(a.row.productName || '').localeCompare(String(b.row.productName || ''), undefined, { sensitivity: 'base' });
         break;
       case 'change':
-        cmp = a.latestChange.delta - b.latestChange.delta;
+        cmp = a.change - b.change;
         break;
       case 'total':
-        cmp = a.totalQty - b.totalQty;
+        cmp = a.balanceAfter - b.balanceAfter;
         break;
       case 'date':
       default:
@@ -410,7 +432,7 @@ function StockControl({
   });
 
   return mapped;
-}, [stockFromDatabase, query, productById, productOptions, sortBy, sortDir]);
+}, [stockFromDatabase, ledgers, query, productById, productOptions, sortBy, sortDir]);
 
   /* ===== EXPORT FORMATTED EXCEL REPORT ===== */
   const exportStockReport = async () => {
@@ -423,12 +445,12 @@ function StockControl({
       setStockError('The Excel export could not be loaded. Please refresh the page and try again.');
       return;
     }
-    const headers = ['Date', 'Product', 'Variant', 'Type', 'Changes', 'Total Qty', 'Stock Status', 'Notes', 'Recorded By', 'Unit Price'];
+    const headers = ['Date', 'Product', 'Variant', 'Type', 'Change', 'Balance After', 'Stock Status', 'Notes', 'Recorded By', `Unit Price (${currency})`];
     const exportedAt = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
     const uniqueProducts = new Set(visibleRows.map(({ row }) => row.productId)).size;
     const stockInCount = visibleRows.filter(({ row }) => row.type === 'Stock In').length;
     const stockOutCount = visibleRows.filter(({ row }) => row.type === 'Stock Out').length;
-    const bodyRows = visibleRows.map(({ row, totalQty, latestChange }) => {
+    const bodyRows = visibleRows.map(({ row, totalQty, change, balanceAfter }) => {
       const product = productById.get(row.productId);
       const status = stockStatusFor({
         ...row,
@@ -448,8 +470,8 @@ function StockControl({
           row.productName,
           row.variantName || '—',
           movementLabel(row.type),
-          latestChange.delta,
-          totalQty,
+          change,
+          balanceAfter,
           STATUS_LABEL[status] || status,
           row.notes || '—',
           row.recordedBy || '—',
@@ -471,7 +493,7 @@ function StockControl({
       ...bodyRows.map(({ values }) => values),
       [],
       ['Report scope', query.trim() ? `Filtered by: ${query.trim()}` : 'All records in the current view'],
-      ['Note', 'Change shows the latest signed movement for the product; Total Qty shows its current overall stock.'],
+      ['Note', 'Change is the signed quantity of each transaction; Balance After is the product stock right after that transaction. Stock Status reflects current stock.'],
     ];
     const worksheet = XLSX.utils.aoa_to_sheet(rows);
     const lastDataRow = 7 + bodyRows.length;
@@ -653,7 +675,7 @@ function StockControl({
   };
 
   const openAddModal = () => {
-    setFormData({ ...emptyForm, date: todayLocal(), qty: '0' });
+    setFormData({ ...emptyForm, date: todayLocal(), qty: '0', recordedBy: currentUserName });
     setEditId(null);
     setOpeningStock('');
     setIsModalOpen(true);
@@ -718,7 +740,9 @@ function StockControl({
       qty: '0',
       unitPrice: movement.unitPrice != null ? String(movement.unitPrice) : '',
       notes: movement.notes || '',
-      recordedBy: movement.recordedBy || '',
+      // The server keeps the original recorder on edits; it only fills
+      // this in when an older row has none.
+      recordedBy: movement.recordedBy || currentUserName,
     });
     setEditId(id);
     setIsModalOpen(true);
@@ -924,7 +948,7 @@ function StockControl({
                 { key: 'date', label: 'Date' },
                 { key: 'product', label: 'Product' },
                 { key: 'change', label: 'Change' },
-                { key: 'total', label: 'Total Qty' },
+                { key: 'total', label: 'Balance After' },
               ].map((opt) => (
                 <button
                   key={opt.key}
@@ -1030,8 +1054,8 @@ function StockControl({
               <th className="sc-th-left">Product</th>
               <th>Variant</th>
               <th>Type</th>
-              <th className="sc-th-quantity" title="Latest signed change for this product.">Change</th>
-              <th className="sc-th-quantity" title="Current total stock for this product.">Total Qty</th>
+              <th className="sc-th-quantity" title="Signed quantity of this transaction.">Change</th>
+              <th className="sc-th-quantity" title="Product stock right after this transaction.">Balance After</th>
               <th className="sc-th-quantity" title="Unit price recorded on this transaction (cost on Stock In, selling price on Stock Out).">Price</th>
               <th>Reorder Point</th>
               <th className="sc-th-left">Notes</th>
@@ -1042,7 +1066,7 @@ function StockControl({
           <tbody>
             {stockLoading ? (
               <tr><td colSpan={12} className="sc-empty-state">Loading stock movements…</td></tr>
-            ) : visibleRows.map(({ row: stock, id, totalQty, latestChange }) => {
+            ) : visibleRows.map(({ row: stock, id, totalQty, change, balanceAfter }) => {
               const product = productById.get(stock.productId);
               const statusRow = {
                 ...stock,
@@ -1051,8 +1075,7 @@ function StockControl({
                 leadTimeDays: product?.leadTimeDays,
                 remainingStock: totalQty,
               };
-              const change = latestChange.delta;
-              const after = totalQty;
+              const after = balanceAfter;
               const signedText = `${change >= 0 ? '+' : '-'}${Math.abs(change)}`;
               const status = stockStatusFor(statusRow, safetyStock);
               const point = reorderPointFor(statusRow, safetyStock);
@@ -1095,13 +1118,13 @@ function StockControl({
                   </td>
                   <td className="sc-td-nowrap" data-label="Change">
                     <span
-                      className={`sc-qty-change ${latestChange.type === 'Adjustment' ? 'sc-adj' : change >= 0 ? 'sc-in' : 'sc-out'}`}
-                      title={`Latest change for ${stock.productName}: ${latestChange.date} (${latestChange.type})`}
+                      className={`sc-qty-change ${stock.type === 'Adjustment' ? 'sc-adj' : change >= 0 ? 'sc-in' : 'sc-out'}`}
+                      title={`${movementLabel(stock.type)} on ${stock.date}: ${change >= 0 ? '+' : '−'}${Math.abs(change)}`}
                     >
                       {signedText}
                     </span>
                   </td>
-                  <td className="sc-td-nowrap sc-td-strong" data-label="Total Qty">{after}</td>
+                  <td className="sc-td-nowrap sc-td-strong" data-label="Balance After" title={`${after} on hand after this transaction · ${totalQty} on hand now`}>{after}</td>
                   <td
                     className="sc-td-nowrap"
                     data-label="Price"
@@ -1113,7 +1136,7 @@ function StockControl({
                     {status ? (
                       <span
                         className={`sc-safety-badge sc-safety-${status}`}
-                        title={`${statusRow.remainingStock} on hand · reorder point ${point} (safety stock plus demand during lead time)`}
+                        title={`${statusRow.remainingStock} on hand now · reorder point ${point} (safety stock plus demand during lead time)`}
                       >
                         {status !== 'healthy' && <AlertTriangle size={10} />}
                         {STATUS_LABEL[status]}
@@ -1237,8 +1260,10 @@ function StockControl({
                         id="recordedBy"
                         name="recordedBy"
                         value={formData.recordedBy}
-                        onChange={handleFormChange}
-                        placeholder="Super Admin"
+                        readOnly
+                        aria-readonly="true"
+                        title="Filled in automatically from the signed-in account"
+                        placeholder="Signed-in user"
                       />
                     </div>
                   </div>
@@ -1271,22 +1296,25 @@ function StockControl({
                         ))}
                       </select>
 
-                      <label htmlFor="variantName">
-                        Variant <span className="sc-required">*</span>
-                      </label>
-                       <input
-                          type="text"
-                          id="variantName"
-                          name="variantName"
-                          value={formData.variantName}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              variantName: e.target.value
-                            })
-                          }
-                          placeholder="Enter variant name"
-                        />  
+                      <label htmlFor="variantName">Variant</label>
+                      <select
+                        id="variantName"
+                        name="variantName"
+                        value={formData.variantName}
+                        onChange={(e) => setFormData({ ...formData, variantName: e.target.value })}
+                        disabled={!formData.productId}
+                      >
+                        <option value="">
+                          {!formData.productId
+                            ? 'Select a product first'
+                            : selectedVariantChoices.length
+                              ? 'No specific variant'
+                              : 'No variants — add them in Product & Supplier'}
+                        </option>
+                        {selectedVariantChoices.map((variant) => (
+                          <option key={variant} value={variant}>{variant}</option>
+                        ))}
+                      </select>
                     </div>  
                   </div>
 
@@ -1378,7 +1406,7 @@ function StockControl({
                   {/* ===== PRICE + NOTES (below quantity) ===== */}
                   <div className="sc-form-row">
                     <div className="sc-form-group">
-                      <label htmlFor="unitPrice">Unit Price</label>
+                      <label htmlFor="unitPrice">Unit Price ({currencySymbol})</label>
                       <input
                         id="unitPrice"
                         name="unitPrice"

@@ -8,13 +8,14 @@ use App\Models\StockMovement;
 use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
+use App\Services\DemandReorderService;
 use App\Services\ReorderPointService;
 
 class DashboardSummaryController extends Controller
 {
-    public function __invoke(ReorderPointService $reorderPoints): JsonResponse
+    public function __invoke(ReorderPointService $reorderPoints, DemandReorderService $demandReorder): JsonResponse
     {
-        $productRecords = Product::with('safetyStock')->orderBy('name')->get();
+        $productRecords = Product::with(['safetyStock', 'supplier'])->orderBy('name')->get();
 
         // Product ids that have at least one stock movement — only these are
         // "live" in Stock Control and eligible for stock alerts.
@@ -80,6 +81,10 @@ class DashboardSummaryController extends Controller
             'products' => $products,
             'salesHistory' => $salesHistory,
             'stockMovements' => $stockMovements,
+            // Demand-linked reorder suggestions (forecast-based, read-only).
+            'reorderSuggestions' => $demandReorder->suggestions(
+                $productRecords->filter(fn (Product $product) => isset($movedSet[$product->id]))
+            ),
             'supplierCount' => Supplier::whereHas('products')->count(),
             'userCount' => User::count(),
             'generatedAt' => now()->toIso8601String(),

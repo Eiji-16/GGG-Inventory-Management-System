@@ -403,8 +403,9 @@
 .s-policy-head,
 .s-policy-row {
     display: grid;
-    grid-template-columns: minmax(110px, 1.7fr) repeat(6, minmax(100px, 0.9fr)) 26px;
-    min-width: 760px;
+    /* Product | Safety Stock | Lead Time | Reorder Point | reset */
+    grid-template-columns: minmax(110px, 1.6fr) minmax(80px, 0.8fr) minmax(95px, 0.9fr) minmax(120px, 1.2fr) 26px;
+    min-width: 470px;
     align-items: center;
     gap: 6px;
 }
@@ -449,6 +450,25 @@
 .s-policy-error {
     color: var(--accent-low, #ef4444);
     font-size: 11px;
+}
+
+.s-policy-point {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+    min-width: 0;
+}
+
+.s-policy-point strong {
+    font-size: 13px;
+}
+
+.s-policy-point small {
+    font-size: 10px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 /* POLICY-INPUT-CSS-CONTINUES */
 

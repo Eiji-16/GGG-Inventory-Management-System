@@ -9,7 +9,9 @@ export const CURRENCIES = [
   { code: 'JPY', label: 'JPY (¥) - Japanese Yen' },
 ];
 
-const DEFAULT_CURRENCY = 'USD';
+// System-wide currency (Settings → Currency, saved on the server for every
+// account). PHP is the default for Global Growth Guide.
+const DEFAULT_CURRENCY = 'PHP';
 const CURRENCY_LOCALES = {
   USD: 'en-US',
   PHP: 'en-PH',

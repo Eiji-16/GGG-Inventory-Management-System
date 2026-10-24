@@ -131,9 +131,18 @@ class SalesForecastTest extends TestCase
             ->assertJsonCount(2, 'seasonalEvents')
             ->assertJsonPath('seasonalEvents.0.name', 'Spring Sale')
             ->assertJsonPath('seasonalEvents.1.name', 'Tops Promo')
-            ->assertJsonPath('adjustmentPct', 30)
-            // 28.3 × 1.30 = 36.8
-            ->assertJsonPath('adjustedForecast', 36.8);
+            // Spring Sale (+20%) covers all 30 days of April. Tops Promo (+10%)
+            // covers Apr 15–30, but those days already carry the stronger +20%,
+            // so it is not counted on top: 20 × 30 ÷ 30 = +20%.
+            ->assertJsonPath('adjustmentPct', 20)
+            ->assertJsonPath('periodDays', 30)
+            ->assertJsonPath('seasonalEvents.0.appliedDays', 30)
+            ->assertJsonPath('seasonalEvents.0.contributionPct', 20)
+            ->assertJsonPath('seasonalEvents.1.overlapDays', 16)
+            ->assertJsonPath('seasonalEvents.1.appliedDays', 0)
+            ->assertJsonPath('seasonalEvents.1.contributionPct', 0)
+            // 28.3 × 1.20 = 33.96 → 34.0
+            ->assertJsonPath('adjustedForecast', 34);
     }
 
     public function test_seasonal_events_also_apply_to_weekly_forecasts(): void
@@ -149,8 +158,111 @@ class SalesForecastTest extends TestCase
             ->assertOk()
             ->assertJsonPath('forecastPeriod', '2026-11-30')
             ->assertJsonPath('baseForecast', 12)
-            ->assertJsonPath('adjustmentPct', 50)
-            ->assertJsonPath('adjustedForecast', 18);
+            // Christmas Sale covers 6 of the week's 7 days: 50 × 6 ÷ 7 = +42.86%
+            ->assertJsonPath('adjustmentPct', 42.86)
+            ->assertJsonPath('seasonalEvents.0.overlapDays', 6)
+            // 12 × 1.4286 = 17.14 → 17.1
+            ->assertJsonPath('adjustedForecast', 17.1);
+    }
+
+    public function test_year_view_prorates_events_instead_of_adding_their_full_percentage(): void
+    {
+        $this->travelTo(Carbon::parse('2026-03-10'));
+        $product = $this->createProduct();
+        foreach (['2023-06-10', '2024-06-10', '2025-06-10'] as $date) {
+            $this->stockOut($product, $date, 100);
+        }
+        $this->event('Valentines', '2026-02-10', '2026-02-14', 20);
+        $this->event('Summer Sale', '2026-04-01', '2026-04-30', 15);
+        $this->event('Christmas Sale', '2026-12-01', '2026-12-25', 35);
+
+        // Old behaviour added 20 + 15 + 35 = +70%. Prorated over 365 days:
+        // (20 × 5 + 15 × 30 + 35 × 25) ÷ 365 = 1425 ÷ 365 = +3.90%
+        $this->postJson('/api/forecasts', ['productId' => $product->code, 'periodType' => 'year'])
+            ->assertOk()
+            ->assertJsonPath('forecastPeriod', '2026-01-01')
+            ->assertJsonPath('periodDays', 365)
+            ->assertJsonPath('baseForecast', 100)
+            ->assertJsonPath('adjustmentPct', 3.9)
+            ->assertJsonPath('seasonalEvents.2.contributionPct', 2.4)   // 35 × 25 ÷ 365
+            ->assertJsonPath('adjustedForecast', 103.9);
+    }
+
+    public function test_events_crossing_the_period_boundary_only_count_their_days_inside_it(): void
+    {
+        $this->travelTo(Carbon::parse('2026-04-10'));
+        $product = $this->createProduct();
+        foreach ([['2026-01-10', 30], ['2026-02-10', 30], ['2026-03-10', 30]] as [$date, $qty]) {
+            $this->stockOut($product, $date, $qty);
+        }
+        $this->event('Late March Promo', '2026-03-25', '2026-04-10', 30);   // 10 days in April
+
+        // 30 × 10 ÷ 30 = +10%
+        $this->postJson('/api/forecasts', ['productId' => $product->code])
+            ->assertOk()
+            ->assertJsonPath('seasonalEvents.0.overlapDays', 10)
+            ->assertJsonPath('adjustmentPct', 10)
+            ->assertJsonPath('adjustedForecast', 33);
+    }
+
+    public function test_overlapping_events_count_the_stronger_one_on_shared_days(): void
+    {
+        $this->travelTo(Carbon::parse('2026-04-10'));
+        $product = $this->createProduct();
+        foreach ([['2026-01-10', 30], ['2026-02-10', 30], ['2026-03-10', 30]] as [$date, $qty]) {
+            $this->stockOut($product, $date, $qty);
+        }
+        $this->event('Early April', '2026-04-01', '2026-04-20', 20);
+        $this->event('Late April', '2026-04-11', '2026-04-30', 30);
+
+        // Apr 1–10 at +20%, Apr 11–30 at +30% (stronger wins on Apr 11–20):
+        // (20 × 10 + 30 × 20) ÷ 30 = +26.67%
+        $this->postJson('/api/forecasts', ['productId' => $product->code])
+            ->assertOk()
+            ->assertJsonPath('adjustmentPct', 26.67)
+            ->assertJsonPath('seasonalEvents.0.appliedDays', 10)
+            ->assertJsonPath('seasonalEvents.0.contributionPct', 6.67)
+            ->assertJsonPath('seasonalEvents.1.appliedDays', 20)
+            ->assertJsonPath('seasonalEvents.1.contributionPct', 20)
+            ->assertJsonPath('adjustedForecast', 38);
+    }
+
+    public function test_suggest_adjustment_uses_the_same_month_in_earlier_years(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-10'));
+        $product = $this->createProduct();
+        for ($month = 1; $month <= 11; $month++) {
+            $this->stockOut($product, sprintf('2025-%02d-10', $month), 10);
+        }
+        $this->stockOut($product, '2025-12-10', 20);   // WMA expected 10 → +100%
+
+        $this->postJson('/api/seasonal-events/suggest', [
+            'startDate' => '2026-12-01',
+            'endDate' => '2026-12-25',
+            'scope' => 'all',
+        ])
+            ->assertOk()
+            ->assertJsonPath('suggestedPct', 100)
+            ->assertJsonPath('basis.0.period', '2025-12')
+            ->assertJsonPath('basis.0.actual', 20)
+            ->assertJsonPath('basis.0.expected', 10);
+    }
+
+    public function test_suggest_adjustment_explains_when_history_is_too_short(): void
+    {
+        $this->travelTo(Carbon::parse('2026-04-10'));
+        $product = $this->createProduct();
+        $this->stockOut($product, '2026-03-10', 10);
+
+        $response = $this->postJson('/api/seasonal-events/suggest', [
+            'startDate' => '2026-12-01',
+            'endDate' => '2026-12-25',
+            'scope' => 'products',
+            'productIds' => [$product->code],
+        ])
+            ->assertOk()
+            ->assertJsonPath('suggestedPct', null);
+        $this->assertStringContainsString('manually', $response->json('message'));
     }
 
     public function test_forecast_requires_completed_stock_out_sales(): void

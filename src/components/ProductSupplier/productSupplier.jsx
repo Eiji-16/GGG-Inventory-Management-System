@@ -18,6 +18,7 @@ const emptyForm = {
   model: '',
   unitMeasure: '',
   image: '',
+  variants: [], /* ===== VARIANTS (e.g. Black / M) ===== */
   suppliers: [], /* ===== SUPPLIER LIST (add-row pattern) ===== */
 };
 
@@ -50,6 +51,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add'); /* ===== MODAL MODE ===== */
   const [formData, setFormData] = useState(emptyForm);
+  const [variantDraft, setVariantDraft] = useState('');
   const [detailProduct, setDetailProduct] = useState(null);
   const [query, setQuery] = useState(''); /* ===== SEARCH ===== */
   const [sortBy, setSortBy] = useState('name'); /* ===== SORT KEY ===== */
@@ -193,15 +195,20 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
   const openAddModal = () => {
     setModalMode('add');
     setFormData({ ...emptyForm, suppliers: [{ ...emptySupplier }] });
+    setVariantDraft('');
     setIsModalOpen(true);
   };
 
   const openEditModal = (product) => {
     setModalMode('edit');
+    setVariantDraft('');
     setFormData({
       ...emptyForm,
       ...product,
       image: product.image || '', // coerce null → '' so the preview/URL input never crashes
+      // Start from the product's own list; for older products that only have
+      // names typed in Stock Control, offer those so saving adopts them.
+      variants: [...((product.definedVariants || []).length ? product.definedVariants : (product.recordedVariants || []))],
       suppliers: product.supplierName
         ? [{ name: product.supplierName, contact: product.supplierContact || '' }]
         : [{ ...emptySupplier }],
@@ -249,6 +256,22 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  /* ===== VARIANTS (tag input) ===== */
+  const addVariant = () => {
+    const name = variantDraft.trim();
+    if (!name) return;
+    setFormData((prev) => {
+      const list = prev.variants || [];
+      if (list.some((v) => v.toLowerCase() === name.toLowerCase())) return prev;
+      return { ...prev, variants: [...list, name] };
+    });
+    setVariantDraft('');
+  };
+  const removeVariant = (name) => setFormData((prev) => ({
+    ...prev,
+    variants: (prev.variants || []).filter((v) => v !== name),
+  }));
+
   /* ===== SUPPLIER LIST (inline editable rows) ===== */
   const updateSupplier = (index, field, value) => {
     setFormData((prev) => ({
@@ -279,6 +302,8 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
       brand: formData.brand,
       model: formData.model,
       unitMeasure: formData.unitMeasure,
+      // Include a variant still sitting in the input box, if any.
+      variants: [...(formData.variants || []), ...(variantDraft.trim() ? [variantDraft.trim()] : [])],
       supplierName: primary ? primary.name.trim() : null,
       supplierContact: primary ? (primary.contact || '').trim() || null : null,
       image: formData.image || null, /* data URL (upload) or pasted http(s) URL — persisted by the backend */
@@ -874,6 +899,40 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
                         placeholder="Units, Pairs, Boxes…"
                       />
                     </div>
+                  </div>
+
+                  <div className="ps-form-group ps-form-group-wide">
+                    <label htmlFor="variant-input">Variants</label>
+                    <div className="ps-variant-editor">
+                      {(formData.variants || []).map((variant) => (
+                        <span className="ps-variant-chip ps-variant-chip-edit" key={variant}>
+                          {variant}
+                          <button type="button" onClick={() => removeVariant(variant)} aria-label={`Remove variant ${variant}`}>
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))}
+                      <input
+                        id="variant-input"
+                        value={variantDraft}
+                        onChange={(e) => setVariantDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ',') {
+                            e.preventDefault();
+                            addVariant();
+                          } else if (e.key === 'Backspace' && !variantDraft && (formData.variants || []).length) {
+                            removeVariant(formData.variants[formData.variants.length - 1]);
+                          }
+                        }}
+                        placeholder={(formData.variants || []).length ? 'Add another…' : 'e.g. Black / M — press Enter to add'}
+                      />
+                      <button type="button" className="ps-variant-add" onClick={addVariant} disabled={!variantDraft.trim()}>
+                        <Plus size={12} /> Add
+                      </button>
+                    </div>
+                    <p className="ps-field-note">
+                      Size, color or design options. Stock Control picks from this list. Stock is counted for the whole product.
+                    </p>
                   </div>
 
                   <div className="ps-form-group ps-form-group-wide">

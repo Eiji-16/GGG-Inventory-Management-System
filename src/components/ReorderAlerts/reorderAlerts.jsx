@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Calculator, PackageCheck, Search } from 'lucide-react';
 import './reorderAlerts.css';
 import { reorderPointFor, SAFETY_STOCK_DEFAULTS } from '../../data/safetyStock';
+import { buildForecastHandoff } from '../../utils/forecastHandoff';
 
 /* ===== AUTO REORDER ALERTS (Figure 9) =====
    Lists every product whose stock is at or below its reorder point.
@@ -12,6 +13,7 @@ export default function ReorderAlerts({ onNavigate, safetyStock = SAFETY_STOCK_D
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [orderingId, setOrderingId] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -58,11 +60,18 @@ export default function ReorderAlerts({ onNavigate, safetyStock = SAFETY_STOCK_D
     return matchesQuery && matchesStatus;
   });
 
-  const orderNow = (item) => {
-    onNavigate?.('Auto-Calculator', {
+  /* Order Now sends the product's forecast demand (WMA + seasonal, per month
+     × 12) to the EOQ Calculator. If no forecast is possible yet, it falls back
+     to actual sales and the calculator says so. */
+  const orderNow = async (item) => {
+    setOrderingId(item.id);
+    const { handoff, reason } = await buildForecastHandoff(item.id, item.name);
+    setOrderingId(null);
+    onNavigate?.('Auto-Calculator', handoff || {
       product: item.name,
       productId: item.id,
       annualDemand: item.annualDemand || item.demandFromHistory,
+      forecastUnavailable: reason,
     });
   };
 
@@ -169,8 +178,8 @@ export default function ReorderAlerts({ onNavigate, safetyStock = SAFETY_STOCK_D
                   </td>
                   <td data-label="Action">
                     {canComputeEoq ? (
-                      <button type="button" className={`ra-order-btn ${item.status === 'Out of Stock' ? 'is-urgent' : ''}`} onClick={() => orderNow(item)}>
-                        <Calculator size={13} aria-hidden="true" /> Order Now
+                      <button type="button" className={`ra-order-btn ${item.status === 'Out of Stock' ? 'is-urgent' : ''}`} onClick={() => orderNow(item)} disabled={orderingId !== null}>
+                        <Calculator size={13} aria-hidden="true" /> {orderingId === item.id ? 'Loading forecast…' : 'Order Now'}
                       </button>
                     ) : <span className="ra-muted">Notify the owner</span>}
                   </td>
@@ -179,7 +188,7 @@ export default function ReorderAlerts({ onNavigate, safetyStock = SAFETY_STOCK_D
             </tbody>
           </table>
         </div>
-        <p className="ra-help">“Order Now” opens the EOQ Calculator with this product and its annual demand filled in, so you can compute the optimal order quantity.</p>
+        <p className="ra-help">“Order Now” opens the EOQ Calculator with this product’s forecast annual demand (next month’s WMA forecast, seasonal adjustment included, × 12). If there isn’t enough sales history to forecast yet, it uses the last 12 months of actual sales instead.</p>
       </div>
     </div>
   );

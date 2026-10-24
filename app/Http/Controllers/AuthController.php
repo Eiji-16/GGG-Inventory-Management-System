@@ -199,7 +199,9 @@ class AuthController extends Controller
     private function userPayload(User $user): array
     {
         return [
-            ...$user->only(['id', 'name', 'email', 'role', 'currency']),
+            ...$user->only(['id', 'name', 'email', 'role']),
+            // System-wide display currency (Settings), the same for every account.
+            'currency' => \App\Models\AppSetting::currency(),
             'isSuperAdmin' => $this->isSuperAdmin($user),
         ];
     }

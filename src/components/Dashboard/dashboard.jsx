@@ -4,6 +4,16 @@ import './dashboard.css';
 import { reorderPointFor } from '../../data/safetyStock';
 
 const fmt = (value) => Number(value || 0).toLocaleString('en-PH');
+
+/* One short, plain label per reorder suggestion (full reasons stay in the tooltip). */
+function reorderTag(item) {
+  if (item.currentStock <= 0) return { label: 'Out of stock', level: 'out' };
+  if (item.leadTimeDays != null && item.daysOfCover != null && item.daysOfCover < item.leadTimeDays) {
+    return { label: 'Runs out before delivery', level: 'out' };
+  }
+  if (item.currentStock <= item.reorderPoint) return { label: 'Low stock', level: 'low' };
+  return { label: 'Not enough for next month', level: 'soon' };
+}
 const localDateString = () => {
   const now = new Date();
   return new Date(now.getTime() - now.getTimezoneOffset() * 60 * 1000)
@@ -482,7 +492,53 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             <div className="db-spark-wrap"><Sparkline values={derived.hasSalesData ? heroValues : []} stroke="var(--accent-high)" gid="dbSalesGrad" /></div>
           </div>
 
-          <div className="regionalBreakdown-card card" aria-hidden="true" />
+          {/* ===== REORDER SUGGESTIONS (demand-linked) =====
+              Server-computed from next month's forecast, current stock, safety
+              stock and lead time. Recommendations only — nothing is ordered. */}
+          <div className="regionalBreakdown-card card">
+            <div className="db-card-head">
+              <div className="db-card-titles">
+                <span className="db-card-title">Order Soon</span>
+                <span className="db-card-sub">Based on next month’s forecast</span>
+              </div>
+              <button className="db-open-arrow-btn" onClick={() => go('Reorder-Alerts')} aria-label="Open Reorder Alerts" type="button"><OpenArrow /></button>
+            </div>
+            {(summary.reorderSuggestions || []).length ? (
+              <div className="db-order-list">
+                {summary.reorderSuggestions.map((item) => {
+                  const tag = reorderTag(item);
+                  return (
+                    <button
+                      key={item.productId}
+                      type="button"
+                      className={`db-order-row is-${tag.level}`}
+                      onClick={() => go('Stock', { highlightProductId: item.productId })}
+                      title={item.reasons.join('\n')}
+                    >
+                      <span className="db-order-info">
+                        <span className="db-order-name">{item.productName}</span>
+                        <span className="db-order-meta">
+                          <span className="db-order-tag">{tag.label}</span>
+                          {item.currentStock <= 0
+                            ? 'None left'
+                            : `${fmt(item.currentStock)} left${item.daysOfCover != null ? ` · ~${fmt(Math.floor(item.daysOfCover))} days` : ''}`}
+                        </span>
+                      </span>
+                      <span className="db-order-qty">
+                        <small>Order</small>
+                        <strong>{fmt(item.suggestedQty)}</strong>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="db-order-empty">
+                <strong>All good</strong>
+                <span>Stock covers next month for every product.</span>
+              </div>
+            )}
+          </div>
 
           <div className="eoqActivity-card card">
             <button className="db-open-arrow-btn db-coverage-open-btn" onClick={() => go('Product-Supplier')} aria-label="Open suppliers" type="button"><OpenArrow /></button>

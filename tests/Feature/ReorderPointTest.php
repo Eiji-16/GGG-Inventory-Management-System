@@ -25,16 +25,16 @@ class ReorderPointTest extends TestCase
         SafetyStock::create([
             'product_id' => $product->id,
             'safety_stock' => 20,
-            'annual_demand' => 365,
+            'annual_demand' => 9999,   // old typed value — must be ignored now
             'lead_time_days' => 10,
-            'order_cycle_days' => 30,
         ]);
+        // Real sales: 365 units in the last 12 months → 1/day.
         StockMovement::create([
             'product_id' => $product->id,
             'product_name' => $product->name,
             'movement_type' => 'out',
             'is_adjustment' => false,
-            'qty' => 1,
+            'qty' => 365,
             'remaining_stock' => 28,
             'movement_date' => now()->toDateString(),
         ]);
@@ -62,7 +62,15 @@ class ReorderPointTest extends TestCase
         SafetyStock::create([
             'product_id' => $productWithoutLeadTime->id,
             'safety_stock' => 20,
-            'annual_demand' => 365,
+        ]);
+        StockMovement::create([
+            'product_id' => $productWithoutLeadTime->id,
+            'product_name' => $productWithoutLeadTime->name,
+            'movement_type' => 'out',
+            'is_adjustment' => false,
+            'qty' => 365,
+            'remaining_stock' => 100,
+            'movement_date' => now()->toDateString(),
         ]);
         $productWithoutDemand = Product::create([
             'code' => 'PRD-NODEMAND',

@@ -128,6 +128,56 @@ class EoqCalculationPersistenceTest extends TestCase
             ->assertJsonPath('autoCalculator.rows.0.recommendedOrderQuantity', 92);
     }
 
+    public function test_order_now_forecast_handoff_is_accepted_with_prorated_seasonal_demand(): void
+    {
+        $user = User::factory()->create([
+            'role' => User::ROLE_SUPER_ADMIN,
+            'status' => User::STATUS_ACTIVE,
+        ]);
+        $this->travelTo(Carbon::parse('2026-05-15'));
+        $product = $this->createProduct();
+        foreach ([['2026-02-10', 10], ['2026-03-10', 20], ['2026-04-10', 40]] as [$date, $units]) {
+            $this->stockOut($product, $date, $units);
+        }
+        SeasonalEvent::create([
+            'name' => 'Mid-year Sale',
+            'start_date' => '2026-05-01',
+            'end_date' => '2026-05-10',
+            'adjustment_pct' => 31,
+            'scope' => 'all',
+            'is_active' => true,
+        ]);
+
+        // Same steps as src/utils/forecastHandoff.js (Order Now).
+        $forecast = $this->actingAs($user)->postJson('/api/forecasts', [
+            'productId' => $product->code,
+            'periodType' => 'month',
+        ])->assertOk()->json();
+        $this->assertEquals(10, $forecast['adjustmentPct']);          // 31% × 10 ÷ 31 days
+        $this->assertEquals(31.1, $forecast['adjustedForecast']);     // 28.3 × 1.10
+        $annualDemand = (int) round($forecast['adjustedForecast'] * 12); // per month × 12, once
+        $this->assertSame(373, $annualDemand);
+
+        $this->postJson('/calculations', [
+            'formula' => 'EOQ',
+            'productId' => $product->code,
+            'demandSource' => 'forecast',
+            'inputs' => ['annualDemand' => $annualDemand, 'orderingCost' => 500, 'holdingCost' => 50],
+            'forecast' => [
+                'productId' => $product->code,
+                'periodType' => 'month',
+                'forecastPeriod' => $forecast['forecastPeriod'],
+                'baseForecast' => $forecast['baseForecast'],
+                'seasonalEnabled' => $forecast['seasonalEnabled'],
+                'seasonalEvent' => implode(', ', array_column($forecast['seasonalEvents'], 'name')),
+                'adjustmentPct' => $forecast['adjustmentPct'],
+                'adjustedForecast' => $forecast['adjustedForecast'],
+            ],
+        ])->assertCreated()
+            // sqrt(2 × 373 × 500 ÷ 50) = 86.4 → 86
+            ->assertJsonPath('recommendedOrderQuantity', 86);
+    }
+
     public function test_forecast_eoq_rejects_stale_or_tampered_forecast_values(): void
     {
         $user = User::factory()->create([

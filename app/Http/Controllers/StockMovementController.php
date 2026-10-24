@@ -57,7 +57,10 @@ class StockMovementController extends Controller
     /** POST /api/stock-movements */
     public function store(Request $request): JsonResponse
     {
-        $movement = $this->stockMovements->create($this->validatedMovement($request, false));
+        $data = $this->validatedMovement($request, false);
+        // Recorded By always comes from the signed-in account, never the form.
+        $data['recordedBy'] = $this->recorderName($request);
+        $movement = $this->stockMovements->create($data);
         $this->recordMovementActivity('add', $movement);
 
         return response()->json($this->format($movement), 201);
@@ -77,7 +80,7 @@ class StockMovementController extends Controller
             $stockMovement->update([
                 'variant_name' => $data['variantName'] ?? null,
                 'notes'        => $data['notes'] ?? null,
-                'recorded_by'  => $data['recordedBy'] ?? null,
+                'recorded_by'  => $stockMovement->recorded_by ?: $this->recorderName($request),
                 'unit_price'   => $data['unitPrice'] ?? null,
             ]);
             $movement = $stockMovement->fresh()->loadMissing('product');
@@ -93,10 +96,11 @@ class StockMovementController extends Controller
         }
 
         $before = $this->activitySnapshot($stockMovement->loadMissing('product'));
-        $movement = $this->stockMovements->replace(
-            $stockMovement,
-            $this->validatedMovement($request, true)
-        );
+        $data = $this->validatedMovement($request, true);
+        // Keep who originally recorded the row (audit trail); fill it from the
+        // signed-in account only when an older row has none.
+        $data['recordedBy'] = $stockMovement->recorded_by ?: $this->recorderName($request);
+        $movement = $this->stockMovements->replace($stockMovement, $data);
         $this->recordMovementActivity('edit', $movement, $before);
 
         return response()->json($this->format($movement));
@@ -154,6 +158,14 @@ class StockMovementController extends Controller
             'deletedMovements' => $movementCount,
             'totalQty' => 0,
         ]);
+    }
+
+    /** Display name of the signed-in user, used for Recorded By. */
+    private function recorderName(Request $request): ?string
+    {
+        $user = $request->user();
+
+        return $user ? ($user->name ?: $user->email) : null;
     }
 
     private function recordMovementActivity(string $event, StockMovement $movement, ?array $before = null): void

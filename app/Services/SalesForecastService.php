@@ -16,7 +16,7 @@ use Illuminate\Validation\ValidationException;
  * Tracking (adjustments excluded), totalled per completed week / month / year.
  * The newest three completed periods are weighted 1, 2 and 3, and active
  * seasonal events whose date range overlaps the forecast period adjust the
- * result by their percentage.
+ * result in proportion to the days they cover (see seasonalAdjustment()).
  */
 class SalesForecastService
 {
@@ -240,17 +240,12 @@ class SalesForecastService
             ->filter(fn (SeasonalEvent $event) => $event->appliesTo($product))
             ->values();
 
-        $seasonalEvents = $events->map(fn (SeasonalEvent $event) => [
-            'id'            => $event->id,
-            'name'          => $event->name,
-            'adjustmentPct' => (float) $event->adjustment_pct,
-            'startDate'     => $event->start_date->toDateString(),
-            'endDate'       => $event->end_date->toDateString(),
-        ])->all();
+        $seasonal = $this->seasonalAdjustment($events->all(), $forecastStart, $forecastEnd);
+        $seasonalEvents = $seasonal['events'];
 
-        $adjustmentPct = $events->isEmpty()
-            ? 0.0
-            : max(-100, min(1000, (float) $events->sum(fn (SeasonalEvent $event) => (float) $event->adjustment_pct)));
+        // Round first so the EOQ check (CalculationController) can reproduce
+        // the adjusted forecast exactly from the submitted percentage.
+        $adjustmentPct = round($seasonal['adjustmentPct'], 2);
         $adjustedForecast = round(max(0, $baseForecast * (1 + $adjustmentPct / 100)), 1);
 
         return [
@@ -269,7 +264,8 @@ class SalesForecastService
             'adjustedForecast'  => $adjustedForecast,
             'seasonalEnabled'   => $events->isNotEmpty(),
             'seasonalEvents'    => $seasonalEvents,
-            'adjustmentPct'     => round($adjustmentPct, 2),
+            'adjustmentPct'     => $adjustmentPct,
+            'periodDays'        => $seasonal['periodDays'],
             'forecastPeriod'    => $forecastStart->toDateString(),
             'forecastPeriodEnd' => $forecastEnd->toDateString(),
             'dataPoints'        => $history['dataPoints'],
@@ -277,6 +273,162 @@ class SalesForecastService
             'averageDemand'     => round(array_sum($units) / count($units), 1),
             'meanAbsoluteDeviation' => $history['meanAbsoluteDeviation'],
             'history'           => $history['rows'],
+        ];
+    }
+
+    /**
+     * Seasonal adjustment for one forecast period, prorated by day.
+     *
+     * Each day of the period gets the percentage of the event covering it;
+     * when several events cover the same day, only the strongest one (largest
+     * absolute percentage) counts, so one demand spike is never added twice.
+     * The period adjustment is the average of those daily percentages:
+     *
+     *     adjustment = Σ (event % × days it is the applied event) ÷ days in period
+     *
+     * Example: Christmas Sale +35% on Dec 1–25 adds 35 × 25 ÷ 31 = +28.23% to a
+     * December forecast, but only 35 × 25 ÷ 365 = +2.40% to a whole-year one.
+     *
+     * @param  array<int, SeasonalEvent>  $events  events that apply to the product
+     * @return array{adjustmentPct: float, periodDays: int, events: array<int, array<string, mixed>>}
+     */
+    public function seasonalAdjustment(array $events, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $start = $periodStart->copy()->startOfDay();
+        $end = $periodEnd->copy()->startOfDay();
+        $periodDays = (int) $start->diffInDays($end) + 1;
+
+        $overlapDays = [];
+        $appliedDays = [];
+        $pctDays = 0.0;
+        for ($day = $start->copy(); $day->lte($end); $day->addDay()) {
+            $applied = null;
+            foreach ($events as $event) {
+                if ($day->lt($event->start_date->copy()->startOfDay()) || $day->gt($event->end_date->copy()->startOfDay())) {
+                    continue;
+                }
+                $overlapDays[$event->id] = ($overlapDays[$event->id] ?? 0) + 1;
+                $pct = (float) $event->adjustment_pct;
+                $current = $applied ? (float) $applied->adjustment_pct : null;
+                if ($current === null || abs($pct) > abs($current) || (abs($pct) === abs($current) && $pct > $current)) {
+                    $applied = $event;
+                }
+            }
+            if ($applied) {
+                $appliedDays[$applied->id] = ($appliedDays[$applied->id] ?? 0) + 1;
+                $pctDays += (float) $applied->adjustment_pct;
+            }
+        }
+
+        $details = [];
+        foreach ($events as $event) {
+            $overlap = $overlapDays[$event->id] ?? 0;
+            if ($overlap === 0) {
+                continue;
+            }
+            $applied = $appliedDays[$event->id] ?? 0;
+            $details[] = [
+                'id'              => $event->id,
+                'name'            => $event->name,
+                'adjustmentPct'   => (float) $event->adjustment_pct,
+                'startDate'       => $event->start_date->toDateString(),
+                'endDate'         => $event->end_date->toDateString(),
+                'overlapDays'     => $overlap,
+                'appliedDays'     => $applied,
+                'contributionPct' => round((float) $event->adjustment_pct * $applied / $periodDays, 2),
+            ];
+        }
+
+        return [
+            'adjustmentPct' => $periodDays > 0 ? max(-100, min(1000, $pctDays / $periodDays)) : 0.0,
+            'periodDays'    => $periodDays,
+            'events'        => $details,
+        ];
+    }
+
+    /**
+     * Suggest a seasonal adjustment for a planned event from past sales.
+     *
+     * Looks at the same calendar month(s) in earlier years and compares the
+     * units actually sold with what the WMA would have forecast for that month
+     * (the "WMA Forecast" column of the forecast table), across every product
+     * the event would affect. Months are weighted by how many event days fall
+     * in them. Returns a null suggestion with a reason when there is no
+     * comparable history (a month needs three earlier months to have a WMA).
+     *
+     * @param  iterable<Product>  $products
+     */
+    public function suggestAdjustment(iterable $products, Carbon $eventStart, Carbon $eventEnd): array
+    {
+        // Event days per calendar month (1–12).
+        $daysPerMonth = [];
+        $end = $eventEnd->copy()->startOfDay();
+        for ($day = $eventStart->copy()->startOfDay(); $day->lte($end); $day->addDay()) {
+            $daysPerMonth[$day->month] = ($daysPerMonth[$day->month] ?? 0) + 1;
+        }
+
+        $actual = [];
+        $expected = [];
+        $basis = [];
+        $productCount = 0;
+        foreach ($products as $product) {
+            $productCount++;
+            foreach ($this->history($product, 'month')['rows'] as $row) {
+                $date = Carbon::parse($row['periodDate']);
+                if (! isset($daysPerMonth[$date->month]) || $row['wmaForecast'] === null || $row['wmaForecast'] <= 0) {
+                    continue;
+                }
+                $key = $date->format('Y-m');
+                $actual[$date->month] = ($actual[$date->month] ?? 0) + $row['unitsSold'];
+                $expected[$date->month] = ($expected[$date->month] ?? 0) + $row['wmaForecast'];
+                $basis[$key]['period'] = $key;
+                $basis[$key]['actual'] = ($basis[$key]['actual'] ?? 0) + $row['unitsSold'];
+                $basis[$key]['expected'] = round(($basis[$key]['expected'] ?? 0) + $row['wmaForecast'], 1);
+            }
+        }
+
+        if ($productCount === 0) {
+            return ['suggestedPct' => null, 'basis' => [], 'message' => 'No products match this event yet, so there is no history to learn from. Enter the adjustment manually.'];
+        }
+
+        $weighted = 0.0;
+        $weights = 0;
+        foreach ($daysPerMonth as $month => $days) {
+            if (empty($expected[$month])) {
+                continue;
+            }
+            $weighted += $days * (($actual[$month] / $expected[$month]) - 1) * 100;
+            $weights += $days;
+        }
+
+        if ($weights === 0) {
+            return [
+                'suggestedPct' => null,
+                'basis' => [],
+                'message' => 'Not enough sales history for these months yet. A suggestion needs the same month in an earlier year, with at least three months of sales before it. Enter the adjustment manually for now.',
+            ];
+        }
+
+        ksort($basis);
+        $basis = array_values(array_map(fn (array $row) => $row + [
+            'upliftPct' => round((($row['actual'] / $row['expected']) - 1) * 100, 1),
+        ], $basis));
+        $suggested = (int) round(max(-100, min(1000, $weighted / $weights)));
+        $years = count(array_unique(array_map(fn (array $row) => substr($row['period'], 0, 4), $basis)));
+
+        return [
+            'suggestedPct' => $suggested,
+            'basis' => $basis,
+            'message' => sprintf(
+                'Based on %d past month%s across %d year%s: sales in these months ran %s%d%% compared with the WMA forecast.%s',
+                count($basis),
+                count($basis) === 1 ? '' : 's',
+                $years,
+                $years === 1 ? '' : 's',
+                $suggested > 0 ? '+' : '',
+                $suggested,
+                $years < 2 ? ' Only one year of data, so treat it as a rough guide.' : '',
+            ),
         ];
     }
 

@@ -34,6 +34,7 @@ Route::middleware(['web', 'auth', 'active'])->group(function (): void {
         Route::match(['put', 'patch'], '/products/{product}', [ProductController::class, 'update']);
         Route::delete('/products/{product}', [ProductController::class, 'destroy']);
         Route::apiResource('suppliers', SupplierController::class);
+        Route::put('/products/{code}/eoq-costs', [SafetyStockController::class, 'saveEoqCosts']);
         Route::get('/sales-history', [SalesHistoryController::class, 'index']);
         Route::post('/sales-history', [SalesHistoryController::class, 'store']);
         Route::put('/sales-history/bulk', [SalesHistoryController::class, 'bulkStore']);
@@ -43,6 +44,7 @@ Route::middleware(['web', 'auth', 'active'])->group(function (): void {
         Route::put('/sales-seasonal-adjustments', [SalesSeasonalAdjustmentController::class, 'store']);
         Route::get('/forecasts/history', [ForecastController::class, 'history']);
         Route::post('/forecasts', [ForecastController::class, 'store']);
+        Route::post('/seasonal-events/suggest', [SeasonalEventController::class, 'suggest']);
         Route::apiResource('seasonal-events', SeasonalEventController::class)->except('show');
         Route::get('/past-sales', [PastSalesController::class, 'index']);
         Route::put('/past-sales', [PastSalesController::class, 'save']);

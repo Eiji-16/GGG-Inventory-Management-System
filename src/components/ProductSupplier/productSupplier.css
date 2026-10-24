@@ -1260,3 +1260,68 @@
 .ps-supplier-table {
     min-width: 640px;
 }
+
+/* ===== VARIANTS TAG INPUT (Add/Edit Product) ===== */
+.ps-variant-editor {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg, transparent);
+}
+
+.ps-variant-editor:focus-within {
+    border-color: var(--background-icon-active-color);
+}
+
+.ps-variant-editor input {
+    flex: 1 1 140px;
+    min-width: 0;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 4px 2px !important;
+    outline: none;
+}
+
+.ps-variant-chip-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ps-variant-chip-edit button {
+    display: inline-flex;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    opacity: 0.7;
+    cursor: pointer;
+}
+
+.ps-variant-chip-edit button:hover {
+    opacity: 1;
+}
+
+.ps-variant-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.ps-variant-add:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}

@@ -1455,3 +1455,22 @@
 @media (max-width: 560px) {
     .eq-form { grid-template-columns: 1fr; }
 }
+
+/* ===== SAVE COSTS AS PRODUCT DEFAULTS ===== */
+.eq-cost-save {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin-top: -4px;
+    font-size: 11px;
+}
+
+.eq-cost-save .eq-link:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.eq-cost-save-ok {
+    color: var(--accent-high, var(--text-muted));
+}

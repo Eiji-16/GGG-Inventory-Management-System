@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\SeasonalEvent;
+use App\Services\SalesForecastService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 
 /**
@@ -42,6 +44,38 @@ class SeasonalEventController extends Controller
         ActivityLog::record('seasonal.update', "Updated seasonal event — {$seasonalEvent->name}", 'calendar', ['event' => $seasonalEvent->name]);
 
         return response()->json($this->format($seasonalEvent->fresh(), Product::pluck('name', 'code')));
+    }
+
+    /**
+     * POST /api/seasonal-events/suggest
+     *
+     * Suggests an adjustment % for a planned event (dates + scope) from how the
+     * affected products sold in the same months of earlier years. Nothing is
+     * saved; the owner can accept the value or type their own.
+     */
+    public function suggest(Request $request, SalesForecastService $forecasts): JsonResponse
+    {
+        $data = $request->validate([
+            'startDate'    => ['required', 'date'],
+            'endDate'      => ['required', 'date', 'after_or_equal:startDate'],
+            'scope'        => ['required', Rule::in(['all', 'categories', 'products'])],
+            'categories'   => ['exclude_unless:scope,categories', 'required', 'array', 'min:1'],
+            'categories.*' => ['string', 'max:255'],
+            'productIds'   => ['exclude_unless:scope,products', 'required', 'array', 'min:1'],
+            'productIds.*' => ['string'],
+        ]);
+
+        $products = match ($data['scope']) {
+            'categories' => Product::whereIn('category', $data['categories'])->get(),
+            'products'   => Product::whereIn('code', $data['productIds'])->get(),
+            default      => Product::all(),
+        };
+
+        return response()->json($forecasts->suggestAdjustment(
+            $products,
+            Carbon::parse($data['startDate']),
+            Carbon::parse($data['endDate']),
+        ));
     }
 
     /** DELETE /api/seasonal-events/{seasonalEvent} */

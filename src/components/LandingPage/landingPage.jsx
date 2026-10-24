@@ -65,9 +65,11 @@ function mapSafetyStockPolicies(records) {
     return [record.productId, {
       productName: record.productName,
       safetyStock: record.safetyStock ?? defaults.safetyStock ?? DEFAULT_SAFETY_STOCK,
-      annualDemand: record.annualDemand ?? defaults.annualDemand ?? '',
       leadTimeDays: record.leadTimeDays ?? defaults.leadTimeDays ?? '',
-      orderCycleDays: record.orderCycleDays ?? defaults.orderCycleDays ?? '',
+      // Read-only context for the Settings preview (not saved by the policy).
+      supplierName: record.supplierName || '',
+      supplierLeadTimeDays: record.supplierLeadTimeDays ?? null,
+      demandFromHistory: record.demandFromHistory ?? 0,
       orderingCost: record.orderingCost ?? defaults.orderingCost ?? '',
       holdingCost: record.holdingCost ?? defaults.holdingCost ?? '',
       configured: record.configured,
@@ -302,11 +304,8 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
     const policies = Object.entries(draft).map(([productId, values]) => ({
       productId,
       safetyStock: values.safetyStock,
-      annualDemand: values.annualDemand === '' ? null : values.annualDemand,
+      // Lead-time override only; blank = use the supplier's lead time.
       leadTimeDays: values.leadTimeDays === '' ? null : values.leadTimeDays,
-      orderCycleDays: values.orderCycleDays === '' ? null : values.orderCycleDays,
-      orderingCost: values.orderingCost === '' ? null : values.orderingCost,
-      holdingCost: values.holdingCost === '' ? null : values.holdingCost,
     }));
     const response = await apiFetch('/api/safety-stock', {
       method: 'PUT',
@@ -710,6 +709,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     handoff={handoff}
                     catalogRevision={policyRefreshKey}
                     onInventoryChanged={() => setPolicyRefreshKey((key) => key + 1)}
+                    currentUserName={user?.name || ''}
                   />
                 </div>
               )}

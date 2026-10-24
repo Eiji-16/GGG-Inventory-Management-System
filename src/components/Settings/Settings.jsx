@@ -5,8 +5,6 @@ import {
   ShieldCheck,
   Lock,
   ChevronDown,
-  Eye,
-  EyeOff,
   RotateCcw,
   Check,
   Info,
@@ -32,14 +30,14 @@ function Settings({
   policyError = '',
 }) {
   const isSuperAdmin = role === 'Super Admin';
-  const { currency, currencySymbol, updateCurrency } = useCurrency();
+  const canChangeCurrency = role === 'Super Admin' || role === 'Admin';
+  const { currency, updateCurrency } = useCurrency();
   const activeThemeName = THEMES.find((option) => option.value === theme)?.label || 'Midnight Blue';
   const selectedThemeRef = useRef(theme);
   const themeButtonRefs = useRef([]);
   selectedThemeRef.current = theme;
 
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [revealed, setRevealed] = useState(false);
   const [draft, setDraft] = useState(() => safetyStock);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -70,8 +68,21 @@ function Settings({
     [draft, safetyStock, rows]
   );
 
-  /* ===== HIDE VALUE ===== */
-  const show = (value) => (revealed ? value : '•••');
+  /* ===== LIVE REORDER POINT (same formula as the server) =====
+     safety stock + (last 12 months of sales ÷ 365) × lead time, where lead
+     time is the override if set, else the supplier's. */
+  const previewFor = (row) => {
+    const safety = Number(row.safetyStock) || 0;
+    const lead = row.leadTimeDays !== '' && row.leadTimeDays != null ? Number(row.leadTimeDays) : row.supplierLeadTimeDays;
+    const daily = (Number(row.demandFromHistory) || 0) / 365;
+    if (lead == null || !Number.isFinite(Number(lead)) || daily <= 0) {
+      return { point: safety, detail: lead == null ? 'no lead time set' : 'no sales in the last 12 months' };
+    }
+    return {
+      point: Math.ceil(safety + daily * Number(lead)),
+      detail: `${safety} + ${daily.toFixed(1)}/day × ${lead} days`,
+    };
+  };
 
   const editRow = (productId, field, value) => {
     setSaved(false);
@@ -90,11 +101,7 @@ function Settings({
       [productId]: {
         ...prev[productId],
         safetyStock: DEFAULT_SAFETY_STOCK,
-        annualDemand: '',
         leadTimeDays: '',
-        orderCycleDays: '',
-        orderingCost: '',
-        holdingCost: '',
       },
     }));
   };
@@ -171,7 +178,9 @@ function Settings({
           <div>
             <label className="s-row-title" htmlFor="s-currency">Currency</label>
             <div className="s-row-desc">
-              Changes monetary displays throughout the system; amounts are not converted.
+              {canChangeCurrency
+                ? 'Applies to every account and report. Amounts are not converted.'
+                : 'Set by an Admin for the whole system.'}
             </div>
           </div>
           <select
@@ -179,7 +188,7 @@ function Settings({
             className="s-currency-select"
             value={currency}
             onChange={handleCurrencyChange}
-            disabled={currencySaving}
+            disabled={currencySaving || !canChangeCurrency}
           >
             {CURRENCIES.map((option) => (
               <option key={option.code} value={option.code}>{option.label}</option>
@@ -187,7 +196,7 @@ function Settings({
           </select>
         </div>
         {currencySaving && <div className="s-currency-status" role="status">Saving currency…</div>}
-        {currencySaved && <div className="s-currency-status" role="status">Currency preference saved.</div>}
+        {currencySaved && <div className="s-currency-status" role="status">Currency saved for the whole system.</div>}
         {currencyError && <div className="s-currency-error" role="alert">{currencyError}</div>}
       </div>
 
@@ -288,7 +297,7 @@ function Settings({
               </div>
               <div className="s-row-desc">
                 {isSuperAdmin
-                  ? 'Safety stock policy — confidential, drives every reorder flag'
+                  ? 'Safety stock and lead time — sets every product’s reorder point'
                   : 'Locked. Ask a Super Admin to change safety stock.'}
               </div>
             </div>
@@ -298,52 +307,31 @@ function Settings({
 
         {isSuperAdmin && advancedOpen && (
           <div className="s-advanced-body">
-            <div className="s-advanced-head">
-              <p className="s-advanced-note">
-                Safety stock is the buffer a product must never fall below. Stock Control reads
-                these numbers for stock alerts and reorder planning. Enter lead time and order cycle
-                to calculate a maximum inventory target; leave them blank until you have reliable
-                supplier and ordering data.
-              </p>
-              <button
-                type="button"
-                className="s-ghost-btn"
-                onClick={() => setRevealed((value) => !value)}
-              >
-                {revealed ? <EyeOff size={13} /> : <Eye size={13} />}
-                {revealed ? 'Hide values' : 'Reveal values'}
-              </button>
-            </div>
-
             <p className="s-advanced-note">
-              Reorder point = safety stock + (annual demand ÷ 365) × lead time.
-              {' '}Maximum inventory = safety stock + (annual demand ÷ 365) × (lead time + order cycle).
-              Lead time and order cycle are measured in days. Enter actual ordering cost per order
-              and annual holding cost per unit to enable automatic order-quantity recommendations.
+              Safety stock is the minimum to keep on hand. The reorder point updates as you type.
+              Leave lead time blank to use the supplier’s.
             </p>
 
             <div className="s-policy-table">
               <div className="s-policy-head">
                 <span>Product</span>
                 <span>Safety Stock</span>
-                <span>Annual Demand</span>
                 <span>Lead Time (days)</span>
-                <span>Order Cycle (days)</span>
-                <span>Ordering Cost ({currencySymbol}/order)</span>
-                <span>Holding Cost ({currencySymbol}/unit/year)</span>
+                <span>Reorder Point</span>
                 <span />
               </div>
 
               {policyLoading && <div className="s-policy-empty">Loading products and reorder policies…</div>}
               {policyError && <div className="s-policy-error" role="alert">{policyError}</div>}
 
-              {rows.map((row) => (
-                <div className="s-policy-row" key={row.productId}>
-                  <span className="s-policy-product" title={row.productName}>
-                    {row.productName}
-                  </span>
+              {rows.map((row) => {
+                const preview = previewFor(row);
+                return (
+                  <div className="s-policy-row" key={row.productId}>
+                    <span className="s-policy-product" title={row.productName}>
+                      {row.productName}
+                    </span>
 
-                  {revealed ? (
                     <input
                       type="number"
                       min="0"
@@ -351,85 +339,35 @@ function Settings({
                       onChange={(e) => editRow(row.productId, 'safetyStock', e.target.value)}
                       aria-label={`Safety stock for ${row.productName}`}
                     />
-                  ) : (
-                    <span className="s-policy-masked">{show(row.safetyStock)}</span>
-                  )}
 
-                  {revealed ? (
                     <input
                       type="number"
                       min="0"
-                      value={row.annualDemand ?? ''}
-                      onChange={(e) => editRow(row.productId, 'annualDemand', e.target.value)}
-                      aria-label={`Annual demand for ${row.productName}`}
-                    />
-                  ) : (
-                    <span className="s-policy-masked">{show(row.annualDemand)}</span>
-                  )}
-
-                  {revealed ? (
-                    <input
-                      type="number"
-                      min="0"
+                      max="365"
                       value={row.leadTimeDays ?? ''}
                       onChange={(e) => editRow(row.productId, 'leadTimeDays', e.target.value)}
-                      aria-label={`Lead time in days for ${row.productName}`}
-                      placeholder="required"
+                      aria-label={`Lead time override in days for ${row.productName}`}
+                      placeholder={row.supplierLeadTimeDays != null ? `${row.supplierLeadTimeDays} (supplier)` : 'not set'}
+                      title={row.supplierName ? `Supplier: ${row.supplierName}` : 'No supplier linked'}
                     />
-                  ) : (
-                    <span className="s-policy-masked">{show(row.leadTimeDays ?? '')}</span>
-                  )}
 
-                  {revealed ? (
-                    <input
-                      type="number"
-                      min="1"
-                      value={row.orderCycleDays ?? ''}
-                      onChange={(e) => editRow(row.productId, 'orderCycleDays', e.target.value)}
-                      aria-label={`Order cycle in days for ${row.productName}`}
-                      placeholder="required"
-                    />
-                  ) : (
-                    <span className="s-policy-masked">{show(row.orderCycleDays ?? '')}</span>
-                  )}
+                    <span className="s-policy-point" title={preview.detail}>
+                      <strong>{preview.point}</strong>
+                      <small>{preview.detail}</small>
+                    </span>
 
-                  {revealed ? (
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={row.orderingCost ?? ''}
-                      onChange={(e) => editRow(row.productId, 'orderingCost', e.target.value)}
-                      aria-label={`Ordering cost per order for ${row.productName}`}
-                    />
-                  ) : (
-                    <span className="s-policy-masked">{show(row.orderingCost ?? '')}</span>
-                  )}
-
-                  {revealed ? (
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={row.holdingCost ?? ''}
-                      onChange={(e) => editRow(row.productId, 'holdingCost', e.target.value)}
-                      aria-label={`Holding cost per unit per year for ${row.productName}`}
-                    />
-                  ) : (
-                    <span className="s-policy-masked">{show(row.holdingCost ?? '')}</span>
-                  )}
-
-                  <button
-                    type="button"
-                    className="s-policy-remove"
-                    onClick={() => resetRow(row.productId)}
-                    aria-label={`Reset policy for ${row.productName}`}
-                    title={`Reset policy to the system default of ${DEFAULT_SAFETY_STOCK}`}
-                  >
-                    <RotateCcw size={13} />
-                  </button>
-                </div>
-              ))}
+                    <button
+                      type="button"
+                      className="s-policy-remove"
+                      onClick={() => resetRow(row.productId)}
+                      aria-label={`Reset policy for ${row.productName}`}
+                      title={`Reset to safety stock ${DEFAULT_SAFETY_STOCK} and the supplier's lead time`}
+                    >
+                      <RotateCcw size={13} />
+                    </button>
+                  </div>
+                );
+              })}
 
               {!policyLoading && !policyError && rows.length === 0 && (
                 <div className="s-policy-empty">

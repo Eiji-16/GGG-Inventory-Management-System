@@ -58,7 +58,10 @@ class ProductController extends Controller
             ->where('code', $code)
             ->firstOrFail();
 
-        return response()->json($this->format($product));
+        return response()->json($this->format(
+            $product,
+            app(\App\Services\ReorderPointService::class)->annualDemand($product)
+        ));
     }
 
     /** POST /api/products */
@@ -74,6 +77,8 @@ class ProductController extends Controller
             'supplierName'    => ['nullable', 'string', 'max:255'],
             'supplierContact' => ['nullable', 'string', 'max:255'],
             'stock'           => ['nullable', 'integer', 'min:0'],   // ← ADDED
+            'variants'        => ['nullable', 'array', 'max:50'],
+            'variants.*'      => ['nullable', 'string', 'max:100'],
         ]);
 
         $supplier = $this->resolveSupplier($data);
@@ -85,6 +90,7 @@ class ProductController extends Controller
             'brand'         => $data['brand'] ?? null,
             'model'         => $data['model'] ?? null,
             'unit_measure'  => $data['unitMeasure'] ?? null,
+            'variants'      => $this->cleanVariants($data['variants'] ?? []),
             'image'         => $this->sanitizeImage($data['image'] ?? null),
             'supplier_id'   => $supplier?->id,
             'stock_on_hand' => $data['stock'] ?? 0,                  // ← ADDED
@@ -110,6 +116,8 @@ class ProductController extends Controller
             'supplierName'    => ['nullable', 'string', 'max:255'],
             'supplierContact' => ['nullable', 'string', 'max:255'],
             'stock'           => ['sometimes', 'integer', 'min:0'],   // opening balance
+            'variants'        => ['sometimes', 'nullable', 'array', 'max:50'],
+            'variants.*'      => ['nullable', 'string', 'max:100'],
         ]);
 
         $supplier = $this->resolveSupplier($data);
@@ -135,6 +143,12 @@ class ProductController extends Controller
             'unit_measure' => $data['unitMeasure'] ?? null,
             'supplier_id'  => $supplier?->id,
         ], fn ($v) => $v !== null));
+
+        // Variants can be set or cleared (empty list), so handle them here too.
+        if (array_key_exists('variants', $data)) {
+            $product->variants = $this->cleanVariants($data['variants'] ?? []);
+            $product->save();
+        }
 
         // Image can be set OR cleared, so handle it outside array_filter (which
         // would drop an intentional empty string / null).
@@ -162,6 +176,29 @@ class ProductController extends Controller
         );
 
         return response()->json(['deleted' => true]);
+    }
+
+    /**
+     * Trim, drop blanks and remove case-insensitive duplicates, keeping the
+     * owner's order. Returns null when the list is empty.
+     *
+     * @param  array<int, mixed>  $variants
+     */
+    private function cleanVariants(array $variants): ?array
+    {
+        $clean = [];
+        $seen = [];
+        foreach ($variants as $variant) {
+            $name = trim((string) $variant);
+            $key = mb_strtolower($name);
+            if ($name === '' || isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $clean[] = $name;
+        }
+
+        return $clean ?: null;
     }
 
     private function resolveSupplier(array $data): ?Supplier
@@ -205,6 +242,7 @@ class ProductController extends Controller
 
     private function format(Product $p, int $demandFromHistory = 0, ?array $variants = null): array
     {
+        // $variants here = names already typed on stock movements (older data).
         $variants ??= \App\Models\StockMovement::query()
             ->where('product_id', $p->id)
             ->whereNotNull('variant_name')
@@ -215,6 +253,7 @@ class ProductController extends Controller
             ->unique(fn ($name) => mb_strtolower($name))
             ->values()
             ->all();
+        $defined = array_values($p->variants ?? []);
 
         return [
             'id'              => $p->code,
@@ -224,22 +263,42 @@ class ProductController extends Controller
             'model'           => $p->model,
             'unitMeasure'     => $p->unit_measure,
             'image'           => $p->image,
-            'variants'        => $variants,
+            // definedVariants: the product's own list (edited in the product modal;
+            // Stock Control picks from it). recordedVariants: names found on
+            // existing stock movements. variants: both, for the table/search.
+            'definedVariants'  => $defined,
+            'recordedVariants' => $variants,
+            'variants'        => $this->mergeVariants($defined, $variants),
             'stock'           => $p->stock_on_hand,
             'supplierName'    => $p->supplier?->name,
             'supplierContact' => $p->supplier?->contact,
             'company'         => $p->supplier?->company,
             'supplierInfo'    => $p->supplier?->name,
             'safetyStock'     => $p->safetyStock?->safety_stock,
-            'annualDemand'    => $p->safetyStock?->annual_demand,
+            // Annual demand = real sales (trailing 12 months); the old typed
+            // policy value is no longer used.
+            'annualDemand'    => $demandFromHistory ?: null,
             // Product policy lead time first, then the supplier's lead time.
             'leadTimeDays'    => $p->safetyStock?->lead_time_days ?? $p->supplier?->lead_time_days,
             'supplierLeadTimeDays' => $p->supplier?->lead_time_days,
-            'orderCycleDays'  => $p->safetyStock?->order_cycle_days,
             'orderingCost'    => auth()->user()?->isAdminOrAbove() ? $p->safetyStock?->ordering_cost : null,
             'holdingCost'     => auth()->user()?->isAdminOrAbove() ? $p->safetyStock?->holding_cost : null,
             // Units sold (stock out) in the trailing 12 months — real demand.
             'demandFromHistory' => $demandFromHistory,
         ];
+    }
+
+    /** Defined variants first, then any recorded ones not already listed. */
+    private function mergeVariants(array $defined, array $recorded): array
+    {
+        $seen = array_flip(array_map('mb_strtolower', $defined));
+        foreach ($recorded as $name) {
+            if (! isset($seen[mb_strtolower($name)])) {
+                $defined[] = $name;
+                $seen[mb_strtolower($name)] = true;
+            }
+        }
+
+        return $defined;
     }
 }
