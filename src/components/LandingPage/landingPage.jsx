@@ -67,10 +67,13 @@ function mapSafetyStockPolicies(records) {
       safetyStock: record.safetyStock ?? defaults.safetyStock ?? DEFAULT_SAFETY_STOCK,
       leadTimeDays: record.leadTimeDays ?? defaults.leadTimeDays ?? '',
       // Status points: 'auto' (reorder point / safety stock) or 'manual'.
-      statusMode: record.statusMode || 'auto',
+      statusMode: record.statusMode || 'manual',
       lowPoint: record.lowPoint ?? '',
       criticalPoint: record.criticalPoint ?? '',
       // Read-only context for the Settings preview (not saved by the policy).
+      category: record.category || '',
+      brand: record.brand || '',
+      model: record.model || '',
       supplierName: record.supplierName || '',
       supplierLeadTimeDays: record.supplierLeadTimeDays ?? null,
       demandFromHistory: record.demandFromHistory ?? 0,

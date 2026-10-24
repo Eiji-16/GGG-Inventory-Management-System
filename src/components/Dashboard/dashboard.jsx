@@ -616,7 +616,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
           <div className="productSales-card card">
             <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Top Products Sold</span><span className="db-card-sub">Selected {range} months · units</span></div><button className="db-open-arrow-btn" onClick={() => go('Forecasting')} aria-label="Open sales history" type="button"><OpenArrow /></button></div>
             {derived.topProducts.length ? (
-              <div className="db-rank">{derived.topProducts.map((product) => (
+              <div className="db-rank" tabIndex={0} aria-label="Top products sold">{derived.topProducts.map((product) => (
                 <div key={product.name} className="db-rank-row">
                   <span className="db-rank-name">{product.name}</span>
                   <span className="db-rank-track"><span className="db-rank-fill" style={{ width: `${(product.units / derived.maxProduct) * 100}%` }} /></span>

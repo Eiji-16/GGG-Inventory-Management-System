@@ -14,8 +14,8 @@ use Illuminate\Support\Facades\Schema;
  * `safety_stock` to flag low/critical items, and the Auto Calculator pulls
  * `annual_demand` from here during the EOQ handoff. One row per product.
  *
- * The global fallback (DEFAULT_SAFETY_STOCK = 20) is NOT stored here — it belongs
- * in app config / a settings row, applied when a product has no policy row.
+ * The application uses DEFAULT_SAFETY_STOCK = 3 when a product has no policy
+ * row. The database column default also matches that value for cost-only rows.
  */
 return new class extends Migration
 {
@@ -28,7 +28,7 @@ return new class extends Migration
                   ->constrained('products')
                   ->cascadeOnDelete();
 
-            $table->integer('safety_stock')->default(20);   // reorder threshold
+            $table->integer('safety_stock')->default(3);   // reorder threshold
             $table->integer('annual_demand')->nullable();   // units/year — feeds EOQ
 
             $table->timestamps();

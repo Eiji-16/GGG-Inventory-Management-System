@@ -801,8 +801,25 @@
     flex-direction: column;
     gap: 6px;
     flex: 1;
-    justify-content: center;
+    justify-content: safe center;
     margin-top: 2px;
+    min-height: 0;
+    max-height: calc(5 * 20px + 4 * 6px);
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.db-rank,
+.db-alert-list,
+.db-order-list {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.db-rank::-webkit-scrollbar,
+.db-alert-list::-webkit-scrollbar,
+.db-order-list::-webkit-scrollbar {
+    display: none;
 }
 
 .db-rank-row {
@@ -810,6 +827,8 @@
     grid-template-columns: 96px 1fr 34px;
     align-items: center;
     gap: 8px;
+    min-height: 20px;
+    flex-shrink: 0;
     font-size: 11px;
 }
 
@@ -850,17 +869,11 @@
     flex: 1;
     margin-top: 2px;
     /* Scroll when many products are low/out of stock instead of growing the card. */
-    max-height: 220px;
+    max-height: calc(4 * 29px + 3 * 4px);
+    min-height: 0;
     overflow-y: auto;
     padding-right: 2px;
 }
-.db-alert-list::-webkit-scrollbar { width: 6px; }
-.db-alert-list::-webkit-scrollbar-thumb {
-    background: var(--border-strong, rgba(255,255,255,0.18));
-    border-radius: 3px;
-}
-.db-alert-list::-webkit-scrollbar-track { background: transparent; }
-
 .db-alert-row {
     display: flex;
     align-items: center;
@@ -869,6 +882,8 @@
     border-radius: 8px;
     background: var(--overlay-soft);
     border-left: 3px solid transparent;
+    min-height: 29px;
+    flex-shrink: 0;
     font-size: 11px;
 }
 

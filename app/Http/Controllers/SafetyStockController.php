@@ -26,22 +26,30 @@ class SafetyStockController extends Controller
     {
         $products = Product::with(['safetyStock', 'supplier'])->orderBy('name')->get();
 
-        return response()->json($products->map(fn (Product $product) => [
-            'productId' => $product->code,
-            'productName' => $product->name,
-            'safetyStock' => $product->safetyStock?->safety_stock,
-            'leadTimeDays' => $product->safetyStock?->lead_time_days,
-            'supplierName' => $product->supplier?->name,
-            'supplierLeadTimeDays' => $product->supplier?->lead_time_days,
-            'demandFromHistory' => $reorderPoints->annualDemand($product),
-            'reorderPoint' => $reorderPoints->forProduct($product),
-            'statusMode' => $product->safetyStock?->status_mode ?? 'auto',
-            'lowPoint' => $product->safetyStock?->low_point,
-            'criticalPoint' => $product->safetyStock?->critical_point,
-            'orderingCost' => auth()->user()?->isAdminOrAbove() ? $product->safetyStock?->ordering_cost : null,
-            'holdingCost' => auth()->user()?->isAdminOrAbove() ? $product->safetyStock?->holding_cost : null,
-            'configured' => $product->safetyStock !== null,
-        ]));
+        return response()->json($products->map(function (Product $product) use ($reorderPoints) {
+            $policy = $product->safetyStock;
+            $hasPolicy = $policy !== null;
+
+            return [
+                'productId' => $product->code,
+                'productName' => $product->name,
+                'category' => $product->category,
+                'brand' => $product->brand,
+                'model' => $product->model,
+                'safetyStock' => $policy?->safety_stock ?? ReorderPointService::DEFAULT_SAFETY_STOCK,
+                'leadTimeDays' => $policy?->lead_time_days,
+                'supplierName' => $product->supplier?->name,
+                'supplierLeadTimeDays' => $product->supplier?->lead_time_days,
+                'demandFromHistory' => $reorderPoints->annualDemand($product),
+                'reorderPoint' => $reorderPoints->forProduct($product),
+                'statusMode' => $policy?->status_mode ?? ($hasPolicy ? 'auto' : 'manual'),
+                'lowPoint' => $hasPolicy ? $policy->low_point : ReorderPointService::DEFAULT_LOW_POINT,
+                'criticalPoint' => $hasPolicy ? $policy->critical_point : ReorderPointService::DEFAULT_CRITICAL_POINT,
+                'orderingCost' => auth()->user()?->isAdminOrAbove() ? $policy?->ordering_cost : null,
+                'holdingCost' => auth()->user()?->isAdminOrAbove() ? $policy?->holding_cost : null,
+                'configured' => $hasPolicy,
+            ];
+        }));
     }
 
     /** PUT /api/safety-stock — safety stock and lead-time override only. */

@@ -29,7 +29,7 @@ use Illuminate\Validation\ValidationException;
  */
 class DemandReorderService
 {
-    public const DEFAULT_SAFETY_STOCK = 20;
+    public const DEFAULT_SAFETY_STOCK = ReorderPointService::DEFAULT_SAFETY_STOCK;
 
     public function __construct(
         private readonly SalesForecastService $forecasts,

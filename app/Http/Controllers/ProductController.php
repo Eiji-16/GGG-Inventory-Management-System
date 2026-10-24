@@ -274,7 +274,7 @@ class ProductController extends Controller
             'supplierContact' => $p->supplier?->contact,
             'company'         => $p->supplier?->company,
             'supplierInfo'    => $p->supplier?->name,
-            'safetyStock'     => $p->safetyStock?->safety_stock,
+            'safetyStock'     => $p->safetyStock?->safety_stock ?? \App\Services\ReorderPointService::DEFAULT_SAFETY_STOCK,
             // Annual demand = real sales (trailing 12 months); the old typed
             // policy value is no longer used.
             'annualDemand'    => $demandFromHistory ?: null,

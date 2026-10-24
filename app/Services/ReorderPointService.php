@@ -15,7 +15,9 @@ use App\Models\StockMovement;
  */
 class ReorderPointService
 {
-    public const DEFAULT_SAFETY_STOCK = 20;
+    public const DEFAULT_SAFETY_STOCK = 3;
+    public const DEFAULT_LOW_POINT = 10;
+    public const DEFAULT_CRITICAL_POINT = 5;
 
     public function annualDemand(Product $product): int
     {
@@ -49,6 +51,13 @@ class ReorderPointService
     public function statusPoints(Product $product): array
     {
         $policy = $product->safetyStock;
+        if ($policy === null) {
+            return [
+                'mode' => 'manual',
+                'low' => self::DEFAULT_LOW_POINT,
+                'critical' => self::DEFAULT_CRITICAL_POINT,
+            ];
+        }
         if (($policy?->status_mode ?? 'auto') === 'manual' && $policy->low_point !== null && $policy->critical_point !== null) {
             return ['mode' => 'manual', 'low' => (int) $policy->low_point, 'critical' => (int) $policy->critical_point];
         }

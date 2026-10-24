@@ -12,7 +12,12 @@ import {
 } from 'lucide-react';
 import './settings.css';
 import { readShowFieldHints, saveShowFieldHints } from '../../fieldHints';
-import { SAFETY_STOCK_DEFAULTS, DEFAULT_SAFETY_STOCK } from '../../data/safetyStock';
+import {
+  SAFETY_STOCK_DEFAULTS,
+  DEFAULT_SAFETY_STOCK,
+  DEFAULT_LOW_POINT,
+  DEFAULT_CRITICAL_POINT,
+} from '../../data/safetyStock';
 import { CURRENCIES, useCurrency } from '../../CurrencyContext';
 
 const THEMES = [
@@ -138,9 +143,9 @@ function Settings({
         ...prev[productId],
         safetyStock: DEFAULT_SAFETY_STOCK,
         leadTimeDays: '',
-        statusMode: 'auto',
-        lowPoint: '',
-        criticalPoint: '',
+        statusMode: 'manual',
+        lowPoint: DEFAULT_LOW_POINT,
+        criticalPoint: DEFAULT_CRITICAL_POINT,
       },
     }));
   };
@@ -218,8 +223,14 @@ function Settings({
      every product's draft). */
   const policyQueryText = policyQuery.trim().toLowerCase();
   const visibleRows = policyQueryText
-    ? rows.filter((row) => String(row.productName || '').toLowerCase().includes(policyQueryText)
-      || String(row.supplierName || '').toLowerCase().includes(policyQueryText))
+    ? rows.filter((row) => [
+      row.productId,
+      row.productName,
+      row.category,
+      row.brand,
+      row.model,
+      row.supplierName,
+    ].some((field) => String(field || '').toLowerCase().includes(policyQueryText)))
     : rows;
 
   /* Super Admin: Preferences on the left, Safety Stock Policy on the right
@@ -364,7 +375,7 @@ function Settings({
                 <Search size={13} aria-hidden="true" />
                 <input
                   type="search"
-                  placeholder="Search products or suppliers…"
+                  placeholder="Search product, model, brand, category, or supplier…"
                   value={policyQuery}
                   onChange={(e) => setPolicyQuery(e.target.value)}
                   aria-label="Search products in the safety stock policy"
@@ -400,9 +411,9 @@ function Settings({
                 const preview = previewFor(row);
                 return (
                   <div className="s-policy-row" key={row.productId} role="row">
-                    <span className="s-policy-product" title={row.productName}>
+                    <span className="s-policy-product" title={[row.productName, row.brand, row.model].filter(Boolean).join(' · ')}>
                       <strong>{row.productName}</strong>
-                      <small>{row.supplierName || 'No supplier'}</small>
+                      <small>{[row.brand, row.model, row.supplierName || 'No supplier'].filter(Boolean).join(' · ')}</small>
                     </span>
 
                     <input
@@ -470,7 +481,7 @@ function Settings({
                       className="s-icon-btn"
                       onClick={() => resetRow(row.productId)}
                       aria-label={`Reset policy for ${row.productName}`}
-                      title={`Reset to safety stock ${DEFAULT_SAFETY_STOCK}, the supplier's lead time and Auto`}
+                      title={`Reset to safety stock ${DEFAULT_SAFETY_STOCK}, Low ${DEFAULT_LOW_POINT}, Critical ${DEFAULT_CRITICAL_POINT}`}
                     >
                       <RotateCcw size={13} />
                     </button>

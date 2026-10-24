@@ -1,9 +1,10 @@
 /* Safety Stock Policy */
 /* Owned by the Super Admin. Editable only from Settings → Advanced. */
 
-/* DEFAULT_SAFETY_STOCK — fallback safety-stock level for any product not in the policy below.
-   BACKEND: a single config value; store in a `settings` table or app config. */
-export const DEFAULT_SAFETY_STOCK = 20;
+/* Defaults for products without an explicitly saved safety-stock policy. */
+export const DEFAULT_SAFETY_STOCK = 3;
+export const DEFAULT_LOW_POINT = 10;
+export const DEFAULT_CRITICAL_POINT = 5;
 
 /* Empty until the saved per-product policies load from the server. (The old
    sample entries from a demo store were removed.) */
@@ -76,6 +77,9 @@ export const statusPointsFor = (row, policy = SAFETY_STOCK_DEFAULTS) => {
     && configured.lowPoint !== '' && configured.lowPoint != null && Number.isFinite(low)
     && configured.criticalPoint !== '' && configured.criticalPoint != null && Number.isFinite(critical)) {
     return { mode: 'manual', low, critical };
+  }
+  if (configured.statusMode == null && configured.lowPoint == null && configured.criticalPoint == null) {
+    return { mode: 'manual', low: DEFAULT_LOW_POINT, critical: DEFAULT_CRITICAL_POINT };
   }
   return { mode: 'auto', low: reorderPointFor(row, policy), critical: safetyPointFor(row, policy) };
 };

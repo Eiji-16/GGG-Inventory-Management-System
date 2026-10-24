@@ -29,15 +29,19 @@ class SafetyStockPolicyTest extends TestCase
             'is_adjustment' => false, 'qty' => 730, 'remaining_stock' => 0, 'movement_date' => now()->toDateString(),
         ]);
 
-        // Not configured yet: default 20 + 2/day × supplier's 3 days = 26.
+        // Not configured yet: default 3 + 2/day × supplier's 3 days = 9.
         $this->getJson('/api/safety-stock')
             ->assertOk()
             ->assertJsonFragment([
                 'productId' => $product['id'],
                 'configured' => false,
+                'safetyStock' => 3,
+                'statusMode' => 'manual',
+                'lowPoint' => 10,
+                'criticalPoint' => 5,
                 'supplierLeadTimeDays' => 3,
                 'demandFromHistory' => 730,
-                'reorderPoint' => 26,
+                'reorderPoint' => 9,
             ]);
 
         // Override lead time to 10 days: 32 + 2 × 10 = 52.
@@ -64,6 +68,34 @@ class SafetyStockPolicyTest extends TestCase
             ->assertOk()
             ->assertJsonFragment(['id' => $product['id'], 'safetyStock' => 32, 'leadTimeDays' => 10, 'annualDemand' => 730]);
         $this->assertDatabaseHas('safety_stock', ['product_id' => $model->id, 'safety_stock' => 32, 'lead_time_days' => 10, 'annual_demand' => null]);
+    }
+
+    public function test_default_policy_marks_ten_as_healthy_and_uses_specification_fields(): void
+    {
+        $product = $this->postJson('/api/products', [
+            'name' => 'Default Policy Laptop',
+            'category' => 'Computers',
+            'brand' => 'Example Tech',
+            'model' => 'ET-100',
+        ])->assertCreated()->json();
+        $model = Product::where('code', $product['id'])->firstOrFail();
+        $service = new \App\Services\ReorderPointService();
+
+        $this->assertSame('low', $service->statusFor($model, 10));
+        $this->assertSame('healthy', $service->statusFor($model, 11));
+        $this->assertSame('low', $service->statusFor($model, 6));
+        $this->assertSame('critical', $service->statusFor($model, 5));
+        $this->assertSame('out', $service->statusFor($model, 0));
+
+        $this->getJson('/api/safety-stock')
+            ->assertOk()
+            ->assertJsonFragment([
+                'productId' => $product['id'],
+                'productName' => 'Default Policy Laptop',
+                'category' => 'Computers',
+                'brand' => 'Example Tech',
+                'model' => 'ET-100',
+            ]);
     }
 
     public function test_saving_the_policy_never_wipes_saved_eoq_costs(): void
