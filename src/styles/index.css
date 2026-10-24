@@ -50,10 +50,14 @@ select option:checked {
 
 /* Settings → "Show field descriptions" off: hide the small helper notes under
    inputs and the explanatory info lines. Errors and live values stay visible. */
+/* .hint-text is the general class for any helper note — add it to new notes
+   so this switch covers them too. */
 html[data-field-hints="hidden"] :is(
+    .hint-text,
     .eq-hint,
     .eq-note,
-    .sc-field-hint,
+    .sc-field-hint:not(.sc-field-total),
+    .s-policy-hint,
     .sc-status-preview-note,
     .ps-field-note,
     .ps-detail-hint,

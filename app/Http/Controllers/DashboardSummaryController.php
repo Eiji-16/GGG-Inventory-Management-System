@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
-use App\Models\SalesHistory;
 use App\Models\StockMovement;
 use App\Models\Supplier;
 use App\Models\User;
@@ -30,7 +29,9 @@ class DashboardSummaryController extends Controller
                 'stock' => $product->stock_on_hand,
                 'safetyStock' => $product->safetyStock?->safety_stock,
                 'annualDemand' => $reorderPoints->annualDemand($product),
-                'leadTimeDays' => $product->safetyStock?->lead_time_days,
+                // Policy lead time, else the supplier's — the same rule the
+                // server uses for statuses, so the Dashboard matches Stock Control.
+                'leadTimeDays' => $reorderPoints->leadTimeDays($product),
                 'supplierId' => $product->supplier_id,
                 // True once the product has any movement; used to keep brand-new
                 // products out of the Stock Alerts list until they're tracked.
@@ -49,17 +50,49 @@ class DashboardSummaryController extends Controller
                 ->count(),
         ];
 
-        $salesHistory = SalesHistory::with('product:id,code,name')
-            ->where('period_type', 'month')
-            ->orderBy('period_date')
-            ->get()
-            ->map(fn (SalesHistory $record) => [
-                'id' => $record->id,
-                'productId' => $record->product?->code,
-                'productName' => $record->product?->name,
-                'periodDate' => $record->period_date?->toDateString(),
-                'unitsSold' => $record->units_sold,
-            ]);
+        // Monthly sales for the Sales History / Products with Sales cards:
+        // real Stock Out entries (not corrections) plus Past Sales for months
+        // before Stock Control began — the same sources the forecast uses.
+        // (Read directly instead of the saved sales_history rows, which could
+        // keep old numbers after a product's stock was cleared.)
+        $forecasts = app(\App\Services\SalesForecastService::class);
+        $monthly = [];
+        $addSale = function (Product $product, string $month, int $units) use (&$monthly): void {
+            $key = $product->id.'|'.$month;
+            $monthly[$key] ??= [
+                'productId' => $product->code,
+                'productName' => $product->name,
+                'periodDate' => $month,
+                'unitsSold' => 0,
+            ];
+            $monthly[$key]['unitsSold'] += $units;
+        };
+        // Deleted products keep their sales history here.
+        $productsById = Product::withTrashed()->get()->keyBy('id');
+        StockMovement::query()
+            ->whereIn('product_id', $productsById->keys())
+            ->where('movement_type', 'out')
+            ->where('is_adjustment', false)
+            ->get(['product_id', 'qty', 'movement_date'])
+            ->each(fn (StockMovement $m) => $addSale(
+                $productsById[$m->product_id],
+                $m->movement_date->copy()->startOfMonth()->toDateString(),
+                (int) $m->qty
+            ));
+        \App\Models\PastSale::query()
+            ->whereIn('product_id', $productsById->keys())
+            ->get(['product_id', 'period_date', 'units_sold'])
+            ->each(function ($past) use ($productsById, $forecasts, $addSale): void {
+                $product = $productsById[$past->product_id];
+                $month = \Illuminate\Support\Carbon::parse($past->period_date)->startOfMonth();
+                if ($month->lt($forecasts->pastSalesCutoff($product))) {
+                    $addSale($product, $month->toDateString(), (int) $past->units_sold);
+                }
+            });
+        $salesHistory = collect(array_values($monthly))
+            ->sortBy('periodDate')
+            ->values()
+            ->map(fn (array $row, int $i) => ['id' => $i + 1] + $row);
 
         $stockMovements = StockMovement::with('product:id,code')
             ->orderBy('movement_date')

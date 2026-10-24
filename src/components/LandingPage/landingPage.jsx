@@ -20,7 +20,10 @@ import {
   X,
   UsersRound,
   Settings as SettingsIcon,
-  BellRing
+  BellRing,
+  CircleUserRound,
+  Camera,
+  Trash2
 } from 'lucide-react'; /* ===== ICONS ===== */
 
 import './landingPage.css'; /* ===== STYLES ===== */
@@ -201,6 +204,74 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* ===== SIDEBAR ===== */
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+
+  /* ===== SIDEBAR PICTURE =====
+     Default: a profile icon. The Super Admin can choose a picture that every
+     account then sees (saved on the server, see SystemLogoController). */
+  const isSuperAdminUser = role === 'super_admin';
+  const [logoUrl, setLogoUrl] = useState(user?.logoUrl || null);
+  const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [logoError, setLogoError] = useState('');
+  const logoFileRef = useRef(null);
+  useEffect(() => { setLogoUrl(user?.logoUrl || null); }, [user?.logoUrl]);
+
+  const closeLogoModal = () => {
+    if (logoBusy) return;
+    setIsLogoModalOpen(false);
+    setLogoError('');
+  };
+
+  const uploadLogo = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setLogoError('Please choose an image file (JPG, PNG, WEBP or GIF).');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setLogoError('The picture must be 2 MB or smaller.');
+      return;
+    }
+    setLogoBusy(true);
+    setLogoError('');
+    try {
+      const form = new FormData();
+      form.append('logo', file);
+      const response = await apiFetch('/branding/logo', { method: 'POST', body: form });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(Object.values(body?.errors || {}).flat()[0] || body?.message || `Upload failed (${response.status}).`);
+      }
+      setLogoUrl(body.logoUrl || null);
+      setIsLogoModalOpen(false);
+    } catch (error) {
+      setLogoError(error.message || 'The picture could not be saved.');
+    } finally {
+      setLogoBusy(false);
+    }
+  };
+
+  const removeLogo = async () => {
+    setLogoBusy(true);
+    setLogoError('');
+    try {
+      const response = await apiFetch('/branding/logo', { method: 'DELETE' });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body?.message || `Remove failed (${response.status}).`);
+      setLogoUrl(null);
+      setIsLogoModalOpen(false);
+    } catch (error) {
+      setLogoError(error.message || 'The picture could not be removed.');
+    } finally {
+      setLogoBusy(false);
+    }
+  };
+
+  const logoContent = logoUrl
+    ? <img className="sidebar-logo-img" src={logoUrl} alt="" onError={() => setLogoUrl(null)} />
+    : <CircleUserRound className="sidebar-logo-icon" aria-hidden="true" />;
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const logoutProcessingRef = useRef(false);
   const logoutCancelRef = useRef(null);
@@ -456,10 +527,22 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
 {/* ===== SIDEBAR NAVIGATION ===== */}
   <ul className="sidebar-menu">
       <div className="sidebar-item sidebar-logo-row">
-        <span id="sidebar-logo" aria-hidden="true">
-{/* ===== LOGO ===== */}
-          A
-          </span>
+{/* ===== LOGO (profile icon, or the Super Admin's chosen picture) ===== */}
+        {isSuperAdminUser ? (
+          <button
+            id="sidebar-logo"
+            type="button"
+            className="sidebar-logo-editable"
+            onClick={() => setIsLogoModalOpen(true)}
+            title="Change system logo"
+            aria-label="Change system logo"
+          >
+            {logoContent}
+            <span className="sidebar-logo-camera" aria-hidden="true"><Camera size={9} /></span>
+          </button>
+        ) : (
+          <span id="sidebar-logo" aria-hidden="true">{logoContent}</span>
+        )}
         <span className="sidebar-brand">
           <strong>GGG Inventory</strong>
           <small>Inventory Management</small>
@@ -731,6 +814,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     onInventoryChanged={() => setPolicyRefreshKey((key) => key + 1)}
                     currentUserName={user?.name || ''}
                     canComputeEoq={canAccess('Auto-Calculator')}
+                    canClearStock={role === 'super_admin' || role === 'admin'}
                   />
                 </div>
               )}
@@ -774,7 +858,11 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
               )}
               {visitedViews.has('Reports') && canAccess('Reports') && (
                 <div className="app-view-panel" hidden={activeView !== 'Reports'}>
-                  <ReportAnalytics safetyStock={safetyStock} />
+                  <ReportAnalytics
+                    safetyStock={safetyStock}
+                    refreshKey={policyRefreshKey}
+                    isActive={activeView === 'Reports'}
+                  />
                 </div>
               )}
               {visitedViews.has('Setting') && canAccess('Setting') && (
@@ -798,6 +886,51 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
             </main>
         </div>
       </div>
+      {isLogoModalOpen && isSuperAdminUser && createPortal(
+        <div className="logout-confirm-overlay" onClick={closeLogoModal}>
+          <section
+            className="logout-confirm-modal logo-picker-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logo-picker-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <span className="logo-picker-preview" aria-hidden="true">
+              {logoUrl ? <img src={logoUrl} alt="" /> : <CircleUserRound size={40} />}
+            </span>
+            <h2 id="logo-picker-title">System logo</h2>
+            <p>The system’s logo at the top of the sidebar, shown to every account. JPG, PNG, WEBP or GIF, up to 2 MB.</p>
+            {logoError && <p className="logo-picker-error" role="alert">{logoError}</p>}
+            <input
+              ref={logoFileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onChange={uploadLogo}
+              hidden
+            />
+            <div className="logout-confirm-actions">
+              {logoUrl && (
+                <button type="button" className="logout-confirm-cancel" onClick={removeLogo} disabled={logoBusy}>
+                  <Trash2 size={13} /> Remove
+                </button>
+              )}
+              <button type="button" className="logout-confirm-cancel" onClick={closeLogoModal} disabled={logoBusy}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="logout-confirm-submit logo-picker-choose"
+                onClick={() => logoFileRef.current?.click()}
+                disabled={logoBusy}
+              >
+                {logoBusy ? 'Saving…' : logoUrl ? 'Change logo' : 'Choose logo'}
+              </button>
+            </div>
+          </section>
+        </div>,
+        document.body
+      )}
+
       {isLogoutConfirmOpen && createPortal(
         <div
           className="logout-confirm-overlay"

@@ -36,6 +36,19 @@ class AppSetting extends Model
         static::query()->updateOrCreate(['key' => $key], ['value' => $value]);
     }
 
+    /**
+     * URL of the sidebar picture the Super Admin chose, or null for the
+     * default icon. The file lives on the private "local" disk and is served
+     * by GET /branding/logo; ?v= changes with each new picture so browsers
+     * don't keep showing the old one.
+     */
+    public static function logoUrl(): ?string
+    {
+        $path = static::get('logo');
+
+        return $path ? '/branding/logo?v='.substr(md5($path), 0, 10) : null;
+    }
+
     /** The currency every screen and report displays amounts in. */
     public static function currency(): string
     {

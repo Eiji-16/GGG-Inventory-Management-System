@@ -412,7 +412,7 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
         </button>
         {dirty && <button type="button" className="f-btn f-btn-ghost" onClick={() => setDrafts({})} disabled={saving}>Undo changes</button>}
       </div>
-      <p className="ps-muted">Leave a month blank if there is no record. Clearing a saved month and saving removes it.</p>
+      <p className="ps-muted hint-text">Leave a month blank if there is no record. Clearing a saved month and saving removes it.</p>
     </section>
   );
 }

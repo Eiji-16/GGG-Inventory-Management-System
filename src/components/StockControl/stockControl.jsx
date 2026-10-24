@@ -6,6 +6,7 @@ import {
   X,
   Edit,
   Trash2,
+  Eraser,
   AlertTriangle,
   Calculator,
   History,
@@ -99,6 +100,8 @@ function StockControl({
   onInventoryChanged,
   currentUserName = '',
   canComputeEoq = false,
+  // Clearing ALL of a product's stock records is for Super Admin / Admin only.
+  canClearStock = false,
 }) {
   const { currency, currencySymbol, formatCurrency } = useCurrency();
   const [stockFromDatabase, setStockFromDatabase] = useState([]);
@@ -358,6 +361,12 @@ function StockControl({
     }, currentOnHand, projectedRemaining, safetyStock)
     : null;
   const [confirmSale, setConfirmSale] = useState(null);
+  // In-app confirmation for deletes (replaces the browser's window.confirm).
+  // { kind: 'entry', stock, changeText } or { kind: 'clear', productId, productName }
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  // Shown after a new entry was added to an existing same-day entry.
+  const [mergeNotice, setMergeNotice] = useState('');
   const [safetyAlert, setSafetyAlert] = useState(null);
   const [safetyOrdering, setSafetyOrdering] = useState(false);
   const orderFromSafetyAlert = async () => {
@@ -396,7 +405,7 @@ function StockControl({
   // Navigation only — sends the product's forecast demand to the EOQ
   // Calculator (falls back to the previous demand figure if no forecast yet).
   const computeEoqFor = async (row) => {
-    if (!onNavigate) return;
+    if (!onNavigate || !canComputeEoq) return;
     const { handoff, reason } = await buildForecastHandoff(row.productId, row.productName);
     onNavigate('Auto-Calculator', handoff || {
       product: row.productName,
@@ -823,8 +832,94 @@ function StockControl({
       setStockError('Could not find this product. Refresh the stock list and try again.');
       return;
     }
-    if (!window.confirm(`Clear ${product.name}'s stock balance and movement records? Product information will remain.`)) return;
-    await clearProductStock(productId);
+    setConfirmDelete({ kind: 'clear', productId, productName: product.name });
+  };
+
+  // Delete ONE stock entry. The server removes it and puts the product's
+  // stock back to what it was before that entry (same as it never happened).
+  const requestDeleteSingleEntry = (stock) => {
+    const change = signedQty(stock);
+    setConfirmDelete({
+      kind: 'entry',
+      stock,
+      changeText: `${change >= 0 ? '+' : '−'}${Math.abs(change)}`,
+    });
+  };
+
+  const deleteSingleEntry = async (stock) => {
+    try {
+      const response = await apiFetch(`/api/stock-movements/${encodeURIComponent(stock.id)}`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        const firstError = result.errors ? Object.values(result.errors).flat()[0] : null;
+        throw new Error(firstError || result.message || `Delete failed (${response.status}).`);
+      }
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(stock.id);
+        return next;
+      });
+      setStockError('');
+      setMergeNotice('');
+      await refreshStockData();
+      await loadStockActivities();
+      onInventoryChanged?.();
+    } catch (error) {
+      setStockError(error.message || 'Could not delete this entry.');
+    }
+  };
+
+  // "Clear stock (N)": clear every selected product (after the popup).
+  const requestClearSelectedProducts = () => {
+    const products = selectedProductIds
+      .map((productId) => productById.get(productId))
+      .filter(Boolean);
+    if (products.length === 0) return;
+    setConfirmDelete({ kind: 'bulk', products });
+  };
+
+  const clearSelectedProducts = async (selectedProducts) => {
+    const failedProducts = [];
+    for (const product of selectedProducts) {
+      const result = await clearProductStock(product.id, false, false);
+      if (result !== true) failedProducts.push({ product, error: result });
+    }
+    try {
+      await refreshStockData();
+      await loadStockActivities();
+      if (selectedProducts.length > failedProducts.length) onInventoryChanged?.();
+      setStockError(failedProducts.length
+        ? failedProducts.map(({ product, error }) => `${product.name}: ${error}`).join(' ')
+        : '');
+    } catch (error) {
+      setStockError(error.message || 'The stock list could not be refreshed.');
+    }
+    setSelectedIds(new Set(
+      stockFromDatabase
+        .filter((row) => failedProducts.some(({ product }) => product.id === row.productId))
+        .map((row) => row.id)
+    ));
+  };
+
+  // Runs when the user presses the red button in the delete popup.
+  const confirmDeleteAction = async () => {
+    if (!confirmDelete || deleteBusy) return;
+    setDeleteBusy(true);
+    try {
+      if (confirmDelete.kind === 'entry') {
+        await deleteSingleEntry(confirmDelete.stock);
+      } else if (confirmDelete.kind === 'bulk') {
+        await clearSelectedProducts(confirmDelete.products);
+      } else {
+        await clearProductStock(confirmDelete.productId);
+      }
+    } finally {
+      setDeleteBusy(false);
+      setConfirmDelete(null);
+    }
   };
 
   const closeModal = () => {
@@ -941,6 +1036,15 @@ function StockControl({
       }
 
       closeModal();
+      if (result.merged) {
+        const sign = payload.type === 'Stock Out' ? '−' : '+';
+        setMergeNotice(
+          `${payload.productName}: ${sign}${result.addedQty} was added to today's entry `
+          + `(${sign}${result.mergedFromQty} → ${sign}${result.qty}), so no new row was created.`
+        );
+      } else {
+        setMergeNotice('');
+      }
       setSafetyAlert(crossedSafety
         ? { ...crossedSafety, productId: payload.productId, productName: payload.productName }
         : null);
@@ -1025,43 +1129,15 @@ function StockControl({
           )}
         </div>
 
-        {selectedIds.size > 0 && (
+        {canClearStock && selectedIds.size > 0 && (
           <button
             className="sc-add-btn sc-delete-selected-btn"
-            onClick={async () => {
-              const selectedProducts = selectedProductIds
-                .map((productId) => productById.get(productId))
-                .filter(Boolean);
-              const confirmed = window.confirm(
-                `Clear stock balances and movement records for ${selectedProducts.length} selected product(s)? Product information will remain.`
-              );
-              if (!confirmed) return;
-              const failedProducts = [];
-              for (const product of selectedProducts) {
-                const result = await clearProductStock(product.id, false, false);
-                if (result !== true) failedProducts.push({ product, error: result });
-              }
-              try {
-                await refreshStockData();
-                await loadStockActivities();
-                if (selectedProducts.length > failedProducts.length) onInventoryChanged?.();
-                setStockError(failedProducts.length
-                  ? failedProducts.map(({ product, error }) => `${product.name}: ${error}`).join(' ')
-                  : '');
-              } catch (error) {
-                setStockError(error.message || 'The stock list could not be refreshed.');
-              }
-              setSelectedIds(new Set(
-                stockFromDatabase
-                  .filter((row) => failedProducts.some(({ product }) => product.id === row.productId))
-                  .map((row) => row.id)
-              ));
-            }}
+            onClick={requestClearSelectedProducts}
             type="button"
             title={`Clear stock for ${selectedProductIds.length} selected product(s)`}
           >
             <p>Clear stock ({selectedProductIds.length})</p>
-            <Trash2 size={12} />
+            <Eraser size={12} />
           </button>
         )}
         <button className="sc-add-btn sc-add-btn-primary" onClick={openAddModal} type="button">
@@ -1086,6 +1162,15 @@ function StockControl({
         <div className="sc-error-banner" role="alert">
           <span>{stockError}</span>
           <button type="button" onClick={() => refreshStockData().catch((error) => setStockError(error.message))}>Retry</button>
+        </div>
+      )}
+
+      {mergeNotice && (
+        <div className="sc-merge-notice" role="status">
+          <span>{mergeNotice}</span>
+          <button type="button" className="sc-safety-alert-close" onClick={() => setMergeNotice('')} aria-label="Dismiss">
+            <X size={14} />
+          </button>
         </div>
       )}
 
@@ -1220,7 +1305,8 @@ function StockControl({
                   <td data-label="Recorded by">{stock.recordedBy || '—'}</td>
                   <td className="sc-td-actions" data-label="Actions">
                     <div className="sc-action-cell-container">
-                      {status && status !== 'healthy' && (
+                      {/* Economic Order Quantity Calculator: Super Admin and Admin only */}
+                      {canComputeEoq && status && status !== 'healthy' && (
                         <button
                           className="sc-table-action-btn sc-eoq-btn"
                           onClick={() => computeEoqFor(stock)}
@@ -1251,13 +1337,24 @@ function StockControl({
                       </button>
                       <button
                         className="sc-table-action-btn sc-delete-btn"
-                        onClick={() => requestClearProductStock(stock.productId)}
-                        aria-label={`Clear stock for ${stock.productName}`}
-                        title="Clear product stock and movement records"
+                        onClick={() => requestDeleteSingleEntry(stock)}
+                        aria-label={`Delete this entry for ${stock.productName}`}
+                        title="Delete this entry only (stock goes back to before it)"
                         type="button"
                       >
                         <Trash2 size={14} />
                       </button>
+                      {canClearStock && (
+                      <button
+                        className="sc-table-action-btn sc-delete-btn sc-clear-all-btn"
+                        onClick={() => requestClearProductStock(stock.productId)}
+                        aria-label={`Clear all stock records for ${stock.productName}`}
+                        title={`Clear ALL stock and movement records for ${stock.productName}`}
+                        type="button"
+                      >
+                        <Eraser size={14} />
+                      </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -1490,7 +1587,9 @@ function StockControl({
                         onChange={handleFormChange}
                         placeholder="e.g. 299.00"
                       />
-                      <span className="sc-field-hint">
+                      {/* Helper text until a price is typed; then the computed total,
+                          which stays visible even with field descriptions turned off. */}
+                      <span className={`sc-field-hint${formData.unitPrice === '' || !(Number(formData.unitPrice) >= 0) ? '' : ' sc-field-total'}`}>
                         {(() => {
                           if (formData.unitPrice === '' || !(Number(formData.unitPrice) >= 0)) {
                             return 'Optional · cost per unit (Stock In) or selling price per unit (Stock Out).';
@@ -1634,6 +1733,79 @@ function StockControl({
       )}
       {/* ===== MOVEMENT HISTORY ===== */}
       {/* ===== SAFETY STOCK CONFIRMATION ===== */}
+      {confirmDelete && createPortal(
+        <div className="sc-modal-overlay sc-confirm-overlay" onClick={() => !deleteBusy && setConfirmDelete(null)}>
+          <div
+            className="sc-modal sc-confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="sc-delete-title"
+            aria-describedby="sc-delete-text"
+          >
+            <span className="sc-confirm-icon is-out" aria-hidden="true">
+              {confirmDelete.kind === 'entry' ? <Trash2 size={22} /> : <Eraser size={22} />}
+            </span>
+            {confirmDelete.kind === 'entry' ? (
+              <>
+                <h3 id="sc-delete-title">Delete this entry?</h3>
+                <p id="sc-delete-text">
+                  The stock will go back to what it was before this entry. Other entries are not affected.
+                  <span className="sc-confirm-detail">
+                    {confirmDelete.stock.productName}
+                    {confirmDelete.stock.variantName ? ` (${confirmDelete.stock.variantName})` : ''}
+                    {' · '}{movementLabel(confirmDelete.stock.type)}{' '}
+                    <strong>{confirmDelete.changeText}</strong>
+                    {' · '}{confirmDelete.stock.date}
+                  </span>
+                </p>
+              </>
+            ) : confirmDelete.kind === 'bulk' ? (
+              <>
+                <h3 id="sc-delete-title">Clear stock for {confirmDelete.products.length} product{confirmDelete.products.length === 1 ? '' : 's'}?</h3>
+                <p id="sc-delete-text">
+                  This deletes <strong>every</strong> stock movement for the selected products and sets their stock to 0.
+                  <span className="sc-confirm-detail">
+                    {confirmDelete.products.map((product) => product.name).join(', ')}
+                    <br />The products themselves stay. This can’t be undone.
+                  </span>
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 id="sc-delete-title">Clear all stock records?</h3>
+                <p id="sc-delete-text">
+                  This deletes <strong>every</strong> stock movement for {confirmDelete.productName} and sets its stock to 0.
+                  <span className="sc-confirm-detail">The product itself stays. This can’t be undone.</span>
+                </p>
+              </>
+            )}
+            <div className="sc-modal-actions">
+              <button
+                type="button"
+                className="sc-modal-cancel-btn"
+                onClick={() => setConfirmDelete(null)}
+                disabled={deleteBusy}
+                autoFocus
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="sc-modal-save-btn sc-confirm-danger-btn"
+                onClick={confirmDeleteAction}
+                disabled={deleteBusy}
+              >
+                {deleteBusy
+                  ? 'Deleting…'
+                  : confirmDelete.kind === 'entry' ? 'Delete entry' : 'Clear all records'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {confirmSale && createPortal(
         <div className="sc-modal-overlay sc-confirm-overlay" onClick={() => setConfirmSale(null)}>
           <div

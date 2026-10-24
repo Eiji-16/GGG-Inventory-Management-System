@@ -1132,7 +1132,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                   <div>
                     <span className="f-monthly-eyebrow">Seasonal adjustment</span>
                     <h3 id="seasonal-event-title">{eventDraft.id ? 'Edit seasonal event' : 'Add seasonal event'}</h3>
-                    <p className="f-sub">Applied after the WMA forecast, only for the days the event covers. If events overlap, the stronger one counts on shared days.</p>
+                    <p className="f-sub hint-text">Applied after the WMA forecast, only for the days the event covers. If events overlap, the stronger one counts on shared days.</p>
                   </div>
                   <button type="button" className="f-event-close" aria-label="Close" onClick={() => setEventDraft(null)} disabled={savingEvent}>×</button>
                 </header>
@@ -1216,7 +1216,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                   <div className="f-event-adjustment-toggle">
                     <div>
                       <strong>Event is active</strong>
-                      <small>Paused events are kept but ignored by the forecast.</small>
+                      <small className="hint-text">Paused events are kept but ignored by the forecast.</small>
                     </div>
                     <label className="f-switch">
                       <input type="checkbox" checked={eventDraft.isActive} onChange={(e) => updateDraft({ isActive: e.target.checked })} />

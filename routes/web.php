@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CalculationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StaffController;
+use App\Http\Controllers\SystemLogoController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -25,6 +26,16 @@ Route::middleware('auth')->group(function () {
     Route::match(['put', 'patch'], '/profile', [ProfileController::class, 'update']);
     Route::post('/profile/password', [ProfileController::class, 'changePassword']);
     Route::get('/profile/activity', [ProfileController::class, 'activity']);
+    // Your own profile photo (separate from the system logo).
+    Route::get('/profile/avatar', [ProfileController::class, 'avatar']);
+    Route::post('/profile/avatar', [ProfileController::class, 'storeAvatar']);
+    Route::delete('/profile/avatar', [ProfileController::class, 'destroyAvatar']);
+
+    // Sidebar picture: everyone signed in can see it; only the Super Admin
+    // can change or remove it (checked in the controller).
+    Route::get('/branding/logo', [SystemLogoController::class, 'show']);
+    Route::post('/branding/logo', [SystemLogoController::class, 'store']);
+    Route::delete('/branding/logo', [SystemLogoController::class, 'destroy']);
 
 });
 

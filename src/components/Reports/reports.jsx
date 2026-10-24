@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Download, FileText, Search } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Download, FileText, Search, RefreshCw } from 'lucide-react';
 import './reports.css';
 import exportReportWorkbook, { printReportPdf } from '../../utils/exportReportWorkbook';
 import { useCurrency } from '../../CurrencyContext';
@@ -178,7 +178,7 @@ function StockSummaryTab({ data, loading }) {
         <div className="r-kpi-card">
           <div className="r-kpi-label">Low Stock Items</div>
           <div className="r-kpi-value">{kpis.lowStock || 0}</div>
-          <div className="r-kpi-sub">below reorder point</div>
+          <div className="r-kpi-sub">at or below reorder point{kpis.criticalStock ? ` (${kpis.criticalStock} critical)` : ''}</div>
         </div>
         <div className="r-kpi-card">
           <div className="r-kpi-label">Out of Stock</div>
@@ -188,21 +188,26 @@ function StockSummaryTab({ data, loading }) {
         <div className="r-kpi-card">
           <div className="r-kpi-label">Inventory Value</div>
           <div className="r-kpi-value">{formatCurrency(kpis.inventoryValue)}</div>
-          <div className="r-kpi-sub">at cost</div>
+          <div className="r-kpi-sub">
+            at latest Stock In price
+            {kpis.unpricedProducts ? ` · ${kpis.unpricedProducts} in-stock product${kpis.unpricedProducts === 1 ? '' : 's'} without a price` : ''}
+          </div>
         </div>
       </div>
 
       <div className="r-table-card">
         <table className="r-table">
           <thead>
-            <tr><th>Product</th><th>Category</th><th>Stock</th><th>Status</th></tr>
+            <tr><th>Product</th><th>Category</th><th>Stock</th><th>Unit Cost</th><th>Value</th><th>Status</th></tr>
           </thead>
           <tbody>
-            {loading ? <EmptyRow cols={4} text="Loading…" />
-              : filtered.length === 0 ? <EmptyRow cols={4} text="No products found." />
-              : filtered.map((r, i) => (
-                <tr key={i}>
+            {loading ? <EmptyRow cols={6} text="Loading…" />
+              : filtered.length === 0 ? <EmptyRow cols={6} text="No products found." />
+              : filtered.map((r) => (
+                <tr key={r.productId || r.product}>
                   <td>{r.product}</td><td>{r.category}</td><td>{r.stock}</td>
+                  <td>{r.unitCost != null ? formatCurrency(r.unitCost) : '—'}</td>
+                  <td>{r.value != null ? formatCurrency(r.value) : '—'}</td>
                   <td><Badge label={r.status} /></td>
                 </tr>
               ))}
@@ -220,7 +225,7 @@ function StockMovementTab({ data, loading }) {
 
   return (
     <div>
-      <PanelHeader title="Stock Movement" subtitle="Units moving in and out of inventory over time" />
+      <PanelHeader title="Stock Movement" subtitle="Units in and out per week (last 8 weeks, Monday start). Corrections are not included." />
 
       <div className="r-chart-card">
         <div className="r-chart-card-head">
@@ -232,10 +237,12 @@ function StockMovementTab({ data, loading }) {
         </div>
         {rows.length === 0 ? (
           <div className="r-chart-placeholder">{loading ? 'Loading…' : 'No movement data yet.'}</div>
+        ) : chartType === 'line' ? (
+          <MovementLineChart rows={rows} maxVal={maxVal} />
         ) : (
           <div className="r-mini-chart">
             {rows.map((r, i) => (
-              <div className="r-mini-col" key={i} title={`${r.period}: +${r.in} / -${r.out}`}>
+              <div className="r-mini-col" key={i} title={`Week of ${r.period}: +${r.in} in / −${r.out} out`}>
                 <div className="r-mini-bars">
                   <span className="r-mini-bar r-mini-in" style={{ height: `${(r.in / maxVal) * 100}%` }} />
                   <span className="r-mini-bar r-mini-out" style={{ height: `${(r.out / maxVal) * 100}%` }} />
@@ -247,10 +254,15 @@ function StockMovementTab({ data, loading }) {
         )}
       </div>
 
+      <div className="r-chart-legend">
+        <span><i className="r-legend-swatch r-mini-in" /> Stock In</span>
+        <span><i className="r-legend-swatch r-mini-out" /> Stock Out</span>
+      </div>
+
       <div className="r-table-card">
         <table className="r-table">
           <thead>
-            <tr><th>Period</th><th>Stock In</th><th>Stock Out</th><th>Net Change</th></tr>
+            <tr><th>Week of</th><th>Stock In</th><th>Stock Out</th><th>Net Change</th></tr>
           </thead>
           <tbody>
             {loading ? <EmptyRow cols={4} text="Loading…" />
@@ -268,23 +280,52 @@ function StockMovementTab({ data, loading }) {
   );
 }
 
+/* Line view of the weekly Stock In / Stock Out (the Bar/Line toggle). */
+function MovementLineChart({ rows, maxVal }) {
+  const width = 600;
+  const height = 200;
+  const pad = { top: 12, right: 12, bottom: 24, left: 12 };
+  const innerW = width - pad.left - pad.right;
+  const innerH = height - pad.top - pad.bottom;
+  const x = (i) => pad.left + (rows.length === 1 ? innerW / 2 : (i / (rows.length - 1)) * innerW);
+  const y = (v) => pad.top + innerH - (v / maxVal) * innerH;
+  const path = (key) => rows.map((r, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(r[key]).toFixed(1)}`).join(' ');
+
+  return (
+    <svg className="r-line-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Weekly stock in and stock out line chart">
+      <line x1={pad.left} x2={width - pad.right} y1={pad.top + innerH} y2={pad.top + innerH} className="r-line-axis" />
+      <path d={path('in')} className="r-line r-line-in" />
+      <path d={path('out')} className="r-line r-line-out" />
+      {rows.map((r, i) => (
+        <g key={r.weekStart || i}>
+          <circle cx={x(i)} cy={y(r.in)} r="3.5" className="r-line-dot r-line-in"><title>{`Week of ${r.period}: +${r.in} in`}</title></circle>
+          <circle cx={x(i)} cy={y(r.out)} r="3.5" className="r-line-dot r-line-out"><title>{`Week of ${r.period}: −${r.out} out`}</title></circle>
+          <text x={x(i)} y={height - 6} textAnchor="middle" className="r-line-label">{r.period}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
 function TopMovingProductsTab({ data, loading }) {
   const { formatCurrency } = useCurrency();
   const rows = data?.rows || [];
   return (
     <div>
-      <PanelHeader title="Top Moving Products" subtitle="Ranked by units sold (stock out)" />
+      <PanelHeader title="Top Moving Products" subtitle="Ranked by units sold (Stock Out). Sales Value uses the selling price recorded on each sale." />
       <div className="r-table-card">
         <table className="r-table">
           <thead>
-            <tr><th>Rank</th><th>Product</th><th>Units Sold</th><th>Value Moved</th></tr>
+            <tr><th>Rank</th><th>Product</th><th>Units Sold</th><th>Sales Value</th></tr>
           </thead>
           <tbody>
             {loading ? <EmptyRow cols={4} text="Loading…" />
               : rows.length === 0 ? <EmptyRow cols={4} text="No sales/stock-out recorded yet." />
               : rows.map((r) => (
                 <tr key={r.rank}>
-                  <td>{r.rank}</td><td>{r.product}</td><td>{r.unitsSold}</td><td>{formatCurrency(r.value)}</td>
+                  <td>{r.rank}</td>
+                  <td>{r.product}{r.deleted ? ' (deleted)' : ''}</td>
+                  <td>{r.unitsSold}</td><td>{formatCurrency(r.value)}</td>
                 </tr>
               ))}
           </tbody>
@@ -305,7 +346,7 @@ function MovementBars({ title, items, tone, emptyText }) {
       ) : (
         <ul className="r-fs-list">
           {items.map((item) => (
-            <li key={item.product} className="r-fs-row">
+            <li key={item.productId || item.product} className="r-fs-row">
               <span className="r-fs-name" title={item.product}>{item.product}</span>
               <span className="r-fs-track">
                 <span className={`r-fs-bar r-fs-${tone}`} style={{ width: `${Math.max(2, (item.unitsSold / max) * 100)}%` }} />
@@ -377,7 +418,7 @@ function FastSlowMovingTab({ data, loading }) {
             {loading ? <EmptyRow cols={6} text="Loading…" />
               : rows.length === 0 ? <EmptyRow cols={6} text="No products to rank yet." />
               : rows.map((r) => (
-                <tr key={`${r.movement}-${r.product}`}>
+                <tr key={`${r.movement}-${r.productId || r.product}`}>
                   <td><Badge label={r.movement} /></td>
                   <td>{r.rank}</td><td>{r.product}</td><td>{r.category}</td><td>{r.unitsSold}</td><td>{r.stock}</td>
                 </tr>
@@ -393,7 +434,7 @@ function DemandForecastSummaryTab({ data, loading }) {
   const rows = data?.rows || [];
   return (
     <div>
-      <PanelHeader title="Demand Forecast Summary" subtitle="Weighted moving average of the latest three recorded monthly periods" />
+      <PanelHeader title="Demand Forecast Summary" subtitle="Next month's forecast — the same as the Forecasting page (3-month weighted moving average plus any active seasonal event)" />
       <div className="r-table-card">
         <table className="r-table">
           <thead>
@@ -401,10 +442,14 @@ function DemandForecastSummaryTab({ data, loading }) {
           </thead>
           <tbody>
             {loading ? <EmptyRow cols={5} text="Loading…" />
-              : rows.length === 0 ? <EmptyRow cols={5} text="No sales history yet — record sales in Forecasting." />
+              : rows.length === 0 ? <EmptyRow cols={5} text="No completed month of sales yet — record Stock Out in Stock Control or add Past Sales in Forecasting." />
               : rows.map((r, i) => (
                 <tr key={i}>
-                  <td>{r.product}</td><td>{r.currentStock}</td><td>{r.forecastedDemand}</td>
+                  <td>{r.product}</td><td>{r.currentStock}</td>
+                  <td title={r.adjustmentPct ? `${r.baseForecast} before the ${r.adjustmentPct > 0 ? '+' : ''}${r.adjustmentPct}% seasonal adjustment` : 'No seasonal adjustment'}>
+                    {r.forecastedDemand}
+                    {r.adjustmentPct ? <span className="r-detail-muted"> ({r.adjustmentPct > 0 ? '+' : ''}{r.adjustmentPct}%)</span> : null}
+                  </td>
                   <td>{r.suggestedReorder}</td><td><Badge label={r.confidence} /></td>
                 </tr>
               ))}
@@ -491,7 +536,7 @@ function InventoryAgingReportTab({ data, loading }) {
   const rows = data?.rows || [];
   return (
     <div>
-      <PanelHeader title="Inventory Aging Report" subtitle="Days since stock-in; estimated from product creation date if no stock-in is recorded" />
+      <PanelHeader title="Inventory Aging Report" subtitle="Days since the latest Stock In (corrections not counted); estimated from the product's creation date if it has no Stock In. Over 60 days = Aging, over 120 = Slow Mover." />
       <div className="r-table-card">
         <table className="r-table">
           <thead>
@@ -500,8 +545,8 @@ function InventoryAgingReportTab({ data, loading }) {
           <tbody>
             {loading ? <EmptyRow cols={4} text="Loading…" />
               : rows.length === 0 ? <EmptyRow cols={4} text="No stock on hand to age." />
-              : rows.map((r, i) => (
-                <tr key={i}>
+              : rows.map((r) => (
+                <tr key={r.productId || r.product}>
                   <td>{r.product}</td>
                   <td title={r.ageEstimated ? 'Estimated from the product creation date' : 'Based on the latest stock-in date'}>
                     {r.daysInStock ?? '—'}{r.ageEstimated && r.daysInStock !== null ? ' (est.)' : ''}
@@ -525,21 +570,25 @@ function ReorderPointReportTab({ data, loading }) {
       <div className="r-table-card">
         <table className="r-table">
           <thead>
-            <tr><th>Product</th><th>Current Stock</th><th>Reorder Point</th><th>Urgency</th></tr>
+            <tr><th>Product</th><th>Current Stock</th><th>Reorder Point (Low at)</th><th>Critical at</th><th>Urgency</th></tr>
           </thead>
           <tbody>
-            {loading ? <EmptyRow cols={4} text="Loading…" />
-              : rows.length === 0 ? <EmptyRow cols={4} text="All products are above their reorder point. 🎉" />
-              : rows.map((r, i) => (
-                <tr key={i}>
-                  <td>{r.product}</td><td>{r.currentStock}</td><td>{r.reorderPoint}</td>
+            {loading ? <EmptyRow cols={5} text="Loading…" />
+              : rows.length === 0 ? <EmptyRow cols={5} text="All products are above their reorder point." />
+              : rows.map((r) => (
+                <tr key={r.productId || r.product}>
+                  <td>{r.product}</td><td>{r.currentStock}</td>
+                  <td>{r.reorderPoint}{r.mode === 'manual' ? ' (manual)' : ''}</td>
+                  <td>{r.criticalPoint ?? '—'}</td>
                   <td><Badge label={r.urgency} /></td>
                 </tr>
               ))}
           </tbody>
         </table>
         <div className="r-supplier-note">
-          Reorder point uses each product's safety stock (set by Super Admin), or 20 units by default.
+          Automatic: reorder point = safety stock + daily sales × lead time, and Critical at safety stock.
+          Manual: the Low and Critical points the Super Admin set in Settings → Safety Stock Policy.
+          Products with no policy yet use Low at 10 and Critical at 5.
         </div>
       </div>
     </div>
@@ -558,19 +607,68 @@ const TAB_RENDER = [
   (p) => <ReorderPointReportTab {...p} data={p.report?.reorderPoint} />,
 ];
 
-export default function ReportsAnalyticsDesign({ safetyStock }) {
+/* refreshKey changes whenever stock or products change elsewhere; isActive is
+   true while the Reports page is on screen. The page stays mounted in the
+   background, so it reloads on either — otherwise it showed old numbers until
+   the whole page was refreshed. */
+export default function ReportsAnalyticsDesign({ safetyStock, refreshKey = 0, isActive = true }) {
   const [activeTab, setActiveTab] = useState(0);
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [reloadCount, setReloadCount] = useState(0);
 
   useEffect(() => {
-    fetch('/api/reports', { headers: { Accept: 'application/json' } })
+    if (!isActive) return undefined;
+    let active = true;
+    setLoading(true);
+    setError('');
+    fetch('/api/reports', { headers: { Accept: 'application/json' }, cache: 'no-store' })
       .then((r) => { if (!r.ok) throw new Error(`Could not load reports (${r.status}).`); return r.json(); })
-      .then((data) => setReport(data))
-      .catch((e) => setError(e.message || 'Could not load reports.'))
-      .finally(() => setLoading(false));
-  }, [safetyStock]);
+      .then((data) => { if (active) setReport(data); })
+      .catch((e) => { if (active) setError(e.message || 'Could not load reports.'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [safetyStock, refreshKey, isActive, reloadCount]);
+
+  /* ===== AUTOMATIC REFRESH =====
+     Every 15 seconds while Reports is on screen (and the browser tab is
+     visible), ask the server for a tiny "data version". If it changed —
+     someone added, edited or deleted stock, products, policies, sales or
+     calculations, on any computer — reload the reports. */
+  const knownVersionRef = useRef(null);
+  useEffect(() => {
+    if (!isActive) return undefined;
+    let stopped = false;
+    const check = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const response = await fetch('/api/data-version', { headers: { Accept: 'application/json' }, cache: 'no-store' });
+        if (!response.ok) return;
+        const { version } = await response.json();
+        if (stopped || !version) return;
+        if (knownVersionRef.current && knownVersionRef.current !== version) {
+          setReloadCount((n) => n + 1);
+        }
+        knownVersionRef.current = version;
+      } catch {
+        /* offline for a moment — try again on the next tick */
+      }
+    };
+    check();
+    const timer = setInterval(check, 15000);
+    const onVisible = () => { if (document.visibilityState === 'visible') check(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [isActive]);
+
+  const updatedAt = report?.generatedAt
+    ? new Date(report.generatedAt).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })
+    : null;
 
   const renderTab = TAB_RENDER[activeTab];
 
@@ -586,11 +684,22 @@ export default function ReportsAnalyticsDesign({ safetyStock }) {
             {label}
           </button>
         ))}
+        <button
+          type="button"
+          className="r-refresh-btn"
+          onClick={() => setReloadCount((n) => n + 1)}
+          disabled={loading}
+          title={`Updates automatically when data changes${updatedAt ? ` · last updated ${updatedAt}` : ''}. Click to reload now.`}
+        >
+          {!loading && <span className="r-live-dot" aria-hidden="true" />}
+          <RefreshCw size={12} className={loading ? 'r-spin' : ''} />
+          {loading ? 'Updating…' : updatedAt ? `Live · updated ${updatedAt}` : 'Refresh'}
+        </button>
       </div>
 
       {error
         ? <p className="r-supplier-note" role="alert" style={{ margin: 16 }}>{error}</p>
-        : renderTab({ report, loading })}
+        : renderTab({ report, loading: loading && !report /* keep old numbers on screen while refreshing */ })}
     </div>
   );
 }

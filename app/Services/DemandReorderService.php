@@ -23,8 +23,8 @@ use Illuminate\Validation\ValidationException;
  *                             forecast while keeping the safety buffer)
  * A product is suggested when stock is at/below ROP, next month's forecast is
  * more than the stock above safety stock, or stock runs out before a delivery
- * could arrive. Products without enough history fall back to the existing
- * reorder point (past 12 months of sales) and say so; their suggested qty is
+ * could arrive. Products without enough history fall back to the product's
+ * Low point (the reorder point in Auto mode) and say so; their suggested qty is
  * ceil(reorder point + one month of past sales − current stock).
  */
 class DemandReorderService
@@ -80,8 +80,11 @@ class DemandReorderService
         ];
 
         if ($forecast === null || (float) $forecast['adjustedForecast'] <= 0) {
-            // No usable forecast: fall back to the existing reorder point.
-            $reorderPoint = $this->reorderPoints->forProduct($product);
+            // No usable forecast: fall back to the product's Low point — the
+            // same point that marks it Low/Critical in Stock Alerts (Auto: the
+            // reorder point; Manual or no policy yet: the Low point). This way
+            // every product shown as Low or Critical is also in Order Soon.
+            $reorderPoint = $this->reorderPoints->statusPoints($product)['low'];
             if ($stock > $reorderPoint) {
                 return null;
             }

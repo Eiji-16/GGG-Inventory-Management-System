@@ -1474,3 +1474,69 @@
 .eq-cost-save-ok {
     color: var(--accent-high, var(--text-muted));
 }
+
+/* Lead Time / Safety Stock locked to the Safety Stock Policy */
+.eq-input-wrap input[readonly] {
+    cursor: not-allowed;
+    opacity: 0.75;
+}
+.eq-input-wrap:has(input[readonly]):focus-within {
+    border-color: inherit;
+}
+
+/* ===== Compact inputs ===== */
+/* Labels stay on one line (no "SAFETY / STOCK" wrapping). */
+.eq-label-row label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+.eq-label-row { gap: 6px; }
+.eq-pair { gap: 8px; }
+
+/* Small lock instead of the "From policy" pill */
+.eq-lock {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    cursor: help;
+}
+.eq-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+/* "Save these costs as default" sits on its own short line under the fields */
+.eq-cost-save.eq-span-2 { margin-top: -2px; }
+
+/* ===== Inputs and Computation Result: same height, tighter result ===== */
+.eq-grid { align-items: stretch; }
+.eq-grid > .eq-card { align-content: start; }
+
+.eq-hero { padding: 10px 12px; gap: 0; }
+.eq-hero span { font-size: 10px; }
+.eq-hero strong { font-size: 34px; line-height: 1.05; }
+.eq-hero em { font-size: 12.5px; }
+.eq-hero small { margin-top: 2px; font-size: 10.5px; }
+
+.eq-stats { gap: 6px; }
+.eq-stats div { padding: 7px 10px; gap: 1px; }
+.eq-stats span { font-size: 9.5px; }
+.eq-stats strong { font-size: 17px; }
+.eq-stats em { font-size: 10.5px; }
+
+.eq-sentence { padding: 8px 12px; font-size: 12.5px; line-height: 1.4; }
+.eq-status { padding: 7px 12px; font-size: 12px; }
+
+.eq-costs { font-size: 12px; }
+.eq-costs th,
+.eq-costs td { padding: 5px 6px; }
+
+.eq-card .eq-note { margin: 0; }
+.eq-card .eq-actions .ac-btn-reset { min-height: 32px; }

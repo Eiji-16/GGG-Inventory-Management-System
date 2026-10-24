@@ -77,6 +77,73 @@ class ProfileController extends Controller
         return response()->json(['message' => 'Your password has been updated.']);
     }
 
+    /*
+     * ===== OWN PROFILE PHOTO =====
+     * Each user's own picture (separate from the system logo in the sidebar).
+     * The file lives on the private "local" disk; its path is kept in
+     * app_settings under "avatar.user.{id}" — no database column needed.
+     */
+
+    private function avatarKey(User $user): string
+    {
+        return 'avatar.user.'.$user->id;
+    }
+
+    private function avatarUrl(User $user): ?string
+    {
+        $path = \App\Models\AppSetting::get($this->avatarKey($user));
+
+        return $path ? '/profile/avatar?v='.substr(md5($path), 0, 10) : null;
+    }
+
+    /** GET /profile/avatar — the signed-in user's own photo. */
+    public function avatar(Request $request)
+    {
+        $path = \App\Models\AppSetting::get($this->avatarKey($request->user()));
+        abort_unless($path && \Illuminate\Support\Facades\Storage::disk('local')->exists($path), 404);
+
+        return \Illuminate\Support\Facades\Storage::disk('local')->response($path, null, [
+            'Cache-Control' => 'private, max-age=31536000',
+        ]);
+    }
+
+    /** POST /profile/avatar — choose a new photo for your own profile. */
+    public function storeAvatar(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $request->validate([
+            'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:2048'],
+        ], [
+            'avatar.max' => 'The picture must be 2 MB or smaller.',
+            'avatar.image' => 'Please choose an image file (JPG, PNG, WEBP or GIF).',
+            'avatar.mimes' => 'Please choose a JPG, PNG, WEBP or GIF picture.',
+        ]);
+
+        $old = \App\Models\AppSetting::get($this->avatarKey($user));
+        $path = $request->file('avatar')->store('avatars', 'local');
+        \App\Models\AppSetting::put($this->avatarKey($user), $path);
+        if ($old && $old !== $path) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($old);
+        }
+        ActivityLog::record('profile.photo', 'Changed profile photo', 'user');
+
+        return response()->json(['avatarUrl' => $this->avatarUrl($user)]);
+    }
+
+    /** DELETE /profile/avatar — remove your photo (back to initials). */
+    public function destroyAvatar(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $old = \App\Models\AppSetting::get($this->avatarKey($user));
+        \App\Models\AppSetting::query()->whereKey($this->avatarKey($user))->delete();
+        if ($old) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($old);
+        }
+        ActivityLog::record('profile.photo', 'Removed profile photo', 'user');
+
+        return response()->json(['avatarUrl' => null]);
+    }
+
     /** GET /profile/activity — the signed-in user's recent activity. */
     public function activity(Request $request): JsonResponse
     {
@@ -114,6 +181,7 @@ class ProfileController extends Controller
             'status'     => $user->status === User::STATUS_INACTIVE ? 'Inactive' : 'Active',
             'joined'     => $user->created_at?->format('F j, Y'),
             'lastLogin'  => $lastLogin,
+            'avatarUrl'  => $this->avatarUrl($user),
         ];
     }
 

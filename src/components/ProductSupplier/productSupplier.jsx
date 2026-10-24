@@ -459,7 +459,16 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) throw new Error(`Save failed (${response.status})`);
+      if (!response.ok) {
+        /* Show the server's real reason (e.g. "This product already exists
+           (PRD-1234).") instead of a generic message. */
+        const result = await response.json().catch(() => ({}));
+        const firstError = result.errors ? Object.values(result.errors).flat()[0] : null;
+        const reason = firstError || result.message;
+        const saveError = new Error(reason || `Save failed (${response.status})`);
+        saveError.userMessage = reason || null;
+        throw saveError;
+      }
       const saved = await response.json(); /* ===== SAVED PRODUCT (now includes persisted image) ===== */
 
       setProductsFromDatabase((prev) => {
@@ -495,7 +504,9 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
       }
     } catch (error) {
       console.error('Could not save product:', error);
-      alert('Sorry — that product could not be saved. Check the server is running and try again.');
+      alert(error.userMessage
+        ? `That product could not be saved: ${error.userMessage}`
+        : 'Sorry — that product could not be saved. Check the server is running and try again.');
     }
   };
 

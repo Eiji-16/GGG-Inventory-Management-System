@@ -89,10 +89,10 @@ class StockMovementPersistenceTest extends TestCase
 
         $response = $this->getJson('/api/stock-movements')->assertOk();
 
-        $this->assertSame(3, count($response->json()));
-        foreach ($response->json() as $movement) {
-            $this->assertSame(55, $movement['totalQty']);
-        }
+        // Same product, type and day: the three Stock Ins merge into one row.
+        $this->assertSame(1, count($response->json()));
+        $this->assertSame(55, $response->json('0.qty'));
+        $this->assertSame(55, $response->json('0.totalQty'));
     }
 
     public function test_stock_add_edit_delete_activity_is_persistent_and_filterable_by_product(): void

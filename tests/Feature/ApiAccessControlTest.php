@@ -38,4 +38,25 @@ class ApiAccessControlTest extends TestCase
 
         $this->assertDatabaseHas('products', ['id' => $product->id]);
     }
+
+    public function test_only_admins_can_clear_all_stock_for_a_product(): void
+    {
+        $product = Product::create([
+            'code' => 'PRD-CLEAR',
+            'name' => 'Clear Test Item',
+            'stock_on_hand' => 5,
+        ]);
+        $staff = User::factory()->create(['role' => User::ROLE_STAFF, 'status' => User::STATUS_ACTIVE]);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'status' => User::STATUS_ACTIVE]);
+
+        $this->actingAs($staff)
+            ->deleteJson('/api/stock-movements/products/PRD-CLEAR')
+            ->assertForbidden();
+        $this->assertSame(5, $product->fresh()->stock_on_hand);
+
+        $this->actingAs($admin)
+            ->deleteJson('/api/stock-movements/products/PRD-CLEAR')
+            ->assertOk();
+        $this->assertSame(0, $product->fresh()->stock_on_hand);
+    }
 }

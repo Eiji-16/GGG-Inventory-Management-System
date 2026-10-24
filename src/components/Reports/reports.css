@@ -403,3 +403,71 @@
     font-size: 11px;
     line-height: 1.4;
 }
+
+/* ===== Refresh button (end of the tab bar) ===== */
+.r-refresh-btn {
+    flex-shrink: 0;
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font: inherit;
+    font-size: 11px;
+    padding: 0.4rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, rgba(0,0,0,0.15));
+    background: transparent;
+    color: var(--text-muted, #888);
+    cursor: pointer;
+    white-space: nowrap;
+}
+.r-refresh-btn:hover:not(:disabled) { color: var(--text-primary); }
+.r-refresh-btn:disabled { cursor: default; opacity: 0.7; }
+.r-spin { animation: r-spin 0.9s linear infinite; }
+@keyframes r-spin { to { transform: rotate(360deg); } }
+
+/* ===== Stock Movement line view + legend ===== */
+.r-line-chart {
+    width: 100%;
+    height: 220px;
+    display: block;
+}
+.r-line-axis { stroke: var(--border-color, rgba(0,0,0,0.15)); stroke-width: 1; }
+.r-line { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.r-line.r-line-in { stroke: var(--accent-high); }
+.r-line.r-line-out { stroke: var(--accent-low); }
+.r-line-dot.r-line-in { fill: var(--accent-high); }
+.r-line-dot.r-line-out { fill: var(--accent-low); }
+.r-line-label { font-size: 10px; fill: var(--text-muted, #888); }
+
+.r-chart-legend {
+    display: flex;
+    gap: 14px;
+    margin: -4px 0 12px;
+    font-size: 11px;
+    color: var(--text-muted, #888);
+}
+.r-legend-swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    vertical-align: -1px;
+    margin-right: 4px;
+}
+
+/* Green dot = reports update automatically */
+.r-live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-high, #3fb37f);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-high, #3fb37f) 60%, transparent);
+    animation: r-live-pulse 2.4s ease-out infinite;
+}
+@keyframes r-live-pulse {
+    0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-high, #3fb37f) 55%, transparent); }
+    70% { box-shadow: 0 0 0 5px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .r-live-dot { animation: none; } }

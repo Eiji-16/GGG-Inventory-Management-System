@@ -1544,3 +1544,156 @@ body {
 .app-view-panel {
     min-width: 0;
 }
+
+/* ===== SIDEBAR PICTURE (profile icon / Super Admin's chosen picture) ===== */
+#sidebar-logo {
+    position: relative;
+}
+
+.sidebar-logo-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.sidebar-logo-img {
+    width: 100%;
+    height: 100%;
+    min-width: 1.6rem;
+    min-height: 1.6rem;
+    object-fit: cover;
+    border-radius: inherit;
+    display: block;
+}
+
+/* Super Admin: the picture is a button that opens the picture chooser.
+   Higher specificity than the normal `.sidebar-item button` styles so it
+   keeps the logo's size and spacing, and its hover stays on the icon. */
+.sidebar-logo-row button#sidebar-logo.sidebar-logo-editable {
+    position: relative;
+    width: 2.1rem;
+    height: 2.1rem;
+    min-width: 2.1rem;
+    margin: 0 0 1rem;
+    padding: 0;
+    border: 1.5px solid transparent;
+    border-radius: 0.625rem;
+    background-color: transparent !important;
+    color: var(--text-primary);
+    font: inherit;
+    cursor: pointer;
+    overflow: visible;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.sidebar-logo-row button#sidebar-logo.sidebar-logo-editable:hover,
+.sidebar-logo-row button#sidebar-logo.sidebar-logo-editable:focus-visible {
+    border-color: var(--accent, #3b82f6);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #3b82f6) 25%, transparent);
+    outline: none;
+}
+
+.sidebar-logo-row button#sidebar-logo.sidebar-logo-editable:active {
+    transform: scale(0.94);
+}
+
+.sidebar-logo-camera {
+    position: absolute;
+    right: -5px;
+    bottom: -5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    color: #111;
+    background: var(--accent, #3b82f6);
+    border: 2px solid var(--bg-sidebar, var(--bg-card, #1f1f23));
+    opacity: 0;
+    transform: scale(0.7);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    pointer-events: none;
+}
+
+.sidebar-logo-row button#sidebar-logo.sidebar-logo-editable:hover .sidebar-logo-camera,
+.sidebar-logo-row button#sidebar-logo.sidebar-logo-editable:focus-visible .sidebar-logo-camera {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Chooser popup (reuses the logout popup's look) */
+.logo-picker-preview {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 0.5rem;
+    border-radius: 14px;
+    overflow: hidden;
+    color: var(--text-muted);
+    background: var(--static-bg-color);
+    border: 1px solid var(--border-color);
+}
+
+.logo-picker-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.logo-picker-error {
+    color: var(--accent-low) !important;
+    font-weight: 600;
+}
+
+.logout-confirm-actions .logo-picker-choose {
+    color: #111;
+    background: var(--accent, #3b82f6);
+    border-color: var(--accent, #3b82f6) !important;
+}
+
+.logout-confirm-actions button svg {
+    vertical-align: -2px;
+}
+
+@media (max-width: 820px) {
+    .sidebar-logo-row button#sidebar-logo.sidebar-logo-editable {
+        width: 2rem;
+        height: 2rem;
+        min-width: 2rem;
+        margin: 0;
+    }
+}
+
+/* Sidebar picture for Admin / Staff (not clickable): same fixed size and
+   spacing as the Super Admin's button, so a picture can't spill over the
+   menu icons below it. */
+.sidebar-logo-row span#sidebar-logo {
+    width: 2.1rem;
+    height: 2.1rem;
+    min-width: 2.1rem;
+    margin: 0 0 1rem;
+    padding: 0;
+    border-radius: 0.625rem;
+    overflow: hidden;
+    flex: 0 0 auto;
+}
+
+.sidebar-logo-row #sidebar-logo .sidebar-logo-img {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    border-radius: 0.625rem;
+    object-fit: cover;
+}
+
+@media (max-width: 820px) {
+    .sidebar-logo-row span#sidebar-logo {
+        width: 2rem;
+        height: 2rem;
+        min-width: 2rem;
+        margin: 0;
+    }
+}

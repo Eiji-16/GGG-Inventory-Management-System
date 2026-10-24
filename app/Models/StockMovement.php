@@ -35,6 +35,15 @@ class StockMovement extends Model
         'movement_date'   => 'date',
     ];
 
+    /**
+     * Set (not saved) when a new entry was merged into this existing same-day
+     * entry: the entry's quantity before the merge and the amount just added.
+     * Used only for the response and the activity log.
+     */
+    public ?int $mergedFromQty = null;
+
+    public ?int $mergedAddedQty = null;
+
     /** The product this movement applies to. */
     public function product(): BelongsTo
     {

@@ -335,6 +335,8 @@ function Settings({
       </section>
 
       {/* ===== SAFETY STOCK POLICY ===== */}
+      {/* Only the Super Admin sees this section (Admin and Staff don't). */}
+      {isSuperAdmin && (
       <section className={`s-card s-policy${advancedOpen ? ' is-open' : ''}${isSuperAdmin ? '' : ' is-locked'}`} aria-labelledby="s-policy-title">
         <header className="s-card-head">
           <div className="s-card-head-main">
@@ -524,6 +526,7 @@ function Settings({
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }

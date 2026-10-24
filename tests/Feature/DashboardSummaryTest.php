@@ -80,7 +80,8 @@ class DashboardSummaryTest extends TestCase
             ->assertJsonPath('products.0.id', 'PRD-TEST')
             ->assertJsonPath('products.0.stock', 5)
             ->assertJsonPath('products.0.safetyStock', 10)
-            ->assertJsonPath('salesHistory.0.unitsSold', 9)
+            // Sales come from Stock Out entries (1 sold), not an unrelated saved row.
+            ->assertJsonPath('salesHistory.0.unitsSold', 1)
             ->assertJsonPath('stockMovements.1.productId', 'PRD-TEST')
             ->assertJsonPath('stockMovements.1.type', 'in')
             ->assertJsonPath('stockMovements.1.isAdjustment', false)

@@ -81,6 +81,17 @@ class ProductController extends Controller
             'variants.*'      => ['nullable', 'string', 'max:100'],
         ]);
 
+        // Block an exact copy of an existing product (checked before a new
+        // supplier could be created, so a refused save leaves nothing behind).
+        $this->ensureNotDuplicate([
+            'name'         => $data['name'],
+            'category'     => $data['category'] ?? null,
+            'brand'        => $data['brand'] ?? null,
+            'model'        => $data['model'] ?? null,
+            'unit_measure' => $data['unitMeasure'] ?? null,
+            'supplier_id'  => $this->existingSupplierId($data['supplierName'] ?? null),
+        ]);
+
         $supplier = $this->resolveSupplier($data);
 
         $product = Product::create([
@@ -119,6 +130,18 @@ class ProductController extends Controller
             'variants'        => ['sometimes', 'nullable', 'array', 'max:50'],
             'variants.*'      => ['nullable', 'string', 'max:100'],
         ]);
+
+        // The values the product will have after this save. A field left out
+        // (or sent as null) keeps its current value, matching the update below.
+        $supplierName = $data['supplierName'] ?? null;
+        $this->ensureNotDuplicate([
+            'name'         => $data['name'] ?? $product->name,
+            'category'     => $data['category'] ?? $product->category,
+            'brand'        => $data['brand'] ?? $product->brand,
+            'model'        => $data['model'] ?? $product->model,
+            'unit_measure' => $data['unitMeasure'] ?? $product->unit_measure,
+            'supplier_id'  => $supplierName ? $this->existingSupplierId($supplierName) : $product->supplier_id,
+        ], $product->id);
 
         $supplier = $this->resolveSupplier($data);
 
@@ -199,6 +222,53 @@ class ProductController extends Controller
         }
 
         return $clean ?: null;
+    }
+
+    /**
+     * Refuse the save when another product matches on ALL of: name, category,
+     * brand, model, unit measure and supplier. Text is compared ignoring
+     * upper/lower case and extra spaces at the ends; empty counts as blank.
+     * If even one of these differs, the product is allowed.
+     *
+     * A supplier id of 0 means "a supplier that doesn't exist yet", which can
+     * never match an existing product.
+     *
+     * @param  array{name: ?string, category: ?string, brand: ?string, model: ?string, unit_measure: ?string, supplier_id: ?int}  $values
+     */
+    private function ensureNotDuplicate(array $values, ?int $ignoreProductId = null): void
+    {
+        $query = Product::query();
+
+        foreach (['name', 'category', 'brand', 'model', 'unit_measure'] as $column) {
+            $value = mb_strtolower(trim((string) ($values[$column] ?? '')));
+            $query->whereRaw("LOWER(TRIM(COALESCE({$column}, ''))) = ?", [$value]);
+        }
+
+        $supplierId = $values['supplier_id'] ?? null;
+        $supplierId === null
+            ? $query->whereNull('supplier_id')
+            : $query->where('supplier_id', $supplierId);
+
+        if ($ignoreProductId !== null) {
+            $query->where('id', '!=', $ignoreProductId);
+        }
+
+        $existingCode = $query->value('code');
+        if ($existingCode) {
+            throw ValidationException::withMessages([
+                'name' => "This product already exists ({$existingCode}).",
+            ]);
+        }
+    }
+
+    /** Id of the supplier with this name, 0 if it doesn't exist yet, null if no name. */
+    private function existingSupplierId(?string $name): ?int
+    {
+        if (! $name) {
+            return null;
+        }
+
+        return (int) (Supplier::where('name', $name)->value('id') ?? 0);
     }
 
     private function resolveSupplier(array $data): ?Supplier

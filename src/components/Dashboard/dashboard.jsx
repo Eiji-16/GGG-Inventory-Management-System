@@ -27,6 +27,10 @@ const categoryColors = {
   peripherals: '#F4C65B',
 };
 const fallbackCategoryColors = ['#A78BFA', '#FB7185', '#38BDF8', '#F97316', '#2DD4BF'];
+/* Order Soon and Stock Alerts show this many full rows, then a "View all" link
+   (instead of cutting a row in half at the bottom of the card). */
+const LIST_LIMIT = 3;
+
 const KPI_CARDS = [
   { key: 'totalProducts', label: 'Total Products', Icon: Package, accent: 'products' },
   { key: 'totalStockUnits', label: 'Total Stock Units', Icon: Boxes, accent: 'stock' },
@@ -49,17 +53,43 @@ function scalePoints(values, width, height, padX = 6, padTop = 10, padBottom = 8
   ]);
 }
 
+/* Smooth line through the points that never overshoots them (monotone
+   cubic), so a curve can't dip below zero or above the peak between months. */
 function smoothLine(points) {
   if (points.length < 2) return '';
+  const n = points.length;
+  const dx = [];
+  const slope = [];
+  for (let i = 0; i < n - 1; i += 1) {
+    dx[i] = points[i + 1][0] - points[i][0];
+    slope[i] = dx[i] ? (points[i + 1][1] - points[i][1]) / dx[i] : 0;
+  }
+  const tangent = [slope[0]];
+  for (let i = 1; i < n - 1; i += 1) {
+    tangent[i] = slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2;
+  }
+  tangent[n - 1] = slope[n - 2];
+  for (let i = 0; i < n - 1; i += 1) {
+    if (slope[i] === 0) {
+      tangent[i] = 0;
+      tangent[i + 1] = 0;
+    } else {
+      const a = tangent[i] / slope[i];
+      const b = tangent[i + 1] / slope[i];
+      const h = a * a + b * b;
+      if (h > 9) {
+        const t = 3 / Math.sqrt(h);
+        tangent[i] = t * a * slope[i];
+        tangent[i + 1] = t * b * slope[i];
+      }
+    }
+  }
   let path = `M ${points[0][0]},${points[0][1]}`;
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const previous = points[index - 1] || points[index];
-    const current = points[index];
-    const next = points[index + 1];
-    const afterNext = points[index + 2] || next;
-    path += ` C ${current[0] + (next[0] - previous[0]) / 6},${current[1] + (next[1] - previous[1]) / 6}`;
-    path += ` ${next[0] - (afterNext[0] - current[0]) / 6},${next[1] - (afterNext[1] - current[1]) / 6}`;
-    path += ` ${next[0]},${next[1]}`;
+  for (let i = 0; i < n - 1; i += 1) {
+    const third = dx[i] / 3;
+    path += ` C ${points[i][0] + third},${points[i][1] + tangent[i] * third}`;
+    path += ` ${points[i + 1][0] - third},${points[i + 1][1] - tangent[i + 1] * third}`;
+    path += ` ${points[i + 1][0]},${points[i + 1][1]}`;
   }
   return path;
 }
@@ -507,13 +537,16 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             <div className="db-card-head">
               <div className="db-card-titles">
                 <span className="db-card-title">Order Soon</span>
-                <span className="db-card-sub">Based on next month’s forecast</span>
+                <span className="db-card-sub">
+                  Based on next month’s forecast
+                  {(summary.reorderSuggestions || []).length ? ` · ${fmt(summary.reorderSuggestions.length)} product${summary.reorderSuggestions.length === 1 ? '' : 's'}` : ''}
+                </span>
               </div>
               <button className="db-open-arrow-btn" onClick={() => go('Reorder-Alerts')} aria-label="Open Reorder Alerts" type="button"><OpenArrow /></button>
             </div>
             {(summary.reorderSuggestions || []).length ? (
               <div className="db-order-list">
-                {summary.reorderSuggestions.map((item) => {
+                {summary.reorderSuggestions.slice(0, LIST_LIMIT).map((item) => {
                   const tag = reorderTag(item);
                   return (
                     <button
@@ -539,6 +572,11 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                     </button>
                   );
                 })}
+                {summary.reorderSuggestions.length > LIST_LIMIT && (
+                  <button type="button" className="db-list-more" onClick={() => go('Reorder-Alerts')}>
+                    View all {fmt(summary.reorderSuggestions.length)} in Reorder Alerts →
+                  </button>
+                )}
               </div>
             ) : (
               <div className="db-order-empty">
@@ -588,7 +626,13 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                       <div className="db-donut-details">
                         <strong className="db-donut-total">{fmt(derived.products.length)} products</strong>
                         <div className="db-legend db-legend-col">
-                          {derived.categories.map((category) => <span key={category.name} className="db-legend-item"><i style={{ background: category.color }} />{category.name} {fmt(category.count)}</span>)}
+                          {derived.categories.map((category) => (
+                            <span key={category.name} className="db-legend-item" title={`${category.name}: ${fmt(category.count)}`}>
+                              <i style={{ background: category.color }} />
+                              <span className="db-legend-name">{category.name}</span>
+                              <span className="db-legend-count">{fmt(category.count)}</span>
+                            </span>
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -604,8 +648,20 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             {derived.hasMovementData ? (
               <div className="db-col-chart">
                 {derived.dailyMovements.map((day) => (
-                  <div key={day.key} className="db-col-item">
-                    <span className="db-col-bar-wrap"><span className={`db-col-bar ${day.count === derived.maxMovement && derived.movementCount > 0 ? 'db-col-bar-max' : ''}`} style={{ height: `${(day.count / derived.maxMovement) * 100}%` }} /></span>
+                  <div
+                    key={day.key}
+                    className="db-col-item"
+                    tabIndex={0}
+                    aria-label={`${day.label} ${day.key}: ${day.count} ${day.count === 1 ? 'entry' : 'entries'}`}
+                  >
+                    <span className="db-col-bar-wrap">
+                      <span className={`db-col-bar ${day.count === derived.maxMovement && derived.movementCount > 0 ? 'db-col-bar-max' : ''}`} style={{ height: `${(day.count / derived.maxMovement) * 100}%` }} />
+                      {/* Shown on hover / keyboard focus, just above the bar */}
+                      <span className="db-col-tip" aria-hidden="true" style={{ bottom: `calc(${(day.count / derived.maxMovement) * 100}% + 4px)` }}>
+                        <span><strong>{fmt(day.count)}</strong> {day.count === 1 ? 'entry' : 'entries'}</span>
+                        <small>{new Date(`${day.key}T00:00:00`).toLocaleDateString('en', { month: 'short', day: 'numeric' })}</small>
+                      </span>
+                    </span>
                     <span className="db-col-label">{day.label}</span>
                   </div>
                 ))}
@@ -617,7 +673,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Top Products Sold</span><span className="db-card-sub">Selected {range} months · units</span></div><button className="db-open-arrow-btn" onClick={() => go('Forecasting')} aria-label="Open sales history" type="button"><OpenArrow /></button></div>
             {derived.topProducts.length ? (
               <div className="db-rank" tabIndex={0} aria-label="Top products sold">{derived.topProducts.map((product) => (
-                <div key={product.name} className="db-rank-row">
+                <div key={product.id} className="db-rank-row">
                   <span className="db-rank-name">{product.name}</span>
                   <span className="db-rank-track"><span className="db-rank-fill" style={{ width: `${(product.units / derived.maxProduct) * 100}%` }} /></span>
                   <span className="db-rank-val">{fmt(product.units)}</span>
@@ -635,7 +691,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
               </>}
             </div>
             <div className="db-alert-list">
-              {derived.alerts.length ? derived.alerts.map((product) => (
+              {derived.alerts.length ? derived.alerts.slice(0, LIST_LIMIT).map((product) => (
                 <button
                   key={product.id}
                   type="button"
@@ -647,13 +703,18 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                   <span className="db-alert-qty">{product.level === 'out' ? 'Out of stock' : `${fmt(product.quantity)} left${product.level === 'critical' ? ' · below safety' : ''}`}</span>
                 </button>
               )) : <span className="db-card-sub">No products need attention.</span>}
+              {derived.alerts.length > LIST_LIMIT && (
+                <button type="button" className="db-list-more" onClick={() => go('Stock')}>
+                  View all {fmt(derived.alerts.length)} in Stock Control →
+                </button>
+              )}
             </div>
           </div>
 
           <div className="totalCustomer-card card">
-            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Products with Sales</span><span className="db-card-sub">Distinct products in recorded history</span></div></div>
+            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Products with Sales</span><span className="db-card-sub">Products sold in the selected {range} months</span></div></div>
             <div className="db-stat-value">{derived.hasSalesData ? fmt(derived.soldProductCount) : '—'}</div>
-            <div className="db-stat-sub">{derived.hasSalesData ? `${fmt(derived.salesRecordCount)} monthly product records in selected range` : 'No sales history recorded in this period'}</div>
+            <div className="db-stat-sub">{derived.hasSalesData ? `${fmt(derived.unitsSold)} units sold · line = products sold each month` : 'No sales history recorded in this period'}</div>
             <div className="db-spark-wrap"><Sparkline values={derived.hasSalesData ? derived.monthly.map((month) => month.records) : []} stroke="var(--accent)" gid="dbHistoryGrad" /></div>
           </div>
 

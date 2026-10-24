@@ -171,19 +171,43 @@ class StaffController extends Controller
         }
     }
 
-    /** Most recent session activity per user id (unix timestamp). */
+    /**
+     * Latest activity per user id (unix timestamp): the newer of their open
+     * session and their latest activity-log entry (sign-in, stock change …).
+     * Sessions are deleted at logout, so using them alone showed "Never" for
+     * everyone who had logged out.
+     */
     private function lastActivityByUser(): array
     {
-        if (config('session.driver') !== 'database') {
-            return [];
+        $latest = [];
+
+        $logs = \App\Models\ActivityLog::query()
+            ->whereNotNull('user_id')
+            ->selectRaw('user_id, MAX(created_at) as last_at')
+            ->groupBy('user_id')
+            ->pluck('last_at', 'user_id');
+        foreach ($logs as $userId => $at) {
+            if ($at) {
+                $latest[$userId] = \Illuminate\Support\Carbon::parse($at)->getTimestamp();
+            }
         }
 
-        return DB::table(config('session.table', 'sessions'))
-            ->whereNotNull('user_id')
-            ->select('user_id', DB::raw('MAX(last_activity) as last_activity'))
-            ->groupBy('user_id')
-            ->pluck('last_activity', 'user_id')
-            ->toArray();
+        if (config('session.driver') === 'database') {
+            try {
+                $sessions = DB::table(config('session.table', 'sessions'))
+                    ->whereNotNull('user_id')
+                    ->select('user_id', DB::raw('MAX(last_activity) as last_activity'))
+                    ->groupBy('user_id')
+                    ->pluck('last_activity', 'user_id');
+                foreach ($sessions as $userId => $ts) {
+                    $latest[$userId] = max((int) $ts, $latest[$userId] ?? 0);
+                }
+            } catch (\Illuminate\Database\QueryException) {
+                // No sessions table: the activity log alone is enough.
+            }
+        }
+
+        return $latest;
     }
 
     /** Shape a user for the Staffs tab (display-style role/status labels). */

@@ -24,6 +24,29 @@ class StockMovementService
             $newStock = $currentStock + $delta;
             $this->ensureNonNegative($newStock);
 
+            // Same product + same day + same action = one row: a Stock In /
+            // Stock Out that matches an existing entry (same product, type, date,
+            // variant and unit price) is added to that entry instead of creating
+            // a second row. Corrections (Adjustment) set a counted total, so
+            // they never merge.
+            $sameDayEntry = $isAdjustment ? null : $this->findSameDayEntry($product, $type, $date, $data);
+            if ($sameDayEntry) {
+                $previousQty = (int) $sameDayEntry->qty;
+                $sameDayEntry->qty = $previousQty + $qty;
+                $sameDayEntry->notes = $this->mergeNotes($sameDayEntry->notes, $data['notes'] ?? null);
+                $sameDayEntry->save();
+
+                $product->update(['stock_on_hand' => $newStock]);
+                $this->reconcileMovementBalances($product);
+                $this->syncSalesFromMovements($product);
+
+                $merged = $sameDayEntry->fresh();
+                $merged->mergedFromQty = $previousQty;
+                $merged->mergedAddedQty = $qty;
+
+                return $merged;
+            }
+
             $movement = StockMovement::create([
                 'product_id' => $product->id,
                 'product_name' => $product->name,
@@ -147,9 +170,53 @@ class StockMovementService
             $movementCount = $product->stockMovements()->count();
             $product->stockMovements()->delete();
             $product->update(['stock_on_hand' => 0]);
+            // Its monthly sales came from those entries, so clear them too
+            // (they were left behind before, and still showed on the Dashboard).
+            $this->syncSalesFromMovements($product);
 
             return $movementCount;
         });
+    }
+
+    /**
+     * The existing entry a new Stock In / Stock Out should be added to, if any:
+     * same product, same direction, same date, same variant (ignoring case and
+     * spaces; blank = none) and same unit price (blank = none).
+     */
+    private function findSameDayEntry(Product $product, string $type, string $date, array $data): ?StockMovement
+    {
+        $variant = mb_strtolower(trim((string) ($data['variantName'] ?? '')));
+        $price = $data['unitPrice'] ?? null;
+        $price = ($price === null || $price === '') ? null : round((float) $price, 2);
+
+        $query = StockMovement::query()
+            ->where('product_id', $product->id)
+            ->where('movement_type', $type)
+            ->where('is_adjustment', false)
+            ->whereDate('movement_date', $date)
+            ->whereRaw("LOWER(TRIM(COALESCE(variant_name, ''))) = ?", [$variant]);
+
+        $price === null
+            ? $query->whereNull('unit_price')
+            : $query->where('unit_price', $price);
+
+        return $query->orderByDesc('id')->lockForUpdate()->first();
+    }
+
+    /** Keep the old note and add the new one after it (skipping repeats). */
+    private function mergeNotes(?string $old, ?string $new): ?string
+    {
+        $old = trim((string) $old);
+        $new = trim((string) $new);
+        if ($new === '' || mb_strtolower($new) === mb_strtolower($old)) {
+            return $old === '' ? null : $old;
+        }
+        if ($old === '') {
+            return $new;
+        }
+
+        // notes column allows 255 characters.
+        return mb_substr("{$old}; {$new}", 0, 255);
     }
 
     private function findProduct(array $data): Product

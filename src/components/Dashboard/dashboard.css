@@ -239,7 +239,7 @@
     font-size: 11px;
 }
 
-@container (max-width: 440px) {
+@container (max-width: 360px) {
     .db-coverage-content {
         grid-template-columns: minmax(0, 1fr);
         gap: 10px;
@@ -795,6 +795,54 @@
     line-height: 1;
 }
 
+/* Hover / focus label on each day's bar: "16 entries · Oct 24" */
+.db-col-item {
+    cursor: default;
+    outline: none;
+}
+
+.db-col-bar-wrap { position: relative; }
+
+.db-col-tip {
+    position: absolute;
+    left: 50%;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 5px 8px;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    box-shadow: var(--shadow-card);
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateX(-50%);
+    transition: opacity 0.12s ease;
+}
+
+.db-col-tip strong { font-size: 12px; }
+.db-col-tip small { color: var(--text-muted); font-size: 9px; }
+
+/* Keep the first and last day's label inside the card */
+.db-col-item:first-child .db-col-tip { left: 0; transform: none; }
+.db-col-item:last-child .db-col-tip { left: auto; right: 0; transform: none; }
+
+.db-col-item:hover .db-col-tip,
+.db-col-item:focus-visible .db-col-tip {
+    opacity: 1;
+}
+
+.db-col-item:hover .db-col-bar,
+.db-col-item:focus-visible .db-col-bar {
+    opacity: 1;
+}
+
 /*==========RANKING BARS (PRODUCT SALES)==========*/
 .db-rank {
     display: flex;
@@ -809,17 +857,33 @@
     padding-right: 2px;
 }
 
+/* Thin, visible scrollbar: with the scrollbar hidden, a list with more
+   items than fit just looked cut off half-way through a row. */
 .db-rank,
 .db-alert-list,
 .db-order-list {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color, rgba(148, 163, 184, 0.35)) transparent;
+    padding-right: 4px;
 }
 
 .db-rank::-webkit-scrollbar,
 .db-alert-list::-webkit-scrollbar,
 .db-order-list::-webkit-scrollbar {
-    display: none;
+    width: 4px;
+}
+
+.db-rank::-webkit-scrollbar-thumb,
+.db-alert-list::-webkit-scrollbar-thumb,
+.db-order-list::-webkit-scrollbar-thumb {
+    background: var(--border-color, rgba(148, 163, 184, 0.35));
+    border-radius: 4px;
+}
+
+.db-rank::-webkit-scrollbar-track,
+.db-alert-list::-webkit-scrollbar-track,
+.db-order-list::-webkit-scrollbar-track {
+    background: transparent;
 }
 
 .db-rank-row {
@@ -1456,4 +1520,88 @@
 .db-order-empty strong {
     font-size: 16px;
     color: var(--accent-high, var(--text-primary));
+}
+
+/* ===== Order Soon / Stock Alerts: whole rows only + "View all" link ===== */
+.db-order-list,
+.db-alert-list {
+    max-height: none;
+    overflow: visible;
+}
+
+.db-list-more {
+    align-self: flex-start;
+    margin-top: 2px;
+    padding: 2px 0;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 10.5px;
+    cursor: pointer;
+}
+.db-list-more:hover { color: var(--accent); }
+
+/* ===== Admin / Staff dashboard: less empty space =====
+   (The Super Admin layout has an extra User Accounts card and is unchanged.) */
+@media (min-width: 1025px) {
+    .parent-without-user-accounts .regionalBreakdown-card,
+    .parent-without-user-accounts .eoqActivity-card,
+    .parent-without-user-accounts .totalOrder-card,
+    .parent-without-user-accounts .productSales-card,
+    .parent-without-user-accounts .lowStockalerts-card,
+    .parent-without-user-accounts .totalCustomer-card {
+        min-height: 0;
+    }
+
+    .parent-without-user-accounts .db-col-chart { min-height: 64px; max-height: 120px; }
+    .parent-without-user-accounts .db-spark-wrap { max-height: 72px; }
+
+    /* Top products: list starts at the top instead of floating in the middle */
+    .parent-without-user-accounts .db-rank {
+        justify-content: flex-start;
+        gap: 10px;
+        margin-top: 8px;
+    }
+}
+
+/* ===== Inventory by Category legend: never cut off =====
+   Long names shorten with "…" (full name on hover); the count always shows. */
+.db-category-section .db-donut-details {
+    flex: 1;
+    min-width: 0;
+}
+.db-category-section .db-legend-col {
+    width: 100%;
+    min-width: 0;
+}
+.db-category-section .db-legend-item {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+}
+.db-legend-item i { flex-shrink: 0; }
+.db-legend-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.db-legend-count {
+    flex-shrink: 0;
+    margin-left: auto;
+    padding-left: 6px;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Narrower card: smaller donut so the legend has room */
+@container (max-width: 480px) {
+    .db-category-section .db-donut-svg {
+        width: 68px;
+        height: 68px;
+        flex-basis: 68px;
+    }
+    .db-category-section .db-donut-row { gap: 8px; }
+    .db-coverage-content { gap: 12px; }
 }

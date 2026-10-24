@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, History, Download, TrendingUp, Calculator, Info } from 'lucide-react';
+import { X, History, Download, TrendingUp, Calculator, Info, Lock } from 'lucide-react';
 import './autoCal.css';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
@@ -228,6 +228,32 @@ export default function AutoCalculatorDesign({
     };
   };
 
+  /* ===== LOCKED POLICY FIELDS =====
+     With a product selected, Lead Time and Safety Stock come from the Super
+     Admin's Safety Stock Policy (Settings), so they can't be typed over here.
+     Lead Time stays editable only when the product has none set anywhere. */
+  const policyValues = selectedProduct ? defaultsFor(selectedProduct) : null;
+  const leadTimeLocked = Boolean(policyValues && policyValues.leadTime !== '');
+  const safetyStockLocked = Boolean(policyValues);
+  useEffect(() => {
+    if (!policyValues) return;
+    setInputs((prev) => {
+      const next = {
+        ...prev,
+        leadTime: leadTimeLocked ? policyValues.leadTime : prev.leadTime,
+        safetyStock: policyValues.safetyStock,
+      };
+      return next.leadTime === prev.leadTime && next.safetyStock === prev.safetyStock ? prev : next;
+    });
+    // Re-run only when the policy values themselves change.
+  }, [selectedProductId, policyValues?.leadTime, policyValues?.safetyStock, leadTimeLocked]);
+  const lockedTag = (
+    <span className="eq-lock" title="From the Safety Stock Policy (Settings) — set by the Super Admin">
+      <Lock size={11} aria-hidden="true" />
+      <span className="eq-sr">From policy</span>
+    </span>
+  );
+
   /* ===== SAVE COSTS AS PRODUCT DEFAULTS =====
      Ordering and holding cost used to be typed in Settings → Advanced. They
      are EOQ inputs, so they are saved here and pre-fill next time. */
@@ -295,7 +321,6 @@ export default function AutoCalculatorDesign({
     setSelectedProductId(String(product.id));
     setErrors({});
     clearResult();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handoff, products, productsLoading]);
 
   const handleInputChange = (e) => {
@@ -446,7 +471,7 @@ export default function AutoCalculatorDesign({
 
   const stockStatus = result && selectedProduct && currentStock !== null
     ? currentStock <= result.reorderPoint
-      ? { tone: 'due', text: `Current stock is ${fmt(currentStock)} unit${currentStock === 1 ? '' : 's'} — at or below the reorder point. Order ${fmt(result.recommendedOrder)} units now.` }
+      ? { tone: 'due', text: `Current stock is ${fmt(currentStock)} unit${currentStock === 1 ? '' : 's'} — at or below the reorder point. Order ${fmt(result.recommendedOrder)} unit${result.recommendedOrder === 1 ? '' : 's'} now.` }
       : { tone: 'ok', text: `Current stock is ${fmt(currentStock)} units — above the reorder point, no order needed yet.` }
     : null;
 
@@ -619,8 +644,28 @@ export default function AutoCalculatorDesign({
                 </div>
               )}
             </Field>
+            <div className="eq-pair">
+              <Field
+                id="eq-lead-time" name="leadTime" label="Lead Time" suffix="days"
+                value={inputs.leadTime} onChange={handleInputChange} error={errors.leadTime}
+                readOnly={leadTimeLocked}
+                tag={leadTimeLocked ? lockedTag : null}
+                hint={leadTimeLocked
+                  ? 'Set by the Super Admin in Settings → Safety Stock Policy'
+                  : selectedProduct
+                    ? 'No lead time set for this product yet — type one, or set it in Settings'
+                    : 'Supplier delivery time'}
+              />
+              <Field
+                id="eq-safety-stock" name="safetyStock" label="Safety Stock" suffix="units"
+                value={inputs.safetyStock} onChange={handleInputChange} error={errors.safetyStock}
+                readOnly={safetyStockLocked}
+                tag={safetyStockLocked ? lockedTag : null}
+                hint={safetyStockLocked ? 'Set by the Super Admin in Settings → Safety Stock Policy' : 'Extra buffer units'}
+              />
+            </div>
             {selectedProduct && (
-              <div className="eq-cost-save">
+              <div className="eq-cost-save eq-span-2">
                 {savedCosts ? (
                   <span className="eq-cost-save-ok">✓ These are {selectedProduct.name}’s saved costs</span>
                 ) : (
@@ -633,18 +678,6 @@ export default function AutoCalculatorDesign({
                 )}
               </div>
             )}
-            <div className="eq-pair">
-              <Field
-                id="eq-lead-time" name="leadTime" label="Lead Time" suffix="days"
-                value={inputs.leadTime} onChange={handleInputChange} error={errors.leadTime}
-                hint="Supplier delivery time"
-              />
-              <Field
-                id="eq-safety-stock" name="safetyStock" label="Safety Stock" suffix="units"
-                value={inputs.safetyStock} onChange={handleInputChange} error={errors.safetyStock}
-                hint="Extra buffer units"
-              />
-            </div>
           </div>
 
           {currency !== 'PHP' && (
@@ -678,7 +711,7 @@ export default function AutoCalculatorDesign({
               <div className="eq-hero">
                 <span>Economic Order Quantity</span>
                 <strong>{fmt(result.recommendedOrder)}</strong>
-                <em>units per order</em>
+                <em>unit{result.recommendedOrder === 1 ? '' : 's'} per order</em>
                 <small>√(2 × {fmtSmart(result.annualDemand)} × {fmtSmart(result.orderingCost)} ÷ {fmtSmart(result.holdingCost)}) = {fmt(result.economicOrderQuantity, 2)}</small>
               </div>
 
@@ -701,7 +734,7 @@ export default function AutoCalculatorDesign({
               </div>
 
               <p className="eq-sentence">
-                When stock drops to <strong>{fmt(result.reorderPoint)} units</strong>, a reorder alert appears — order <strong>{fmt(result.recommendedOrder)} units</strong> each time.
+                When stock drops to <strong>{fmt(result.reorderPoint)} unit{result.reorderPoint === 1 ? '' : 's'}</strong>, a reorder alert appears — order <strong>{fmt(result.recommendedOrder)} unit{result.recommendedOrder === 1 ? '' : 's'}</strong> each time.
               </p>
               {stockStatus && <p className={`eq-status is-${stockStatus.tone}`}>{stockStatus.text}</p>}
 

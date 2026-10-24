@@ -128,10 +128,12 @@ class DemandLinkedReorderTest extends TestCase
         $product = $this->product('PRD-D', 5);
         $this->sold($product, '2026-05-02', 3);   // current month only → no forecast yet
 
+        // No policy yet → default Low point 10 (the same point that marks it
+        // Low/Critical in Stock Alerts), so stock 5 is suggested.
         $this->getJson('/api/dashboard/summary')
             ->assertJsonCount(1, 'reorderSuggestions')
             ->assertJsonPath('reorderSuggestions.0.basis', 'reorder_point')
-            ->assertJsonPath('reorderSuggestions.0.reorderPoint', 20)
+            ->assertJsonPath('reorderSuggestions.0.reorderPoint', 10)
             ->assertJsonPath('reorderSuggestions.0.forecastDemand', null);
         $this->assertSame(5, $product->fresh()->stock_on_hand);
     }

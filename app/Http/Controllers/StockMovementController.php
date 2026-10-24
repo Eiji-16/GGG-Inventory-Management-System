@@ -63,10 +63,18 @@ class StockMovementController extends Controller
         $data['recordedBy'] = $this->recorderName($request);
         $stockBefore = $this->currentStockFor($data);
         $movement = $this->stockMovements->create($data);
-        $this->recordMovementActivity('add', $movement);
+        $this->recordMovementActivity($movement->mergedFromQty !== null ? 'merge' : 'add', $movement);
         $this->recordSafetyCrossing($movement, $stockBefore);
 
-        return response()->json($this->format($movement), 201);
+        $body = $this->format($movement);
+        if ($movement->mergedFromQty !== null) {
+            // Tells the screen this was added to an existing same-day entry.
+            $body['merged'] = true;
+            $body['mergedFromQty'] = $movement->mergedFromQty;
+            $body['addedQty'] = $movement->mergedAddedQty;
+        }
+
+        return response()->json($body, 201);
     }
 
     /** PUT/PATCH /api/stock-movements/{stockMovement} */
@@ -230,6 +238,13 @@ class StockMovementController extends Controller
     private function recordMovementActivity(string $event, StockMovement $movement, ?array $before = null): void
     {
         $snapshot = $this->activitySnapshot($movement->loadMissing('product'));
+        if ($event === 'merge') {
+            // Log the amount just added, not the entry's new total.
+            $sign = $movement->movement_type === 'in' ? 1 : -1;
+            $snapshot['change'] = $sign * (int) $movement->mergedAddedQty;
+            $snapshot['changeText'] = ($snapshot['change'] >= 0 ? '+' : '−').abs($snapshot['change']);
+            $snapshot['qty'] = (int) $movement->mergedAddedQty;
+        }
         $action = match ($event) {
             'edit' => 'stock.edit',
             default => $snapshot['change'] < 0 ? 'stock.out' : 'stock.in',
@@ -239,6 +254,8 @@ class StockMovementController extends Controller
             : '—';
         $description = match ($event) {
             'edit' => "Updated {$snapshot['product']} movement: {$previousChangeText} → {$snapshot['changeText']}",
+            'merge' => "{$snapshot['type']} {$snapshot['changeText']} for {$snapshot['product']} (added to the same day's entry, now "
+                .($movement->movement_type === 'in' ? '+' : '−').(int) $movement->qty.')',
             default => "{$snapshot['type']} {$snapshot['changeText']} for {$snapshot['product']}",
         };
 

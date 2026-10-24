@@ -1909,3 +1909,36 @@
 .sc-confirm-modal .sc-modal-actions {
     justify-content: center;
 }
+
+/* Red confirm button for delete / clear popups */
+.sc-confirm-modal .sc-modal-save-btn.sc-confirm-danger-btn {
+    background: #e5484d;
+    border-color: #e5484d;
+    color: #fff;
+}
+
+.sc-confirm-modal .sc-modal-save-btn.sc-confirm-danger-btn:hover:not(:disabled) {
+    background: #cf3a3f;
+    border-color: #cf3a3f;
+}
+
+.sc-confirm-modal .sc-modal-actions button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* "Added to today's entry" message after saving */
+.sc-merge-notice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--accent, #E8C547);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 12.5px;
+}

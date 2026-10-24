@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   User,
   Mail,
@@ -14,6 +14,7 @@ import {
   TrendingUp,
   LogIn,
   Activity,
+  Camera,
 } from 'lucide-react';
 import './profile.css';
 
@@ -124,6 +125,56 @@ export default function Profile() {
   const [pwdSuccess, setPwdSuccess] = useState('');
   const [pwdSaving, setPwdSaving] = useState(false);
 
+  /* ===== OWN PROFILE PHOTO (separate from the system logo) ===== */
+  const photoInputRef = useRef(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+
+  const uploadPhoto = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setPhotoError('Please choose an image file (JPG, PNG, WEBP or GIF).'); return; }
+    if (file.size > 2 * 1024 * 1024) { setPhotoError('The picture must be 2 MB or smaller.'); return; }
+    setPhotoBusy(true);
+    setPhotoError('');
+    try {
+      const form = new FormData();
+      form.append('avatar', file);
+      const response = await fetch('/profile/avatar', {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf() },
+        credentials: 'same-origin',
+        body: form,
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(Object.values(body?.errors || {}).flat()[0] || body?.message || 'The photo could not be saved.');
+      setUser((prev) => ({ ...prev, avatarUrl: body.avatarUrl }));
+    } catch (e) {
+      setPhotoError(e.message || 'The photo could not be saved.');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const removePhoto = async () => {
+    setPhotoBusy(true);
+    setPhotoError('');
+    try {
+      const response = await fetch('/profile/avatar', {
+        method: 'DELETE',
+        headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf() },
+        credentials: 'same-origin',
+      });
+      if (!response.ok) throw new Error('The photo could not be removed.');
+      setUser((prev) => ({ ...prev, avatarUrl: null }));
+    } catch (e) {
+      setPhotoError(e.message || 'The photo could not be removed.');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
   /* ===== LOAD PROFILE + ACTIVITY ===== */
   useEffect(() => {
     fetch('/profile', { headers: { Accept: 'application/json' } })
@@ -209,10 +260,39 @@ export default function Profile() {
 
         {/* ===== IDENTITY ===== */}
         <section className="pf-card pf-area-identity">
-          <div className="pf-avatar">{initialsOf(user.fullName)}</div>
+          <div className="pf-avatar-wrap">
+            <div className="pf-avatar">
+              {user.avatarUrl
+                ? <img src={user.avatarUrl} alt="" />
+                : initialsOf(user.fullName)}
+            </div>
+            <button
+              type="button"
+              className="pf-avatar-edit"
+              onClick={() => photoInputRef.current?.click()}
+              disabled={photoBusy}
+              title={user.avatarUrl ? 'Change your photo' : 'Add your photo'}
+              aria-label="Change your profile photo"
+            >
+              <Camera size={12} />
+            </button>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onChange={uploadPhoto}
+              hidden
+            />
+          </div>
           <div className="pf-identity-text">
             <h2>{user.fullName}</h2>
             <p className="pf-sub">{user.email}{user.department ? ` · ${user.department}` : ''}</p>
+            {user.avatarUrl && (
+              <button type="button" className="pf-photo-remove" onClick={removePhoto} disabled={photoBusy}>
+                Remove photo
+              </button>
+            )}
+            {photoError && <p className="pf-inline-error" role="alert">{photoError}</p>}
             <span className={`pf-role-pill pf-role-${(user.role || '').replace(/\s+/g, '')}`}>
               <Shield size={12} />
               {user.role}

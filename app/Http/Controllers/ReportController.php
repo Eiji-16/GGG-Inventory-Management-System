@@ -26,9 +26,10 @@ class ReportController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $products = Product::with('safetyStock')->orderBy('name')->get();
+        $products = Product::with(['safetyStock', 'supplier'])->orderBy('name')->get();
 
         return response()->json([
+            'generatedAt'    => now()->toIso8601String(),
             'stockSummary'   => $this->stockSummary($products),
             'stockMovement'  => $this->stockMovement(),
             'topMoving'      => $this->topMoving(),
@@ -40,42 +41,81 @@ class ReportController extends Controller
         ]);
     }
 
-    /** Uses demand during lead time plus safety stock; falls back to safety stock. */
-    private function reorderPointFor(Product $p): int
-    {
-        return $this->reorderPoints->forProduct($p);
-    }
-
+    /** Same four statuses as Stock Control, the Dashboard and Reorder Alerts. */
     private function statusFor(Product $p): string
     {
         return match ($this->reorderPoints->statusFor($p)) {
             'out' => 'Out of Stock',
-            'critical', 'low' => 'Low Stock',
+            'critical' => 'Critical',
+            'low' => 'Low Stock',
             default => 'In Stock',
         };
+    }
+
+    /**
+     * Cost per unit for inventory value: the product's unit cost if one is
+     * set, otherwise the unit price on its latest Stock In that has a price.
+     * (The screens record prices on each stock transaction, so products.unit_cost
+     * is usually empty — using it alone made Inventory Value always 0.)
+     *
+     * @return array<int, float>  product id => cost
+     */
+    private function unitCosts($products): array
+    {
+        $latestInPrice = StockMovement::query()
+            ->where('movement_type', 'in')
+            ->where('is_adjustment', false)
+            ->whereNotNull('unit_price')
+            ->orderBy('movement_date')
+            ->orderBy('id')
+            ->get(['product_id', 'unit_price'])
+            ->keyBy('product_id')        // last one wins = latest
+            ->map(fn ($row) => (float) $row->unit_price);
+
+        $costs = [];
+        foreach ($products as $p) {
+            $cost = $p->unit_cost !== null ? (float) $p->unit_cost : ($latestInPrice[$p->id] ?? null);
+            if ($cost !== null) {
+                $costs[$p->id] = $cost;
+            }
+        }
+
+        return $costs;
     }
 
     private function stockSummary($products): array
     {
         $totalStock = 0;
         $low = 0;
+        $critical = 0;
         $out = 0;
         $value = 0.0;
+        $unpricedInStock = 0;
         $rows = [];
+        $costs = $this->unitCosts($products);
 
         foreach ($products as $p) {
             $stock = (int) $p->stock_on_hand;
             $status = $this->statusFor($p);
             $totalStock += $stock;
             if ($status === 'Low Stock') $low++;
+            if ($status === 'Critical') $critical++;
             if ($status === 'Out of Stock') $out++;
-            $value += $stock * (float) ($p->unit_cost ?? 0);
+            $cost = $costs[$p->id] ?? null;
+            if ($cost !== null) {
+                $value += $stock * $cost;
+            } elseif ($stock > 0) {
+                $unpricedInStock++;
+            }
 
             $rows[] = [
-                'product'  => $p->name,
-                'category' => $p->category ?? '—',
-                'stock'    => $stock,
-                'status'   => $status,
+                'productId' => $p->code,
+                'product'   => $p->name,
+                'category'  => $p->category ?? '—',
+                'stock'     => $stock,
+                'unitCost'  => $cost,
+                'value'     => $cost !== null ? round($stock * $cost, 2) : null,
+                'status'    => $status,
             ];
         }
 
@@ -83,30 +123,49 @@ class ReportController extends Controller
             'kpis' => [
                 'totalStock'     => $totalStock,
                 'productCount'   => $products->count(),
-                'lowStock'       => $low,
+                // Low Stock Items = Low + Critical (both need reordering).
+                'lowStock'       => $low + $critical,
+                'criticalStock'  => $critical,
                 'outOfStock'     => $out,
                 'inventoryValue' => round($value, 2),
+                // In-stock products with no cost yet (left out of the value).
+                'unpricedProducts' => $unpricedInStock,
             ],
             'rows' => $rows,
         ];
     }
 
-    /** Stock in/out/net grouped by ISO week (last 8 weeks with activity). */
+    /**
+     * Stock in / out / net for each of the last 8 weeks (Monday start),
+     * including weeks with no movement, labelled by the week's Monday.
+     * Corrections (counted-stock adjustments) are not purchases or sales, so
+     * they are left out.
+     */
     private function stockMovement(): array
     {
+        $weeks = 8;
+        $firstWeek = now()->startOfWeek(\Illuminate\Support\Carbon::MONDAY)->subWeeks($weeks - 1);
+        $byWeek = [];
+        for ($w = 0; $w < $weeks; $w++) {
+            $start = $firstWeek->copy()->addWeeks($w);
+            $byWeek[$start->toDateString()] = [
+                'period'    => $start->format('M j'),
+                'weekStart' => $start->toDateString(),
+                'in'        => 0,
+                'out'       => 0,
+            ];
+        }
+
         $movements = StockMovement::where('is_adjustment', false)
-            ->orderBy('movement_date')
+            ->where('movement_date', '>=', $firstWeek->toDateString())
             ->get(['movement_type', 'qty', 'movement_date']);
 
-        $byWeek = [];
         foreach ($movements as $m) {
-            $key = $m->movement_date->format('o-\WW'); // ISO year-week
-            $byWeek[$key] ??= ['period' => $m->movement_date->format('M j'), 'in' => 0, 'out' => 0];
-            if ($m->movement_type === 'in') {
-                $byWeek[$key]['in'] += (int) $m->qty;
-            } else {
-                $byWeek[$key]['out'] += (int) $m->qty;
+            $key = $m->movement_date->copy()->startOfWeek(\Illuminate\Support\Carbon::MONDAY)->toDateString();
+            if (! isset($byWeek[$key])) {
+                continue;   // a future-dated entry
             }
+            $byWeek[$key][$m->movement_type === 'in' ? 'in' : 'out'] += (int) $m->qty;
         }
 
         $rows = array_values(array_map(function ($w) {
@@ -114,30 +173,37 @@ class ReportController extends Controller
             return $w;
         }, $byWeek));
 
-        return ['rows' => array_slice($rows, -8)];
+        return ['rows' => $rows];
     }
 
-    /** Rank products by total units moved OUT (sales velocity). */
+    /**
+     * Rank products by total units sold (Stock Out, not corrections).
+     * Sales Value = units × the selling price recorded on each sale; sales
+     * without a price add units but no value.
+     */
     private function topMoving(): array
     {
         $out = StockMovement::where('movement_type', 'out')
             ->where('is_adjustment', false)
-            ->selectRaw('product_id, product_name, SUM(qty) as units')
-            ->groupBy('product_id', 'product_name')
+            ->selectRaw('product_id, SUM(qty) as units, SUM(CASE WHEN unit_price IS NULL THEN 0 ELSE qty * unit_price END) as sales_value')
+            ->groupBy('product_id')
             ->orderByDesc('units')
             ->get();
 
+        // Include deleted products: their sales history still counts.
         $products = Product::withTrashed()->whereIn('id', $out->pluck('product_id'))->get()->keyBy('id');
 
         $rows = [];
         $rank = 1;
         foreach ($out as $o) {
-            $cost = (float) ($products[$o->product_id]->unit_cost ?? 0);
+            $product = $products[$o->product_id] ?? null;
             $rows[] = [
                 'rank'      => $rank++,
-                'product'   => $o->product_name,
+                'productId' => $product?->code,
+                'product'   => $product?->name ?? '—',
+                'deleted'   => (bool) $product?->trashed(),
                 'unitsSold' => (int) $o->units,
-                'value'     => round((int) $o->units * $cost, 2),
+                'value'     => round((float) $o->sales_value, 2),
             ];
         }
 
@@ -163,6 +229,7 @@ class ReportController extends Controller
             ->pluck('units', 'product_id');
 
         $items = $products->map(fn (Product $p) => [
+            'productId' => $p->code,
             'product'   => $p->name,
             'category'  => $p->category ?? '—',
             'unitsSold' => (int) ($sold[$p->id] ?? 0),
@@ -179,8 +246,8 @@ class ReportController extends Controller
         $fastCount = min(5, (int) ceil($ranked->count() / 2));
         $fast = $ranked->take($fastCount)->filter(fn ($i) => $i['unitsSold'] > 0)->values();
 
-        $fastNames = $fast->pluck('product')->all();
-        $slow = $ranked->filter(fn ($i) => $i['stock'] > 0 && ! in_array($i['product'], $fastNames, true))
+        $fastIds = $fast->pluck('productId')->all();
+        $slow = $ranked->filter(fn ($i) => $i['stock'] > 0 && ! in_array($i['productId'], $fastIds, true))
             ->sortBy([['unitsSold', 'asc'], ['stock', 'desc']])
             ->take(5)
             ->values();
@@ -223,28 +290,40 @@ class ReportController extends Controller
         ];
     }
 
-    /** WMA of the latest three completed months of stock-out sales. */
+    /**
+     * Next month's forecast for each product — the same number the
+     * Forecasting page shows (3-period WMA, plus any active seasonal event).
+     * Suggested Reorder uses the same rule as the Dashboard's Order Soon card:
+     * enough to cover the lead time and next month while keeping safety stock.
+     */
     private function demandForecast($products): array
     {
         $rows = [];
         foreach ($products as $p) {
-            $series = $this->forecasts->salesSeries($p, 'month');
-            $periodCount = count($series);
-            if ($periodCount === 0) continue;
+            try {
+                $forecast = $this->forecasts->forecast($p, 'month');
+            } catch (\Illuminate\Validation\ValidationException) {
+                continue;   // no completed month of sales yet
+            }
 
-            $forecast = round($this->forecasts->weightedMovingAverage(
-                array_map(fn (array $row) => (float) $row['unitsSold'], $series)
-            ), 1);
+            $monthly = (float) $forecast['adjustedForecast'];
+            $periodDays = max(1, (int) ($forecast['periodDays'] ?? 30));
+            $daily = $monthly / $periodDays;
             $stock = (int) $p->stock_on_hand;
-            $suggested = max(0, (int) ceil($forecast - $stock + $this->reorderPointFor($p)));
-            $confidence = $this->forecasts->confidenceFor($periodCount);
+            $safety = $this->reorderPoints->safetyStock($p);
+            $lead = $this->reorderPoints->leadTimeDays($p) ?? 0;
+            $suggested = max(0, (int) ceil($safety + $daily * $lead + $monthly - $stock));
 
             $rows[] = [
+                'productId'        => $p->code,
                 'product'          => $p->name,
+                'forecastPeriod'   => $forecast['forecastPeriod'],
                 'currentStock'     => $stock,
-                'forecastedDemand' => $forecast,
+                'baseForecast'     => round((float) $forecast['baseForecast'], 1),
+                'adjustmentPct'    => (float) ($forecast['adjustmentPct'] ?? 0),
+                'forecastedDemand' => round($monthly, 1),
                 'suggestedReorder' => $suggested,
-                'confidence'       => $confidence,
+                'confidence'       => $forecast['confidence'],
             ];
         }
 
@@ -279,13 +358,19 @@ class ReportController extends Controller
     /** Use the latest stock-in date, falling back to product creation as an estimate. */
     private function inventoryAging($products): array
     {
+        // Latest real Stock In per product (corrections are not deliveries).
+        $lastIns = StockMovement::where('movement_type', 'in')
+            ->where('is_adjustment', false)
+            ->selectRaw('product_id, MAX(movement_date) as last_in')
+            ->groupBy('product_id')
+            ->pluck('last_in', 'product_id');
+
         $rows = [];
         foreach ($products as $p) {
             if ((int) $p->stock_on_hand <= 0) continue;
 
-            $lastIn = StockMovement::where('product_id', $p->id)
-                ->where('movement_type', 'in')
-                ->max('movement_date');
+            $lastIn = $lastIns[$p->id] ?? null;
+            $lastIn = $lastIn ? substr((string) $lastIn, 0, 10) : null;
             $ageDate = $lastIn ?? $p->created_at?->toDateString();
             $ageEstimated = $lastIn === null;
 
@@ -296,6 +381,7 @@ class ReportController extends Controller
             $status = $days === null ? 'Unknown' : ($days > 120 ? 'Slow Mover' : ($days > 60 ? 'Aging' : 'Healthy'));
 
             $rows[] = [
+                'productId'  => $p->code,
                 'product'    => $p->name,
                 'daysInStock'=> $days,
                 'ageEstimated' => $ageEstimated,
@@ -315,18 +401,23 @@ class ReportController extends Controller
         $rows = [];
         foreach ($products as $p) {
             $stock = (int) $p->stock_on_hand;
-            $rop = $this->reorderPointFor($p);
-            // Uses the product's status points (Automatic or Manual).
+            // Uses the product's status points (Automatic or Manual) — the
+            // same points Stock Control and Reorder Alerts use.
+            $points = $this->reorderPoints->statusPoints($p);
             $status = $this->reorderPoints->statusFor($p, $stock);
             if ($status === 'healthy') continue;
 
             $urgency = ['out' => 'Out of Stock', 'critical' => 'Critical', 'low' => 'Low'][$status];
 
             $rows[] = [
-                'product'      => $p->name,
-                'currentStock' => $stock,
-                'reorderPoint' => $rop,
-                'urgency'      => $urgency,
+                'productId'     => $p->code,
+                'product'       => $p->name,
+                'currentStock'  => $stock,
+                // The stock level where the product turns Low.
+                'reorderPoint'  => (int) $points['low'],
+                'criticalPoint' => (int) $points['critical'],
+                'mode'          => $points['mode'],
+                'urgency'       => $urgency,
             ];
         }
 

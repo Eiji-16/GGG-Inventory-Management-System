@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardSummaryController;
+use App\Http\Controllers\DataVersionController;
 use App\Http\Controllers\CurrencyPreferenceController;
 use App\Http\Controllers\ForecastController;
 use App\Http\Controllers\PastSalesController;
@@ -18,6 +19,8 @@ Route::middleware(['web', 'auth', 'active'])->group(function (): void {
     Route::put('/settings/currency', [CurrencyPreferenceController::class, 'update']);
     Route::get('/dashboard/summary', DashboardSummaryController::class);
     Route::get('/reports', [ReportController::class, 'index']);
+    // Tiny "has anything changed?" check used for automatic refresh.
+    Route::get('/data-version', DataVersionController::class);
     Route::get('/products', [ProductController::class, 'index']);
     Route::get('/products/{product}', [ProductController::class, 'show']);
     Route::get('/stock-movements', [StockMovementController::class, 'index']);
@@ -26,10 +29,11 @@ Route::middleware(['web', 'auth', 'active'])->group(function (): void {
 
     Route::post('/stock-movements', [StockMovementController::class, 'store']);
     Route::match(['put', 'patch'], '/stock-movements/{stockMovement}', [StockMovementController::class, 'update']);
-    Route::delete('/stock-movements/products/{productCode}', [StockMovementController::class, 'clearProduct']);
     Route::delete('/stock-movements/{stockMovement}', [StockMovementController::class, 'destroy']);
 
     Route::middleware('role:super_admin,admin')->group(function (): void {
+        // Clearing ALL of a product's stock records: Super Admin / Admin only.
+        Route::delete('/stock-movements/products/{productCode}', [StockMovementController::class, 'clearProduct']);
         Route::post('/products', [ProductController::class, 'store']);
         Route::match(['put', 'patch'], '/products/{product}', [ProductController::class, 'update']);
         Route::delete('/products/{product}', [ProductController::class, 'destroy']);

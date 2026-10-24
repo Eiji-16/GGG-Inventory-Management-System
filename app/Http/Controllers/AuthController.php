@@ -202,6 +202,8 @@ class AuthController extends Controller
             ...$user->only(['id', 'name', 'email', 'role']),
             // System-wide display currency (Settings), the same for every account.
             'currency' => \App\Models\AppSetting::currency(),
+            // Sidebar picture chosen by the Super Admin (null = default icon).
+            'logoUrl' => \App\Models\AppSetting::logoUrl(),
             'isSuperAdmin' => $this->isSuperAdmin($user),
         ];
     }
