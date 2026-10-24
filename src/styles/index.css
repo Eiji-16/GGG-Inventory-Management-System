@@ -12,12 +12,12 @@
 }
 
 :root {
-    --dropdown-menu-bg: #18294b;
-    --dropdown-menu-text: #f3f6fc;
-    --dropdown-menu-muted: #aebbd1;
-    --dropdown-menu-border: #cbd6e8;
-    --dropdown-menu-hover: #263b60;
-    --dropdown-menu-selected: #f5bd3b;
+    --dropdown-menu-bg: var(--bg-card, #ffffff);
+    --dropdown-menu-text: var(--text-primary, #0b1b33);
+    --dropdown-menu-muted: var(--text-muted, #64748b);
+    --dropdown-menu-border: var(--border-color, rgba(11, 27, 51, 0.12));
+    --dropdown-menu-hover: var(--static-bg-color, #eef2f7);
+    --dropdown-menu-selected: var(--accent, #e8c547);
 }
 
 html,

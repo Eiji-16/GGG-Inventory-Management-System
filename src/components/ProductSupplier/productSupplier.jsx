@@ -38,6 +38,147 @@ const DETAIL_FIELDS = [
   { key: 'supplierContact', label: 'Supplier Contact', hint: 'Phone or email used when a reorder is raised', wide: true },
 ];
 
+function ProductImagePreview({ src, name }) {
+  const triggerRef = useRef(null);
+  const previewRef = useRef(null);
+  const closeTimerRef = useRef(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
+  const [position, setPosition] = useState({ left: 0, top: 0 });
+
+  const updatePosition = () => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+
+    const bounds = trigger.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const previewWidth = Math.min(280, viewportWidth - 24);
+    const fitsRight = bounds.right + previewWidth + 20 <= viewportWidth;
+    const fitsLeft = bounds.left - previewWidth - 20 >= 0;
+    const preferredLeft = fitsRight
+      ? bounds.right + 8
+      : fitsLeft
+        ? bounds.left - previewWidth - 8
+        : bounds.right + 8;
+    const left = Math.max(12, Math.min(preferredLeft, viewportWidth - previewWidth - 12));
+    const maxPreviewHeight = viewportHeight * 0.75;
+    const centerY = bounds.top + bounds.height / 2;
+    const top = Math.max(
+      12 + maxPreviewHeight / 2,
+      Math.min(centerY, viewportHeight - 12 - maxPreviewHeight / 2)
+    );
+
+    setPosition({ left, top });
+  };
+
+  const cancelClose = () => {
+    window.clearTimeout(closeTimerRef.current);
+  };
+
+  const closeSoon = () => {
+    cancelClose();
+    closeTimerRef.current = window.setTimeout(() => setIsOpen(false), 150);
+  };
+
+  const openPreview = () => {
+    cancelClose();
+    updatePosition();
+    setIsOpen(true);
+  };
+
+  useEffect(() => {
+    setImageFailed(false);
+    setIsOpen(false);
+  }, [src]);
+
+  useEffect(() => () => cancelClose(), []);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setIsOpen(false);
+    };
+    const closeOutsidePreview = (event) => {
+      if (!triggerRef.current?.contains(event.target)
+        && !previewRef.current?.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('keydown', closeOnEscape);
+    window.addEventListener('pointerdown', closeOutsidePreview);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('keydown', closeOnEscape);
+      window.removeEventListener('pointerdown', closeOutsidePreview);
+    };
+  }, [isOpen]);
+
+  const toggleOnTouch = () => {
+    if (window.matchMedia('(hover: none)').matches) {
+      if (isOpen) setIsOpen(false);
+      else openPreview();
+    } else {
+      openPreview();
+    }
+  };
+
+  return (
+    <>
+      <span
+        ref={triggerRef}
+        className="ps-thumb-preview-trigger"
+        role="button"
+        tabIndex={0}
+        aria-label={`Preview image for ${name}`}
+        aria-expanded={isOpen}
+        onPointerEnter={(event) => {
+          if (event.pointerType !== 'touch') openPreview();
+        }}
+        onPointerLeave={closeSoon}
+        onFocus={openPreview}
+        onBlur={closeSoon}
+        onClick={(event) => {
+          event.stopPropagation();
+          toggleOnTouch();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+            setIsOpen((open) => !open);
+          }
+        }}
+      >
+        <img className="ps-thumb" src={src} alt="" loading="lazy" />
+      </span>
+      {isOpen && !imageFailed && document.body && createPortal(
+        <div
+          ref={previewRef}
+          className="ps-image-preview"
+          style={{ left: `${position.left}px`, top: `${position.top}px` }}
+          aria-hidden="true"
+          onPointerEnter={cancelClose}
+          onPointerLeave={closeSoon}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <img
+            src={src}
+            alt={name ? `${name} preview` : 'Product image preview'}
+            onError={() => setImageFailed(true)}
+          />
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
 function ProductSupplier({ onNavigate, onCatalogChange }) {
   const PAGE_SIZE = 10;
   const [productsFromDatabase, setProductsFromDatabase] = useState([]);
@@ -626,7 +767,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
                 <td className="ps-td-nowrap ps-td-muted" data-label="Product ID">{product.id}</td>
                 <td className="ps-td-pic" data-label="Picture">
                   {product.image ? (
-                    <img className="ps-thumb" src={product.image} alt="" loading="lazy" />
+                    <ProductImagePreview src={product.image} name={product.name} />
                   ) : (
                     <span className="ps-thumb ps-thumb-empty" aria-hidden="true"><Package size={13} /></span>
                   )}

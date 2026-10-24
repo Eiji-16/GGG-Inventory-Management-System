@@ -235,33 +235,6 @@ function Settings({
           </div>
         </header>
 
-        {/* Currency */}
-        <div className="s-pref-row s-pref-row-currency">
-          <span className="s-pref-icon s-pref-icon-text" aria-hidden="true">{currencySymbol}</span>
-          <div className="s-pref-text">
-            <label className="s-pref-title" htmlFor="s-currency">Currency</label>
-            <span className="s-pref-desc">
-              {canChangeCurrency
-                ? 'Applies to every account and report. Amounts are not converted.'
-                : 'Set by an Admin for the whole system.'}
-            </span>
-            {currencySaving && <span className="s-pref-status" role="status">Saving currency…</span>}
-            {currencySaved && <span className="s-pref-status" role="status"><Check size={11} /> Saved for the whole system</span>}
-            {currencyError && <span className="s-pref-error" role="alert">{currencyError}</span>}
-          </div>
-          <select
-            id="s-currency"
-            className="s-select"
-            value={currency}
-            onChange={handleCurrencyChange}
-            disabled={currencySaving || !canChangeCurrency}
-          >
-            {CURRENCIES.map((option) => (
-              <option key={option.code} value={option.code}>{option.label}</option>
-            ))}
-          </select>
-        </div>
-
         {/* Appearance */}
         <div className="s-pref-row">
           <span className="s-pref-icon" aria-hidden="true">
@@ -301,6 +274,33 @@ function Settings({
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Currency */}
+        <div className="s-pref-row s-pref-row-currency">
+          <span className="s-pref-icon s-pref-icon-text" aria-hidden="true">{currencySymbol}</span>
+          <div className="s-pref-text">
+            <label className="s-pref-title" htmlFor="s-currency">Currency</label>
+            <span className="s-pref-desc">
+              {canChangeCurrency
+                ? 'Applies to every account and report. Amounts are not converted.'
+                : 'Set by an Admin for the whole system.'}
+            </span>
+            {currencySaving && <span className="s-pref-status" role="status">Saving currency…</span>}
+            {currencySaved && <span className="s-pref-status" role="status"><Check size={11} /> Saved for the whole system</span>}
+            {currencyError && <span className="s-pref-error" role="alert">{currencyError}</span>}
+          </div>
+          <select
+            id="s-currency"
+            className="s-select"
+            value={currency}
+            onChange={handleCurrencyChange}
+            disabled={currencySaving || !canChangeCurrency}
+          >
+            {CURRENCIES.map((option) => (
+              <option key={option.code} value={option.code}>{option.label}</option>
+            ))}
+          </select>
         </div>
 
         {/* Field descriptions */}

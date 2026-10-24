@@ -19,6 +19,8 @@ class CurrencyPreferenceTest extends TestCase
 
     public function test_the_system_currency_defaults_to_php(): void
     {
+        AppSetting::query()->whereKey('currency')->delete();
+
         $this->assertSame('PHP', AppSetting::currency());
 
         $this->actingAs($this->user(User::ROLE_STAFF))
@@ -36,6 +38,7 @@ class CurrencyPreferenceTest extends TestCase
             ->putJson('/api/settings/currency', ['currency' => 'USD'])
             ->assertOk()
             ->assertJsonPath('currency', 'USD');
+        $this->assertDatabaseHas('app_settings', ['key' => 'currency', 'value' => 'USD']);
         $this->assertDatabaseHas('activity_logs', ['action' => 'settings.currency']);
 
         // Another account sees the same currency.
