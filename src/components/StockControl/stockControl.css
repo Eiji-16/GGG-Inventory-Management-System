@@ -1793,3 +1793,119 @@
         row-gap: 0.8rem;
     }
 }
+/* ===== SAFETY-STOCK HANDLER ===== */
+/* Warning inside the form (above Save) when a sale would cross safety stock. */
+.sc-safety-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0 0 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--accent-med) 55%, transparent);
+    background: color-mix(in srgb, var(--accent-med) 14%, transparent);
+    color: var(--text-primary);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.sc-safety-warning svg { flex-shrink: 0; margin-top: 2px; color: var(--accent-med); }
+.sc-safety-warning.is-out { border-color: color-mix(in srgb, var(--accent-low) 60%, transparent); background: color-mix(in srgb, var(--accent-low) 14%, transparent); }
+.sc-safety-warning.is-out svg { color: var(--accent-low); }
+
+/* Banner above the table right after such a sale is saved. */
+.sc-safety-alert {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--accent-med) 55%, transparent);
+    border-left: 4px solid var(--accent-med);
+    background: color-mix(in srgb, var(--accent-med) 12%, var(--bg-card));
+    color: var(--text-primary);
+    font-size: 12.5px;
+}
+
+.sc-safety-alert > svg { flex-shrink: 0; color: var(--accent-med); }
+.sc-safety-alert > span { flex: 1; }
+.sc-safety-alert.is-out { border-color: color-mix(in srgb, var(--accent-low) 60%, transparent); border-left-color: var(--accent-low); background: color-mix(in srgb, var(--accent-low) 12%, var(--bg-card)); }
+.sc-safety-alert.is-out > svg { color: var(--accent-low); }
+
+.sc-safety-alert-order {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--background-icon-active-color);
+    color: var(--icon-active-color);
+    font: inherit;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.sc-safety-alert-order:disabled { opacity: 0.6; cursor: wait; }
+
+.sc-safety-alert-close {
+    display: inline-flex;
+    flex-shrink: 0;
+    padding: 4px;
+    border: 0;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+@media (max-width: 640px) {
+    .sc-safety-alert { flex-wrap: wrap; }
+}
+
+/* Safety stock confirmation ("Do you still want to proceed with this sale?") */
+.sc-confirm-overlay { z-index: 1100; }
+
+.sc-confirm-modal {
+    max-width: 400px;
+    padding: 22px 22px 16px;
+    text-align: center;
+}
+
+.sc-confirm-modal h3 {
+    margin: 10px 0 6px;
+    font-size: 16px;
+}
+
+.sc-confirm-modal p {
+    margin: 0 0 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+.sc-confirm-detail {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.sc-confirm-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    color: var(--accent-med);
+    background: color-mix(in srgb, var(--accent-med) 16%, transparent);
+}
+
+.sc-confirm-icon.is-out {
+    color: var(--accent-low);
+    background: color-mix(in srgb, var(--accent-low) 16%, transparent);
+}
+
+.sc-confirm-modal .sc-modal-actions {
+    justify-content: center;
+}

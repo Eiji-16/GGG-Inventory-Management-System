@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Calculator, PackageCheck, Search } from 'lucide-react';
 import './reorderAlerts.css';
-import { reorderPointFor, SAFETY_STOCK_DEFAULTS } from '../../data/safetyStock';
+import { reorderPointFor, safetyPointFor, statusPointsFor, SAFETY_STOCK_DEFAULTS } from '../../data/safetyStock';
 import { buildForecastHandoff } from '../../utils/forecastHandoff';
 
 /* ===== AUTO REORDER ALERTS (Figure 9) =====
@@ -41,9 +41,14 @@ export default function ReorderAlerts({ onNavigate, safetyStock = SAFETY_STOCK_D
         demandFromHistory: product.demandFromHistory,
         leadTimeDays: product.leadTimeDays,
       }, safetyStock);
-      return { ...product, stock, reorderPoint, status: stock <= 0 ? 'Out of Stock' : 'Low Stock' };
+      const row = { productId: product.id, productName: product.name, safetyStock: product.safetyStock, annualDemand: product.annualDemand, demandFromHistory: product.demandFromHistory, leadTimeDays: product.leadTimeDays };
+      const safety = safetyPointFor(row, safetyStock);
+      const points = statusPointsFor(row, safetyStock);
+      // Out (0) · Critical (≤ critical point) · Low (≤ low point) — Automatic or Manual
+      const status = stock <= 0 ? 'Out of Stock' : stock <= points.critical ? 'Critical' : 'Low Stock';
+      return { ...product, stock, reorderPoint, safety, points, status };
     })
-    .filter((product) => product.stock <= product.reorderPoint)
+    .filter((product) => product.stock <= product.points.low)
     .sort((a, b) => (a.stock - a.reorderPoint) - (b.stock - b.reorderPoint)),
   [products, safetyStock]);
 
@@ -56,7 +61,7 @@ export default function ReorderAlerts({ onNavigate, safetyStock = SAFETY_STOCK_D
       .some((value) => String(value || '').toLowerCase().includes(q));
     const matchesStatus = statusFilter === 'all'
       || (statusFilter === 'out' && item.status === 'Out of Stock')
-      || (statusFilter === 'low' && item.status === 'Low Stock');
+      || (statusFilter === 'low' && item.status !== 'Out of Stock');
     return matchesQuery && matchesStatus;
   });
 
@@ -110,7 +115,7 @@ export default function ReorderAlerts({ onNavigate, safetyStock = SAFETY_STOCK_D
               />
             </div>
             <div className="ra-filter" role="tablist" aria-label="Filter by status">
-              {[['all', 'All'], ['out', 'Out of stock'], ['low', 'Low stock']].map(([value, label]) => (
+              {[['all', 'All'], ['out', 'Out of stock'], ['low', 'Low & critical']].map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
@@ -172,13 +177,13 @@ export default function ReorderAlerts({ onNavigate, safetyStock = SAFETY_STOCK_D
                   <td data-label="Current Stock" className="ra-num">{item.stock}</td>
                   <td data-label="Reorder Point" className="ra-num">{item.reorderPoint}</td>
                   <td data-label="Status">
-                    <span className={`ra-status ${item.status === 'Out of Stock' ? 'is-out' : 'is-low'}`}>
+                    <span className={`ra-status ${item.status === 'Out of Stock' ? 'is-out' : item.status === 'Critical' ? 'is-critical' : 'is-low'}`} title={`Low at ${item.points.low} · Critical at ${item.points.critical}${item.points.mode === 'manual' ? ' (set manually)' : ''} · safety stock ${item.safety}`}>
                       <AlertTriangle size={11} aria-hidden="true" /> {item.status}
                     </span>
                   </td>
                   <td data-label="Action">
                     {canComputeEoq ? (
-                      <button type="button" className={`ra-order-btn ${item.status === 'Out of Stock' ? 'is-urgent' : ''}`} onClick={() => orderNow(item)} disabled={orderingId !== null}>
+                      <button type="button" className={`ra-order-btn ${item.status !== 'Low Stock' ? 'is-urgent' : ''}`} onClick={() => orderNow(item)} disabled={orderingId !== null}>
                         <Calculator size={13} aria-hidden="true" /> {orderingId === item.id ? 'Loading forecast…' : 'Order Now'}
                       </button>
                     ) : <span className="ra-muted">Notify the owner</span>}

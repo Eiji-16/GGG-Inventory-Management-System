@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\StockMovement;
+use App\Services\ReorderPointService;
 use App\Services\StockMovementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -60,8 +61,10 @@ class StockMovementController extends Controller
         $data = $this->validatedMovement($request, false);
         // Recorded By always comes from the signed-in account, never the form.
         $data['recordedBy'] = $this->recorderName($request);
+        $stockBefore = $this->currentStockFor($data);
         $movement = $this->stockMovements->create($data);
         $this->recordMovementActivity('add', $movement);
+        $this->recordSafetyCrossing($movement, $stockBefore);
 
         return response()->json($this->format($movement), 201);
     }
@@ -100,8 +103,10 @@ class StockMovementController extends Controller
         // Keep who originally recorded the row (audit trail); fill it from the
         // signed-in account only when an older row has none.
         $data['recordedBy'] = $stockMovement->recorded_by ?: $this->recorderName($request);
+        $stockBefore = $this->currentStockFor($data);
         $movement = $this->stockMovements->replace($stockMovement, $data);
         $this->recordMovementActivity('edit', $movement, $before);
+        $this->recordSafetyCrossing($movement, $stockBefore);
 
         return response()->json($this->format($movement));
     }
@@ -158,6 +163,60 @@ class StockMovementController extends Controller
             'deletedMovements' => $movementCount,
             'totalQty' => 0,
         ]);
+    }
+
+    /**
+     * READ-ONLY: the product's stock right before a save, so we can tell
+     * whether the save crossed safety stock. Does not change any stock.
+     */
+    private function currentStockFor(array $data): ?int
+    {
+        $query = Product::query();
+        ! empty($data['productId'])
+            ? $query->where('code', $data['productId'])
+            : $query->where('name', $data['productName'] ?? '');
+        $stock = $query->value('stock_on_hand');
+
+        return $stock === null ? null : (int) $stock;
+    }
+
+    /**
+     * Safety-stock handler (warn, never block): when a save takes a product
+     * from above its safety stock to at/below it — or to zero — record a
+     * "fell below safety stock" activity so the owner sees who and when.
+     */
+    private function recordSafetyCrossing(StockMovement $movement, ?int $stockBefore): void
+    {
+        $product = $movement->product()->with(['safetyStock', 'supplier'])->first();
+        if (! $product || $stockBefore === null) {
+            return;
+        }
+        $points = app(ReorderPointService::class);
+        $after = (int) $product->stock_on_hand;
+        $safety = $points->safetyStock($product);
+        $wentOut = $after <= 0 && $stockBefore > 0;
+        $wentCritical = $after <= $safety && $stockBefore > $safety;
+        if (! $wentOut && ! $wentCritical) {
+            return;
+        }
+
+        ActivityLog::record(
+            'stock.safety',
+            $wentOut
+                ? "{$product->name} is now out of stock"
+                : "{$product->name} fell below safety stock ({$after} left, minimum {$safety})",
+            'alert',
+            [
+                'productId' => $product->code,
+                'product' => $product->name,
+                'movementId' => $movement->id,
+                'stockBefore' => $stockBefore,
+                'totalQty' => $after,
+                'safetyStock' => $safety,
+                'reorderPoint' => $points->forProduct($product),
+                'outOfStock' => $wentOut,
+            ]
+        );
     }
 
     /** Display name of the signed-in user, used for Recorded By. */

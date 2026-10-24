@@ -195,6 +195,7 @@
 
 .ra-status.is-out { color: var(--accent-low); background: rgba(196, 67, 46, 0.12); }
 .ra-status.is-low { color: var(--accent-med); background: rgba(192, 138, 30, 0.14); }
+.ra-status.is-critical { color: var(--accent-low); background: rgba(196, 67, 46, 0.08); border: 1px dashed rgba(196, 67, 46, 0.45); }
 
 .ra-order-btn {
     display: inline-flex;

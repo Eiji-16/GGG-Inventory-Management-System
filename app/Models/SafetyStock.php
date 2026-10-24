@@ -23,6 +23,9 @@ class SafetyStock extends Model
         'order_cycle_days',
         'ordering_cost',
         'holding_cost',
+        'status_mode',
+        'low_point',
+        'critical_point',
     ];
 
     protected $casts = [
@@ -32,6 +35,8 @@ class SafetyStock extends Model
         'order_cycle_days' => 'integer',
         'ordering_cost' => 'decimal:2',
         'holding_cost' => 'decimal:2',
+        'low_point' => 'integer',
+        'critical_point' => 'integer',
     ];
 
     /** The product this policy governs. */

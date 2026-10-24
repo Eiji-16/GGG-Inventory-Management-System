@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Package, Boxes, TriangleAlert, ArrowLeftRight } from 'lucide-react';
 import './dashboard.css';
-import { reorderPointFor } from '../../data/safetyStock';
+import { statusPointsFor } from '../../data/safetyStock';
 
 const fmt = (value) => Number(value || 0).toLocaleString('en-PH');
 
 /* One short, plain label per reorder suggestion (full reasons stay in the tooltip). */
 function reorderTag(item) {
   if (item.currentStock <= 0) return { label: 'Out of stock', level: 'out' };
+  if (item.safetyStock != null && item.currentStock <= item.safetyStock) return { label: 'Below safety stock', level: 'out' };
   if (item.leadTimeDays != null && item.daysOfCover != null && item.daysOfCover < item.leadTimeDays) {
     return { label: 'Runs out before delivery', level: 'out' };
   }
@@ -189,13 +190,17 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
     const stock = products.map((product) => ({
       ...product,
       quantity: Number(product.stock) || 0,
-      threshold: reorderPointFor({
-        productId: product.id,
-        productName: product.name,
-        safetyStock: product.safetyStock,
-        annualDemand: product.annualDemand,
-        leadTimeDays: product.leadTimeDays,
-      }, safetyStock),
+      // Low / Critical points (Automatic or Manual, Settings → Advanced Options).
+      ...(() => {
+        const points = statusPointsFor({
+          productId: product.id,
+          productName: product.name,
+          safetyStock: product.safetyStock,
+          annualDemand: product.annualDemand,
+          leadTimeDays: product.leadTimeDays,
+        }, safetyStock);
+        return { threshold: points.low, criticalAt: points.critical };
+      })(),
     }));
     // Only products already tracked in Stock Control count toward alerts —
     // a brand-new product with no movements isn't "out of stock", just untracked.
@@ -267,7 +272,10 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
       .slice(0, 5);
     const alerts = [
       ...outOfStock.map((product) => ({ ...product, level: 'out' })),
-      ...lowStock.sort((a, b) => a.quantity - b.quantity).map((product) => ({ ...product, level: 'low' })),
+      ...lowStock.sort((a, b) => a.quantity - b.quantity).map((product) => ({
+        ...product,
+        level: product.quantity <= product.criticalAt ? 'critical' : 'low',
+      })),
     ];
     const assignedProducts = stock.filter((product) => product.supplierId).length;
     const soldProductCount = new Set(
@@ -636,7 +644,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                   title={`View ${product.name} in Stock Control`}
                 >
                   <span className="db-alert-dot" /><span className="db-alert-name">{product.name}</span>
-                  <span className="db-alert-qty">{product.level === 'out' ? 'Out of stock' : `${fmt(product.quantity)} left`}</span>
+                  <span className="db-alert-qty">{product.level === 'out' ? 'Out of stock' : `${fmt(product.quantity)} left${product.level === 'critical' ? ' · below safety' : ''}`}</span>
                 </button>
               )) : <span className="db-card-sub">No products need attention.</span>}
             </div>

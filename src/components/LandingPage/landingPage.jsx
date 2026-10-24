@@ -25,7 +25,7 @@ import {
 
 import './landingPage.css'; /* ===== STYLES ===== */
 import apiFetch from '../../apiFetch';
-import { SAFETY_STOCK_DEFAULTS, DEFAULT_SAFETY_STOCK, reorderPointFor } from '../../data/safetyStock'; /* ===== POLICY ===== */
+import { SAFETY_STOCK_DEFAULTS, DEFAULT_SAFETY_STOCK, reorderPointFor, safetyPointFor, statusPointsFor } from '../../data/safetyStock'; /* ===== POLICY ===== */
 import Dashboard from '../Dashboard/dashboard'; /* ===== DASHBOARD ===== */
 import ProductSupplier from '../ProductSupplier/productSupplier'; /* ===== PRODUCTS ===== */
 import AutoCalculator from '../AutoCalculator/autoCal'; /* ===== CALCULATOR ===== */
@@ -66,6 +66,10 @@ function mapSafetyStockPolicies(records) {
       productName: record.productName,
       safetyStock: record.safetyStock ?? defaults.safetyStock ?? DEFAULT_SAFETY_STOCK,
       leadTimeDays: record.leadTimeDays ?? defaults.leadTimeDays ?? '',
+      // Status points: 'auto' (reorder point / safety stock) or 'manual'.
+      statusMode: record.statusMode || 'auto',
+      lowPoint: record.lowPoint ?? '',
+      criticalPoint: record.criticalPoint ?? '',
       // Read-only context for the Settings preview (not saved by the policy).
       supplierName: record.supplierName || '',
       supplierLeadTimeDays: record.supplierLeadTimeDays ?? null,
@@ -117,13 +121,23 @@ function createNotifications(summary, policy) {
       annualDemand: product.annualDemand,
       leadTimeDays: product.leadTimeDays,
     }, policy);
-    if (stock > reorderPoint) return;
-    const outOfStock = stock <= 0;
+    // Same status points as everywhere else (Automatic or Manual).
+    const row = { productId: product.id, productName: product.name, safetyStock: product.safetyStock, annualDemand: product.annualDemand, leadTimeDays: product.leadTimeDays };
+    const points = statusPointsFor(row, policy);
+    if (stock > points.low) return;
+    const safety = safetyPointFor(row, policy);
+    const level = stock <= 0 ? 'out' : stock <= points.critical ? 'critical' : 'low';
     notifications.push({
-      id: `stock-${product.id}-${outOfStock ? 'out' : 'low'}`,
-      type: outOfStock ? 'critical' : 'warning',
-      title: outOfStock ? `${product.name} is out of stock` : `${product.name} is below safety stock`,
-      meta: `${stock} on hand · reorder point ${reorderPoint}`,
+      id: `stock-${product.id}-${level}`,
+      type: level === 'low' ? 'warning' : 'critical',
+      title: {
+        out: `${product.name} is out of stock`,
+        critical: `${product.name} is critically low`,
+        low: `${product.name} is running low`,
+      }[level],
+      meta: level === 'low'
+        ? `${stock} on hand · low at ${points.low} — time to order`
+        : `${stock} on hand · critical at ${points.critical} · safety stock ${safety} · reorder point ${reorderPoint}`,
       time: 'Current stock',
       view: 'Reorder-Alerts',
       read: false,
@@ -306,6 +320,9 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
       safetyStock: values.safetyStock,
       // Lead-time override only; blank = use the supplier's lead time.
       leadTimeDays: values.leadTimeDays === '' ? null : values.leadTimeDays,
+      statusMode: values.statusMode === 'manual' ? 'manual' : 'auto',
+      lowPoint: values.statusMode === 'manual' ? values.lowPoint : null,
+      criticalPoint: values.statusMode === 'manual' ? values.criticalPoint : null,
     }));
     const response = await apiFetch('/api/safety-stock', {
       method: 'PUT',
@@ -710,6 +727,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     catalogRevision={policyRefreshKey}
                     onInventoryChanged={() => setPolicyRefreshKey((key) => key + 1)}
                     currentUserName={user?.name || ''}
+                    canComputeEoq={canAccess('Auto-Calculator')}
                   />
                 </div>
               )}

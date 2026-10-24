@@ -8,6 +8,7 @@ import {
   RotateCcw,
   Check,
   Info,
+  Search,
 } from 'lucide-react';
 import './settings.css';
 import { readShowFieldHints, saveShowFieldHints } from '../../fieldHints';
@@ -31,13 +32,14 @@ function Settings({
 }) {
   const isSuperAdmin = role === 'Super Admin';
   const canChangeCurrency = role === 'Super Admin' || role === 'Admin';
-  const { currency, updateCurrency } = useCurrency();
+  const { currency, currencySymbol, updateCurrency } = useCurrency();
   const activeThemeName = THEMES.find((option) => option.value === theme)?.label || 'Midnight Blue';
   const selectedThemeRef = useRef(theme);
   const themeButtonRefs = useRef([]);
   selectedThemeRef.current = theme;
 
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(role === 'Super Admin');
+  const [policyQuery, setPolicyQuery] = useState('');
   const [draft, setDraft] = useState(() => safetyStock);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -84,6 +86,40 @@ function Settings({
     };
   };
 
+  /* Status bands from the Low and Critical points (same rule as the server). */
+  const bandsFor = (critical, low) => (
+    <>
+      <span className="s-band is-healthy">Healthy &gt; {low}</span>
+      {low > critical && <span className="s-band is-low">Low {critical + 1}–{low}</span>}
+      {critical >= 1 && <span className="s-band is-critical">Critical {critical === 1 ? '1' : `1–${critical}`}</span>}
+    </>
+  );
+
+  /* Automatic = Low at the reorder point, Critical at safety stock.
+     Manual    = the owner types the Low and Critical points. */
+  const setStatusMode = (row, mode) => {
+    setSaved(false);
+    setSaveError('');
+    const preview = previewFor(row);
+    setDraft((prev) => ({
+      ...prev,
+      [row.productId]: {
+        ...prev[row.productId],
+        statusMode: mode,
+        // Start Manual from the current automatic points, so nothing jumps.
+        lowPoint: mode === 'manual' ? (prev[row.productId].lowPoint === '' ? preview.point : prev[row.productId].lowPoint) : '',
+        criticalPoint: mode === 'manual' ? (prev[row.productId].criticalPoint === '' ? (Number(row.safetyStock) || 0) : prev[row.productId].criticalPoint) : '',
+      },
+    }));
+  };
+
+  const manualError = (row) => {
+    if (row.statusMode !== 'manual') return '';
+    if (row.lowPoint === '' || row.criticalPoint === '') return 'Enter both points.';
+    if (Number(row.criticalPoint) > Number(row.lowPoint)) return 'Critical must be at or below Low.';
+    return '';
+  };
+
   const editRow = (productId, field, value) => {
     setSaved(false);
     setSaveError('');
@@ -102,12 +138,20 @@ function Settings({
         ...prev[productId],
         safetyStock: DEFAULT_SAFETY_STOCK,
         leadTimeDays: '',
+        statusMode: 'auto',
+        lowPoint: '',
+        criticalPoint: '',
       },
     }));
   };
 
   const applyChanges = async () => {
     if (!onUpdateSafetyStock) return;
+    const invalid = rows.find((row) => manualError(row));
+    if (invalid) {
+      setSaveError(`${invalid.productName}: ${manualError(invalid)}`);
+      return;
+    }
     setSaving(true);
     setSaveError('');
     try {
@@ -170,22 +214,44 @@ function Settings({
     themeButtonRefs.current[nextIndex]?.focus();
   };
 
-  return (
-    <div className="s-container">
+  /* Product search inside the policy card (display only; saving still sends
+     every product's draft). */
+  const policyQueryText = policyQuery.trim().toLowerCase();
+  const visibleRows = policyQueryText
+    ? rows.filter((row) => String(row.productName || '').toLowerCase().includes(policyQueryText)
+      || String(row.supplierName || '').toLowerCase().includes(policyQueryText))
+    : rows;
 
-      <div className="s-card s-currency-card">
-        <div className="s-currency-info">
-          <div>
-            <label className="s-row-title" htmlFor="s-currency">Currency</label>
-            <div className="s-row-desc">
+  /* Super Admin: Preferences on the left, Safety Stock Policy on the right
+     (its list scrolls on its own). Everyone else: one column. */
+  return (
+    <div className={`s-container${isSuperAdmin ? ' s-container-split' : ''}`}>
+      {/* ===== PREFERENCES ===== */}
+      <section className="s-card s-prefs" aria-labelledby="s-prefs-title">
+        <header className="s-card-head">
+          <div className="s-card-titles">
+            <h2 className="s-card-title" id="s-prefs-title">Preferences</h2>
+            <span className="s-card-sub">Display options for the whole workspace</span>
+          </div>
+        </header>
+
+        {/* Currency */}
+        <div className="s-pref-row s-pref-row-currency">
+          <span className="s-pref-icon s-pref-icon-text" aria-hidden="true">{currencySymbol}</span>
+          <div className="s-pref-text">
+            <label className="s-pref-title" htmlFor="s-currency">Currency</label>
+            <span className="s-pref-desc">
               {canChangeCurrency
                 ? 'Applies to every account and report. Amounts are not converted.'
                 : 'Set by an Admin for the whole system.'}
-            </div>
+            </span>
+            {currencySaving && <span className="s-pref-status" role="status">Saving currency…</span>}
+            {currencySaved && <span className="s-pref-status" role="status"><Check size={11} /> Saved for the whole system</span>}
+            {currencyError && <span className="s-pref-error" role="alert">{currencyError}</span>}
           </div>
           <select
             id="s-currency"
-            className="s-currency-select"
+            className="s-select"
             value={currency}
             onChange={handleCurrencyChange}
             disabled={currencySaving || !canChangeCurrency}
@@ -195,26 +261,16 @@ function Settings({
             ))}
           </select>
         </div>
-        {currencySaving && <div className="s-currency-status" role="status">Saving currency…</div>}
-        {currencySaved && <div className="s-currency-status" role="status">Currency saved for the whole system.</div>}
-        {currencyError && <div className="s-currency-error" role="alert">{currencyError}</div>}
-      </div>
 
-      {/* ===== APPEARANCE ===== */}
-      <div className="s-card">
-        <div className="s-row s-row-appearance">
-          <div className="s-row-info">
-            <div className="s-row-icon">
-              {theme === 'white' ? <Sun size={16} /> : <Moon size={16} />}
-            </div>
-            <div>
-              <div className="s-row-title">Appearance</div>
-              <div className="s-row-desc">
-                {activeThemeName} theme is active
-              </div>
-            </div>
+        {/* Appearance */}
+        <div className="s-pref-row">
+          <span className="s-pref-icon" aria-hidden="true">
+            {theme === 'white' ? <Sun size={15} /> : <Moon size={15} />}
+          </span>
+          <div className="s-pref-text">
+            <span className="s-pref-title">Appearance</span>
+            <span className="s-pref-desc">{activeThemeName} theme is active</span>
           </div>
-
           <div
             className="s-theme-selector"
             role="radiogroup"
@@ -246,21 +302,13 @@ function Settings({
             ))}
           </div>
         </div>
-      </div>
 
-      {/* ===== FIELD DESCRIPTIONS ===== */}
-      <div className="s-card">
-        <div className="s-row">
-          <div className="s-row-info">
-            <div className="s-row-icon">
-              <Info size={16} />
-            </div>
-            <div>
-              <div className="s-row-title" id="s-hints-title">Show field descriptions</div>
-              <div className="s-row-desc">
-                Short helper notes under inputs and info lines, like “About 20–25% of the unit cost per year”.
-              </div>
-            </div>
+        {/* Field descriptions */}
+        <div className="s-pref-row">
+          <span className="s-pref-icon" aria-hidden="true"><Info size={15} /></span>
+          <div className="s-pref-text">
+            <span className="s-pref-title" id="s-hints-title">Show field descriptions</span>
+            <span className="s-pref-desc">Short helper notes under inputs, like “About 20–25% of the unit cost per year”.</span>
           </div>
           <button
             type="button"
@@ -273,63 +321,88 @@ function Settings({
             <span className="s-switch-knob" aria-hidden="true" />
           </button>
         </div>
-      </div>
+      </section>
 
-      {/* ===== ADVANCED OPTIONS ===== */}
-      <div className={`s-card s-card-advanced${advancedOpen ? ' is-open' : ''}`}>
-        <button
-          type="button"
-          className="s-row s-row-button"
-          onClick={() => isSuperAdmin && setAdvancedOpen((open) => !open)}
-          aria-expanded={advancedOpen}
-          disabled={!isSuperAdmin}
-        >
-          <div className="s-row-info">
-            <div className="s-row-icon s-row-icon-restricted">
-              {isSuperAdmin ? <ShieldCheck size={16} /> : <Lock size={16} />}
-            </div>
-            <div>
-              <div className="s-row-title">
-                Advanced Options
-                <span className="s-restricted-badge">
-                  <Lock size={9} /> Super Admin
-                </span>
-              </div>
-              <div className="s-row-desc">
+      {/* ===== SAFETY STOCK POLICY ===== */}
+      <section className={`s-card s-policy${advancedOpen ? ' is-open' : ''}${isSuperAdmin ? '' : ' is-locked'}`} aria-labelledby="s-policy-title">
+        <header className="s-card-head">
+          <div className="s-card-head-main">
+            <span className={`s-pref-icon${isSuperAdmin ? ' is-accent' : ''}`} aria-hidden="true">
+              {isSuperAdmin ? <ShieldCheck size={15} /> : <Lock size={15} />}
+            </span>
+            <div className="s-card-titles">
+              <h2 className="s-card-title" id="s-policy-title">
+                Safety Stock Policy
+                <span className="s-restricted-badge"><Lock size={9} /> Super Admin</span>
+              </h2>
+              <span className="s-card-sub">
                 {isSuperAdmin
-                  ? 'Safety stock and lead time — sets every product’s reorder point'
+                  ? 'Safety stock and lead time set every product’s reorder point and status'
                   : 'Locked. Ask a Super Admin to change safety stock.'}
-              </div>
+              </span>
             </div>
           </div>
-          {isSuperAdmin && <ChevronDown size={16} className="s-chevron" />}
-        </button>
+          {isSuperAdmin && (
+            <button
+              type="button"
+              className="s-icon-btn s-collapse-btn"
+              onClick={() => setAdvancedOpen((open) => !open)}
+              aria-expanded={advancedOpen}
+              aria-controls="s-policy-body"
+              title={advancedOpen ? 'Collapse' : 'Expand'}
+            >
+              <ChevronDown size={16} className="s-chevron" />
+            </button>
+          )}
+        </header>
 
         {isSuperAdmin && advancedOpen && (
-          <div className="s-advanced-body">
-            <p className="s-advanced-note">
-              Safety stock is the minimum to keep on hand. The reorder point updates as you type.
-              Leave lead time blank to use the supplier’s.
+          <div className="s-policy-body" id="s-policy-body">
+            {/* Toolbar: search + legend */}
+            <div className="s-policy-toolbar">
+              <div className="s-search">
+                <Search size={13} aria-hidden="true" />
+                <input
+                  type="search"
+                  placeholder="Search products or suppliers…"
+                  value={policyQuery}
+                  onChange={(e) => setPolicyQuery(e.target.value)}
+                  aria-label="Search products in the safety stock policy"
+                />
+              </div>
+              <div className="s-band-legend" aria-label="How stock status is decided">
+                <span title="Above the Low point"><i className="is-healthy" />Healthy</span>
+                <span title="At or below the reorder point (Auto) — time to order"><i className="is-low" />Low</span>
+                <span title="At or below safety stock (Auto)"><i className="is-critical" />Critical</span>
+              </div>
+              <span className="s-policy-count">{visibleRows.length} of {rows.length} products</span>
+            </div>
+            <p className="s-policy-hint">
+              Reorder point updates as you type. Leave lead time blank to use the supplier’s.
+              <strong> Auto</strong>: Low at the reorder point, Critical at safety stock. <strong>Manual</strong>: set your own.
             </p>
 
-            <div className="s-policy-table">
-              <div className="s-policy-head">
-                <span>Product</span>
-                <span>Safety Stock</span>
-                <span>Lead Time (days)</span>
-                <span>Reorder Point</span>
-                <span />
+            {/* Scrollable list (header row stays visible) */}
+            <div className="s-policy-scroll" role="table" aria-label="Safety stock policy by product">
+              <div className="s-policy-head" role="row">
+                <span role="columnheader">Product</span>
+                <span role="columnheader">Safety Stock</span>
+                <span role="columnheader">Lead Time (days)</span>
+                <span role="columnheader">Reorder Point</span>
+                <span role="columnheader">Status Points</span>
+                <span role="columnheader" aria-label="Reset" />
               </div>
 
               {policyLoading && <div className="s-policy-empty">Loading products and reorder policies…</div>}
               {policyError && <div className="s-policy-error" role="alert">{policyError}</div>}
 
-              {rows.map((row) => {
+              {visibleRows.map((row) => {
                 const preview = previewFor(row);
                 return (
-                  <div className="s-policy-row" key={row.productId}>
+                  <div className="s-policy-row" key={row.productId} role="row">
                     <span className="s-policy-product" title={row.productName}>
-                      {row.productName}
+                      <strong>{row.productName}</strong>
+                      <small>{row.supplierName || 'No supplier'}</small>
                     </span>
 
                     <input
@@ -356,12 +429,48 @@ function Settings({
                       <small>{preview.detail}</small>
                     </span>
 
+                    <div className="s-policy-status">
+                      <div className="s-mode-toggle" role="radiogroup" aria-label={`Status points for ${row.productName}`}>
+                        {[['auto', 'Auto'], ['manual', 'Manual']].map(([mode, label]) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            role="radio"
+                            aria-checked={(row.statusMode || 'auto') === mode}
+                            className={(row.statusMode || 'auto') === mode ? 'is-active' : ''}
+                            onClick={() => setStatusMode(row, mode)}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      {row.statusMode === 'manual' ? (
+                        <>
+                          <div className="s-manual-points">
+                            <label>
+                              <span className="s-band is-low">Low at</span>
+                              <input type="number" min="0" value={row.lowPoint ?? ''} onChange={(e) => editRow(row.productId, 'lowPoint', e.target.value)} aria-label={`Low point for ${row.productName}`} />
+                            </label>
+                            <label>
+                              <span className="s-band is-critical">Critical at</span>
+                              <input type="number" min="0" value={row.criticalPoint ?? ''} onChange={(e) => editRow(row.productId, 'criticalPoint', e.target.value)} aria-label={`Critical point for ${row.productName}`} />
+                            </label>
+                          </div>
+                          {manualError(row)
+                            ? <small className="s-policy-error">{manualError(row)}</small>
+                            : <span className="s-policy-bands">{bandsFor(Number(row.criticalPoint), Number(row.lowPoint))}</span>}
+                        </>
+                      ) : (
+                        <span className="s-policy-bands">{bandsFor(Number(row.safetyStock) || 0, preview.point)}</span>
+                      )}
+                    </div>
+
                     <button
                       type="button"
-                      className="s-policy-remove"
+                      className="s-icon-btn"
                       onClick={() => resetRow(row.productId)}
                       aria-label={`Reset policy for ${row.productName}`}
-                      title={`Reset to safety stock ${DEFAULT_SAFETY_STOCK} and the supplier's lead time`}
+                      title={`Reset to safety stock ${DEFAULT_SAFETY_STOCK}, the supplier's lead time and Auto`}
                     >
                       <RotateCcw size={13} />
                     </button>
@@ -370,19 +479,20 @@ function Settings({
               })}
 
               {!policyLoading && !policyError && rows.length === 0 && (
-                <div className="s-policy-empty">
-                  No products are available in the catalog.
-                </div>
+                <div className="s-policy-empty">No products are available in the catalog.</div>
+              )}
+              {!policyLoading && rows.length > 0 && visibleRows.length === 0 && (
+                <div className="s-policy-empty">No products match “{policyQuery}”.</div>
               )}
             </div>
 
-            <div className="s-advanced-actions">
-              {saveError && <span className="s-policy-error" role="alert">{saveError}</span>}
-              {saved && !dirty && (
-                <span className="s-saved-flag">
-                  <Check size={12} /> Policy applied
-                </span>
-              )}
+            {/* Footer stays visible */}
+            <footer className="s-policy-footer">
+              <span className="s-policy-footer-status">
+                {saveError && <span className="s-policy-error" role="alert">{saveError}</span>}
+                {!saveError && dirty && <span className="s-unsaved"><i aria-hidden="true" /> Unsaved changes</span>}
+                {!saveError && saved && !dirty && <span className="s-saved-flag"><Check size={12} /> Policy applied</span>}
+              </span>
               <button
                 type="button"
                 className="s-ghost-btn"
@@ -399,10 +509,10 @@ function Settings({
               >
                 {saving ? 'Applying…' : 'Apply Policy'}
               </button>
-            </div>
+            </footer>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

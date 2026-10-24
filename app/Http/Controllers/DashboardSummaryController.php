@@ -42,7 +42,7 @@ class DashboardSummaryController extends Controller
             'totalStockUnits' => (int) $productRecords->sum('stock_on_hand'),
             'lowStockItems' => $productRecords->filter(function (Product $product) use ($movedSet, $reorderPoints): bool {
                 return isset($movedSet[$product->id])
-                    && (int) $product->stock_on_hand <= $reorderPoints->forProduct($product);
+                    && $reorderPoints->statusFor($product) !== 'healthy';
             })->count(),
             'stockMovementsToday' => StockMovement::query()
                 ->whereDate('movement_date', today()->toDateString())

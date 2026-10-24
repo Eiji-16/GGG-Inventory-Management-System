@@ -912,6 +912,10 @@
 .db-alert-out .db-alert-dot { background: var(--accent-low); }
 .db-alert-out .db-alert-qty { color: var(--accent-low); }
 
+.db-alert-critical { border-left-color: var(--accent-low); }
+.db-alert-critical .db-alert-dot { background: var(--accent-low); }
+.db-alert-critical .db-alert-qty { color: var(--accent-low); }
+
 .db-alert-low { border-left-color: var(--accent-med); }
 .db-alert-low .db-alert-dot { background: var(--accent-med); }
 

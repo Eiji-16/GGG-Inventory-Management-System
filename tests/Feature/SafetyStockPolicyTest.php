@@ -87,6 +87,54 @@ class SafetyStockPolicyTest extends TestCase
         $this->getJson('/api/products')->assertJsonFragment(['orderingCost' => '250.50', 'holdingCost' => '18.25']);
     }
 
+    public function test_manual_status_points_drive_every_status(): void
+    {
+        $product = $this->postJson('/api/products', ['name' => 'Manual Points'])->assertCreated()->json();
+        $model = Product::where('code', $product['id'])->first();
+        $model->update(['stock_on_hand' => 15]);
+        StockMovement::create([
+            'product_id' => $model->id, 'product_name' => $model->name, 'movement_type' => 'in',
+            'is_adjustment' => false, 'qty' => 15, 'remaining_stock' => 15, 'movement_date' => now()->toDateString(),
+        ]);
+
+        // Auto: safety 5, no lead time → Low and Critical both at 5 → 15 is healthy.
+        $this->putJson('/api/safety-stock', ['policies' => [[
+            'productId' => $product['id'], 'safetyStock' => 5, 'leadTimeDays' => null, 'statusMode' => 'auto',
+        ]]])->assertOk()->assertJsonFragment(['statusMode' => 'auto', 'lowPoint' => null]);
+        $this->getJson('/api/reports')->assertJsonCount(0, 'reorderPoint.rows');
+
+        // Manual: Low at 20, Critical at 10 → 15 is Low.
+        $this->putJson('/api/safety-stock', ['policies' => [[
+            'productId' => $product['id'], 'safetyStock' => 5, 'leadTimeDays' => null,
+            'statusMode' => 'manual', 'lowPoint' => 20, 'criticalPoint' => 10,
+        ]]])->assertOk()->assertJsonFragment(['statusMode' => 'manual', 'lowPoint' => 20, 'criticalPoint' => 10]);
+
+        $this->getJson('/api/reports')->assertJsonPath('reorderPoint.rows.0.urgency', 'Low');
+        $this->getJson('/api/dashboard/summary')->assertJsonPath('kpis.lowStockItems', 1);
+
+        $model->update(['stock_on_hand' => 10]);
+        $this->getJson('/api/reports')->assertJsonPath('reorderPoint.rows.0.urgency', 'Critical');
+
+        // Back to Automatic clears the manual points.
+        $this->putJson('/api/safety-stock', ['policies' => [[
+            'productId' => $product['id'], 'safetyStock' => 5, 'leadTimeDays' => null, 'statusMode' => 'auto',
+        ]]])->assertOk();
+        $this->assertDatabaseHas('safety_stock', ['product_id' => $model->id, 'status_mode' => 'auto', 'low_point' => null, 'critical_point' => null]);
+    }
+
+    public function test_manual_points_are_validated(): void
+    {
+        $product = $this->postJson('/api/products', ['name' => 'Bad Points'])->assertCreated()->json();
+
+        $this->putJson('/api/safety-stock', ['policies' => [[
+            'productId' => $product['id'], 'safetyStock' => 5, 'statusMode' => 'manual', 'lowPoint' => 10, 'criticalPoint' => 12,
+        ]]])->assertUnprocessable()->assertJsonValidationErrors(['policies.0.criticalPoint']);
+
+        $this->putJson('/api/safety-stock', ['policies' => [[
+            'productId' => $product['id'], 'safetyStock' => 5, 'statusMode' => 'manual',
+        ]]])->assertUnprocessable();
+    }
+
     public function test_validation(): void
     {
         $product = $this->postJson('/api/products', ['name' => 'Another Policy Product'])->assertCreated()->json();

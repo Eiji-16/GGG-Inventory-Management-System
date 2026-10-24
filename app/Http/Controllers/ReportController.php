@@ -48,10 +48,11 @@ class ReportController extends Controller
 
     private function statusFor(Product $p): string
     {
-        $stock = (int) $p->stock_on_hand;
-        if ($stock <= 0) return 'Out of Stock';
-        if ($stock <= $this->reorderPointFor($p)) return 'Low Stock';
-        return 'In Stock';
+        return match ($this->reorderPoints->statusFor($p)) {
+            'out' => 'Out of Stock',
+            'critical', 'low' => 'Low Stock',
+            default => 'In Stock',
+        };
     }
 
     private function stockSummary($products): array
@@ -315,9 +316,11 @@ class ReportController extends Controller
         foreach ($products as $p) {
             $stock = (int) $p->stock_on_hand;
             $rop = $this->reorderPointFor($p);
-            if ($stock > $rop) continue;
+            // Uses the product's status points (Automatic or Manual).
+            $status = $this->reorderPoints->statusFor($p, $stock);
+            if ($status === 'healthy') continue;
 
-            $urgency = $stock <= 0 ? 'Out of Stock' : ($stock <= $rop / 2 ? 'Critical' : 'Low');
+            $urgency = ['out' => 'Out of Stock', 'critical' => 'Critical', 'low' => 'Low'][$status];
 
             $rows[] = [
                 'product'      => $p->name,

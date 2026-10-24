@@ -57,11 +57,46 @@ export const annualDemandFor = () => '';
 export const stockStatusFor = (row, policy = SAFETY_STOCK_DEFAULTS) => {
   const remaining = Number(row?.remainingStock);
   if (!Number.isFinite(remaining)) return null;
-  const point = reorderPointFor(row, policy);
+  // Same rule as the server (ReorderPointService::statusFor).
+  const { low, critical } = statusPointsFor(row, policy);
   if (remaining <= 0) return 'outofstock';
-  if (remaining <= point * 0.5) return 'critical';
-  if (remaining <= point) return 'low';
+  if (remaining <= critical) return 'critical';
+  if (remaining <= low) return 'low';
   return 'healthy';
+};
+
+/* Where a product turns Low and Critical (Settings → Advanced Options):
+   auto   → Low at the reorder point, Critical at safety stock
+   manual → the owner's own Low / Critical points */
+export const statusPointsFor = (row, policy = SAFETY_STOCK_DEFAULTS) => {
+  const configured = policyFor(row, policy);
+  const low = Number(configured.lowPoint);
+  const critical = Number(configured.criticalPoint);
+  if (configured.statusMode === 'manual'
+    && configured.lowPoint !== '' && configured.lowPoint != null && Number.isFinite(low)
+    && configured.criticalPoint !== '' && configured.criticalPoint != null && Number.isFinite(critical)) {
+    return { mode: 'manual', low, critical };
+  }
+  return { mode: 'auto', low: reorderPointFor(row, policy), critical: safetyPointFor(row, policy) };
+};
+
+/* Does this sale leave the product at or below its safety stock (the units
+   kept in reserve)? Used for the "proceed with this sale?" confirmation. */
+export const safetyReachedFor = (row, before, after, policy = SAFETY_STOCK_DEFAULTS) => {
+  if (!Number.isFinite(Number(before)) || !Number.isFinite(Number(after)) || Number(after) >= Number(before)) return null;
+  const safety = safetyPointFor(row, policy);
+  if (Number(after) > safety) return null;
+  return { level: Number(after) <= 0 ? 'out' : 'critical', safety, after: Number(after), before: Number(before) };
+};
+
+/* Did this change take the product into Critical (or to zero)? Used by the
+   safety-stock handler: warn before saving, banner after. Never blocks. */
+export const safetyCrossingFor = (row, before, after, policy = SAFETY_STOCK_DEFAULTS) => {
+  if (!Number.isFinite(Number(before)) || !Number.isFinite(Number(after)) || Number(after) >= Number(before)) return null;
+  const safety = safetyPointFor(row, policy);
+  if (Number(after) <= 0 && Number(before) > 0) return { level: 'out', safety, after: Number(after) };
+  if (Number(after) <= safety && Number(before) > safety) return { level: 'critical', safety, after: Number(after) };
+  return null;
 };
 
 export const STATUS_LABEL = { outofstock: 'Out of Stock', critical: 'Critical', low: 'Low', healthy: 'Healthy' };

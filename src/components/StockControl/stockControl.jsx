@@ -31,6 +31,8 @@ import {
   stockStatusFor,
   annualDemandFor,
   policyFor,
+  safetyCrossingFor,
+  safetyReachedFor,
   STATUS_LABEL,
 } from '../../data/safetyStock'; /* ===== SAFETY STOCK ===== */
 
@@ -80,6 +82,7 @@ const signedQty = (row) => {
 };
 
 const activityPresentation = (item) => {
+  if (item.action === 'stock.safety') return { Icon: AlertTriangle, cls: 'sc-act-delete', label: item.meta?.outOfStock ? 'Out of stock' : 'Below safety stock' };
   if (item.action === 'stock.clear') return { Icon: Trash2, cls: 'sc-act-delete', label: 'Cleared' };
   if (item.action === 'stock.edit') return { Icon: Pencil, cls: 'sc-act-edit', label: 'Updated' };
   if (item.action === 'stock.delete') return { Icon: Trash2, cls: 'sc-act-delete', label: 'Deleted' };
@@ -95,6 +98,7 @@ function StockControl({
   catalogRevision = 0,
   onInventoryChanged,
   currentUserName = '',
+  canComputeEoq = false,
 }) {
   const { currency, currencySymbol, formatCurrency } = useCurrency();
   const [stockFromDatabase, setStockFromDatabase] = useState([]);
@@ -333,6 +337,42 @@ function StockControl({
 
   // Plain-language label for the preview: removing stock reads as "Sold".
   const projectedType = isOut ? 'Sold / Removed' : 'Added stock';
+
+  /* ===== SAFETY-STOCK HANDLER (warn, never block) =====
+     True when this entry takes the product from above its safety stock to at
+     or below it (Critical), or to zero. Shown as a warning above Save; after
+     saving, a banner offers Order Now. The sale itself is never stopped. */
+  const safetyCrossing = !canSetOpeningStock && projectedRemaining !== null
+    ? safetyCrossingFor({
+      productId: formData.productId,
+      productName: formData.productName,
+      safetyStock: productById.get(formData.productId)?.safetyStock,
+    }, currentOnHand, projectedRemaining, safetyStock)
+    : null;
+  // Sale that leaves stock at/below safety stock → ask before saving.
+  const safetyReached = !canSetOpeningStock && projectedRemaining !== null
+    ? safetyReachedFor({
+      productId: formData.productId,
+      productName: formData.productName,
+      safetyStock: productById.get(formData.productId)?.safetyStock,
+    }, currentOnHand, projectedRemaining, safetyStock)
+    : null;
+  const [confirmSale, setConfirmSale] = useState(null);
+  const [safetyAlert, setSafetyAlert] = useState(null);
+  const [safetyOrdering, setSafetyOrdering] = useState(false);
+  const orderFromSafetyAlert = async () => {
+    if (!safetyAlert || !onNavigate) return;
+    setSafetyOrdering(true);
+    const { handoff, reason } = await buildForecastHandoff(safetyAlert.productId, safetyAlert.productName);
+    setSafetyOrdering(false);
+    onNavigate('Auto-Calculator', handoff || {
+      product: safetyAlert.productName,
+      productId: safetyAlert.productId,
+      annualDemand: productById.get(safetyAlert.productId)?.annualDemand,
+      forecastUnavailable: reason,
+    });
+    setSafetyAlert(null);
+  };
 
   /* ===== OPENING STOCK PREVIEW =====
      When the selected product has no movements, the Change stepper is replaced
@@ -805,8 +845,8 @@ function StockControl({
     }));
   };
 
-  const handleSave = async (e) => {
-    e.preventDefault();
+  const handleSave = async (e, { confirmed = false } = {}) => {
+    e?.preventDefault?.();
 
     /* No movements yet → the form is in Opening Stock mode: set the starting
        balance directly instead of recording a movement. */
@@ -866,6 +906,15 @@ function StockControl({
       return;
     }
 
+    // Safety-stock confirmation: the sale is allowed, but only after the user
+    // confirms they want to use the units kept in reserve.
+    if (isStockOut && safetyReached && !confirmed) {
+      setConfirmSale({ ...safetyReached, productName: formData.productName });
+      return;
+    }
+    setConfirmSale(null);
+
+    const crossedSafety = safetyCrossing;   // captured before saving
     const payload = {
       productId: formData.productId,
       productName: formData.productName,
@@ -892,6 +941,9 @@ function StockControl({
       }
 
       closeModal();
+      setSafetyAlert(crossedSafety
+        ? { ...crossedSafety, productId: payload.productId, productName: payload.productName }
+        : null);
       await refreshStockData();
       await loadStockActivities();
       if (historyProduct && historyProduct !== '—') await loadStockActivities(historyProduct);
@@ -1034,6 +1086,26 @@ function StockControl({
         <div className="sc-error-banner" role="alert">
           <span>{stockError}</span>
           <button type="button" onClick={() => refreshStockData().catch((error) => setStockError(error.message))}>Retry</button>
+        </div>
+      )}
+
+      {safetyAlert && (
+        <div className={`sc-safety-alert is-${safetyAlert.level}`} role="alert">
+          <AlertTriangle size={16} aria-hidden="true" />
+          <span>
+            <strong>{safetyAlert.productName}</strong>
+            {safetyAlert.level === 'out'
+              ? ' is now out of stock.'
+              : ` is now below safety stock — ${safetyAlert.after} left, minimum ${safetyAlert.safety}.`}
+          </span>
+          {canComputeEoq && onNavigate && (
+            <button type="button" className="sc-safety-alert-order" onClick={orderFromSafetyAlert} disabled={safetyOrdering}>
+              {safetyOrdering ? 'Loading forecast…' : 'Order Now'}
+            </button>
+          )}
+          <button type="button" className="sc-safety-alert-close" onClick={() => setSafetyAlert(null)} aria-label="Dismiss">
+            <X size={14} />
+          </button>
         </div>
       )}
 
@@ -1511,13 +1583,29 @@ function StockControl({
                       <span className="sc-status-preview-note">
                         {projectedStatus === 'healthy'
                           ? 'This entry keeps the item above its reorder point.'
-                          : 'This entry puts the item at or below its reorder point — the row will be flagged and a Compute EOQ shortcut appears.'}
+                          : projectedStatus === 'low'
+                            ? 'This entry puts the item at or below its reorder point — time to order.'
+                            : projectedStatus === 'critical'
+                              ? 'This entry puts the item at or below its safety stock.'
+                              : 'This entry leaves the item out of stock.'}
                       </span>
                     </div>
                   )}
 
                 </section>
               </div>
+
+              {safetyReached && (
+                <div className={`sc-safety-warning is-${safetyReached.level}`} role="alert">
+                  <AlertTriangle size={14} aria-hidden="true" />
+                  <span>
+                    {safetyReached.level === 'out'
+                      ? <>This leaves <strong>0</strong> of {formData.productName}. It will be <strong>out of stock</strong>.</>
+                      : <>This leaves <strong>{safetyReached.after}</strong> of {formData.productName}, at or below its safety stock of <strong>{safetyReached.safety}</strong>.</>}
+                    {' '}You’ll be asked to confirm before it’s saved.
+                  </span>
+                </div>
+              )}
 
               <div className="sc-modal-actions">
                 <button type="button" className="sc-modal-cancel-btn" onClick={closeModal}>
@@ -1545,6 +1633,39 @@ function StockControl({
         document.body
       )}
       {/* ===== MOVEMENT HISTORY ===== */}
+      {/* ===== SAFETY STOCK CONFIRMATION ===== */}
+      {confirmSale && createPortal(
+        <div className="sc-modal-overlay sc-confirm-overlay" onClick={() => setConfirmSale(null)}>
+          <div
+            className="sc-modal sc-confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="sc-confirm-title"
+            aria-describedby="sc-confirm-text"
+          >
+            <span className={`sc-confirm-icon is-${confirmSale.level}`} aria-hidden="true"><AlertTriangle size={22} /></span>
+            <h3 id="sc-confirm-title">Stock has reached the safety stock level.</h3>
+            <p id="sc-confirm-text">
+              Do you still want to proceed with this sale?
+              <span className="sc-confirm-detail">
+                {confirmSale.productName}: {confirmSale.before} → <strong>{confirmSale.after}</strong> left
+                {' '}(safety stock {confirmSale.safety}{confirmSale.level === 'out' ? ', this will be out of stock' : ''}).
+              </span>
+            </p>
+            <div className="sc-modal-actions">
+              <button type="button" className="sc-modal-cancel-btn" onClick={() => setConfirmSale(null)} autoFocus>
+                Cancel
+              </button>
+              <button type="button" className="sc-modal-save-btn" onClick={() => handleSave(null, { confirmed: true })}>
+                Proceed with sale
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {historyProduct && createPortal(
         <div className="sc-modal-overlay" onClick={() => setHistoryProduct(null)}>
           <div className="sc-history-panel" onClick={(e) => e.stopPropagation()}>
