@@ -29,5 +29,6 @@ Thumbs.db
 # Never commit database dumps, installers or old build output
 /db.sql
 *.sql
+!/database backup folder/db.sql
 *.exe
 /dist
