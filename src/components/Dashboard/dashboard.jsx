@@ -549,7 +549,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
 
           {/* ===== REORDER SUGGESTIONS (demand-linked) =====
               Server-computed from next month's forecast, current stock, safety
-              stock and lead time. Recommendations only — nothing is ordered. */}
+              stock and lead time. Recommendations only — nothing is order. */}
           <div className="regionalBreakdown-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
