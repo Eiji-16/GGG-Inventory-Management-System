@@ -31,6 +31,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/profile/avatar', [ProfileController::class, 'storeAvatar']);
     Route::delete('/profile/avatar', [ProfileController::class, 'destroyAvatar']);
 
+    // A product's photo (product lists send this link instead of the photo).
+    Route::get('/products/{code}/image', [\App\Http\Controllers\ProductController::class, 'image']);
+
     // Sidebar picture: everyone signed in can see it; only the Super Admin
     // can change or remove it (checked in the controller).
     Route::get('/branding/logo', [SystemLogoController::class, 'show']);

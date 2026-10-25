@@ -24,7 +24,7 @@ class ProductStockLinkTest extends TestCase
     private function entry(array $extra = [])
     {
         return $this->postJson('/api/stock-movements', $extra + [
-            'productId' => $this->code, 'type' => 'Stock In', 'qty' => 5, 'date' => now('Asia/Manila')->toDateString(),
+            'productId' => $this->code, 'type' => 'Stock In', 'qty' => 5, 'unitPrice' => 10, 'date' => now('Asia/Manila')->toDateString(),
         ]);
     }
 
@@ -65,8 +65,8 @@ class ProductStockLinkTest extends TestCase
         $this->putJson("/api/products/{$this->code}", ['name' => 'Link Shirt', 'category' => 'Tops', 'variants' => ['Red']])->assertOk();
 
         // Editing notes on the old "Blue" entry still works (variant unchanged) ...
-        $this->putJson("/api/stock-movements/{$id}", ['detailsOnly' => true, 'variantName' => 'Blue', 'notes' => 'checked'])->assertOk();
+        $this->putJson("/api/stock-movements/{$id}", ['unitPrice' => 10, 'detailsOnly' => true, 'variantName' => 'Blue', 'notes' => 'checked'])->assertOk();
         // ... but switching it to an unknown variant does not.
-        $this->putJson("/api/stock-movements/{$id}", ['detailsOnly' => true, 'variantName' => 'Green'])->assertStatus(422);
+        $this->putJson("/api/stock-movements/{$id}", ['unitPrice' => 10, 'detailsOnly' => true, 'variantName' => 'Green'])->assertStatus(422);
     }
 }

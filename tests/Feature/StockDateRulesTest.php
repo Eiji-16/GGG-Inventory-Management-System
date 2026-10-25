@@ -33,7 +33,7 @@ class StockDateRulesTest extends TestCase
 
     private function entry(string $type, int $qty, string $date)
     {
-        return $this->postJson('/api/stock-movements', ['productId' => 'PRD-D1', 'type' => $type, 'qty' => $qty, 'date' => $date]);
+        return $this->postJson('/api/stock-movements', ['unitPrice' => 10, 'productId' => 'PRD-D1', 'type' => $type, 'qty' => $qty, 'date' => $date]);
     }
 
     private function day(int $daysAgo): string
@@ -98,6 +98,7 @@ class StockDateRulesTest extends TestCase
         // An edit keeps the old amount in the opening balance (existing design),
         // so whatever it saves, no day may end up below zero.
         $this->putJson("/api/stock-movements/{$firstIn->id}", [
+            'unitPrice' => 10,
             'productId' => 'PRD-D1', 'type' => 'Stock In', 'qty' => 4, 'date' => $this->day(30),
         ])->assertOk();
         $this->assertSame(0, StockMovement::where('remaining_stock', '<', 0)->count());

@@ -29,6 +29,7 @@ class StockMovementPersistenceTest extends TestCase
         $product = $this->createProduct(20);
 
         $movement = $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock In',
             'qty' => 5,
@@ -54,6 +55,7 @@ class StockMovementPersistenceTest extends TestCase
         $product = $this->createProduct(20);
 
         $movement = $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock Out',
             'qty' => 5,
@@ -80,6 +82,7 @@ class StockMovementPersistenceTest extends TestCase
 
         foreach ([9, 9, 37] as $qty) {
             $this->postJson('/api/stock-movements', [
+                'unitPrice' => 10,
                 'productId' => $product->code,
                 'type' => 'Stock In',
                 'qty' => $qty,
@@ -99,6 +102,7 @@ class StockMovementPersistenceTest extends TestCase
     {
         $product = $this->createProduct(10);
         $movement = $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock In',
             'qty' => 5,
@@ -106,6 +110,7 @@ class StockMovementPersistenceTest extends TestCase
         ])->assertCreated()->json();
 
         $this->putJson('/api/stock-movements/'.$movement['id'], [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock Out',
             'qty' => 2,
@@ -121,6 +126,7 @@ class StockMovementPersistenceTest extends TestCase
             'stock_on_hand' => 0,
         ]);
         $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $otherProduct->code,
             'type' => 'Stock In',
             'qty' => 1,
@@ -151,6 +157,7 @@ class StockMovementPersistenceTest extends TestCase
         $product = $this->createProduct(10);
 
         $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock Out',
             'qty' => 1,
@@ -178,6 +185,7 @@ class StockMovementPersistenceTest extends TestCase
         ]);
 
         $this->putJson('/api/stock-movements/'.$movement->id, [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock In',
             'qty' => 5,
@@ -202,6 +210,7 @@ class StockMovementPersistenceTest extends TestCase
     {
         $product = $this->createProduct(20);
         $movement = $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock Out',
             'qty' => 5,
@@ -209,6 +218,7 @@ class StockMovementPersistenceTest extends TestCase
         ])->assertCreated()->assertJsonPath('remainingStock', 15)->json();
 
         $this->putJson('/api/stock-movements/'.$movement['id'], [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock Out',
             'qty' => 10,
@@ -232,6 +242,7 @@ class StockMovementPersistenceTest extends TestCase
     {
         $product = $this->createProduct(0);
         $movement = $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock In',
             'qty' => 10,
@@ -239,6 +250,7 @@ class StockMovementPersistenceTest extends TestCase
         ])->assertCreated()->json();
 
         $this->putJson('/api/stock-movements/'.$movement['id'], [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock In',
             'qty' => 5,
@@ -259,6 +271,7 @@ class StockMovementPersistenceTest extends TestCase
         $product = $this->createProduct(0);
 
         $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock In',
             'qty' => 5,
@@ -273,6 +286,7 @@ class StockMovementPersistenceTest extends TestCase
         $product = $this->createProduct(5);
 
         $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock Out',
             'qty' => 5,
@@ -286,6 +300,7 @@ class StockMovementPersistenceTest extends TestCase
     {
         $product = $this->createProduct(20);
         $stockIn = $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock In',
             'qty' => 5,
@@ -296,6 +311,7 @@ class StockMovementPersistenceTest extends TestCase
         $this->assertSame(20, $product->fresh()->stock_on_hand);
 
         $stockOut = $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock Out',
             'qty' => 5,
@@ -310,6 +326,7 @@ class StockMovementPersistenceTest extends TestCase
     {
         $product = $this->createProduct(12);
         $movement = $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock In',
             'qty' => 3,
@@ -361,6 +378,7 @@ class StockMovementPersistenceTest extends TestCase
         $product = $this->createProduct(5);
 
         $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock Out',
             'qty' => 6,
@@ -376,6 +394,7 @@ class StockMovementPersistenceTest extends TestCase
         $product = $this->createProduct(10);
 
         $firstMovement = $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock Out',
             'qty' => 4,
@@ -400,6 +419,7 @@ class StockMovementPersistenceTest extends TestCase
         $this->assertSame(3, $product->fresh()->stock_on_hand);
 
         $this->putJson('/api/stock-movements/'.$firstMovement['id'], [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock In',
             'qty' => 8,
@@ -424,6 +444,7 @@ class StockMovementPersistenceTest extends TestCase
     {
         $product = $this->createProduct();
         $movement = $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock In',
             'qty' => 2,
@@ -431,6 +452,7 @@ class StockMovementPersistenceTest extends TestCase
         ])->assertCreated()->json();
 
         $this->putJson('/api/stock-movements/'.$movement['id'], [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock In',
             'qty' => 7,
@@ -462,6 +484,7 @@ class StockMovementPersistenceTest extends TestCase
         ])->assertCreated()->json();
 
         $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock Out',
             'qty' => 3,

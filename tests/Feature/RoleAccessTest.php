@@ -83,6 +83,7 @@ class RoleAccessTest extends TestCase
         $staff = $this->user(User::ROLE_STAFF);
 
         $this->actingAs($staff)->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => 'PRD-RA1', 'type' => 'Stock In', 'qty' => 5, 'date' => now()->toDateString(),
         ])->assertCreated();
         $entry = StockMovement::firstOrFail();
@@ -91,6 +92,7 @@ class RoleAccessTest extends TestCase
 
         $this->actingAs($staff)->deleteJson("/api/stock-movements/{$entry->id}")->assertForbidden();
         $this->actingAs($staff)->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => 'PRD-RA1', 'type' => 'Stock In', 'qty' => 1, 'date' => now()->toDateString(),
         ])->assertForbidden();
         $this->assertSame(5, $product->fresh()->stock_on_hand);

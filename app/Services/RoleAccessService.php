@@ -31,6 +31,7 @@ class RoleAccessService
      * default. (Rows saved before the "|" format list only the ON codes; their
      * OFF codes are the ORIGINAL_CODES that are not ON.)
      * Never change or reuse a code: saved choices depend on it.
+     * Retired codes (never use again): 'ro' (Mark as ordered, removed Oct 25).
      */
     public const SETTING_PREFIX = 'role_access_';
 

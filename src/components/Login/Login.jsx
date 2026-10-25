@@ -39,6 +39,13 @@ function Login({ onLogin }) {
                 return;
             }
 
+            // Use the new security token from sign-in for the next saves
+            // (same as logout does); the old one stops working after sign-in.
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            if (csrfMeta && data.csrfToken) {
+                csrfMeta.content = data.csrfToken;
+            }
+
             onLogin(data.user);
         } catch (requestError) {
             console.error('Login request failed:', requestError);

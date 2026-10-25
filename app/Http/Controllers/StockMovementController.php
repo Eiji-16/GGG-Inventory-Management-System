@@ -13,6 +13,11 @@ use Illuminate\Validation\Rule;
 
 class StockMovementController extends Controller
 {
+    private const PRICE_MESSAGES = [
+        'unitPrice.required' => 'Enter the unit price: cost per unit for Stock In, selling price per unit for Stock Out.',
+        'unitPrice.required_unless' => 'Enter the unit price: cost per unit for Stock In, selling price per unit for Stock Out.',
+    ];
+
     public function __construct(private readonly StockMovementService $stockMovements)
     {
     }
@@ -92,8 +97,9 @@ class StockMovementController extends Controller
                 'variantName' => ['nullable', 'string', 'max:255'],
                 'notes'       => ['nullable', 'string', 'max:255'],
                 'recordedBy'  => ['nullable', 'string', 'max:255'],
-                'unitPrice'   => ['nullable', 'numeric', 'min:0', 'max:9999999999'],
-            ]);
+                // Required on Stock In / Stock Out rows; older count corrections have no price.
+                'unitPrice'   => [$stockMovement->is_adjustment ? 'nullable' : 'required', 'nullable', 'numeric', 'min:0', 'max:9999999999'],
+            ], self::PRICE_MESSAGES);
             $this->assertVariantBelongsToProduct(
                 ['productId' => $stockMovement->product?->code, 'variantName' => $data['variantName'] ?? null],
                 $stockMovement->variant_name
@@ -313,7 +319,8 @@ class StockMovementController extends Controller
             'qty'         => ['required_unless:type,Adjustment', 'nullable', 'integer', 'min:1'],
             'countedStock'=> ['required_if:type,Adjustment', 'nullable', 'integer', 'min:0'],
             'variantName' => ['nullable', 'string', 'max:255'],
-            'unitPrice'   => ['nullable', 'numeric', 'min:0', 'max:9999999999'],
+            // Required for Stock In / Stock Out (0 is allowed); a count correction has no price.
+            'unitPrice'   => ['required_unless:type,Adjustment', 'nullable', 'numeric', 'min:0', 'max:9999999999'],
             'notes'       => ['nullable', 'string', 'max:255'],
             'recordedBy'  => ['nullable', 'string', 'max:255'],
             // No future dates. "Today" is the shop's date (Philippines), not the server's UTC date.
@@ -322,7 +329,7 @@ class StockMovementController extends Controller
 
         return $request->validate($rules, [
             'date.before_or_equal' => 'The date cannot be in the future.',
-        ]);
+        ] + self::PRICE_MESSAGES);
     }
 
     /**

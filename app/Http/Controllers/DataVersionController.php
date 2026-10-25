@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * GET /api/data-version — a short fingerprint of the data the reports use.
  *
- * Screens (Reports) ask for it every few seconds; when the fingerprint
+ * The main page asks for it every 5 seconds (while the tab is visible); when the fingerprint
  * changes, someone added, edited or deleted something, so the screen reloads.
  * It only counts rows and reads the latest update time — very cheap, and it
  * never returns the data itself.
@@ -23,6 +23,8 @@ class DataVersionController extends Controller
         'seasonal_events',
         'past_sales',
         'activity_logs',
+        'restock_requests',   // Staff Notify
+        'app_settings',       // currency, logo, Role Access
     ];
 
     public function __invoke(): JsonResponse

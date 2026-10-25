@@ -21,12 +21,14 @@ class ProductPersistenceTest extends TestCase
         ])->assertCreated()->json();
 
         $movement = $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product['id'],
             'type' => 'Stock In',
             'qty' => 3,
             'date' => now()->toDateString(),
         ])->assertCreated()->json();
         $outgoingMovement = $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product['id'],
             'type' => 'Stock Out',
             'qty' => 2,
@@ -80,6 +82,7 @@ class ProductPersistenceTest extends TestCase
         $this->deleteJson('/api/products/'.$deletedProduct['id'])->assertOk();
 
         $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $deletedProduct['id'],
             'type' => 'Stock In',
             'qty' => 1,
@@ -101,6 +104,7 @@ class ProductPersistenceTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('productId');
 
         $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $activeProduct['id'],
             'type' => 'Stock In',
             'qty' => 1,

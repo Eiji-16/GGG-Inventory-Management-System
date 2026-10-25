@@ -233,13 +233,18 @@ class StaffController extends Controller
 
     private function humanizeTimestamp(int $unix): string
     {
-        $diff = now()->diffInSeconds(now()->createFromTimestamp($unix), true);
+        // Show times in the shop's time (Philippines), not the server's UTC.
+        $timezone = config('app.business_timezone', 'Asia/Manila');
+        $now = now($timezone);
+        $at = \Illuminate\Support\Carbon::createFromTimestamp($unix)->setTimezone($timezone);
+        $diff = abs($now->getTimestamp() - $unix);
 
         if ($diff < 60) return 'Just now';
         if ($diff < 3600) return floor($diff / 60).' min ago';
-        if ($diff < 86400) return now()->createFromTimestamp($unix)->format('Today · h:i A');
-        if ($diff < 172800) return 'Yesterday · '.now()->createFromTimestamp($unix)->format('h:i A');
+        // "Today" stays outside format(): inside it, PHP reads T, o, d, a, y as date codes.
+        if ($at->isSameDay($now)) return 'Today · '.$at->format('h:i A');
+        if ($at->isSameDay($now->copy()->subDay())) return 'Yesterday · '.$at->format('h:i A');
 
-        return now()->createFromTimestamp($unix)->diffForHumans();
+        return $at->diffForHumans();
     }
 }

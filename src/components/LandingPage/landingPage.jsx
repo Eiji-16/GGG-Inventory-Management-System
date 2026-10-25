@@ -317,6 +317,8 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
   const [policyLoading, setPolicyLoading] = useState(true);
   const [policyError, setPolicyError] = useState('');
   const [policyRefreshKey, setPolicyRefreshKey] = useState(0);
+  /* Goes up whenever someone changes data on any computer (see AUTO-REFRESH). */
+  const [dataRevision, setDataRevision] = useState(0);
   const [notifications, setNotifications] = useState([]); /* ===== NOTIFICATION STATE ===== */
   const [reorderAlertCount, setReorderAlertCount] = useState(0); /* ===== SIDEBAR BADGE ===== */
   const notificationPreferenceKey = `ggg-inventory-notifications:${user?.id ?? user?.email ?? 'account'}`;
@@ -357,13 +359,37 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
     }
   };
 
+  /* ===== DASHBOARD SUMMARY (shared) =====
+     The bell and the Dashboard both need /api/dashboard/summary. When they
+     ask at the same moment (e.g. right after login), they share one request
+     instead of loading it twice. */
+  const summaryRequestRef = useRef({ promise: null, at: 0 });
+  const fetchDashboardSummary = useCallback(() => {
+    const shared = summaryRequestRef.current;
+    if (shared.promise && Date.now() - shared.at < 3000) return shared.promise;
+    const promise = fetch('/api/dashboard/summary', { headers: { Accept: 'application/json' }, cache: 'no-store' })
+      .then((response) => {
+        if (!response.ok) {
+          const error = new Error(`Request failed (${response.status}).`);
+          error.status = response.status;
+          throw error;
+        }
+        return response.json();
+      });
+    summaryRequestRef.current = { promise, at: Date.now() };
+    // A failed request is not shared: the next ask tries again.
+    promise.catch(() => {
+      if (summaryRequestRef.current.promise === promise) summaryRequestRef.current = { promise: null, at: 0 };
+    });
+    return promise;
+  }, []);
+
   useEffect(() => {
     if (policyLoading) return undefined;
     let active = true;
-    fetch('/api/dashboard/summary', { headers: { Accept: 'application/json' } })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Could not load notifications (${response.status}).`);
-        return response.json();
+    fetchDashboardSummary()
+      .catch((error) => {
+        throw new Error(`Could not load notifications (${error.status ?? 'network'}).`);
       })
       .then((summary) => {
         if (!active) return;
@@ -456,6 +482,48 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
       window.clearInterval(timer);
     };
   }, [canSeeRequests, requestsVersion, notificationPreferenceKey]); // saveNotificationPreferences/ref are stable for this key
+
+  /* ===== AUTO-REFRESH =====
+     Every 5 seconds while the browser tab is visible, ask the server for a
+     tiny "data version" (a few bytes, see DataVersionController). When it
+     changes — someone added, edited or deleted something on any computer —
+     the open pages reload their data quietly. Nothing is reloaded when
+     nothing changed. */
+  useEffect(() => {
+    let stopped = false;
+    let busy = false;
+    let knownVersion = null;
+    const check = async () => {
+      if (busy || document.visibilityState !== 'visible') return;
+      busy = true;
+      try {
+        const response = await fetch('/api/data-version', { headers: { Accept: 'application/json' }, cache: 'no-store' });
+        if (!response.ok) return;
+        const { version } = await response.json();
+        if (stopped || !version) return;
+        if (knownVersion && knownVersion !== version) {
+          setDataRevision((n) => n + 1);
+          setPolicyRefreshKey((key) => key + 1);      // Stock Control, Reorder Alerts, calculator, Forecasting, Reports, bell
+          setRequestsVersion((version) => version + 1); // restock requests in the bell
+          refreshPermissions();                          // Role Access may have changed
+        }
+        knownVersion = version;
+      } catch {
+        /* offline for a moment — try again on the next tick */
+      } finally {
+        busy = false;
+      }
+    };
+    check();
+    const timer = window.setInterval(check, 5000);
+    const onVisible = () => { if (document.visibilityState === 'visible') check(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -893,6 +961,8 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                 <div className="app-view-panel" hidden={activeView !== 'Dashboard'}>
                   <Dashboard
                     onNavigate={handleNavigate}
+                    fetchSummary={fetchDashboardSummary}
+                    dataRevision={dataRevision}
                     isSuperAdmin={role === 'super_admin'}
                     safetyStock={safetyStock}
                     isActive={activeView === 'Dashboard'}
@@ -902,6 +972,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
               {visitedViews.has('Product-Supplier') && canAccess('Product-Supplier') && (
                 <div className="app-view-panel" hidden={activeView !== 'Product-Supplier'}>
                   <ProductSupplier
+                    dataRevision={dataRevision}
                     onCatalogChange={() => setPolicyRefreshKey((key) => key + 1)}
                     canAddProduct={can('products.create')}
                     canEditProduct={can('products.edit')}

@@ -12,9 +12,17 @@ use App\Services\ReorderPointService;
 
 class DashboardSummaryController extends Controller
 {
-    public function __invoke(ReorderPointService $reorderPoints, DemandReorderService $demandReorder): JsonResponse
+    public function __invoke(ReorderPointService $reorderPoints, \App\Services\SalesForecastService $forecasts): JsonResponse
     {
-        $productRecords = Product::with(['safetyStock', 'supplier'])->orderBy('name')->get();
+        $productRecords = Product::with(['safetyStock', 'supplier'])->withoutPhoto()->orderBy('name')->get();
+        // Speed: read every product's sales once instead of once per product.
+        // The same two services are used for every number on this page.
+        $reorderPoints->preload($productRecords);
+        // Deleted products keep their sales history on this page. Only the
+        // columns used here (not the product photos).
+        $productsById = Product::withTrashed()->get(['id', 'code', 'name', 'deleted_at'])->keyBy('id');
+        $forecasts->preload($productsById);
+        $demandReorder = new DemandReorderService($forecasts, $reorderPoints);
 
         // Product ids that have at least one stock movement — only these are
         // "live" in Stock Control and eligible for stock alerts.
@@ -46,7 +54,8 @@ class DashboardSummaryController extends Controller
                     && $reorderPoints->statusFor($product) !== 'healthy';
             })->count(),
             'stockMovementsToday' => StockMovement::query()
-                ->whereDate('movement_date', today()->toDateString())
+                // The shop's today (Philippines), not the server's UTC date.
+                ->whereDate('movement_date', today(config('app.business_timezone', 'Asia/Manila'))->toDateString())
                 ->count(),
         ];
 
@@ -55,7 +64,6 @@ class DashboardSummaryController extends Controller
         // before Stock Control began — the same sources the forecast uses.
         // (Read directly instead of the saved sales_history rows, which could
         // keep old numbers after a product's stock was cleared.)
-        $forecasts = app(\App\Services\SalesForecastService::class);
         $monthly = [];
         $addSale = function (Product $product, string $month, int $units) use (&$monthly): void {
             $key = $product->id.'|'.$month;
@@ -67,8 +75,6 @@ class DashboardSummaryController extends Controller
             ];
             $monthly[$key]['unitsSold'] += $units;
         };
-        // Deleted products keep their sales history here.
-        $productsById = Product::withTrashed()->get()->keyBy('id');
         StockMovement::query()
             ->whereIn('product_id', $productsById->keys())
             ->where('movement_type', 'out')

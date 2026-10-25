@@ -190,6 +190,7 @@ function ProductSupplier({
   canExportProducts = true,
   canViewSuppliers = true,
   canManageSuppliers = true,
+  dataRevision = 0,
 }) {
   const PAGE_SIZE = 10;
   const [productsFromDatabase, setProductsFromDatabase] = useState([]);
@@ -245,6 +246,18 @@ function ProductSupplier({
       .finally(() => setProductsLoading(false));
   }, [productsRetry]);
 
+  /* Someone changed data (auto-refresh): reload the products quietly, with no
+     loading message, so an open form or the current page isn't disturbed. */
+  useEffect(() => {
+    if (dataRevision === 0) return undefined;
+    let active = true;
+    fetch('/api/products', { cache: 'no-store', headers: { Accept: 'application/json' } })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => { if (active && Array.isArray(data)) setProductsFromDatabase(data); })
+      .catch(() => { /* keep the list on screen; the next change tries again */ });
+    return () => { active = false; };
+  }, [dataRevision]);
+
   /* ===== LOAD SUPPLIERS (for the picker dropdown) ===== */
   useEffect(() => {
     fetch('/api/suppliers', { headers: { Accept: 'application/json' } })
@@ -254,7 +267,7 @@ function ProductSupplier({
       })
       .then((data) => setSuppliers(Array.isArray(data) ? data : []))
       .catch((error) => console.error('Could not load suppliers:', error));
-  }, []);
+  }, [dataRevision]);
 
   /* ===== FILTER + SORT PRODUCTS ===== */
   const filteredProducts = useMemo(() => {
@@ -633,6 +646,7 @@ function ProductSupplier({
       {section === 'suppliers' && canViewSuppliers ? (
         <SupplierRecords
           canManage={canManageSuppliers}
+          dataRevision={dataRevision}
           onSuppliersChange={() => {
             setProductsRetry((retry) => retry + 1);
             onCatalogChange?.();
@@ -1167,7 +1181,7 @@ function ProductSupplier({
                         <input
                           id="image"
                           name="image"
-                          value={(formData.image || '').startsWith('data:') ? '' : (formData.image || '')}
+                          value={/^(data:|\/products\/)/.test(formData.image || '') ? '' : (formData.image || '')}
                           onChange={handleFormChange}
                           placeholder="…or paste an image URL"
                         />

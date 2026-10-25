@@ -15,7 +15,9 @@ class ProductController extends Controller
     /** GET /api/products */
     public function index()
     {
+        // Without the photos themselves: each product gets a short photo link.
         $products = Product::with(['supplier', 'safetyStock'])
+            ->withoutPhoto()
             ->orderBy('name')
             ->get();
 
@@ -55,6 +57,7 @@ class ProductController extends Controller
     public function show(string $code)
     {
         $product = Product::with(['supplier', 'safetyStock'])
+            ->withoutPhoto()
             ->where('code', $code)
             ->firstOrFail();
 
@@ -93,16 +96,18 @@ class ProductController extends Controller
         ]);
 
         $supplier = $this->resolveSupplier($data);
+        $code = $this->generateCode();
 
         $product = Product::create([
-            'code'          => $this->generateCode(),
+            'code'          => $code,
             'name'          => $data['name'],
             'category'      => $data['category'] ?? null,
             'brand'         => $data['brand'] ?? null,
             'model'         => $data['model'] ?? null,
             'unit_measure'  => $data['unitMeasure'] ?? null,
             'variants'      => $this->cleanVariants($data['variants'] ?? []),
-            'image'         => $this->sanitizeImage($data['image'] ?? null),
+            // A chosen picture is saved as an image file (see ProductPhotoService).
+            'image'         => $this->photos()->prepare($data['image'] ?? null, $code, null),
             'supplier_id'   => $supplier?->id,
             'stock_on_hand' => $data['stock'] ?? 0,                  // ← ADDED
         ]);
@@ -131,17 +136,28 @@ class ProductController extends Controller
             'variants.*'      => ['nullable', 'string', 'max:100'],
         ]);
 
-        // The values the product will have after this save. A field left out
-        // (or sent as null) keeps its current value, matching the update below.
-        $supplierName = $data['supplierName'] ?? null;
-        $this->ensureNotDuplicate([
-            'name'         => $data['name'] ?? $product->name,
-            'category'     => $data['category'] ?? $product->category,
-            'brand'        => $data['brand'] ?? $product->brand,
-            'model'        => $data['model'] ?? $product->model,
-            'unit_measure' => $data['unitMeasure'] ?? $product->unit_measure,
-            'supplier_id'  => $supplierName ? $this->existingSupplierId($supplierName) : $product->supplier_id,
-        ], $product->id);
+        // The values the product will have after this save. A field LEFT OUT
+        // keeps its current value; a field SENT EMPTY clears it (so the owner
+        // can remove a category, brand, model, unit or supplier). The name
+        // can't be cleared.
+        $optionalText = [
+            'category'     => 'category',
+            'brand'        => 'brand',
+            'model'        => 'model',
+            'unitMeasure'  => 'unit_measure',
+        ];
+        $after = ['name' => ($data['name'] ?? null) ?: $product->name];
+        foreach ($optionalText as $field => $column) {
+            $after[$column] = array_key_exists($field, $data)
+                ? (trim((string) $data[$field]) === '' ? null : $data[$field])
+                : $product->{$column};
+        }
+        $supplierSent = array_key_exists('supplierName', $data);
+        $supplierName = trim((string) ($data['supplierName'] ?? ''));
+        $after['supplier_id'] = $supplierSent
+            ? ($supplierName === '' ? null : $this->existingSupplierId($supplierName))
+            : $product->supplier_id;
+        $this->ensureNotDuplicate($after, $product->id);
 
         $supplier = $this->resolveSupplier($data);
 
@@ -158,14 +174,17 @@ class ProductController extends Controller
             $product->save();
         }
 
-        $product->update(array_filter([
-            'name'         => $data['name'] ?? null,
-            'category'     => $data['category'] ?? null,
-            'brand'        => $data['brand'] ?? null,
-            'model'        => $data['model'] ?? null,
-            'unit_measure' => $data['unitMeasure'] ?? null,
-            'supplier_id'  => $supplier?->id,
-        ], fn ($v) => $v !== null));
+        $changes = [
+            'name'         => $after['name'],
+            'category'     => $after['category'],
+            'brand'        => $after['brand'],
+            'model'        => $after['model'],
+            'unit_measure' => $after['unit_measure'],
+        ];
+        if ($supplierSent) {
+            $changes['supplier_id'] = $supplier?->id;   // empty supplier = no supplier
+        }
+        $product->update($changes);
 
         // Variants can be set or cleared (empty list), so handle them here too.
         if (array_key_exists('variants', $data)) {
@@ -175,12 +194,31 @@ class ProductController extends Controller
 
         // Image can be set OR cleared, so handle it outside array_filter (which
         // would drop an intentional empty string / null).
+        // The form sends the photo link back unchanged when the photo wasn't touched.
         if (array_key_exists('image', $data)) {
-            $product->image = $this->sanitizeImage($data['image']);
-            $product->save();
+            $previous = $product->image;
+            $next = $this->photos()->prepare($data['image'], $product->code, $previous);
+            if ($next !== $previous) {
+                $product->image = $next;
+                $product->save();
+                $this->photos()->deleteIfStored($previous);
+            }
         }
 
         return response()->json($this->format($product->fresh()->load(['supplier', 'safetyStock'])));
+    }
+
+    /** GET /products/{code}/image — the product's photo (also for deleted products' history). */
+    public function image(string $code)
+    {
+        $product = Product::withTrashed()->where('code', $code)->firstOrFail();
+
+        return $this->photos()->response($product);
+    }
+
+    private function photos(): \App\Services\ProductPhotoService
+    {
+        return app(\App\Services\ProductPhotoService::class);
     }
 
     /** DELETE /api/products/{code} */
@@ -293,23 +331,6 @@ class ProductController extends Controller
         return $code;
     }
 
-    /**
-     * Accept only a safe image reference: an http(s) URL or a base64 image data
-     * URL. Anything else (e.g. javascript:) is rejected to null.
-     */
-    private function sanitizeImage(?string $image): ?string
-    {
-        $image = $image !== null ? trim($image) : null;
-        if ($image === null || $image === '') {
-            return null;
-        }
-        if (preg_match('#^https?://#i', $image) || preg_match('#^data:image/[a-z0-9.+-]+;base64,#i', $image)) {
-            return $image;
-        }
-
-        return null;
-    }
-
     private function format(Product $p, int $demandFromHistory = 0, ?array $variants = null): array
     {
         // $variants here = names already typed on stock movements (older data).
@@ -332,7 +353,7 @@ class ProductController extends Controller
             'brand'           => $p->brand,
             'model'           => $p->model,
             'unitMeasure'     => $p->unit_measure,
-            'image'           => $p->image,
+            'image'           => $this->photos()->url($p),   // a short link, not the photo itself
             // definedVariants: the product's own list (edited in the product modal;
             // Stock Control picks from it). recordedVariants: names found on
             // existing stock movements. variants: both, for the table/search.

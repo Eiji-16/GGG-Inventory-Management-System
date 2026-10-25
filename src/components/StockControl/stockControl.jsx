@@ -130,6 +130,10 @@ function StockControl({
   const [openingSaving, setOpeningSaving] = useState(false);
   const [sortBy, setSortBy] = useState('date'); /* ===== SORT KEY ===== */
   const [sortDir, setSortDir] = useState('desc'); /* ===== SORT DIRECTION ===== */
+  /* ===== PAGES =====
+     Show 50 rows at a time so a long history stays quick to scroll. Search,
+     sort and Excel export still use every matching row. */
+  const [page, setPage] = useState(1);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [highlightId, setHighlightId] = useState(null); /* row to flash from a Dashboard handoff */
 
@@ -215,7 +219,10 @@ function StockControl({
       return;
     }
 
-    setQuery('');            // clear any filter so the row is visible
+    // Search for the product so its rows are together on page 1 (rows are
+    // shown 50 at a time), then flash them.
+    const targetName = stockFromDatabase.find((row) => row.productId === targetId)?.productName || '';
+    setQuery(targetName);
     setHighlightId(targetId);
     const t = setTimeout(() => setHighlightId(null), 2600);
     return () => clearTimeout(t);
@@ -489,6 +496,13 @@ function StockControl({
   return mapped;
 }, [stockFromDatabase, ledgers, query, productById, productOptions, sortBy, sortDir]);
 
+  const PAGE_SIZE = 50;
+  const pageCount = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pageRows = visibleRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  // A new search or sort starts again at page 1.
+  useEffect(() => { setPage(1); }, [query, sortBy, sortDir]);
+
   /* ===== EXPORT FORMATTED EXCEL REPORT ===== */
   const exportStockReport = async () => {
     if (visibleRows.length === 0) return;
@@ -706,17 +720,18 @@ function StockControl({
       .map((row) => row.productId)
   )];
 
+  // "Select all" = the rows on this page (the ones you can see).
   const allSelected =
-    visibleRows.length > 0 &&
-    visibleRows.every(({ id }) => selectedIds.has(id));
+    pageRows.length > 0 &&
+    pageRows.every(({ id }) => selectedIds.has(id));
 
   const toggleSelectAll = () => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (allSelected) {
-        visibleRows.forEach(({ id }) => next.delete(id));
+        pageRows.forEach(({ id }) => next.delete(id));
       } else {
-        visibleRows.forEach(({ id }) => next.add(id));
+        pageRows.forEach(({ id }) => next.add(id));
       }
       return next;
     });
@@ -741,7 +756,17 @@ function StockControl({
      Records the product's starting quantity as the first Stock In movement, so
      it shows as a row and the ledger stays the single source of truth. Allowed
      only before any other movement exists. */
+  /* Unit Price is required on every Stock In / Stock Out (0 is allowed). */
+  const PRICE_REQUIRED_MESSAGE = 'Enter the unit price: cost per unit for Stock In, selling price per unit for Stock Out.';
+  // Older count corrections have no price, so their notes can be edited without one.
+  const editingCorrection = editId !== null && stockFromDatabase.find((row) => row.id === editId)?.type === 'Adjustment';
+  const priceMissing = () => !editingCorrection && (formData.unitPrice === '' || !(Number(formData.unitPrice) >= 0));
+
   const handleSaveOpeningStock = async () => {
+    if (priceMissing()) {
+      setStockError(PRICE_REQUIRED_MESSAGE);
+      return;
+    }
     const value = Number(openingStock);
     if (!Number.isInteger(value) || value < 1) {
       setStockError('Enter an opening stock of 1 or more.');
@@ -948,6 +973,11 @@ function StockControl({
   };
 
   const handleSave = async (e, { confirmed = false } = {}) => {
+    if (priceMissing()) {
+      e?.preventDefault?.();
+      setStockError(PRICE_REQUIRED_MESSAGE);
+      return;
+    }
     e?.preventDefault?.();
 
     /* No movements yet → the form is in Opening Stock mode: set the starting
@@ -1236,7 +1266,7 @@ function StockControl({
           <tbody>
             {stockLoading ? (
               <tr><td colSpan={12} className="sc-empty-state">Loading stock movements…</td></tr>
-            ) : visibleRows.map(({ row: stock, id, totalQty, change, balanceAfter }) => {
+            ) : pageRows.map(({ row: stock, id, totalQty, change, balanceAfter }) => {
               const product = productById.get(stock.productId);
               const statusRow = {
                 ...stock,
@@ -1391,6 +1421,18 @@ function StockControl({
           </tbody>
         </table>
       </div>
+      {!stockLoading && visibleRows.length > PAGE_SIZE && (
+        <nav className="sc-pager" aria-label="Stock movement pages">
+          <span>
+            Showing {((currentPage - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(currentPage * PAGE_SIZE, visibleRows.length).toLocaleString()} of {visibleRows.length.toLocaleString()}
+          </span>
+          <span className="sc-pager-buttons">
+            <button type="button" className="sc-add-btn" onClick={() => setPage(currentPage - 1)} disabled={currentPage <= 1}>Previous</button>
+            <span aria-live="polite">Page {currentPage} of {pageCount}</span>
+            <button type="button" className="sc-add-btn" onClick={() => setPage(currentPage + 1)} disabled={currentPage >= pageCount}>Next</button>
+          </span>
+        </nav>
+      )}
 
       {/* ===== ADD ITEM MODAL ===== */}
       {isModalOpen && createPortal(
@@ -1593,7 +1635,9 @@ function StockControl({
                   {/* ===== PRICE + NOTES (below quantity) ===== */}
                   <div className="sc-form-row">
                     <div className="sc-form-group">
-                      <label htmlFor="unitPrice">Unit Price ({currencySymbol})</label>
+                      <label htmlFor="unitPrice">
+                        Unit Price ({currencySymbol}) {!editingCorrection && <span className="sc-required">*</span>}
+                      </label>
                       <input
                         id="unitPrice"
                         name="unitPrice"
@@ -1604,13 +1648,14 @@ function StockControl({
                         value={formData.unitPrice}
                         onChange={handleFormChange}
                         placeholder="e.g. 299.00"
+                        required={!editingCorrection}
                       />
                       {/* Helper text until a price is typed; then the computed total,
                           which stays visible even with field descriptions turned off. */}
                       <span className={`sc-field-hint${formData.unitPrice === '' || !(Number(formData.unitPrice) >= 0) ? '' : ' sc-field-total'}`}>
                         {(() => {
                           if (formData.unitPrice === '' || !(Number(formData.unitPrice) >= 0)) {
-                            return 'Optional · cost per unit (Stock In) or selling price per unit (Stock Out).';
+                            return 'Required · cost per unit (Stock In) or selling price per unit (Stock Out).';
                           }
                           const units = canSetOpeningStock ? Number(openingStock) : Math.abs(Number(projectedChange));
                           return Number.isFinite(units) && units > 0

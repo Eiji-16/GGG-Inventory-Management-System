@@ -2002,3 +2002,26 @@
     font-weight: 600;
     white-space: nowrap;
 }
+
+/* ===== PAGES (50 rows at a time) ===== */
+.sc-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    padding: 10px 2px 0;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.sc-pager-buttons {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sc-pager .sc-add-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}

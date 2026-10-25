@@ -19,8 +19,45 @@ class ReorderPointService
     public const DEFAULT_LOW_POINT = 10;
     public const DEFAULT_CRITICAL_POINT = 5;
 
+    /**
+     * Annual demand for many products, read in ONE query by preload()
+     * (product id => units). Null = not preloaded: ask per product.
+     *
+     * @var array<int, int>|null
+     */
+    private ?array $demandByProduct = null;
+
+    /**
+     * Speed-up for screens that list many products (Dashboard, Safety Stock,
+     * Reports): read every product's annual demand in one query instead of
+     * one query per product. Gives the same numbers as annualDemand().
+     *
+     * @param  iterable<Product>  $products
+     */
+    public function preload(iterable $products): static
+    {
+        $totals = StockMovement::query()
+            ->where('movement_type', 'out')
+            ->where('is_adjustment', false)
+            ->where('movement_date', '>=', now()->subYear()->toDateString())
+            ->selectRaw('product_id, SUM(qty) as total')
+            ->groupBy('product_id')
+            ->pluck('total', 'product_id');
+
+        $this->demandByProduct = [];
+        foreach ($products as $product) {
+            $this->demandByProduct[$product->id] = (int) ($totals[$product->id] ?? 0);
+        }
+
+        return $this;
+    }
+
     public function annualDemand(Product $product): int
     {
+        if ($this->demandByProduct !== null && array_key_exists($product->id, $this->demandByProduct)) {
+            return $this->demandByProduct[$product->id];
+        }
+
         return (int) StockMovement::query()
             ->where('product_id', $product->id)
             ->where('movement_type', 'out')

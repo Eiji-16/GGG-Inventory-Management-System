@@ -2,21 +2,17 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
+/**
+ * No sample data is loaded: the old sample loader (InventorySeeder) used
+ * mock files that were removed, and fake products must never reach the live
+ * database. Create the first account with: php artisan inventory:create-admin
+ */
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        $this->call([
-            InventorySeeder::class,
-        ]);
+        //
     }
 }

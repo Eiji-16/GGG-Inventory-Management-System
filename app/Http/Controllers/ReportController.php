@@ -27,7 +27,10 @@ class ReportController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $products = Product::with(['safetyStock', 'supplier'])->orderBy('name')->get();
+        $products = Product::with(['safetyStock', 'supplier'])->withoutPhoto()->orderBy('name')->get();
+        // Speed: read every product's sales once instead of once per product.
+        $this->reorderPoints->preload($products);
+        $this->forecasts->preload($products);
 
         // Role Access: only build the tabs this user is allowed to see.
         $allowed = RoleAccessService::effectiveFor($request->user());
@@ -204,7 +207,7 @@ class ReportController extends Controller
             ->get();
 
         // Include deleted products: their sales history still counts.
-        $products = Product::withTrashed()->whereIn('id', $out->pluck('product_id'))->get()->keyBy('id');
+        $products = Product::withTrashed()->withoutPhoto()->whereIn('id', $out->pluck('product_id'))->get()->keyBy('id');
 
         $rows = [];
         $rank = 1;

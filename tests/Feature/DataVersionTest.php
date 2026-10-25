@@ -20,8 +20,17 @@ class DataVersionTest extends TestCase
         $first = $this->getJson('/api/data-version')->assertOk()->json('version');
         $this->assertSame($first, $this->getJson('/api/data-version')->json('version'));
 
-        $this->postJson('/api/stock-movements', ['productId' => 'PRD-V', 'type' => 'Stock In', 'qty' => 3])->assertCreated();
+        $this->postJson('/api/stock-movements', ['unitPrice' => 10, 'productId' => 'PRD-V', 'type' => 'Stock In', 'qty' => 3])->assertCreated();
 
+        $this->assertNotSame($first, $this->getJson('/api/data-version')->json('version'));
+    }
+
+    public function test_the_version_changes_when_staff_notify(): void
+    {
+        Product::create(['code' => 'PRD-W', 'name' => 'Notify Item', 'stock_on_hand' => 0]);
+
+        $first = $this->getJson('/api/data-version')->json('version');
+        $this->postJson('/api/restock-requests', ['productId' => 'PRD-W'])->assertCreated();
         $this->assertNotSame($first, $this->getJson('/api/data-version')->json('version'));
     }
 }

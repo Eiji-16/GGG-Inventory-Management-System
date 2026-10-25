@@ -24,7 +24,9 @@ class SafetyStockController extends Controller
 {
     public function index(ReorderPointService $reorderPoints): JsonResponse
     {
-        $products = Product::with(['safetyStock', 'supplier'])->orderBy('name')->get();
+        $products = Product::with(['safetyStock', 'supplier'])->withoutPhoto()->orderBy('name')->get();
+        // Speed: every product's annual demand in one query.
+        $reorderPoints->preload($products);
 
         return response()->json($products->map(function (Product $product) use ($reorderPoints) {
             $policy = $product->safetyStock;

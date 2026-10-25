@@ -15,7 +15,8 @@ class StockMovementService
         return DB::transaction(function () use ($data) {
             $product = $this->findProduct($data);
             $currentStock = (int) $product->stock_on_hand;
-            $date = $data['date'] ?? now()->toDateString();
+            // No date sent: use the shop's today (Philippines), not the server's UTC date.
+            $date = $data['date'] ?? now(config('app.business_timezone', 'Asia/Manila'))->toDateString();
             $lowestBefore = $this->historyLow($product)['min'];
             $adjustmentBaseline = $data['type'] === 'Adjustment'
                 ? $this->balanceBeforeDate($product, $date, $currentStock)

@@ -140,7 +140,20 @@ function Arc({ cx, cy, radius, start, end }) {
   return `M ${x1} ${y1} A ${radius} ${radius} 0 ${end - start > 180 ? 1 : 0} 1 ${x2} ${y2}`;
 }
 
-function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = true }) {
+/* fetchSummary: shared loader from the main page (one request for the bell
+   and the Dashboard). dataRevision: goes up when someone changes data, so an
+   open Dashboard reloads by itself. */
+const defaultFetchSummary = () => fetch('/api/dashboard/summary', { headers: { Accept: 'application/json' } })
+  .then((response) => {
+    if (!response.ok) {
+      const error = new Error(`Request failed (${response.status}).`);
+      error.status = response.status;
+      throw error;
+    }
+    return response.json();
+  });
+
+function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = true, fetchSummary = defaultFetchSummary, dataRevision = 0 }) {
   const [range, setRange] = useState(12);
   const [hoveredSalesMonth, setHoveredSalesMonth] = useState(null);
   const [summary, setSummary] = useState(null);
@@ -148,15 +161,14 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
   const [error, setError] = useState('');
   const summaryRequestRef = useRef(0);
 
-  const loadSummary = () => {
+  const loadSummary = ({ quiet = false } = {}) => {
     const requestId = summaryRequestRef.current + 1;
     summaryRequestRef.current = requestId;
-    setLoading(true);
+    if (!quiet) setLoading(true);
     setError('');
-    fetch('/api/dashboard/summary', { headers: { Accept: 'application/json' } })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Dashboard data request failed (${response.status}).`);
-        return response.json();
+    fetchSummary()
+      .catch((requestError) => {
+        throw new Error(requestError.status ? `Dashboard data request failed (${requestError.status}).` : (requestError.message || 'Could not load dashboard data.'));
       })
       .then((data) => {
         if (requestId === summaryRequestRef.current) setSummary(data);
@@ -185,6 +197,11 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
   }, [isActive]);
+
+  /* Someone changed data (auto-refresh): reload quietly while on screen. */
+  useEffect(() => {
+    if (dataRevision > 0 && isActive) loadSummary({ quiet: true });
+  }, [dataRevision]);
 
   const go = (tab, payload = null) => { if (onNavigate) onNavigate(tab, payload); };
   const derived = useMemo(() => {

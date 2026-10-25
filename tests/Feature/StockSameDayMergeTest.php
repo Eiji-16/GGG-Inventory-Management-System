@@ -30,6 +30,7 @@ class StockSameDayMergeTest extends TestCase
             'productId' => 'PRD-MRG',
             'type' => 'Stock In',
             'date' => '2026-10-24',
+            'unitPrice' => 10,
         ], $fields));
     }
 

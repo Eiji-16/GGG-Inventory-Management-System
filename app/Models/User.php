@@ -49,16 +49,6 @@ class User extends Authenticatable
         return $this->role === self::ROLE_SUPER_ADMIN;
     }
 
-    public function isAdmin(): bool
-    {
-        return $this->role === self::ROLE_ADMIN;
-    }
-
-    public function isStaff(): bool
-    {
-        return $this->role === self::ROLE_STAFF;
-    }
-
     /** True for admin and super_admin (i.e. "admin or above"). */
     public function isAdminOrAbove(): bool
     {

@@ -25,6 +25,70 @@ class SalesForecastService
     /** Oldest history shown/used, per period type. */
     private const MAX_PERIODS = ['week' => 104, 'month' => 60, 'year' => 20];
 
+    /**
+     * Sales data for many products, read once by preload() so screens that
+     * forecast every product don't ask the database again for each one.
+     * Null = not preloaded: each method reads what it needs, as before.
+     *
+     * @var array{ids: array<int, true>, sales: array<int, array>, past: array<int, array>, first: array<int, string>}|null
+     */
+    private ?array $preloaded = null;
+
+    /** Seasonal events per forecast period (only while preloaded). */
+    private array $eventsByPeriod = [];
+
+    /**
+     * Speed-up: read the Stock Out sales, past monthly sales and first
+     * recorded date of these products in three queries in total. The
+     * forecasts come out exactly the same as without it.
+     *
+     * @param  iterable<Product>  $products
+     */
+    public function preload(iterable $products): static
+    {
+        $ids = [];
+        foreach ($products as $product) {
+            $ids[$product->id] = true;
+        }
+        $keys = array_keys($ids);
+        $data = ['ids' => $ids, 'sales' => [], 'past' => [], 'first' => []];
+
+        foreach (array_chunk($keys, 1000) as $chunk) {
+            StockMovement::query()
+                ->whereIn('product_id', $chunk)
+                ->where('movement_type', 'out')
+                ->where('is_adjustment', false)
+                ->get(['product_id', 'qty', 'movement_date'])
+                ->each(function (StockMovement $row) use (&$data): void {
+                    $data['sales'][$row->product_id][] = [Carbon::parse($row->movement_date)->toDateString(), (int) $row->qty];
+                });
+            PastSale::query()
+                ->whereIn('product_id', $chunk)
+                ->get(['product_id', 'period_date', 'units_sold'])
+                ->each(function (PastSale $row) use (&$data): void {
+                    $data['past'][$row->product_id][] = [Carbon::parse($row->period_date)->toDateString(), (int) $row->units_sold];
+                });
+            StockMovement::query()
+                ->whereIn('product_id', $chunk)
+                ->selectRaw('product_id, MIN(movement_date) as first_date')
+                ->groupBy('product_id')
+                ->pluck('first_date', 'product_id')
+                ->each(function ($date, $productId) use (&$data): void {
+                    $data['first'][$productId] = $date;
+                });
+        }
+
+        $this->preloaded = $data;
+        $this->eventsByPeriod = [];
+
+        return $this;
+    }
+
+    private function isPreloaded(Product $product): bool
+    {
+        return $this->preloaded !== null && isset($this->preloaded['ids'][$product->id]);
+    }
+
     public function periodStart(Carbon $date, string $periodType): Carbon
     {
         return match ($periodType) {
@@ -67,7 +131,9 @@ class SalesForecastService
      */
     public function recordingStart(Product $product): ?Carbon
     {
-        $first = StockMovement::query()->where('product_id', $product->id)->min('movement_date');
+        $first = $this->isPreloaded($product)
+            ? ($this->preloaded['first'][$product->id] ?? null)
+            : StockMovement::query()->where('product_id', $product->id)->min('movement_date');
 
         return $first ? Carbon::parse($first)->startOfMonth() : null;
     }
@@ -114,23 +180,41 @@ class SalesForecastService
             }
         };
 
-        $movements = StockMovement::query()
-            ->where('product_id', $product->id)
-            ->where('movement_type', 'out')
-            ->where('is_adjustment', false)
-            ->where('movement_date', '<', $current->toDateString())
-            ->get(['qty', 'movement_date']);
-        foreach ($movements as $movement) {
-            $add(Carbon::parse($movement->movement_date), (int) $movement->qty, 'stock');
-        }
-
-        if ($periodType !== 'week') {
-            $pastSales = PastSale::query()
+        if ($this->isPreloaded($product)) {
+            // Same rows as the queries below, already read by preload().
+            $currentDate = $current->toDateString();
+            foreach ($this->preloaded['sales'][$product->id] ?? [] as [$date, $qty]) {
+                if ($date < $currentDate) {
+                    $add(Carbon::parse($date), $qty, 'stock');
+                }
+            }
+            if ($periodType !== 'week') {
+                $cutoff = $this->pastSalesCutoff($product)->toDateString();
+                foreach ($this->preloaded['past'][$product->id] ?? [] as [$date, $units]) {
+                    if ($date < $cutoff) {
+                        $add(Carbon::parse($date), $units, 'past');
+                    }
+                }
+            }
+        } else {
+            $movements = StockMovement::query()
                 ->where('product_id', $product->id)
-                ->where('period_date', '<', $this->pastSalesCutoff($product)->toDateString())
-                ->get(['period_date', 'units_sold']);
-            foreach ($pastSales as $pastSale) {
-                $add(Carbon::parse($pastSale->period_date), (int) $pastSale->units_sold, 'past');
+                ->where('movement_type', 'out')
+                ->where('is_adjustment', false)
+                ->where('movement_date', '<', $current->toDateString())
+                ->get(['qty', 'movement_date']);
+            foreach ($movements as $movement) {
+                $add(Carbon::parse($movement->movement_date), (int) $movement->qty, 'stock');
+            }
+
+            if ($periodType !== 'week') {
+                $pastSales = PastSale::query()
+                    ->where('product_id', $product->id)
+                    ->where('period_date', '<', $this->pastSalesCutoff($product)->toDateString())
+                    ->get(['period_date', 'units_sold']);
+                foreach ($pastSales as $pastSale) {
+                    $add(Carbon::parse($pastSale->period_date), (int) $pastSale->units_sold, 'past');
+                }
             }
         }
 
@@ -233,10 +317,15 @@ class SalesForecastService
 
         $forecastStart = Carbon::parse($history['nextPeriod']);
         $forecastEnd = $this->periodEnd($forecastStart, $periodType);
-        $events = SeasonalEvent::query()
+        $loadEvents = fn () => SeasonalEvent::query()
             ->overlapping($forecastStart, $forecastEnd)
             ->orderBy('start_date')
-            ->get()
+            ->get();
+        // While preloaded, every product forecasting the same period shares one read.
+        $periodEvents = $this->isPreloaded($product)
+            ? ($this->eventsByPeriod[$forecastStart->toDateString().'|'.$forecastEnd->toDateString()] ??= $loadEvents())
+            : $loadEvents();
+        $events = $periodEvents
             ->filter(fn (SeasonalEvent $event) => $event->appliesTo($product))
             ->values();
 

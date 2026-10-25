@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Edit, Plus, Search, Trash2, Truck, X } from 'lucide-react';
 import apiFetch from '../../apiFetch';
@@ -10,7 +10,7 @@ const EMPTY_SUPPLIER = { id: null, name: '', contact: '', leadTimeDays: '' };
    lead time in days. Lead time also feeds the reorder point when a product has
    no lead time of its own in the safety stock policy. */
 /* canManage comes from Role Access ("Add, edit and delete suppliers"). */
-export default function SupplierRecords({ onSuppliersChange, canManage = true }) {
+export default function SupplierRecords({ onSuppliersChange, canManage = true, dataRevision = 0 }) {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -24,9 +24,15 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true })
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
+  // dataRevision (auto-refresh) reloads quietly; other reloads show "loading".
+  const quietReloadRef = useRef(false);
+  useEffect(() => { if (dataRevision > 0) { quietReloadRef.current = true; setReloadKey((key) => key + 1); } }, [dataRevision]);
+
   useEffect(() => {
     let active = true;
-    setLoading(true);
+    const quiet = quietReloadRef.current;
+    quietReloadRef.current = false;
+    if (!quiet) setLoading(true);
     setError('');
     fetch('/api/suppliers', { headers: { Accept: 'application/json' }, cache: 'no-store' })
       .then((response) => {

@@ -38,6 +38,26 @@ class Product extends Model
         'unit_cost'     => 'decimal:2',
     ];
 
+    /** Every column except the photo (see scopeWithoutPhoto). */
+    private const LIST_COLUMNS = [
+        'id', 'code', 'name', 'category', 'brand', 'model', 'unit_measure', 'variants',
+        'supplier_id', 'stock_on_hand', 'unit_cost', 'created_at', 'updated_at', 'deleted_at',
+    ];
+
+    /**
+     * Read products WITHOUT their photos, for screens that list many products.
+     * An older photo saved inside the database can be large, so instead of
+     * the photo this gives "image_ref": the pasted link or stored file name,
+     * or "1" for an in-database photo. ProductPhotoService::url() turns it
+     * into the photo link.
+     */
+    public function scopeWithoutPhoto($query)
+    {
+        return $query
+            ->select(array_map(fn (string $column) => 'products.'.$column, self::LIST_COLUMNS))
+            ->selectRaw("CASE WHEN products.image IS NULL OR products.image = '' THEN NULL WHEN products.image LIKE 'data:%' THEN '1' ELSE products.image END AS image_ref");
+    }
+
     /** The supplier this product is sourced from (nullable). */
     public function supplier(): BelongsTo
     {

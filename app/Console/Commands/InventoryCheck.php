@@ -37,6 +37,7 @@ class InventoryCheck extends Command
 
         $this->checkStockMatchesLedger($products, $movementsByProduct);
         $this->checkRunningBalances($products, $movementsByProduct);
+        $this->checkUnexplainedStock($products, $movementsByProduct);
         $this->checkNegativeStock($products);
         $this->checkMonthlySales($products, $movementsByProduct);
         $this->checkFutureDates();
@@ -126,6 +127,33 @@ class InventoryCheck extends Command
             }
         }
         $this->result('Running balances (Balance After) add up', $problems);
+    }
+
+    /**
+     * Units on hand that no Stock Control entry explains: the entries add up
+     * to less than the stock. Usually left by editing an entry's amount (an
+     * edit keeps the old amount in the starting balance), or a starting
+     * stock typed on the product without an entry. A warning only.
+     */
+    private function checkUnexplainedStock($products, $movementsByProduct): void
+    {
+        $problems = [];
+        foreach ($products as $p) {
+            $rows = $movementsByProduct[$p->id] ?? collect();
+            if ($rows->isEmpty()) {
+                continue;
+            }
+            $hidden = (int) $p->stock_on_hand - $rows->sum(fn ($m) => $this->delta($m));
+            if ($hidden > 0) {
+                $problems[] = "{$this->label($p)}: had {$hidden} unit(s) before its first entry that no entry shows (stock on hand now {$p->stock_on_hand})";
+            }
+        }
+        $this->result('Every unit on hand is explained by an entry', $problems, false);
+        if ($problems !== []) {
+            $this->line('          If the stock on hand is the real count: php artisan inventory:add-opening-stock');
+            $this->line('          (preview first) adds the missing Opening stock entry without changing stock.');
+            $this->line('          If the count is wrong: Clear stock on that product and record its entries again.');
+        }
     }
 
     private function checkNegativeStock($products): void

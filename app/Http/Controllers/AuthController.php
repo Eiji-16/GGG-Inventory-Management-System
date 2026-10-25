@@ -40,6 +40,9 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => $this->userPayload($request->user()),
+            // Signing in makes a new security token. The screen must use this
+            // one for its next save, or the save fails with "CSRF token mismatch".
+            'csrfToken' => csrf_token(),
         ]);
     }
 

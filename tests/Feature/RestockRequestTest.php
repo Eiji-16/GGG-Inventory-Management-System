@@ -70,6 +70,7 @@ class RestockRequestTest extends TestCase
         $this->actingAs($this->staff)->postJson('/api/restock-requests', ['productId' => 'PRD-N1'])->assertCreated();
 
         $this->actingAs($this->admin)->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => 'PRD-N1', 'type' => 'Stock In', 'qty' => 10, 'date' => now('Asia/Manila')->toDateString(),
         ])->assertCreated();
 

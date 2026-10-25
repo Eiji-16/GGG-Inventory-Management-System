@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Download, FileText, Search, RefreshCw } from 'lucide-react';
 import './reports.css';
 import exportReportWorkbook, { printReportPdf } from '../../utils/exportReportWorkbook';
@@ -657,39 +657,8 @@ export default function ReportsAnalyticsDesign({ safetyStock, refreshKey = 0, is
   }, [safetyStock, refreshKey, isActive, reloadCount]);
 
   /* ===== AUTOMATIC REFRESH =====
-     Every 15 seconds while Reports is on screen (and the browser tab is
-     visible), ask the server for a tiny "data version". If it changed —
-     someone added, edited or deleted stock, products, policies, sales or
-     calculations, on any computer — reload the reports. */
-  const knownVersionRef = useRef(null);
-  useEffect(() => {
-    if (!isActive) return undefined;
-    let stopped = false;
-    const check = async () => {
-      if (document.visibilityState !== 'visible') return;
-      try {
-        const response = await fetch('/api/data-version', { headers: { Accept: 'application/json' }, cache: 'no-store' });
-        if (!response.ok) return;
-        const { version } = await response.json();
-        if (stopped || !version) return;
-        if (knownVersionRef.current && knownVersionRef.current !== version) {
-          setReloadCount((n) => n + 1);
-        }
-        knownVersionRef.current = version;
-      } catch {
-        /* offline for a moment — try again on the next tick */
-      }
-    };
-    check();
-    const timer = setInterval(check, 15000);
-    const onVisible = () => { if (document.visibilityState === 'visible') check(); };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      stopped = true;
-      clearInterval(timer);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [isActive]);
+     The main page checks every 5 seconds whether anyone changed data and then
+     raises refreshKey, which reloads the reports above. */
 
   const updatedAt = report?.generatedAt
     ? new Date(report.generatedAt).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })

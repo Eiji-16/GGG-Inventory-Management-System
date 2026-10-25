@@ -30,6 +30,7 @@ class SafetyStockCrossingTest extends TestCase
     private function sell(Product $product, int $qty)
     {
         return $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code, 'type' => 'Stock Out', 'qty' => $qty, 'date' => now()->toDateString(),
         ]);
     }
@@ -68,6 +69,7 @@ class SafetyStockCrossingTest extends TestCase
         $product = $this->product(20);
         $this->sell($product, 5)->assertCreated();       // 20 → 15
         $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code, 'type' => 'Stock In', 'qty' => 5, 'date' => now()->toDateString(),
         ])->assertCreated();
 

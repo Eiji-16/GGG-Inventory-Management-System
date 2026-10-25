@@ -43,6 +43,7 @@ class StockControlRowsAndRecorderTest extends TestCase
     private function move(Product $product, string $type, int $qty, string $date): array
     {
         return $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => $type,
             'qty' => $qty,
@@ -92,6 +93,7 @@ class StockControlRowsAndRecorderTest extends TestCase
     {
         $product = $this->createProduct(5);
         $created = $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock In',
             'qty' => 2,
@@ -117,12 +119,14 @@ class StockControlRowsAndRecorderTest extends TestCase
         $this->actingAs($staff);
 
         $this->putJson('/api/stock-movements/'.$created['id'], [
+            'unitPrice' => 10,
             'detailsOnly' => true,
             'notes' => 'checked',
             'recordedBy' => 'Staff Ben',
         ])->assertOk()->assertJsonPath('recordedBy', 'Owner Ana');
 
         $this->putJson('/api/stock-movements/'.$created['id'], [
+            'unitPrice' => 10,
             'productId' => $product->code,
             'type' => 'Stock In',
             'qty' => 2,
@@ -144,7 +148,7 @@ class StockControlRowsAndRecorderTest extends TestCase
             'movement_date' => now()->toDateString(),
         ]);
 
-        $this->putJson('/api/stock-movements/'.$movement->id, ['detailsOnly' => true, 'notes' => 'x'])
+        $this->putJson('/api/stock-movements/'.$movement->id, ['unitPrice' => 10, 'detailsOnly' => true, 'notes' => 'x'])
             ->assertOk()
             ->assertJsonPath('recordedBy', 'Owner Ana');
         $this->assertSame(5, $product->fresh()->stock_on_hand);

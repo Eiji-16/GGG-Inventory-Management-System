@@ -61,11 +61,21 @@ class SupplierController extends Controller
             'leadTimeDays' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:365'],
         ]);
 
-        $supplier->update(array_filter([
-            'name'    => $data['name'] ?? null,
-            'contact' => $data['contact'] ?? null,
-            'company' => $data['company'] ?? null,
-        ], fn ($v) => $v !== null));
+        // A field LEFT OUT keeps its value; a contact SENT EMPTY is cleared.
+        // An empty company falls back to the supplier's name (same as when adding).
+        $changes = [];
+        if (! empty($data['name'])) {
+            $changes['name'] = $data['name'];
+        }
+        if (array_key_exists('contact', $data)) {
+            $changes['contact'] = trim((string) $data['contact']) === '' ? null : $data['contact'];
+        }
+        if (array_key_exists('company', $data)) {
+            $changes['company'] = trim((string) $data['company']) === ''
+                ? ($changes['name'] ?? $supplier->name)
+                : $data['company'];
+        }
+        $supplier->update($changes);
         if (array_key_exists('leadTimeDays', $data)) {
             $supplier->update(['lead_time_days' => $data['leadTimeDays']]);
         }

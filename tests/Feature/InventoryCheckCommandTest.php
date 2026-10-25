@@ -18,6 +18,7 @@ class InventoryCheckCommandTest extends TestCase
         $product = Product::create(['code' => 'PRD-CHK', 'name' => 'Check Item', 'stock_on_hand' => 0]);
         foreach ([['Stock In', 10, '2026-10-01'], ['Stock Out', 3, '2026-10-02'], ['Stock In', 5, '2026-10-03']] as [$type, $qty, $date]) {
             $this->postJson('/api/stock-movements', [
+                'unitPrice' => 10,
                 'productId' => 'PRD-CHK', 'type' => $type, 'qty' => $qty, 'date' => $date,
             ])->assertCreated();
         }
@@ -45,5 +46,20 @@ class InventoryCheckCommandTest extends TestCase
             ->assertExitCode(1);
 
         $this->assertSame(99, $product->fresh()->stock_on_hand, 'The check must never change data.');
+    }
+
+    public function test_units_not_explained_by_any_entry_are_a_warning(): void
+    {
+        $product = $this->seedConsistentData();                       // entries add up to 12
+        $product->forceFill(['stock_on_hand' => 14])->saveQuietly();  // 2 hidden units, like an old edit left
+        // The old edit also moved every Balance After up by the hidden 2.
+        \App\Models\StockMovement::where('product_id', $product->id)->increment('remaining_stock', 2);
+
+        $this->artisan('inventory:check')
+            ->expectsOutputToContain('WARN  Every unit on hand is explained by an entry')
+            ->expectsOutputToContain('had 2 unit(s) before its first entry that no entry shows (stock on hand now 14)')
+            ->assertExitCode(0);
+
+        $this->assertSame(14, $product->fresh()->stock_on_hand, 'The check must never change data.');
     }
 }

@@ -17,7 +17,7 @@ class DataConsistencyFixesTest extends TestCase
 
     private function sell(string $code, int $qty, string $date): void
     {
-        $this->postJson('/api/stock-movements', ['productId' => $code, 'type' => 'Stock Out', 'qty' => $qty, 'date' => $date])
+        $this->postJson('/api/stock-movements', ['unitPrice' => 10, 'productId' => $code, 'type' => 'Stock Out', 'qty' => $qty, 'date' => $date])
             ->assertCreated();
     }
 
