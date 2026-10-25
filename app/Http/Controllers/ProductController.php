@@ -79,6 +79,7 @@ class ProductController extends Controller
             'image'           => ['nullable', 'string', 'max:5000000'],  // data URL or http(s) URL
             'supplierName'    => ['nullable', 'string', 'max:255'],
             'supplierContact' => ['nullable', 'string', 'max:255'],
+            'unitCost'        => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
             'stock'           => ['nullable', 'integer', 'min:0'],   // ← ADDED
             'variants'        => ['nullable', 'array', 'max:50'],
             'variants.*'      => ['nullable', 'string', 'max:100'],
@@ -110,6 +111,7 @@ class ProductController extends Controller
             'image'         => $this->photos()->prepare($data['image'] ?? null, $code, null),
             'supplier_id'   => $supplier?->id,
             'stock_on_hand' => $data['stock'] ?? 0,                  // ← ADDED
+            'unit_cost'     => $data['unitCost'] ?? null,
         ]);
 
         \App\Models\ActivityLog::record('product.create', "Added product — {$product->name}", 'boxes', ['product' => $product->name]);
@@ -131,6 +133,7 @@ class ProductController extends Controller
             'image'           => ['nullable', 'string', 'max:5000000'],  // data URL or http(s) URL
             'supplierName'    => ['nullable', 'string', 'max:255'],
             'supplierContact' => ['nullable', 'string', 'max:255'],
+            'unitCost'        => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:9999999999.99'],
             'stock'           => ['sometimes', 'integer', 'min:0'],   // opening balance
             'variants'        => ['sometimes', 'nullable', 'array', 'max:50'],
             'variants.*'      => ['nullable', 'string', 'max:100'],
@@ -183,6 +186,9 @@ class ProductController extends Controller
         ];
         if ($supplierSent) {
             $changes['supplier_id'] = $supplier?->id;   // empty supplier = no supplier
+        }
+        if (array_key_exists('unitCost', $data)) {
+            $changes['unit_cost'] = $data['unitCost'];
         }
         $product->update($changes);
 
@@ -348,11 +354,13 @@ class ProductController extends Controller
 
         return [
             'id'              => $p->code,
+            'sku'             => $p->code,
             'name'            => $p->name,
             'category'        => $p->category,
             'brand'           => $p->brand,
             'model'           => $p->model,
             'unitMeasure'     => $p->unit_measure,
+            'unitCost'        => $p->unit_cost,
             'image'           => $this->photos()->url($p),   // a short link, not the photo itself
             // definedVariants: the product's own list (edited in the product modal;
             // Stock Control picks from it). recordedVariants: names found on
@@ -361,6 +369,7 @@ class ProductController extends Controller
             'recordedVariants' => $variants,
             'variants'        => $this->mergeVariants($defined, $variants),
             'stock'           => $p->stock_on_hand,
+            'supplierId'      => $p->supplier_id,
             'supplierName'    => $p->supplier?->name,
             'supplierContact' => $p->supplier?->contact,
             'company'         => $p->supplier?->company,
