@@ -9,7 +9,8 @@ const EMPTY_SUPPLIER = { id: null, name: '', contact: '', leadTimeDays: '' };
    Supplier, contact, products supplied (from the products linked to it) and
    lead time in days. Lead time also feeds the reorder point when a product has
    no lead time of its own in the safety stock policy. */
-export default function SupplierRecords({ onSuppliersChange }) {
+/* canManage comes from Role Access ("Add, edit and delete suppliers"). */
+export default function SupplierRecords({ onSuppliersChange, canManage = true }) {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -164,7 +165,7 @@ export default function SupplierRecords({ onSuppliersChange }) {
             />
           </div>
         </div>
-        {selectedIds.size > 0 && (
+        {canManage && selectedIds.size > 0 && (
           <button
             className="ps-add-btn ps-delete-selected-btn"
             onClick={requestDeleteBulk}
@@ -175,10 +176,12 @@ export default function SupplierRecords({ onSuppliersChange }) {
             <Trash2 size={12} />
           </button>
         )}
+        {canManage && (
         <button className="ps-add-btn" type="button" onClick={() => openForm()} title="Add Supplier">
           <p>Add Supplier</p>
           <Plus size={12} className="ps-add-icon" />
         </button>
+        )}
       </div>
 
       {error && <p className="ps-export-error" role="alert">{error}</p>}
@@ -239,12 +242,16 @@ export default function SupplierRecords({ onSuppliersChange }) {
                   <td data-label="Lead Time">{supplier.leadTimeDays != null ? `${supplier.leadTimeDays} days` : '—'}</td>
                   <td className="ps-td-actions" data-label="Actions">
                     <div className="ps-action-cell-container">
-                      <button className="ps-table-action-btn ps-edit-btn" type="button" onClick={() => openForm(supplier)} aria-label={`Edit ${supplier.name}`} title="Edit Supplier">
-                        <Edit size={16} />
-                      </button>
-                      <button className="ps-table-action-btn ps-delete-btn" type="button" onClick={() => requestDeleteSingle(supplier)} aria-label={`Delete ${supplier.name}`} title="Delete Supplier">
-                        <Trash2 size={16} />
-                      </button>
+                      {canManage ? (
+                        <>
+                          <button className="ps-table-action-btn ps-edit-btn" type="button" onClick={() => openForm(supplier)} aria-label={`Edit ${supplier.name}`} title="Edit Supplier">
+                            <Edit size={16} />
+                          </button>
+                          <button className="ps-table-action-btn ps-delete-btn" type="button" onClick={() => requestDeleteSingle(supplier)} aria-label={`Delete ${supplier.name}`} title="Delete Supplier">
+                            <Trash2 size={16} />
+                          </button>
+                        </>
+                      ) : <span className="ps-td-muted">—</span>}
                     </div>
                   </td>
                 </tr>

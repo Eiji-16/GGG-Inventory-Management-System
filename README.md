@@ -1,58 +1,74 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# GGG Inventory Management System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Web-based inventory management system with sales forecasting for **Global Growth Guide**, an online merchandise business. Capstone project (BS Information Technology, Cavite State University – CCAT Campus).
 
-## About Laravel
+Built with **React** (frontend), **Laravel 13** (backend) and **MySQL** (database).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Features
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Dashboard** – stock overview, sales trend, stock alerts, recent movements
+- **Products & Suppliers** – products with variants, photos and suppliers; duplicate products are blocked
+- **Stock Control** – Stock In / Stock Out / count corrections with a running balance; same-day entries merge; back-dated entries can't make any day go below zero; no future dates
+- **Reorder Alerts** – products at or below their reorder point; Staff can **Notify** Admins (with an optional note), shown in the Admins' notification bell
+- **Order Quantity Calculator** – economic order quantity, reorder point and safety stock, using the forecast as annual demand
+- **Forecasting** – weighted moving average forecast, Past Sales import, seasonal events (promotions/holidays)
+- **Reports** – 8 report tabs, export to PDF and Excel
+- **Staffs** – accounts and roles (Super Admin only)
+- **Settings** – theme, currency, field descriptions, Safety Stock Policy (Super Admin), **Role Access** (Super Admin)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Roles and Role Access
 
-## Learning Laravel
+| Role | Access |
+|---|---|
+| Super Admin | Everything. Always. Manages Staffs, Safety Stock Policy, the system logo and Role Access |
+| Admin | What the Super Admin allows in Settings → Role Access (default: everything except the Super Admin–only pages) |
+| Staff | What the Super Admin allows (default: Stock Control, Reorder Alerts with Notify, Reports) |
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Every Role Access box is checked on the server, not only hidden on screen.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Requirements
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+- PHP **8.3+** (with OPcache), Composer
+- MySQL 8 (or MariaDB 10.6+)
+- Node.js 20+ and npm
+- For local development: [Laragon](https://laragon.org) (Windows)
 
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Setup (local, Laragon)
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+npm install
+copy .env.example .env        # then set DB_*, MAIL_* and SUPER_ADMIN_EMAIL
+php artisan key:generate
+php artisan migrate
+npm run build                 # or: npm run dev while developing
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Open the site from Laragon (e.g. `http://ggg-inventory-management-system.test`).
 
-## Contributing
+## Useful commands
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+| Command | What it does |
+|---|---|
+| `php artisan test` | Runs the automated tests |
+| `npm run build` | Builds the frontend into `public/build` |
+| `php artisan inventory:check` | Checks stock, balances and sales data for problems (changes nothing) |
+| `php artisan inventory:sync-sales` | Previews rebuilding monthly sales from Stock Out (add `--apply` to save) |
+| `php artisan optimize` / `optimize:clear` | Caches / clears Laravel's config and routes (use `optimize` on the live server) |
 
-## Code of Conduct
+## Going live (checklist)
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+1. Host with PHP 8.3, MySQL and Composer/SSH access; a Singapore data center is fastest for the Philippines.
+2. In `.env`: `APP_ENV=production`, `APP_DEBUG=false`, real `APP_URL`, database and mail settings.
+3. `composer install --no-dev --optimize-autoloader`, `php artisan migrate --force`, `npm run build`, `php artisan optimize`.
+4. Point the web root to the `public/` folder.
+5. Set up regular database backups (hosting backups or a scheduled export).
 
-## Security Vulnerabilities
+## Security notes
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+- Never commit `.env`, database dumps (`*.sql`) or tokens. They are listed in `.gitignore`.
+- Login is limited to 5 wrong tries per minute per email.
 
-## License
+## Team
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Wrenz AJ C. Aquino · Renchel B. Bongat · Jeynard G. Cadatal

@@ -420,7 +420,7 @@ class SalesForecastService
             'suggestedPct' => $suggested,
             'basis' => $basis,
             'message' => sprintf(
-                'Based on %d past month%s across %d year%s: sales in these months ran %s%d%% compared with the WMA forecast.%s',
+                'Based on %d past month%s across %d year%s: sales in these months ran %s%d%% compared with the weighted moving average forecast.%s',
                 count($basis),
                 count($basis) === 1 ? '' : 's',
                 $years,

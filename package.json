@@ -1,13 +1,9 @@
 {
-  "homepage": "https://github.com/Eiji-16/GGG-Inventory-Management-System",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite",
-    "build:github": "vite build --config vite.config.github.js",
-    "predeploy": "npm run build:github",
-    "deploy": "gh-pages -d dist"
+    "dev": "vite"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",

@@ -100,8 +100,13 @@ function StockControl({
   onInventoryChanged,
   currentUserName = '',
   canComputeEoq = false,
-  // Clearing ALL of a product's stock records is for Super Admin / Admin only.
+  // Role Access (Settings) decides these; the server checks the same boxes.
   canClearStock = false,
+  canAddStock = true,
+  canEditStock = true,
+  canDeleteStock = true,
+  canExportStock = true,
+  canViewActivity = true,
 }) {
   const { currency, currencySymbol, formatCurrency } = useCurrency();
   const [stockFromDatabase, setStockFromDatabase] = useState([]);
@@ -129,6 +134,7 @@ function StockControl({
   const [highlightId, setHighlightId] = useState(null); /* row to flash from a Dashboard handoff */
 
   const loadStockActivities = async (productId = null) => {
+    if (!canViewActivity) return; // "Activity history" is switched off for this role
     const isProductReport = productId !== null;
     if (isProductReport) {
       setProductActivityLoading(true);
@@ -695,7 +701,8 @@ function StockControl({
 
   const selectedProductIds = [...new Set(
     stockFromDatabase
-      .filter((row) => selectedIds.has(row.id))
+      // Deleted products can't be cleared (they're kept only as history).
+      .filter((row) => selectedIds.has(row.id) && !row.productDeleted)
       .map((row) => row.productId)
   )];
 
@@ -1075,6 +1082,7 @@ function StockControl({
           </div>
         </div>
 
+        {canExportStock && (
         <button
           className="sc-add-btn sc-icon-only"
           onClick={exportStockReport}
@@ -1085,6 +1093,7 @@ function StockControl({
         >
           <Download size={14} />
         </button>
+        )}
 
         {/* ===== SORT DROPDOWN (icon button) ===== */}
         <div className="sc-sort-wrap">
@@ -1140,10 +1149,13 @@ function StockControl({
             <Eraser size={12} />
           </button>
         )}
+        {canAddStock && (
         <button className="sc-add-btn sc-add-btn-primary" onClick={openAddModal} type="button">
           <p>Update Stock</p>
           <Plus size={12} className="sc-add-icon" />
         </button>
+        )}
+        {canViewActivity && (
         <button
           className="sc-add-btn sc-icon-only"
           onClick={() => {
@@ -1156,6 +1168,7 @@ function StockControl({
         >
           <Activity size={14} />
         </button>
+        )}
       </div>
 
       {stockError && (
@@ -1265,6 +1278,7 @@ function StockControl({
                       >
                         {stock.productName}
                       </button>
+                      {stock.productDeleted && <small className="sc-deleted-tag" title="This product was deleted. The entry stays as history and can't be edited.">(deleted product)</small>}
                     </span>
                   </td>
                   <td data-label="Variant">{stock.variantName || '—'}</td>
@@ -1305,13 +1319,13 @@ function StockControl({
                   <td data-label="Recorded by">{stock.recordedBy || '—'}</td>
                   <td className="sc-td-actions" data-label="Actions">
                     <div className="sc-action-cell-container">
-                      {/* Economic Order Quantity Calculator: Super Admin and Admin only */}
-                      {canComputeEoq && status && status !== 'healthy' && (
+                      {/* Economic Order Quantity Calculator: follows the calculator box in Role Access */}
+                      {canComputeEoq && !stock.productDeleted && status && status !== 'healthy' && (
                         <button
                           className="sc-table-action-btn sc-eoq-btn"
                           onClick={() => computeEoqFor(stock)}
-                          aria-label={`Compute EOQ for ${stock.productName}`}
-                          title={`Reorder needed — compute EOQ for ${stock.productName}`}
+                          aria-label={`Compute order quantity for ${stock.productName}`}
+                          title={`Reorder needed — compute order quantity for ${stock.productName}`}
                           type="button"
                         >
                           <Calculator size={14} />
@@ -1326,6 +1340,7 @@ function StockControl({
                       >
                         <History size={14} />
                       </button>
+                      {canEditStock && !stock.productDeleted && (
                       <button
                         className="sc-table-action-btn sc-edit-btn"
                         onClick={() => openEditModal(id)}
@@ -1335,6 +1350,8 @@ function StockControl({
                       >
                         <Edit size={14} />
                       </button>
+                      )}
+                      {canDeleteStock && !stock.productDeleted && (
                       <button
                         className="sc-table-action-btn sc-delete-btn"
                         onClick={() => requestDeleteSingleEntry(stock)}
@@ -1344,7 +1361,8 @@ function StockControl({
                       >
                         <Trash2 size={14} />
                       </button>
-                      {canClearStock && (
+                      )}
+                      {canClearStock && !stock.productDeleted && (
                       <button
                         className="sc-table-action-btn sc-delete-btn sc-clear-all-btn"
                         onClick={() => requestClearProductStock(stock.productId)}
@@ -1421,7 +1439,7 @@ function StockControl({
                       <label htmlFor="date">
                         Date <span className="sc-required">*</span>
                       </label>
-                      <input id="date" name="date" type="date" value={formData.date} onChange={handleFormChange} required />
+                      <input id="date" name="date" type="date" value={formData.date} onChange={handleFormChange} max={todayLocal()} required />
                     </div>
                     <div className="sc-form-group">
                       <label htmlFor="recordedBy">Recorded by</label>

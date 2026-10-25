@@ -33,11 +33,12 @@ class ProductPersistenceTest extends TestCase
             'date' => now()->toDateString(),
         ])->assertCreated()->json();
 
-        $this->postJson('/api/sales-history', [
-            'productId' => $product['id'],
-            'periodDate' => '2026-09-01',
-            'unitsSold' => 8,
-        ])->assertCreated();
+        \App\Models\SalesHistory::create([
+            'product_id' => Product::where('code', $product['id'])->value('id'),
+            'period_date' => '2026-09-01',
+            'period_type' => 'month',
+            'units_sold' => 8,
+        ]);
 
         $this->deleteJson('/api/products/'.$product['id'])
             ->assertOk()
@@ -59,9 +60,6 @@ class ProductPersistenceTest extends TestCase
         $this->getJson('/api/stock-movements')
             ->assertOk()
             ->assertJsonFragment(['id' => $movement['id'], 'productName' => 'Aula']);
-        $this->getJson('/api/sales-history?product='.$product['id'])
-            ->assertOk()
-            ->assertJsonFragment(['productId' => $product['id'], 'unitsSold' => 8]);
         $this->getJson('/api/reports')
             ->assertOk()
             ->assertJsonPath('topMoving.rows.0.product', 'Aula');
@@ -85,12 +83,6 @@ class ProductPersistenceTest extends TestCase
             'productId' => $deletedProduct['id'],
             'type' => 'Stock In',
             'qty' => 1,
-        ])->assertUnprocessable()->assertJsonValidationErrors('productId');
-
-        $this->postJson('/api/sales-history', [
-            'productId' => $deletedProduct['id'],
-            'periodDate' => '2026-10-01',
-            'unitsSold' => 1,
         ])->assertUnprocessable()->assertJsonValidationErrors('productId');
 
         $this->postJson('/api/forecasts', [

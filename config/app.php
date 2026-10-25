@@ -68,6 +68,13 @@ return [
     'timezone' => 'UTC',
 
     /*
+    | The shop's own timezone, used for "today" when checking entry dates
+    | (e.g. a stock entry may not be dated in the future). Timestamps are
+    | still stored in UTC above.
+    */
+    'business_timezone' => env('BUSINESS_TIMEZONE', 'Asia/Manila'),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------

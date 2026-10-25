@@ -7,10 +7,10 @@ use App\Http\Controllers\StaffController;
 use App\Http\Controllers\SystemLogoController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/auth/login', [AuthController::class, 'login']);
+// Limited to stop password guessing (see AppServiceProvider, "login").
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
 Route::get('/auth/user', [AuthController::class, 'currentUser'])->middleware('auth');
 Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth');
-Route::post('/auth/users', [AuthController::class, 'createAccount'])->middleware('auth');
 Route::post('/auth/password/otp', [AuthController::class, 'sendPasswordResetOtp'])->middleware('throttle:3,1');
 Route::post('/auth/password/reset', [AuthController::class, 'resetPasswordWithOtp'])->middleware('throttle:10,1');
 
@@ -39,8 +39,8 @@ Route::middleware('auth')->group(function () {
 
 });
 
-// EOQ is an administrator-only workflow; identify the authenticated user server-side.
-Route::middleware(['auth', 'active', 'role:super_admin,admin'])->group(function () {
+// Order Quantity Calculator: allowed by Role Access (Settings); identify the authenticated user server-side.
+Route::middleware(['auth', 'active', 'feature:calculator.use'])->group(function () {
     Route::post('/calculations', [CalculationController::class, 'store']);
 });
 

@@ -1,7 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Inventory System</title>
+    <meta charset="UTF-8">
+    {{-- Lets phones use the mobile layout instead of a zoomed-out desktop page. --}}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GGG Inventory Management System</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Poppins Font -->

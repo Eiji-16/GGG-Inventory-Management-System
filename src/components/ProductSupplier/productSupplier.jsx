@@ -179,7 +179,18 @@ function ProductImagePreview({ src, name }) {
   );
 }
 
-function ProductSupplier({ onNavigate, onCatalogChange }) {
+/* can* props come from Role Access (Settings). The server checks the same
+   boxes, so hiding a button here is only for a cleaner screen. */
+function ProductSupplier({
+  onNavigate,
+  onCatalogChange,
+  canAddProduct = true,
+  canEditProduct = true,
+  canDeleteProduct = true,
+  canExportProducts = true,
+  canViewSuppliers = true,
+  canManageSuppliers = true,
+}) {
   const PAGE_SIZE = 10;
   const [productsFromDatabase, setProductsFromDatabase] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
@@ -199,6 +210,10 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
   const [sortDir, setSortDir] = useState('asc'); /* ===== SORT DIRECTION ===== */
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [exportError, setExportError] = useState('');
+  /* In-app messages (instead of browser pop-ups): formError shows inside the
+     Add/Edit window, pageMessage above the product table. */
+  const [formError, setFormError] = useState('');
+  const [pageMessage, setPageMessage] = useState('');
   /* ===== DELETE TARGET ===== */
   const [confirmTarget, setConfirmTarget] = useState(null);
 
@@ -334,6 +349,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
   };
 
   const openAddModal = () => {
+    setFormError('');
     setModalMode('add');
     setFormData({ ...emptyForm, suppliers: [{ ...emptySupplier }] });
     setVariantDraft('');
@@ -341,6 +357,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
   };
 
   const openEditModal = (product) => {
+    setFormError('');
     setModalMode('edit');
     setVariantDraft('');
     setFormData({
@@ -375,13 +392,14 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      alert('Please choose an image file.');
+      setFormError('Please choose an image file.');
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      alert('That image is larger than 2 MB. Please pick a smaller one.');
+      setFormError('That image is larger than 2 MB. Please pick a smaller one.');
       return;
     }
+    setFormError('');
     const reader = new FileReader();
     reader.onload = () => {
       setFormData((prev) => ({ ...prev, image: reader.result })); /* base64 data URL */
@@ -432,6 +450,8 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
   /* ===== SAVE PRODUCT ===== */
   const handleSave = async (e) => {
     e.preventDefault();
+    setFormError('');
+    setPageMessage('');
 
     /* Keep only rows that actually name a supplier; first = primary. */
     const allSuppliers = formData.suppliers.filter((s) => s.name.trim());
@@ -500,11 +520,11 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
         onCatalogChange?.();
       } catch (refreshError) {
         console.error('Product was saved, but the product list could not be refreshed:', refreshError);
-        alert('Product saved successfully, but the list could not refresh. Reload the page to see the latest database data.');
+        setPageMessage('Product saved successfully, but the list could not refresh. Reload the page to see the latest data.');
       }
     } catch (error) {
       console.error('Could not save product:', error);
-      alert(error.userMessage
+      setFormError(error.userMessage
         ? `That product could not be saved: ${error.userMessage}`
         : 'Sorry — that product could not be saved. Check the server is running and try again.');
     }
@@ -520,7 +540,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
       if (!response.ok) throw new Error(`Delete failed (${response.status})`);
     } catch (error) {
       console.error('Could not delete product:', error);
-      alert('Sorry — that product could not be deleted. Check the server is running and try again.');
+      setPageMessage('Sorry — that product could not be deleted. Check the server is running and try again.');
       return;
     }
 
@@ -604,12 +624,15 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
         <button type="button" role="tab" aria-selected={section === 'products'} className={section === 'products' ? 'is-active' : ''} onClick={() => setSection('products')}>
           Products
         </button>
+        {canViewSuppliers && (
         <button type="button" role="tab" aria-selected={section === 'suppliers'} className={section === 'suppliers' ? 'is-active' : ''} onClick={() => setSection('suppliers')}>
           Suppliers
         </button>
+        )}
       </div>
-      {section === 'suppliers' ? (
+      {section === 'suppliers' && canViewSuppliers ? (
         <SupplierRecords
+          canManage={canManageSuppliers}
           onSuppliersChange={() => {
             setProductsRetry((retry) => retry + 1);
             onCatalogChange?.();
@@ -618,6 +641,12 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
       ) : (
     <div className="ps-table-parent">
       {exportError && <p className="ps-export-error" role="alert">{exportError}</p>}
+      {pageMessage && (
+        <p className="ps-export-error ps-page-message" role="alert">
+          {pageMessage}
+          <button type="button" className="ps-page-message-close" onClick={() => setPageMessage('')} aria-label="Dismiss message">×</button>
+        </p>
+      )}
       {/* ===== SEARCH BAR ===== */}
       <div className="ps-navigation-bar">
         <div className="ps-search-wrapper">
@@ -632,6 +661,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
             />
           </div>
         </div>
+        {canExportProducts && (
         <button
           className="ps-add-btn ps-icon-only"
           onClick={exportProducts}
@@ -642,6 +672,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
         >
           <Download size={14} />
         </button>
+        )}
 
         {/* ===== SORT DROPDOWN (icon button) ===== */}
         <div className="ps-sort-wrap">
@@ -687,7 +718,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
           )}
         </div>
 
-        {selectedIds.size > 0 && (
+        {canDeleteProduct && selectedIds.size > 0 && (
           <button
             className="ps-add-btn ps-delete-selected-btn"
             onClick={requestDeleteBulk}
@@ -698,10 +729,12 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
             <Trash2 size={12} />
           </button>
         )}
+        {canAddProduct && (
         <button className="ps-add-btn ps-add-btn-primary" onClick={openAddModal} type="button">
           <p>Add</p>
           <Plus size={12} className="ps-add-icon" />
         </button>
+        )}
       </div>
 
       {/* ===== TABLE ===== */}
@@ -816,6 +849,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
                 </td>
                 <td className="ps-td-actions" data-label="Actions" onClick={(e) => e.stopPropagation()}>
                   <div className="ps-action-cell-container">
+                    {canEditProduct && (
                     <button
                       className="ps-table-action-btn ps-edit-btn"
                       onClick={() => openEditModal(product)}
@@ -825,6 +859,8 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
                     >
                       <Edit size={16} />
                     </button>
+                    )}
+                    {canDeleteProduct && (
                     <button
                       className="ps-table-action-btn ps-delete-btn"
                       onClick={() => requestDeleteSingle(product)}
@@ -834,6 +870,8 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
                     >
                       <Trash2 size={16} />
                     </button>
+                    )}
+                    {!canEditProduct && !canDeleteProduct && <span className="ps-td-muted">—</span>}
                   </div>
                 </td>
               </tr>
@@ -943,9 +981,11 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
               <button type="button" className="ps-modal-cancel-btn" onClick={closeDetails}>
                 Close
               </button>
+              {canEditProduct && (
               <button type="button" className="ps-modal-save-btn" onClick={editFromDetails}>
                 Edit Product
               </button>
+              )}
             </div>
           </div>
         </div>,
@@ -1189,6 +1229,7 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
                 </section>
               </div>
 
+              {formError && <p className="ps-export-error ps-form-error" role="alert">{formError}</p>}
               <div className="ps-modal-actions">
                 <button type="button" className="ps-modal-cancel-btn" onClick={closeModal}>
                   Cancel
@@ -1230,6 +1271,23 @@ function ProductSupplier({ onNavigate, onCatalogChange }) {
                 )}
                 This can’t be undone.
               </p>
+              {/* Warn (but allow) when stock is still on hand. */}
+              {(() => {
+                const targets = confirmTarget.type === 'single'
+                  ? [confirmTarget.product]
+                  : productsFromDatabase.filter((p) => confirmTarget.ids.includes(p.id));
+                const withStock = targets.filter((p) => Number(p?.stock) > 0);
+                if (withStock.length === 0) return null;
+                const units = withStock.reduce((sum, p) => sum + Number(p.stock), 0);
+                return (
+                  <p className="ps-confirm-text ps-confirm-stock-warning" role="alert">
+                    {confirmTarget.type === 'single'
+                      ? <>This product still has <strong>{units}</strong> in stock.</>
+                      : <><strong>{withStock.length}</strong> of these still {withStock.length === 1 ? 'has' : 'have'} stock (<strong>{units}</strong> units in total).</>}
+                    {' '}It will disappear from Stock Control totals, Reorder Alerts and Reports. Its past stock entries stay in the history marked “deleted product”.
+                  </p>
+                );
+              })()}
             </div>
             <div className="ps-modal-actions">
               <button type="button" className="ps-modal-cancel-btn" onClick={() => setConfirmTarget(null)}>

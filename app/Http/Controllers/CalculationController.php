@@ -59,7 +59,7 @@ class CalculationController extends Controller
         if ($demandSource === 'forecast') {
             if (! $product) {
                 throw ValidationException::withMessages([
-                    'productId' => 'A valid product is required for forecast-based EOQ.',
+                    'productId' => 'A valid product is required for a forecast-based economic order quantity.',
                 ]);
             }
 
@@ -77,7 +77,7 @@ class CalculationController extends Controller
                 || abs((float) $currentForecast['baseForecast'] - $baseForecast) > 0.00001
             ) {
                 throw ValidationException::withMessages([
-                    'forecast' => 'This forecast is stale. Recompute it before calculating EOQ.',
+                    'forecast' => 'This forecast is out of date. Recompute it before calculating the economic order quantity.',
                 ]);
             }
 
@@ -93,7 +93,7 @@ class CalculationController extends Controller
                 || ($submittedForecast['seasonalEvent'] ?? null) !== $seasonalEvent
             ) {
                 throw ValidationException::withMessages([
-                    'forecast' => 'Seasonal settings changed. Recompute the forecast before calculating EOQ.',
+                    'forecast' => 'Seasonal settings changed. Recompute the forecast before calculating the economic order quantity.',
                 ]);
             }
             if ($seasonalEnabled && empty($submittedForecast['seasonalEvent'])) {
@@ -144,7 +144,7 @@ class CalculationController extends Controller
         $economicOrderQuantity = sqrt((2 * $annualDemand * $orderingCost) / $holdingCost);
         if (! is_finite($economicOrderQuantity) || $economicOrderQuantity <= 0) {
             throw ValidationException::withMessages([
-                'inputs' => 'The supplied values did not produce a valid EOQ result.',
+                'inputs' => 'The values entered did not produce a valid economic order quantity.',
             ]);
         }
         $recommendedOrderQuantity = (int) round($economicOrderQuantity);
@@ -156,7 +156,7 @@ class CalculationController extends Controller
         ActivityLog::create([
             'user_id' => $user->id,
             'action' => 'formula.compute',
-            'description' => "Computed EOQ — {$recommendedOrderQuantity} {$unit}"
+            'description' => "Computed order quantity — {$recommendedOrderQuantity} {$unit}"
                 .($productName ? " for {$productName}" : ''),
             'icon' => 'calculator',
             'meta' => [

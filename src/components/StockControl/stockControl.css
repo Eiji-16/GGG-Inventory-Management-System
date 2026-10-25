@@ -1616,18 +1616,13 @@
 }
 
 /*==========RESPONSIVENESS==========*/
-/* Tablet: keep the table shape but scroll horizontally. */
-@media (max-width: 900px) and (min-width: 641px) {
-    .sc-table {
-        min-width: 900px;
-    }
-}
-
-/* ==========MOBILE CARD LIST==========
-   On phones each stock-movement row becomes a card: cells show their column
-   name (data-label) beside the value, and the EOQ/History/Edit/Delete actions
-   sit pinned at the bottom of the card. No horizontal scrolling. */
-@media (max-width: 640px) {
+/* ==========MOBILE / TABLET CARD LIST==========
+   Up to 900px wide (phones and portrait tablets) each stock-movement row
+   becomes a card: cells show their column name (data-label) beside the value,
+   and the History/Edit/Delete actions sit pinned at the bottom of the card.
+   No horizontal scrolling. Between 641 and 900px the cards sit two per row
+   (see below). Wider screens keep the normal table. */
+@media (max-width: 900px) {
     .sc-table-scroll {
         border: none;
         background: transparent;
@@ -1653,8 +1648,11 @@
         width: 100%;
     }
 
-    /* Each row → a card. Preserve the status tint as a left border accent. */
+    /* Each row → a card. Flex column so the action buttons sit at the
+       bottom and cards side by side end at the same height. */
     .sc-table tbody tr {
+        display: flex;
+        flex-direction: column;
         background: var(--bg-card);
         border: 1px solid var(--border-strong);
         border-radius: 8px;
@@ -1663,9 +1661,17 @@
         box-shadow: var(--shadow-card);
     }
 
-    .sc-table tbody tr.sc-row-low { border-left: 3px solid var(--accent-low); }
-    .sc-table tbody tr.sc-row-warning { border-left: 3px solid var(--accent-med); }
-    .sc-table tbody tr.sc-row-healthy { border-left: 3px solid var(--accent-high); }
+    /* Stock status as the card's left edge (on desktop it is a thin stripe on
+       the first cell, which in a card looked like a stray red mark). */
+    .sc-table tbody tr td:first-child,
+    .sc-table tbody tr.sc-row-outofstock td:first-child,
+    .sc-table tbody tr.sc-row-critical td:first-child,
+    .sc-table tbody tr.sc-row-low td:first-child,
+    .sc-table tbody tr.sc-row-healthy td:first-child { box-shadow: none; }
+    .sc-table tbody tr.sc-row-outofstock { border-left: 3px solid rgba(220, 38, 38, 0.9); }
+    .sc-table tbody tr.sc-row-critical { border-left: 3px solid rgba(255, 77, 77, 0.65); }
+    .sc-table tbody tr.sc-row-low { border-left: 3px solid rgba(232, 197, 71, 0.75); }
+    .sc-table tbody tr.sc-row-healthy { border-left: 3px solid rgba(74, 222, 128, 0.6); }
 
     /* Each cell → labelled row. */
     .sc-table tbody td {
@@ -1692,6 +1698,11 @@
         text-align: left;
     }
 
+    /* Cards use the full width: drop the desktop width cap on notes. */
+    .sc-table tbody td.sc-td-muted {
+        max-width: none;
+    }
+
     /* Product name is the card headline. */
     .sc-table tbody td.sc-cell-name {
         font-size: 14.5px;
@@ -1702,24 +1713,28 @@
         font-size: inherit;
         font-weight: inherit;
         text-align: right;
+        /* Room to wrap long names instead of ending in "…". */
+        white-space: normal;
+        overflow: visible;
     }
 
-    /* Checkbox to the corner. */
+    /* Checkbox alone in the top-right corner (no "Select" word). */
     .sc-table tbody td.sc-td-check {
         justify-content: flex-end;
-        padding-top: 0.15rem;
+        padding: 0.25rem 0 0;
         border-bottom: none;
     }
 
     .sc-table tbody td.sc-td-check::before {
-        content: "Select";
-        margin-right: auto;
+        content: none;
     }
 
-    /* Actions pinned at the card foot. */
+    /* Actions pinned at the card foot (margin-top: auto pushes them down
+       when a card is stretched to match its neighbour's height). */
     .sc-table tbody td.sc-td-actions {
         border-bottom: none;
         padding-top: 0.6rem;
+        margin-top: auto;
     }
 
     .sc-table tbody td.sc-td-actions::before {
@@ -1746,6 +1761,42 @@
 
     .sc-empty-state::before {
         content: none;
+    }
+}
+
+/* Phones: the toolbar has 5 controls, so the search box gets its own
+   full-width row and the buttons sit under it (it was pushed off-screen). */
+@media (max-width: 640px) {
+    .sc-navigation-bar {
+        flex-wrap: wrap;
+    }
+
+    .sc-search-wrapper {
+        flex: 1 1 100%;
+        margin-right: 0;
+    }
+
+    .sc-search-box {
+        min-width: 0;
+        width: 100%;
+    }
+}
+
+/* Portrait tablets / large phones in landscape: two cards per row. */
+@media (max-width: 900px) and (min-width: 641px) {
+    .sc-table tbody {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.7rem;
+        align-items: stretch;   /* cards in a row share one height */
+    }
+
+    .sc-table tbody tr {
+        margin-bottom: 0;
+    }
+
+    .sc-table tbody tr:has(.sc-empty-state) {
+        grid-column: 1 / -1;
     }
 }
 
@@ -1941,4 +1992,13 @@
     background: var(--bg-card);
     color: var(--text-primary);
     font-size: 12.5px;
+}
+
+/* Row of a product that was deleted: kept as history, not editable. */
+.sc-deleted-tag {
+    margin-left: 6px;
+    color: var(--text-muted);
+    font-size: 10.5px;
+    font-weight: 600;
+    white-space: nowrap;
 }

@@ -1,7 +1,11 @@
 /*==========AUTO REORDER ALERTS==========*/
 .ra-root {
     display: grid;
+    /* minmax(0, 1fr): may shrink to the screen (otherwise the wide table
+       pushes the page past the edge and it gets cut off on phones). */
+    grid-template-columns: minmax(0, 1fr);
     gap: 14px;
+    min-width: 0;
     color: var(--text-primary);
 }
 
@@ -243,8 +247,207 @@
     font-size: 11px;
 }
 
+/*==========RESTOCK REQUESTS (Staff "Notify")==========*/
+.ra-notice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0 0 10px;
+    padding: 8px 10px;
+    font-size: 12.5px;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    background: var(--static-bg-color);
+}
+
+.ra-notice button {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.ra-status-cell {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.ra-request-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 260px;
+    color: var(--accent-med);
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.ra-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ra-notified {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--accent-high);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.ra-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.ra-modal {
+    display: grid;
+    gap: 8px;
+    width: min(420px, 100%);
+    padding: 18px;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: var(--shadow-card);
+}
+
+.ra-modal h3 { margin: 0; font-size: 15px; }
+.ra-modal-sub { margin: 0; color: var(--text-muted); font-size: 12px; }
+.ra-modal label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+
+.ra-modal textarea {
+    width: 100%;
+    padding: 8px 10px;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 13px;
+    background: var(--static-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    resize: vertical;
+}
+
+.ra-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+}
+
 @media (max-width: 640px) {
     .ra-kpis { grid-template-columns: 1fr; }
     .ra-kpi strong { font-size: 22px; }
     .ra-tools, .ra-search, .ra-search input { width: 100%; }
+    .ra-card { padding: 12px; }
+}
+
+/* ==========MOBILE / TABLET CARD LIST==========
+   Up to 900px each alert becomes a card (same style as Stock Control and
+   Products): label on the left from data-label, value on the right, the
+   action button at the bottom. Two cards per row between 641 and 900px. */
+@media (max-width: 900px) {
+    .ra-table-scroll {
+        border: none;
+        overflow: visible;
+    }
+
+    .ra-table {
+        min-width: 0;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .ra-table thead { display: none; }
+
+    .ra-table tbody,
+    .ra-table tr,
+    .ra-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .ra-table tbody tr {
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 0.35rem 0.9rem;
+        margin-bottom: 0.7rem;
+        box-shadow: var(--shadow-card);
+    }
+
+    .ra-table tbody tr:last-child td { border-bottom: 1px solid var(--border-color); }
+
+    .ra-table tbody td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        text-align: right;
+        padding: 0.5rem 0;
+        overflow-wrap: anywhere;
+    }
+
+    .ra-table tbody td::before {
+        content: attr(data-label);
+        flex: 0 0 auto;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        text-align: left;
+    }
+
+    .ra-table tbody td .ra-product { justify-items: end; }
+    .ra-table tbody td .ra-status-cell { align-items: flex-end; }
+    .ra-table tbody td .ra-request-info { max-width: none; text-align: right; }
+    .ra-table tbody td .ra-actions { justify-content: flex-end; }
+
+    /* Action at the card foot, no label. */
+    .ra-table tbody td[data-label="Action"] {
+        margin-top: auto;
+        justify-content: flex-end;
+        border-bottom: none !important;
+        padding-top: 0.6rem;
+    }
+
+    .ra-table tbody td[data-label="Action"]::before { content: none; }
+
+    /* "All products are above their reorder point" / loading messages. */
+    .ra-table tbody td.ra-empty {
+        justify-content: center;
+        border: 1px dashed var(--border-color) !important;
+        border-radius: 8px;
+    }
+
+    .ra-table tbody td.ra-empty::before { content: none; }
+    .ra-table tbody tr:has(.ra-empty) { padding: 0; border: none; box-shadow: none; background: transparent; }
+}
+
+@media (max-width: 900px) and (min-width: 641px) {
+    .ra-table tbody {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.7rem;
+        align-items: stretch;
+    }
+
+    .ra-table tbody tr { margin-bottom: 0; }
+    .ra-table tbody tr:has(.ra-empty) { grid-column: 1 / -1; }
 }

@@ -1054,19 +1054,14 @@
 }
 
 /*==========RESPONSIVENESS==========*/
-/* Tablet: keep the table shape but let it scroll horizontally. */
-@media (max-width: 900px) and (min-width: 641px) {
-    .ps-table {
-        min-width: 760px;
-    }
-}
-
-/* ==========MOBILE CARD LIST==========
-   On phones the table stops being a wide horizontal scroll and each row
-   becomes a self-contained card: every cell shows its column name (via the
-   data-label attribute) beside its value, and the Edit/Delete actions sit
-   pinned at the bottom of the card. Clean, tappable, no sideways scrolling. */
-@media (max-width: 640px) {
+/* ==========MOBILE / TABLET CARD LIST==========
+   Up to 900px wide (phones and portrait tablets) the table stops being a wide
+   horizontal scroll and each row becomes a self-contained card: every cell
+   shows its column name (via the data-label attribute) beside its value, and
+   the Edit/Delete actions sit pinned at the bottom of the card. Between 641
+   and 900px the cards sit two per row (see below). Wider screens keep the
+   normal table. */
+@media (max-width: 900px) {
     /* Drop the scroll frame styling — cards stack in normal flow. */
     .ps-table-scroll {
         border: none;
@@ -1074,7 +1069,8 @@
         overflow: visible;
     }
 
-    .ps-table {
+    .ps-table,
+    .ps-table.ps-supplier-table {
         min-width: 0;
         width: 100%;
         border-collapse: separate;
@@ -1094,8 +1090,11 @@
         width: 100%;
     }
 
-    /* Each row → a card. */
+    /* Each row → a card. Flex column so the action buttons sit at the
+       bottom and cards side by side end at the same height. */
     .ps-table tbody tr {
+        display: flex;
+        flex-direction: column;
         background: var(--bg-card);
         border: 1px solid var(--border-strong);
         border-radius: 8px;
@@ -1140,22 +1139,45 @@
         font-weight: 700;
     }
 
-    /* Checkbox cell: pull it to the top-right corner of the card. */
+    /* Variant / product chips: the list shrinks beside its label and a long
+       name wraps inside its chip instead of spilling out of the card. */
+    .ps-table tbody td .ps-variant-list {
+        flex: 0 1 auto;
+        min-width: 0;
+        max-width: none;
+        justify-content: flex-end;
+    }
+
+    .ps-table tbody td .ps-variant-chip {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        text-align: center;
+    }
+
+    /* Cards have room: let long names wrap instead of ending in "…". */
+    .ps-table tbody td.ps-cell-name .ps-name-text {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+    }
+
+    /* Checkbox alone in the top-right corner (no "Select" word). */
     .ps-table tbody td.ps-td-check {
         justify-content: flex-end;
-        padding-top: 0.15rem;
+        padding: 0.25rem 0 0;
         border-bottom: none;
     }
 
     .ps-table tbody td.ps-td-check::before {
-        content: "Select";
-        margin-right: auto;
+        content: none;
     }
 
-    /* Actions row: buttons pinned, full-width, at the card foot. */
+    /* Actions row: buttons pinned at the card foot (margin-top: auto pushes
+       them down when a card is stretched to match its neighbour). */
     .ps-table tbody td.ps-td-actions {
         border-bottom: none;
         padding-top: 0.6rem;
+        margin-top: auto;
     }
 
     .ps-table tbody td.ps-td-actions::before {
@@ -1184,6 +1206,25 @@
 
     .ps-empty-state::before {
         content: none;
+    }
+}
+
+/* Portrait tablets / large phones in landscape: two cards per row. */
+@media (max-width: 900px) and (min-width: 641px) {
+    .ps-table tbody {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.7rem;
+        align-items: stretch;   /* cards in a row share one height */
+    }
+
+    .ps-table tbody tr {
+        margin-bottom: 0;
+    }
+
+    /* "No products" / loading messages span both columns. */
+    .ps-table tbody tr:has(.ps-empty-state) {
+        grid-column: 1 / -1;
     }
 }
 
@@ -1264,12 +1305,20 @@
 /* ===== PRODUCTS | SUPPLIERS TABS ===== */
 .ps-section-root {
     display: grid;
+    /* minmax(0, 1fr): the column may shrink to the screen. Without it the
+       grid grows as wide as the table and the right side gets cut off on
+       narrow screens (the main window hides sideways overflow). */
+    grid-template-columns: minmax(0, 1fr);
     gap: 12px;
+    min-width: 0;
 }
 
 .ps-section-tabs {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* One column per visible tab, so a lone "Products" tab (Suppliers turned
+       off in Role Access) fills the whole bar instead of half of it. */
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     gap: 4px;
     padding: 4px;
     background: var(--static-bg-color);
@@ -1361,4 +1410,31 @@
 .ps-variant-add:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+}
+
+/* In-app messages (replace the old browser pop-ups) */
+.ps-page-message {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.ps-page-message-close {
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+}
+.ps-form-error { margin: 4px 0 0; }
+
+/* Delete window: extra warning when the product still has stock. */
+.ps-confirm-stock-warning {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border: 1px solid rgba(232, 197, 71, 0.45);
+    border-radius: 8px;
+    background: rgba(232, 197, 71, 0.08);
 }

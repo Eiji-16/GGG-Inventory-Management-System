@@ -36,7 +36,7 @@ export async function buildForecastHandoff(productId, productName, periodType = 
     const adjustedForecast = Number(data.adjustedForecast);
     const annualDemand = Math.round(adjustedForecast * annualPeriods);
     if (!Number.isFinite(annualDemand) || annualDemand <= 0) {
-      return { handoff: null, reason: 'The forecast is zero, so it cannot be used for EOQ.' };
+      return { handoff: null, reason: 'The forecast is zero, so it cannot be used for the economic order quantity.' };
     }
 
     return {

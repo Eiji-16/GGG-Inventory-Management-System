@@ -171,7 +171,8 @@ class InventoryCheck extends Command
 
     private function checkFutureDates(): void
     {
-        $future = StockMovement::where('movement_date', '>', today()->toDateString())->get();
+        // The shop's date (Philippines), the same "today" Stock Control uses.
+        $future = StockMovement::where('movement_date', '>', now(config('app.business_timezone', 'Asia/Manila'))->toDateString())->get();
         $problems = $future->map(fn ($m) => "entry #{$m->id} for {$m->product_name} is dated {$m->movement_date->toDateString()}")->all();
         $this->result('No stock entries dated in the future', $problems, false);
     }

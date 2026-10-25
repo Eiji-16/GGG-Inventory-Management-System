@@ -180,23 +180,51 @@ function loadNotificationPreference(key) {
 }
 
 function LandingPage({onLogout, user, theme, onThemeChange}) {
-  /* ===== ROLE-BASED ACCESS =====
-     Real role comes from the backend (user.role). Each view lists the roles
-     allowed to see it; the sidebar and the main render both honour this. */
+  /* ===== ROLE ACCESS =====
+     Which pages and buttons this account may use. The Super Admin sets the
+     boxes in Settings → Role Access; the server sends the result as
+     user.permissions and checks the same boxes on every action.
+     Dashboard, Profile and Settings are always open; Staffs is Super Admin only. */
   const role = user?.role || 'staff';
-  const VIEW_ACCESS = {
-    Dashboard:          ['super_admin', 'admin', 'staff'],
-    'Product-Supplier': ['super_admin', 'admin'],
-    Stock:              ['super_admin', 'admin', 'staff'],
-    'Reorder-Alerts':   ['super_admin', 'admin', 'staff'],
-    'Auto-Calculator':  ['super_admin', 'admin'],
-    Forecasting:        ['super_admin', 'admin'],
-    Reports:            ['super_admin', 'admin', 'staff'],
-    Staffs:             ['super_admin'],
-    Profile:            ['super_admin', 'admin', 'staff'],
-    Setting:            ['super_admin', 'admin', 'staff'],
+  const isSuperAdminRole = role === 'super_admin' || user?.isSuperAdmin === true;
+  const [permissions, setPermissions] = useState(() => user?.permissions || {});
+  useEffect(() => { setPermissions(user?.permissions || {}); }, [user?.permissions]);
+
+  /* Pick up changes the Super Admin makes while this account is signed in. */
+  const refreshPermissions = useCallback(async () => {
+    try {
+      const response = await fetch('/api/role-access', { headers: { Accept: 'application/json' }, cache: 'no-store' });
+      if (!response.ok) return;
+      const body = await response.json();
+      if (body?.permissions) setPermissions(body.permissions);
+    } catch {
+      /* keep the last known permissions */
+    }
+  }, []);
+  useEffect(() => {
+    const timer = window.setInterval(refreshPermissions, 60000);
+    window.addEventListener('focus', refreshPermissions);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshPermissions);
+    };
+  }, [refreshPermissions]);
+
+  const can = (key) => isSuperAdminRole || permissions?.[key] === true;
+  const VIEW_PERMISSION = {
+    'Product-Supplier': 'products.view',
+    Stock:              'stock.view',
+    'Reorder-Alerts':   'reorder.view',
+    'Auto-Calculator':  'calculator.use',
+    Forecasting:        'forecast.view',
+    Reports:            'reports.view',
   };
-  const canAccess = (view) => (VIEW_ACCESS[view] || []).includes(role);
+  const canAccess = (view) => {
+    if (view === 'Dashboard' || view === 'Profile' || view === 'Setting') return true;
+    if (view === 'Staffs') return isSuperAdminRole;
+    const key = VIEW_PERMISSION[view];
+    return key ? can(key) : false;
+  };
 
   /* Settings expects a display-style role name and shows the Safety Stock
      section only for 'Super Admin'. Map the backend role to that label. */
@@ -208,7 +236,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
   /* ===== SIDEBAR PICTURE =====
      Default: a profile icon. The Super Admin can choose a picture that every
      account then sees (saved on the server, see SystemLogoController). */
-  const isSuperAdminUser = role === 'super_admin';
+  const isSuperAdminUser = isSuperAdminRole;
   const [logoUrl, setLogoUrl] = useState(user?.logoUrl || null);
   const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
   const [logoBusy, setLogoBusy] = useState(false);
@@ -277,6 +305,11 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
   const logoutCancelRef = useRef(null);
   const [activeView, setActiveView] = useState('Dashboard'); /* ===== ACTIVE VIEW ===== */
   const [visitedViews, setVisitedViews] = useState(() => new Set(['Dashboard']));
+  /* If the Super Admin switches off the page this account is on, go back to the Dashboard. */
+  const activeViewAllowed = canAccess(activeView);
+  useEffect(() => {
+    if (!activeViewAllowed) setActiveView('Dashboard');
+  }, [activeViewAllowed]);
   const mainContentRef = useRef(null);
   const viewScrollPositions = useRef({});
   const [handoff, setHandoff] = useState(() => readSavedEoqHandoff(user?.id)); /* ===== HANDOFF ===== */
@@ -352,9 +385,14 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
         }
         const readIds = new Set(next.readIds);
         const dismissedIds = new Set(next.dismissedIds);
-        setNotifications(current
+        const stockItems = current
           .filter((notification) => !dismissedIds.has(notification.id))
-          .map((notification) => ({ ...notification, read: readIds.has(notification.id) })));
+          .map((notification) => ({ ...notification, read: readIds.has(notification.id) }));
+        // Keep restock requests (loaded separately below) at the top.
+        setNotifications((previous) => [
+          ...previous.filter((notification) => notification.id.startsWith('request-')),
+          ...stockItems,
+        ]);
       })
       .catch((error) => {
         if (active) setNotificationError(error.message || 'Could not load notifications.');
@@ -364,6 +402,60 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
       });
     return () => { active = false; };
   }, [notificationPreferenceKey, policyLoading, safetyStock]);
+
+  /* ===== RESTOCK REQUESTS IN THE BELL =====
+     Staff "Notify" requests (Reorder Alerts). Checked every 30 seconds while
+     the system is open, for accounts allowed to see them (Role Access). */
+  const canSeeRequests = can('reorder.requests') && can('notifications.view');
+  const [requestsVersion, setRequestsVersion] = useState(0);
+  useEffect(() => {
+    if (!canSeeRequests) {
+      setNotifications((previous) => previous.filter((notification) => !notification.id.startsWith('request-')));
+      return undefined;
+    }
+    let active = true;
+    const loadRequests = async () => {
+      try {
+        const response = await fetch('/api/restock-requests', { headers: { Accept: 'application/json' }, cache: 'no-store' });
+        if (!response.ok || !active) return;
+        const requests = await response.json();
+        if (!active || !Array.isArray(requests)) return;
+        const items = requests.map((request) => ({
+          id: `request-${request.id}`,
+          type: 'warning',
+          title: `Restock request: ${request.productName}`,
+          meta: `${request.requestedBy}${request.note ? `: “${request.note}”` : ''} · ${request.stock ?? 0} on hand`,
+          time: formatNotificationTime(request.createdAt),
+          view: 'Reorder-Alerts',
+          read: false,
+        }));
+        // Forget read/cleared marks of requests that are closed now.
+        const activeIds = new Set(items.map((item) => item.id));
+        const previousPrefs = notificationPreferencesRef.current;
+        const nextPrefs = {
+          readIds: previousPrefs.readIds.filter((id) => !id.startsWith('request-') || activeIds.has(id)),
+          dismissedIds: previousPrefs.dismissedIds.filter((id) => !id.startsWith('request-') || activeIds.has(id)),
+        };
+        if (nextPrefs.readIds.length !== previousPrefs.readIds.length || nextPrefs.dismissedIds.length !== previousPrefs.dismissedIds.length) {
+          saveNotificationPreferences(nextPrefs);
+        }
+        const readIds = new Set(nextPrefs.readIds);
+        const dismissedIds = new Set(nextPrefs.dismissedIds);
+        setNotifications((previous) => [
+          ...items.filter((item) => !dismissedIds.has(item.id)).map((item) => ({ ...item, read: readIds.has(item.id) })),
+          ...previous.filter((notification) => !notification.id.startsWith('request-')),
+        ]);
+      } catch {
+        /* offline for a moment — try again on the next tick */
+      }
+    };
+    loadRequests();
+    const timer = window.setInterval(loadRequests, 30000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [canSeeRequests, requestsVersion, notificationPreferenceKey]); // saveNotificationPreferences/ref are stable for this key
 
   useEffect(() => {
     let active = true;
@@ -567,7 +659,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
               <span className="sidebar-label">Dashboard</span>
             </button>
           </li>
-          <li className="sidebar-section-label">Inventory</li>
+          {(canAccess('Product-Supplier') || canAccess('Stock') || canAccess('Reorder-Alerts')) && <li className="sidebar-section-label">Inventory</li>}
           {canAccess('Product-Supplier') && (
           <li className={`sidebar-item ${activeView === 'Product-Supplier' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Product-Supplier')}>
@@ -576,12 +668,15 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
             </button>
           </li>
           )}
+          {canAccess('Stock') && (
           <li className={`sidebar-item ${activeView === 'Stock' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Stock')}>
               <Boxes className="sidebar-icon" />
               <span className="sidebar-label">Stock Control</span>
             </button>
           </li>
+          )}
+          {canAccess('Reorder-Alerts') && (
           <li className={`sidebar-item ${activeView === 'Reorder-Alerts' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Reorder-Alerts')} title={reorderAlertCount ? `${reorderAlertCount} items need reorder` : 'Reorder Alerts'}>
               <BellRing className="sidebar-icon" />
@@ -593,7 +688,8 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
               )}
             </button>
           </li>
-          {canAccess('Auto-Calculator') && <li className="sidebar-section-label">Planning</li>}
+          )}
+          {(canAccess('Auto-Calculator') || canAccess('Forecasting')) && <li className="sidebar-section-label">Planning</li>}
           {canAccess('Forecasting') && (
           <li className={`sidebar-item ${activeView === 'Forecasting' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Forecasting')}>
@@ -610,13 +706,15 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
             </button>
           </li>
           )}
-          <li className="sidebar-section-label">Analytics</li>
+          {canAccess('Reports') && <li className="sidebar-section-label">Analytics</li>}
+          {canAccess('Reports') && (
           <li className={`sidebar-item ${activeView === 'Reports' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Reports')}>
               <BarChart3 className="sidebar-icon" />
               <span className="sidebar-label">Reports</span>
             </button>
           </li>
+          )}
         </ul>
 
 
@@ -707,6 +805,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
 
             {/* ===== NOTIFICATION BUTTON ===== */}
             <div className = "top-navbar-right-side">
+              {can('notifications.view') && (
               <div className="notif-wrapper" ref={notifRef}>
                 <button
                   className="navbar-bell-icon"
@@ -782,6 +881,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                   </div>
                 )}
               </div>
+              )}
             </div>
           </header>
             <main
@@ -801,7 +901,15 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
               )}
               {visitedViews.has('Product-Supplier') && canAccess('Product-Supplier') && (
                 <div className="app-view-panel" hidden={activeView !== 'Product-Supplier'}>
-                  <ProductSupplier onCatalogChange={() => setPolicyRefreshKey((key) => key + 1)} />
+                  <ProductSupplier
+                    onCatalogChange={() => setPolicyRefreshKey((key) => key + 1)}
+                    canAddProduct={can('products.create')}
+                    canEditProduct={can('products.edit')}
+                    canDeleteProduct={can('products.delete')}
+                    canExportProducts={can('products.export')}
+                    canViewSuppliers={can('suppliers.view')}
+                    canManageSuppliers={can('suppliers.manage')}
+                  />
                 </div>
               )}
               {visitedViews.has('Stock') && canAccess('Stock') && (
@@ -814,7 +922,12 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     onInventoryChanged={() => setPolicyRefreshKey((key) => key + 1)}
                     currentUserName={user?.name || ''}
                     canComputeEoq={canAccess('Auto-Calculator')}
-                    canClearStock={role === 'super_admin' || role === 'admin'}
+                    canClearStock={can('stock.clear')}
+                    canAddStock={can('stock.create')}
+                    canEditStock={can('stock.edit')}
+                    canDeleteStock={can('stock.delete')}
+                    canExportStock={can('stock.export')}
+                    canViewActivity={can('stock.history')}
                   />
                 </div>
               )}
@@ -825,6 +938,9 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     safetyStock={safetyStock}
                     catalogRevision={policyRefreshKey}
                     canComputeEoq={canAccess('Auto-Calculator')}
+                    canNotify={can('reorder.notify')}
+                    canManageRequests={can('reorder.requests')}
+                    onRequestsChanged={() => setRequestsVersion((version) => version + 1)}
                   />
                 </div>
               )}
@@ -838,6 +954,10 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     currentUserId={user?.id || ''}
                     safetyStock={safetyStock}
                     catalogRevision={policyRefreshKey}
+                    allowSaveCosts={can('calculator.save_costs')}
+                    canViewHistory={can('calculator.history')}
+                    canExport={can('calculator.export')}
+                    canOpenForecasting={canAccess('Forecasting')}
                   />
                 </div>
               )}
@@ -848,6 +968,10 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     onClearEoqHandoff={clearEoqHandoff}
                     catalogRevision={policyRefreshKey}
                     isActive={activeView === 'Forecasting'}
+                    canExport={can('forecast.export')}
+                    canEditPastSales={can('forecast.past_sales')}
+                    canManageEvents={can('forecast.events')}
+                    canComputeEoq={canAccess('Auto-Calculator')}
                   />
                 </div>
               )}
@@ -862,6 +986,8 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     safetyStock={safetyStock}
                     refreshKey={policyRefreshKey}
                     isActive={activeView === 'Reports'}
+                    canTab={(key) => can(`reports.tab.${key}`)}
+                    canExport={can('reports.export')}
                   />
                 </div>
               )}
@@ -875,6 +1001,8 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     onUpdateSafetyStock={saveSafetyStock}
                     policyLoading={policyLoading}
                     policyError={policyError}
+                    canChangeCurrency={can('settings.currency')}
+                    isSuperAdmin={isSuperAdminRole}
                   />
                 </div>
               )}

@@ -2530,7 +2530,11 @@
 /*==========FORECAST VIEW (Figure 11 layout)==========*/
 .fx-layout {
     display: grid;
+    /* minmax(0, 1fr): may shrink to the screen so wide tables scroll inside
+       their card instead of pushing the page past the edge on phones. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 14px;
+    min-width: 0;
 }
 
 .fx-toolbar {

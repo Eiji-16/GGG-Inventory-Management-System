@@ -18,28 +18,30 @@ import {
 } from 'lucide-react';
 import './profile.css';
 
-/* ===== ROLE PERMISSIONS (static description per role) ===== */
-const ROLE_MATRIX = {
-  'Super Admin': [
-    'Full access to every module',
-    'Create, edit and deactivate accounts',
-    'Manage products, suppliers and stock movements',
-    'Add or remove custom formulas in the Economic Order Quantity Calculator',
-    'Set safety stock and export all reports',
-  ],
-  Admin: [
-    'Manage products, suppliers and stock movements',
-    'Run the Economic Order Quantity Calculator and Sales Forecasting',
-    'View and export reports',
-    'No access to Staffs or Safety Stock',
-  ],
-  Staff: [
-    'Record stock in / stock out movements',
-    'View the dashboard and reports',
-    'Manage own profile and settings',
-    'No access to products, forecasting or formulas',
-  ],
-};
+/* ===== ROLE PERMISSIONS =====
+   The Super Admin can always do everything. Admin and Staff see what the
+   Super Admin turned on for them in Settings → Role Access (loaded from
+   /api/role-access), grouped by page. */
+const SUPER_ADMIN_PERMISSIONS = [
+  'Full access to every page and feature',
+  'Create, edit and deactivate accounts (Staffs)',
+  'Choose what Admin and Staff can use (Settings → Role Access)',
+  'Set the Safety Stock Policy and the system logo',
+];
+
+function permissionLines(access) {
+  if (!access?.catalog || !access?.permissions) return [];
+  const byGroup = new Map();
+  access.catalog.forEach((feature) => {
+    if (access.permissions[feature.key] !== true) return;
+    if (!byGroup.has(feature.group)) byGroup.set(feature.group, []);
+    byGroup.get(feature.group).push(feature.label);
+  });
+  return [
+    'Dashboard, your profile and display settings',
+    ...[...byGroup.entries()].map(([group, labels]) => `${group}: ${labels.join(', ')}`),
+  ];
+}
 
 /* ===== ACTIVITY ICON MAP ===== */
 const ACTIVITY_ICON = {
@@ -118,6 +120,16 @@ export default function Profile() {
 
   const [activity, setActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
+  const [access, setAccess] = useState(null);   // Role Access for this account
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/role-access', { headers: { Accept: 'application/json' }, cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => { if (active && body) setAccess(body); })
+      .catch(() => { /* the card shows a short note instead */ });
+    return () => { active = false; };
+  }, []);
 
   /* ===== PASSWORD MODAL ===== */
   const [showPwd, setShowPwd] = useState(false);
@@ -248,7 +260,11 @@ export default function Profile() {
     }
   };
 
-  const permissions = useMemo(() => (user ? ROLE_MATRIX[user.role] ?? [] : []), [user]);
+  const permissions = useMemo(() => {
+    if (!user) return [];
+    if (user.role === 'Super Admin') return SUPER_ADMIN_PERMISSIONS;
+    return permissionLines(access);
+  }, [user, access]);
 
   if (loading) return <ProfileSkeleton />;
   if (error) return <div className="pf-root"><p className="pf-sub" role="alert">{error}</p></div>;
@@ -370,7 +386,12 @@ export default function Profile() {
         {/* ===== ROLE ACCESS ===== */}
         <section className="pf-card pf-area-permissions">
           <h3>Role &amp; Permissions</h3>
-          <p className="pf-sub">What a {user.role} can do in this system</p>
+          <p className="pf-sub">
+            {user.role === 'Super Admin'
+              ? 'What the Super Admin can do in this system'
+              : `What your ${user.role} account can use — set by the Super Admin in Settings → Role Access`}
+          </p>
+          {permissions.length === 0 && <p className="pf-sub">Loading your permissions…</p>}
           <ul className="pf-perm-list">
             {permissions.map((item) => (
               <li key={item}>

@@ -20,7 +20,7 @@ class StockMovementController extends Controller
     /** GET /api/stock-movements */
     public function index(): JsonResponse
     {
-        $movements = StockMovement::with('product:id,code,stock_on_hand')
+        $movements = StockMovement::with('product:id,code,name,category,stock_on_hand,deleted_at')
             ->orderByDesc('movement_date')
             ->orderByDesc('id')
             ->get();
@@ -59,10 +59,16 @@ class StockMovementController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $this->validatedMovement($request, false);
+        $this->assertVariantBelongsToProduct($data);
         // Recorded By always comes from the signed-in account, never the form.
         $data['recordedBy'] = $this->recorderName($request);
         $stockBefore = $this->currentStockFor($data);
         $movement = $this->stockMovements->create($data);
+        // Stock came in: any open restock request (Staff "Notify") for this
+        // product is answered, so close it.
+        if ($movement->movement_type === 'in' && ! $movement->is_adjustment) {
+            \App\Models\RestockRequest::closeForProduct($movement->product_id, $request->user()?->id);
+        }
         $this->recordMovementActivity($movement->mergedFromQty !== null ? 'merge' : 'add', $movement);
         $this->recordSafetyCrossing($movement, $stockBefore);
 
@@ -88,6 +94,10 @@ class StockMovementController extends Controller
                 'recordedBy'  => ['nullable', 'string', 'max:255'],
                 'unitPrice'   => ['nullable', 'numeric', 'min:0', 'max:9999999999'],
             ]);
+            $this->assertVariantBelongsToProduct(
+                ['productId' => $stockMovement->product?->code, 'variantName' => $data['variantName'] ?? null],
+                $stockMovement->variant_name
+            );
             $stockMovement->update([
                 'variant_name' => $data['variantName'] ?? null,
                 'notes'        => $data['notes'] ?? null,
@@ -108,6 +118,7 @@ class StockMovementController extends Controller
 
         $before = $this->activitySnapshot($stockMovement->loadMissing('product'));
         $data = $this->validatedMovement($request, true);
+        $this->assertVariantBelongsToProduct($data, $stockMovement->variant_name);
         // Keep who originally recorded the row (audit trail); fill it from the
         // signed-in account only when an older row has none.
         $data['recordedBy'] = $stockMovement->recorded_by ?: $this->recorderName($request);
@@ -305,10 +316,38 @@ class StockMovementController extends Controller
             'unitPrice'   => ['nullable', 'numeric', 'min:0', 'max:9999999999'],
             'notes'       => ['nullable', 'string', 'max:255'],
             'recordedBy'  => ['nullable', 'string', 'max:255'],
-            'date'        => [$updating ? 'sometimes' : 'nullable', 'date'],
+            // No future dates. "Today" is the shop's date (Philippines), not the server's UTC date.
+            'date'        => [$updating ? 'sometimes' : 'nullable', 'date', 'before_or_equal:'.now(config('app.business_timezone', 'Asia/Manila'))->toDateString()],
         ];
 
-        return $request->validate($rules);
+        return $request->validate($rules, [
+            'date.before_or_equal' => 'The date cannot be in the future.',
+        ]);
+    }
+
+    /**
+     * A variant must be one of the product's own variants (Add/Edit Product).
+     * Skipped when the variant is blank, unchanged from the saved row (so old
+     * entries stay editable), or the product has no variant list.
+     */
+    private function assertVariantBelongsToProduct(array $data, ?string $currentVariant = null): void
+    {
+        $variant = trim((string) ($data['variantName'] ?? ''));
+        if ($variant === '' || mb_strtolower($variant) === mb_strtolower(trim((string) $currentVariant))) {
+            return;
+        }
+
+        $product = ! empty($data['productId'])
+            ? Product::where('code', $data['productId'])->first()
+            : Product::where('name', $data['productName'] ?? '')->first();
+        $defined = array_map(fn ($v) => mb_strtolower(trim((string) $v)), $product?->variants ?? []);
+        if ($product === null || $defined === [] || in_array(mb_strtolower($variant), $defined, true)) {
+            return;
+        }
+
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'variantName' => "\"{$variant}\" is not a variant of {$product->name}. Add it in Products first, or pick one from the list.",
+        ]);
     }
 
     /** Format the movement shape used by Stock Control. */
@@ -318,8 +357,12 @@ class StockMovementController extends Controller
             'id'             => $movement->id,
             'productId'      => $movement->product?->code,
             'date'           => $movement->movement_date?->toDateString(),
-            'productName'    => $movement->product_name,
-            'category'       => $movement->product_category,
+            // The product's CURRENT name/category, so a rename shows on every
+            // row (the saved product_name is only a fallback for old rows).
+            'productName'    => $movement->product?->name ?? $movement->product_name,
+            'category'       => $movement->product?->category ?? $movement->product_category,
+            // Product was deleted: the row stays as history, but can't be edited.
+            'productDeleted' => (bool) $movement->product?->trashed(),
             'type'           => $movement->is_adjustment
                 ? 'Adjustment'
                 : ($movement->movement_type === 'in' ? 'Stock In' : 'Stock Out'),

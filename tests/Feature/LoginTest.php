@@ -57,44 +57,21 @@ class LoginTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_super_admin_can_create_a_staff_account(): void
+    public function test_old_create_account_route_is_gone(): void
     {
-        $admin = User::factory()->create(['email' => 'ajph305@gmail.com']);
-        Config::set('auth.super_admin_email', $admin->email);
+        // Accounts are created in Staffs (POST /staff, Super Admin only, with a role).
+        $admin = User::factory()->create(['role' => User::ROLE_SUPER_ADMIN, 'status' => User::STATUS_ACTIVE]);
         $this->actingAs($admin);
 
-        $this->postJson('/auth/users', [
+        $response = $this->postJson('/auth/users', [
             'name' => 'New Staff',
             'email' => 'new.staff@example.com',
             'password' => 'StrongPassword123!',
             'password_confirmation' => 'StrongPassword123!',
-        ])
-            ->assertCreated()
-            ->assertJsonPath('user.email', 'new.staff@example.com')
-            ->assertJsonMissingPath('user.password');
+        ]);
 
-        $this->assertDatabaseHas('users', ['email' => 'new.staff@example.com']);
-        $this->assertTrue(Hash::check(
-            'StrongPassword123!',
-            User::where('email', 'new.staff@example.com')->firstOrFail()->password
-        ));
-    }
-
-    public function test_non_super_admin_cannot_create_a_staff_account(): void
-    {
-        $admin = User::factory()->create(['email' => 'ajph305@gmail.com']);
-        $otherUser = User::factory()->create();
-        Config::set('auth.super_admin_email', $admin->email);
-        $this->actingAs($otherUser);
-
-        $this->postJson('/auth/users', [
-            'name' => 'Unauthorized Staff',
-            'email' => 'unauthorized@example.com',
-            'password' => 'StrongPassword123!',
-            'password_confirmation' => 'StrongPassword123!',
-        ])->assertForbidden();
-
-        $this->assertDatabaseMissing('users', ['email' => 'unauthorized@example.com']);
+        $this->assertNotSame(201, $response->status());
+        $this->assertDatabaseMissing('users', ['email' => 'new.staff@example.com']);
     }
 
     public function test_existing_user_receives_password_reset_otp_and_can_reset_password(): void
@@ -156,7 +133,7 @@ class LoginTest extends TestCase
         ])->assertUnprocessable();
     }
 
-    public function test_password_reset_reports_rejected_gmail_credentials(): void
+    public function test_password_reset_mail_failure_shows_a_generic_message_and_logs_the_details(): void
     {
         $user = User::factory()->create();
         $mailer = \Mockery::mock();
@@ -164,14 +141,31 @@ class LoginTest extends TestCase
         $mailer->shouldReceive('send')
             ->once()
             ->andThrow(new \Symfony\Component\Mailer\Exception\TransportException('535-5.7.8 BadCredentials'));
+        // The fix-it hint goes to the developer's log ...
+        \Illuminate\Support\Facades\Log::shouldReceive('error')
+            ->once()
+            ->withArgs(fn ($message) => str_contains($message, 'Update MAIL_PASSWORD'));
 
-        $this->postJson('/auth/password/otp', ['email' => $user->email])
+        // ... and the login screen only gets a plain message (no settings names).
+        $message = $this->postJson('/auth/password/otp', ['email' => $user->email])
             ->assertServiceUnavailable()
-            ->assertJsonPath(
-                'message',
-                'Gmail rejected the mail credentials. Update MAIL_PASSWORD in .env with a valid Gmail App Password, then run php artisan config:clear.'
-            );
+            ->json('message');
+        $this->assertSame('We could not send the email right now. Please try again later or contact the Super Admin.', $message);
+        $this->assertStringNotContainsString('MAIL_', $message);
 
         $this->assertDatabaseMissing('password_reset_otps', ['email' => $user->email]);
+    }
+
+    public function test_login_is_limited_after_five_wrong_tries_for_the_same_email(): void
+    {
+        $user = User::factory()->create(['password' => 'CorrectPassword123!']);
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson('/auth/login', ['email' => $user->email, 'password' => 'wrong-guess'])->assertUnauthorized();
+        }
+
+        $this->postJson('/auth/login', ['email' => $user->email, 'password' => 'CorrectPassword123!'])
+            ->assertStatus(429)
+            ->assertJsonPath('message', 'Too many login attempts. Please wait a minute and try again.');
     }
 }

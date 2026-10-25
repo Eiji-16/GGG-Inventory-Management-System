@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Services\ReorderPointService;
+use App\Services\RoleAccessService;
 use App\Services\SalesForecastService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,17 +29,29 @@ class ReportController extends Controller
     {
         $products = Product::with(['safetyStock', 'supplier'])->orderBy('name')->get();
 
-        return response()->json([
-            'generatedAt'    => now()->toIso8601String(),
-            'stockSummary'   => $this->stockSummary($products),
-            'stockMovement'  => $this->stockMovement(),
-            'topMoving'      => $this->topMoving(),
-            'fastSlowMoving' => $this->fastSlowMoving($products),
-            'demandForecast' => $this->demandForecast($products),
-            'autoCalculator' => $this->autoCalculatorLog(),
-            'inventoryAging' => $this->inventoryAging($products),
-            'reorderPoint'   => $this->reorderPoint($products),
-        ]);
+        // Role Access: only build the tabs this user is allowed to see.
+        $allowed = RoleAccessService::effectiveFor($request->user());
+        $can = fn (string $section): bool => $allowed[RoleAccessService::REPORT_SECTIONS[$section]] ?? false;
+
+        $builders = [
+            'stockSummary'   => fn () => $this->stockSummary($products),
+            'stockMovement'  => fn () => $this->stockMovement(),
+            'topMoving'      => fn () => $this->topMoving(),
+            'fastSlowMoving' => fn () => $this->fastSlowMoving($products),
+            'demandForecast' => fn () => $this->demandForecast($products),
+            'autoCalculator' => fn () => $this->autoCalculatorLog(),
+            'inventoryAging' => fn () => $this->inventoryAging($products),
+            'reorderPoint'   => fn () => $this->reorderPoint($products),
+        ];
+
+        $payload = ['generatedAt' => now()->toIso8601String()];
+        foreach ($builders as $section => $build) {
+            if ($can($section)) {
+                $payload[$section] = $build();
+            }
+        }
+
+        return response()->json($payload);
     }
 
     /** Same four statuses as Stock Control, the Dashboard and Reorder Alerts. */

@@ -96,7 +96,7 @@ function HistoryPanel({ onClose, history, onClear }) {
         <div className="ac-modal-body">
           {history.length === 0 ? (
             <p className="ac-source-note" style={{ textAlign: 'center', padding: '20px 0' }}>
-              No calculations yet. Every Compute EOQ is listed here and saved to Reports → Economic Order Quantity Calculator Summary.
+              No calculations yet. Every Compute Order Quantity is listed here and saved to Reports → Economic Order Quantity Calculator Summary.
             </p>
           ) : (
             <div className="ac-history-list">
@@ -154,6 +154,11 @@ export default function AutoCalculatorDesign({
   currentUserId = '',
   safetyStock = SAFETY_STOCK_DEFAULTS,
   catalogRevision = 0,
+  // Role Access (Settings) decides these; the server checks the same boxes.
+  allowSaveCosts = true,
+  canViewHistory = true,
+  canExport = true,
+  canOpenForecasting = true,
 }) {
   const { currency, currencySymbol, formatCurrency } = useCurrency();
   const [savedDraft] = useState(() => readCalculatorDraft(currentUserId));
@@ -520,7 +525,7 @@ export default function AutoCalculatorDesign({
           { title: 'Inputs', headers: ['Input', 'Value'], rows: rows.inputs },
           { title: 'Results', headers: ['Result', 'Value'], rows: rows.results },
         ],
-        scope: `EOQ = ${EOQ_FORMULA}; Reorder point = safety stock + (annual demand ÷ 365 × lead time).`,
+        scope: `Economic order quantity = ${EOQ_FORMULA}; Reorder point = safety stock + (annual demand ÷ 365 × lead time).`,
         note: 'Planning recommendation only — confirm supplier prices and availability before ordering.',
         columnWidths: [30, 60],
       });
@@ -541,7 +546,7 @@ export default function AutoCalculatorDesign({
     const rows = reportRows(result);
     const table = (list) => list.map(([label, value]) => `<tr><th>${esc(label)}</th><td>${esc(value)}</td></tr>`).join('');
     printWindow.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8">
-      <title>EOQ Report - ${esc(selectedProduct?.name || 'Manual calculation')}</title>
+      <title>Economic Order Quantity Report - ${esc(selectedProduct?.name || 'Manual calculation')}</title>
       <style>
         * { box-sizing: border-box; } body { margin: 0; padding: 36px; color: #172033; font: 13px/1.5 Arial, sans-serif; }
         main { max-width: 760px; margin: 0 auto; } header { padding-bottom: 16px; border-bottom: 3px solid #176b57; }
@@ -561,7 +566,7 @@ export default function AutoCalculatorDesign({
       <h2>Product and demand</h2><table>${table(rows.context)}</table>
       <h2>Inputs</h2><table>${table(rows.inputs)}</table>
       <h2>Results</h2><table>${table(rows.results)}</table>
-      <div class="formula">EOQ = ${esc(EOQ_FORMULA)} = √(2 × ${esc(fmtSmart(result.annualDemand))} × ${esc(fmtSmart(result.orderingCost))} ÷ ${esc(fmtSmart(result.holdingCost))}) = ${esc(fmt(result.economicOrderQuantity, 2))}<br>
+      <div class="formula">Economic order quantity = ${esc(EOQ_FORMULA)} = √(2 × ${esc(fmtSmart(result.annualDemand))} × ${esc(fmtSmart(result.orderingCost))} ÷ ${esc(fmtSmart(result.holdingCost))}) = ${esc(fmt(result.economicOrderQuantity, 2))}<br>
       Reorder point = ${esc(fmtSmart(result.safetyStock))} + (${esc(fmtSmart(result.annualDemand))} ÷ 365 × ${esc(fmtSmart(result.leadTimeDays))}) = ${esc(fmt(result.reorderPoint))} units</div>
       </main><script>window.addEventListener('load', () => { window.focus(); window.print(); });</script></body></html>`);
     printWindow.document.close();
@@ -578,10 +583,14 @@ export default function AutoCalculatorDesign({
           and <strong>when to reorder</strong>.
         </p>
         <div className="eq-header-actions">
+          {canViewHistory && (
           <button className="ac-icon-btn" type="button" onClick={() => setShowHistory(true)}><History size={13} /> History</button>
+          )}
+          {canOpenForecasting && (
           <button className="ac-icon-btn ac-icon-btn-link" type="button" onClick={() => onNavigate && onNavigate('Forecasting')}>
             <TrendingUp size={13} /> Go to Forecasting
           </button>
+          )}
         </div>
       </div>
 
@@ -664,7 +673,7 @@ export default function AutoCalculatorDesign({
                 hint={safetyStockLocked ? 'Set by the Super Admin in Settings → Safety Stock Policy' : 'Extra buffer units'}
               />
             </div>
-            {selectedProduct && (
+            {selectedProduct && allowSaveCosts && (
               <div className="eq-cost-save eq-span-2">
                 {savedCosts ? (
                   <span className="eq-cost-save-ok">✓ These are {selectedProduct.name}’s saved costs</span>
@@ -686,7 +695,7 @@ export default function AutoCalculatorDesign({
 
           <div className="eq-actions">
             <button className="ac-btn-compute" onClick={handleCompute} type="button" disabled={saving}>
-              <Calculator size={14} /> {saving ? 'Saving…' : 'Compute EOQ'}
+              <Calculator size={14} /> {saving ? 'Saving…' : 'Compute Order Quantity'}
             </button>
             <button className="ac-btn-reset" onClick={handleReset} type="button" disabled={saving}>Reset</button>
           </div>
@@ -699,13 +708,13 @@ export default function AutoCalculatorDesign({
           {!result ? (
             <div className="eq-empty">
               <Calculator size={28} />
-              <p>Fill in the inputs and click <strong>Compute EOQ</strong>.</p>
+              <p>Fill in the inputs and click <strong>Compute Order Quantity</strong>.</p>
               <span>The result shows how many units to order each time and when to reorder.</span>
             </div>
           ) : (
             <>
               {resultIsStale && (
-                <p className="eq-stale" role="status">Inputs changed — click <strong>Compute EOQ</strong> again to update this result.</p>
+                <p className="eq-stale" role="status">Inputs changed — click <strong>Compute Order Quantity</strong> again to update this result.</p>
               )}
 
               <div className="eq-hero">
@@ -745,12 +754,14 @@ export default function AutoCalculatorDesign({
                   <tr className="eq-total"><th>Total annual cost</th><td /><td>{formatCurrency(result.totalCost)}</td></tr>
                 </tbody>
               </table>
-              <p className="eq-note"><Info size={12} /> At the EOQ the ordering and holding costs are equal — that balance is what makes it the cheapest order size.</p>
+              <p className="eq-note"><Info size={12} /> At the economic order quantity the ordering and holding costs are equal — that balance is what makes it the cheapest order size.</p>
 
+              {canExport && (
               <div className="eq-actions">
                 <button className="ac-btn-reset" onClick={exportExcel} type="button"><Download size={13} /> Export Excel</button>
                 <button className="ac-btn-reset" onClick={exportPdf} type="button"><Download size={13} /> Export PDF</button>
               </div>
+              )}
             </>
           )}
 

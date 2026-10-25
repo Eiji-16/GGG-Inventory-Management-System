@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
 
@@ -45,6 +46,7 @@ class SupplierController extends Controller
             'company' => $data['company'] ?? $data['name'],
             'lead_time_days' => $data['leadTimeDays'] ?? null,
         ]);
+        ActivityLog::record('supplier.add', "Added supplier — {$supplier->name}", 'users', ['supplierId' => $supplier->id, 'supplier' => $supplier->name]);
 
         return response()->json($this->format($supplier), 201);
     }
@@ -67,6 +69,7 @@ class SupplierController extends Controller
         if (array_key_exists('leadTimeDays', $data)) {
             $supplier->update(['lead_time_days' => $data['leadTimeDays']]);
         }
+        ActivityLog::record('supplier.edit', "Updated supplier — {$supplier->name}", 'users', ['supplierId' => $supplier->id, 'supplier' => $supplier->name]);
 
         return response()->json($this->format($supplier->fresh()));
     }
@@ -74,7 +77,10 @@ class SupplierController extends Controller
     /** DELETE /api/suppliers/{supplier} */
     public function destroy(Supplier $supplier)
     {
+        $name = $supplier->name;
+        $linked = $supplier->products()->count();
         $supplier->delete();
+        ActivityLog::record('supplier.delete', "Deleted supplier — {$name}", 'users', ['supplier' => $name, 'linkedProducts' => $linked]);
 
         return response()->json(['deleted' => true]);
     }

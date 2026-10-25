@@ -62,24 +62,6 @@ class AuthController extends Controller
         ]);
     }
 
-    public function createAccount(Request $request): JsonResponse
-    {
-        abort_unless($this->isSuperAdmin($request->user()), 403);
-
-        $attributes = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'confirmed', Password::min(8)],
-        ]);
-
-        $user = User::create($attributes);
-
-        return response()->json([
-            'message' => 'Account created.',
-            'user' => $user->only(['id', 'name', 'email']),
-        ], 201);
-    }
-
     public function sendPasswordResetOtp(Request $request): JsonResponse
     {
         $attributes = $request->validate([
@@ -112,17 +94,18 @@ class AuthController extends Controller
             Mail::to($user->email)->send(new PasswordResetOtpMail($otp));
         } catch (Throwable $exception) {
             DB::table('password_reset_otps')->where('email', $user->email)->delete();
-            Log::error('Password reset OTP email could not be sent.', [
+            // The details (e.g. "Gmail rejected the credentials, update MAIL_PASSWORD")
+            // go to the log for the developer, never to the login screen.
+            $hint = str_contains($exception->getMessage(), '535-5.7.8')
+                || str_contains($exception->getMessage(), 'BadCredentials')
+                ? 'Gmail rejected the mail credentials. Update MAIL_PASSWORD in .env with a valid Gmail App Password, then run php artisan config:clear.'
+                : 'Check the MAIL_* settings in .env.';
+            Log::error('Password reset OTP email could not be sent. '.$hint, [
                 'exception' => $exception,
             ]);
 
-            $errorMessage = str_contains($exception->getMessage(), '535-5.7.8')
-                || str_contains($exception->getMessage(), 'BadCredentials')
-                ? 'Gmail rejected the mail credentials. Update MAIL_PASSWORD in .env with a valid Gmail App Password, then run php artisan config:clear.'
-                : 'We could not send the email right now. Please check the mail settings and try again.';
-
             return response()->json([
-                'message' => $errorMessage,
+                'message' => 'We could not send the email right now. Please try again later or contact the Super Admin.',
             ], 503);
         }
 
@@ -205,6 +188,8 @@ class AuthController extends Controller
             // Sidebar picture chosen by the Super Admin (null = default icon).
             'logoUrl' => \App\Models\AppSetting::logoUrl(),
             'isSuperAdmin' => $this->isSuperAdmin($user),
+            // Role Access: which features this account may use (Settings).
+            'permissions' => \App\Services\RoleAccessService::effectiveFor($user),
         ];
     }
 

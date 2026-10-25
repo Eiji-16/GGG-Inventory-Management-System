@@ -801,3 +801,114 @@
     font-weight: 600;
     color: var(--accent-high);
 }
+
+/*==========ROLE ACCESS (Super Admin)==========*/
+.s-col {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.s-roles { animation-delay: 0.03s; }
+
+.s-roles-toggle { margin-left: auto; flex-shrink: 0; }
+
+.s-roles-chevron { transition: transform 0.2s ease; }
+.s-roles-chevron.is-open { transform: rotate(180deg); }
+
+.s-roles-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.s-roles-note {
+    margin: 0;
+    font-size: 10.5px;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+.s-roles-scroll {
+    max-height: 420px;
+    overflow-y: auto;
+    border: 1px solid var(--hairline, var(--border-color));
+    border-radius: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+.s-roles-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 64px 64px;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    padding: 4px 10px;
+    border-bottom: 1px solid var(--hairline, var(--border-color));
+}
+
+.s-roles-row:hover { background: var(--overlay-soft); }
+
+.s-roles-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--bg-card);
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.s-roles-head:hover { background: var(--bg-card); }
+
+.s-roles-group-title {
+    padding: 8px 10px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--hairline, var(--border-color));
+    background: var(--overlay-soft, transparent);
+}
+
+.s-roles-label {
+    min-width: 0;
+    font-size: 12px;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+}
+
+.s-roles-row.is-child .s-roles-label {
+    padding-left: 14px;
+    color: var(--text-muted);
+}
+
+.s-roles-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    text-align: center;
+}
+
+.s-roles-check {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.s-roles-blocked {
+    font-size: 9.5px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+    .s-roles-row { grid-template-columns: minmax(0, 1fr) 48px 48px; padding: 4px 8px; }
+}

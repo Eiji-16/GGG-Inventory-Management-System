@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import { Download, FileText, Search, RefreshCw } from 'lucide-react';
 import './reports.css';
 import exportReportWorkbook, { printReportPdf } from '../../utils/exportReportWorkbook';
@@ -85,7 +85,11 @@ const PanelHeader = ({ title, subtitle }) => (
   <PanelHeaderContent title={title} subtitle={subtitle} />
 );
 
+/* Role Access: whether this account may export reports (Settings). */
+const ReportExportContext = createContext(true);
+
 function PanelHeaderContent({ title, subtitle }) {
+  const canExport = useContext(ReportExportContext);
   const [exportError, setExportError] = useState('');
 
   const handleExport = async (event) => {
@@ -115,6 +119,7 @@ function PanelHeaderContent({ title, subtitle }) {
         <p>{subtitle}</p>
         {exportError && <p role="alert">{exportError}</p>}
       </div>
+      {canExport && (
       <div className="r-export-actions">
         <button className="r-export-btn" type="button" onClick={handlePdf}>
           <FileText size={13} /> Export PDF
@@ -123,6 +128,7 @@ function PanelHeaderContent({ title, subtitle }) {
           <Download size={13} /> Export Excel
         </button>
       </div>
+      )}
     </div>
   );
 }
@@ -489,7 +495,7 @@ function AutoCalculatorSummaryTab({ data, loading }) {
             : <><strong>{units(forecast.adjustedForecast ?? forecast.baseForecast)}</strong> units/{unit}</>}
         </span>
         <span className="r-detail-sub">
-          {PERIOD_WORD[unit] || 'Monthly'} WMA forecast · {periodLabel(forecast)}
+          {PERIOD_WORD[unit] || 'Monthly'} weighted moving average forecast · {periodLabel(forecast)}
           {seasonal
             ? ` · ${pct > 0 ? '+' : ''}${pct}% ${forecast.seasonalEvent || 'seasonal adjustment'}`
             : ' · no seasonal adjustment'}
@@ -512,7 +518,7 @@ function AutoCalculatorSummaryTab({ data, loading }) {
                 <tr key={i}>
                   <td>{r.product || '—'}</td>
                   <td>{r.productId || '—'}</td>
-                  <td>{r.formula}</td>
+                  <td>{r.formula === 'EOQ' ? 'Economic Order Quantity' : r.formula}</td>
                   <td>{r.demandSource === 'forecast' ? 'Forecast' : 'Historical'}</td>
                   <td>{r.annualDemand != null ? `${Number(r.annualDemand).toLocaleString('en-PH')} units/year` : '—'}</td>
                   <td>{demandDetails(r)}</td>
@@ -607,12 +613,31 @@ const TAB_RENDER = [
   (p) => <ReorderPointReportTab {...p} data={p.report?.reorderPoint} />,
 ];
 
+/* Role Access box for each tab, in the same order as TABS. */
+const TAB_PERMISSION = [
+  'stock_summary',
+  'stock_movement',
+  'top_moving',
+  'fast_slow',
+  'demand_forecast',
+  'order_quantity',
+  'inventory_aging',
+  'reorder_point',
+];
+
 /* refreshKey changes whenever stock or products change elsewhere; isActive is
    true while the Reports page is on screen. The page stays mounted in the
    background, so it reloads on either — otherwise it showed old numbers until
    the whole page was refreshed. */
-export default function ReportsAnalyticsDesign({ safetyStock, refreshKey = 0, isActive = true }) {
+export default function ReportsAnalyticsDesign({ safetyStock, refreshKey = 0, isActive = true, canTab = () => true, canExport = true }) {
   const [activeTab, setActiveTab] = useState(0);
+  /* Only the tabs this role may see (Settings → Role Access). The server
+     also leaves the hidden tabs' data out of /api/reports. */
+  const allowedTabs = TABS.map((_, i) => i).filter((i) => canTab(TAB_PERMISSION[i]));
+  const allowedKey = allowedTabs.join(',');
+  useEffect(() => {
+    if (allowedTabs.length > 0 && !allowedTabs.includes(activeTab)) setActiveTab(allowedTabs[0]);
+  }, [allowedKey, activeTab]); // allowedKey stands in for allowedTabs (a new array each render)
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -670,20 +695,21 @@ export default function ReportsAnalyticsDesign({ safetyStock, refreshKey = 0, is
     ? new Date(report.generatedAt).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })
     : null;
 
-  const renderTab = TAB_RENDER[activeTab];
+  const shownTab = allowedTabs.includes(activeTab) ? activeTab : (allowedTabs[0] ?? 0);
+  const renderTab = TAB_RENDER[shownTab];
 
   return (
     <div className="r-root">
       <div className="r-tabbar">
-        {TABS.map((label, i) => (
+        {TABS.map((label, i) => (allowedTabs.includes(i) && (
           <button
             key={label}
-            className={`r-tab ${activeTab === i ? 'active' : ''}`}
+            className={`r-tab ${shownTab === i ? 'active' : ''}`}
             onClick={() => setActiveTab(i)}
           >
             {label}
           </button>
-        ))}
+        )))}
         <button
           type="button"
           className="r-refresh-btn"
@@ -697,9 +723,13 @@ export default function ReportsAnalyticsDesign({ safetyStock, refreshKey = 0, is
         </button>
       </div>
 
-      {error
+      <ReportExportContext.Provider value={canExport}>
+      {allowedTabs.length === 0
+        ? <p className="r-supplier-note" role="status" style={{ margin: 16 }}>No report tabs are turned on for your role. Ask the Super Admin to turn them on in Settings → Role Access.</p>
+        : error
         ? <p className="r-supplier-note" role="alert" style={{ margin: 16 }}>{error}</p>
         : renderTab({ report, loading: loading && !report /* keep old numbers on screen while refreshing */ })}
+      </ReportExportContext.Provider>
     </div>
   );
 }

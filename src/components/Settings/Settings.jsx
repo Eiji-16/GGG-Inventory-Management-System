@@ -19,6 +19,7 @@ import {
   DEFAULT_CRITICAL_POINT,
 } from '../../data/safetyStock';
 import { CURRENCIES, useCurrency } from '../../CurrencyContext';
+import RoleAccess from './roleAccess';
 
 const THEMES = [
   { value: 'white', label: 'White' },
@@ -34,9 +35,12 @@ function Settings({
   onUpdateSafetyStock,
   policyLoading = false,
   policyError = '',
+  // From Role Access ("Change currency"); the server checks the same box.
+  canChangeCurrency: canChangeCurrencyProp,
+  isSuperAdmin: isSuperAdminProp,
 }) {
-  const isSuperAdmin = role === 'Super Admin';
-  const canChangeCurrency = role === 'Super Admin' || role === 'Admin';
+  const isSuperAdmin = isSuperAdminProp ?? role === 'Super Admin';
+  const canChangeCurrency = canChangeCurrencyProp ?? (role === 'Super Admin' || role === 'Admin');
   const { currency, currencySymbol, updateCurrency } = useCurrency();
   const activeThemeName = THEMES.find((option) => option.value === theme)?.label || 'Midnight Blue';
   const selectedThemeRef = useRef(theme);
@@ -237,6 +241,7 @@ function Settings({
      (its list scrolls on its own). Everyone else: one column. */
   return (
     <div className={`s-container${isSuperAdmin ? ' s-container-split' : ''}`}>
+      <div className="s-col">
       {/* ===== PREFERENCES ===== */}
       <section className="s-card s-prefs" aria-labelledby="s-prefs-title">
         <header className="s-card-head">
@@ -295,7 +300,7 @@ function Settings({
             <span className="s-pref-desc">
               {canChangeCurrency
                 ? 'Applies to every account and report. Amounts are not converted.'
-                : 'Set by an Admin for the whole system.'}
+                : 'Set for the whole system by someone with currency access.'}
             </span>
             {currencySaving && <span className="s-pref-status" role="status">Saving currency…</span>}
             {currencySaved && <span className="s-pref-status" role="status"><Check size={11} /> Saved for the whole system</span>}
@@ -333,6 +338,10 @@ function Settings({
           </button>
         </div>
       </section>
+
+      {/* ===== ROLE ACCESS (Super Admin only) ===== */}
+      {isSuperAdmin && <RoleAccess />}
+      </div>
 
       {/* ===== SAFETY STOCK POLICY ===== */}
       {/* Only the Super Admin sees this section (Admin and Staff don't). */}

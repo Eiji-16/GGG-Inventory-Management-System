@@ -416,7 +416,17 @@ function eventScopeText(event) {
   return 'All products';
 }
 
-export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, catalogRevision = 0, isActive = true }) {
+/* can* props come from Role Access (Settings); the server checks the same boxes. */
+export default function DemandForecastDesign({
+  onNavigate,
+  onClearEoqHandoff,
+  catalogRevision = 0,
+  isActive = true,
+  canExport = true,
+  canEditPastSales = true,
+  canManageEvents = true,
+  canComputeEoq = true,
+}) {
   const [view, setView] = useState('forecast');
   const [products, setProducts] = useState([]);
   const [productId, setProductId] = useState('');
@@ -569,7 +579,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
       return;
     }
     if (!Number.isFinite(annualDemand) || annualDemand <= 0 || !Number.isFinite(adjustedDemand)) {
-      setError('The forecast must produce a positive annual demand before it can be used for EOQ.');
+      setError('The forecast must produce a positive annual demand before it can be used for the economic order quantity.');
       return;
     }
 
@@ -610,7 +620,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
     ['Forecast method', FORECAST_METHOD],
     ['Sales data source', 'Stock Out transactions (Stock Movement Tracking)'],
     ['Forecast period', formatPeriod(forecast.forecastPeriod, selectedPeriodType)],
-    [`WMA forecast (units/${periodUnit})`, Number(forecast.baseForecast).toFixed(1)],
+    [`Weighted moving average forecast (units/${periodUnit})`, Number(forecast.baseForecast).toFixed(1)],
     ['Seasonal events', forecast.seasonalEnabled ? forecast.seasonalEvents.map((item) => `${item.name} (${formatSigned(item.adjustmentPct, 0)}% on ${item.appliedDays ?? item.overlapDays}/${forecast.periodDays} days → ${formatSigned(item.contributionPct ?? item.adjustmentPct, 2)}%)`).join(', ') : 'None'],
     ['Seasonal adjustment', `${effectivePct}%`],
     [`Adjusted forecast (units/${periodUnit})`, Number(adjustedDemand).toFixed(1)],
@@ -619,14 +629,14 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
     ['Mean absolute deviation', forecast.meanAbsoluteDeviation ?? '—'],
   ];
   const exportSummary = () => [
-    { label: 'WMA forecast', value: `${Number(forecast.baseForecast).toFixed(1)} units/${periodUnit}` },
+    { label: 'Weighted moving average forecast', value: `${Number(forecast.baseForecast).toFixed(1)} units/${periodUnit}` },
     { label: 'Adjusted forecast', value: `${Number(adjustedDemand).toFixed(1)} units/${periodUnit}` },
     { label: 'Annual estimate', value: `${annualDemand} units` },
     { label: 'History periods', value: dataPoints },
   ];
   const exportSections = () => [
     { title: 'Forecast calculation', headers: ['Metric', 'Value'], rows: calculationRows() },
-    { title: 'Weighted moving average table', headers: ['Period', 'Actual sales', 'Weight', 'WMA forecast', 'Variance'], rows: wmaTableRows() },
+    { title: 'Weighted moving average table', headers: ['Period', 'Actual sales', 'Weight', 'Forecast', 'Variance'], rows: wmaTableRows() },
   ];
 
   const exportForecastExcel = async () => {
@@ -802,11 +812,13 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
 
           <div className="f-view-tabs" role="tablist" aria-label="Forecasting sections">
             <button type="button" role="tab" aria-selected={view === 'forecast'} className={view === 'forecast' ? 'is-active' : ''} onClick={() => setView('forecast')}>
-              Sales Forecasting (WMA)
+              Sales Forecasting
             </button>
+            {canEditPastSales && (
             <button type="button" role="tab" aria-selected={view === 'past'} className={view === 'past' ? 'is-active' : ''} onClick={() => setView('past')}>
               Past Sales
             </button>
+            )}
             <button type="button" role="tab" aria-selected={view === 'seasonal'} className={view === 'seasonal' ? 'is-active' : ''} onClick={() => setView('seasonal')}>
               Seasonal Adjustments
               {events.filter((event) => event.status === 'Active').length > 0 && (
@@ -899,7 +911,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                         <th>{selectedPeriodType === 'week' ? 'Week' : selectedPeriodType === 'year' ? 'Year' : 'Month'}</th>
                         <th className="fx-num">Actual Sales</th>
                         <th className="fx-num">Weight</th>
-                        <th className="fx-num">WMA Forecast</th>
+                        <th className="fx-num">Forecast</th>
                         <th className="fx-num">Variance</th>
                       </tr>
                     </thead>
@@ -912,7 +924,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                             {productId ? (
                               <>
                                 No completed {periodPlural} of sales yet. Sales appear here automatically from Stock Out transactions in Stock Control
-                                {selectedPeriodType !== 'week' && (
+                                {selectedPeriodType !== 'week' && canEditPastSales && (
                                   <>, or add her earlier sales in{' '}
                                     <button type="button" className="fx-inline-link" onClick={() => setView('past')}>Past Sales</button>
                                   </>
@@ -993,7 +1005,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
 
                 <p className="fx-note">
                   <strong>{FORECAST_METHOD}:</strong> {FORECAST_METHOD_NOTE} Actual sales are the Stock Out quantities recorded in Stock Control for each completed {periodUnit}{selectedPeriodType !== 'week' ? ' (rows marked Past come from Past Sales)' : ''};
-                  Variance = Actual − WMA Forecast.
+                  Variance = Actual − Forecast.
                 </p>
               </section>
 
@@ -1021,7 +1033,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
 
                 <div className="fx-output">
                   <div className="fx-stat">
-                    <span>WMA Base</span>
+                    <span>Base Forecast</span>
                     <strong>{forecast ? Number(forecast.baseForecast).toFixed(1) : '—'}</strong>
                     <small>units / {periodUnit}</small>
                   </div>
@@ -1051,26 +1063,32 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                 )}
 
                 <div className="fx-actions">
+                  {canComputeEoq && (
                   <button type="button" className="f-btn f-btn-primary" onClick={computeEoqFromForecast} disabled={!forecast || annualDemand <= 0}>
-                    <CalculatorIcon /> Compute EOQ from Forecast
+                    <CalculatorIcon /> Compute Order Quantity from Forecast
                   </button>
+                  )}
+                  {canExport && (
+                  <>
                   <button type="button" className="f-btn f-btn-ghost" onClick={exportForecastExcel} disabled={!forecast}>
                     <FileIcon /> Excel
                   </button>
                   <button type="button" className="f-btn f-btn-ghost" onClick={exportForecastPdf} disabled={!forecast}>
                     <FileIcon /> PDF
                   </button>
+                  </>
+                  )}
                 </div>
-                {forecast && (
+                {forecast && canComputeEoq && (
                   <p className="fx-handoff">
-                    Sends {annualDemand.toLocaleString()} units/year to the EOQ Calculator as annual demand.
+                    Sends {annualDemand.toLocaleString()} units/year to the Economic Order Quantity Calculator as annual demand.
                   </p>
                 )}
               </section>
             </div>
           )}
 
-          {view === 'past' && (
+          {view === 'past' && canEditPastSales && (
             <PastSalesPanel
               products={products}
               productId={productId}
@@ -1085,13 +1103,15 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                 <div>
                   <h3>Seasonal Events</h3>
                   <p className="f-sub">
-                    Flag promotions and holidays. An active event raises or lowers the WMA forecast of its affected products
+                    Flag promotions and holidays. An active event raises or lowers the weighted moving average forecast of its affected products
                     whenever its dates overlap the forecast period.
                   </p>
                 </div>
+                {canManageEvents && (
                 <button type="button" className="f-btn f-btn-primary" onClick={() => openEventForm()}>
                   + Add Event
                 </button>
+                )}
               </div>
 
               {eventsError && <div className="f-warning-banner" role="alert">{eventsError}</div>}
@@ -1112,10 +1132,12 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                         {formatSigned(event.adjustmentPct, 0)}%
                       </span>
                       <span className={`f-event-status is-${event.status.toLowerCase()}`}>{event.status}</span>
+                      {canManageEvents && (
                       <div className="f-event-actions">
                         <button type="button" className="f-btn f-btn-ghost f-btn-sm" onClick={() => openEventForm(event)}>Edit</button>
                         <button type="button" className="f-btn f-btn-ghost f-btn-sm f-event-delete" onClick={() => setDeleteTarget(event)}>Delete</button>
                       </div>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -1132,7 +1154,7 @@ export default function DemandForecastDesign({ onNavigate, onClearEoqHandoff, ca
                   <div>
                     <span className="f-monthly-eyebrow">Seasonal adjustment</span>
                     <h3 id="seasonal-event-title">{eventDraft.id ? 'Edit seasonal event' : 'Add seasonal event'}</h3>
-                    <p className="f-sub hint-text">Applied after the WMA forecast, only for the days the event covers. If events overlap, the stronger one counts on shared days.</p>
+                    <p className="f-sub hint-text">Applied after the weighted moving average forecast, only for the days the event covers. If events overlap, the stronger one counts on shared days.</p>
                   </div>
                   <button type="button" className="f-event-close" aria-label="Close" onClick={() => setEventDraft(null)} disabled={savingEvent}>×</button>
                 </header>
