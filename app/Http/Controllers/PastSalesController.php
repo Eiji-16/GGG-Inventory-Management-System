@@ -76,6 +76,29 @@ class PastSalesController extends Controller
                 'used'      => $sale->period_date->lt($cutoff),
             ]);
 
+        // Month totals worked out from the WEEKLY entries, so the month grid
+        // can show them: used automatically when a month has no monthly entry
+        // and all its weeks are entered; otherwise shown as a check/warning.
+        $weekCutoff = $this->forecasts->weeklyPastSalesCutoff($product)->toDateString();
+        $weeks = PastSale::where('product_id', $product->id)
+            ->where('period_type', 'week')
+            ->get(['period_date', 'units_sold'])
+            ->filter(fn (PastSale $sale) => $sale->period_date->toDateString() < $weekCutoff)
+            ->mapWithKeys(fn (PastSale $sale) => [$sale->period_date->toDateString() => $sale->units_sold])
+            ->all();
+        $typedMonths = $rows->pluck('month')->all();
+        $fromWeeks = collect($this->forecasts->monthsFromWeeks($weeks))
+            ->map(fn (array $info, string $month) => [
+                'month'        => substr($month, 0, 7),
+                'unitsSold'    => $info['unitsSold'],
+                'weeksEntered' => $info['weeksEntered'],
+                'weeksNeeded'  => $info['weeksNeeded'],
+                'complete'     => $info['complete'],
+                // Counts in the forecast only when no monthly entry exists for it.
+                'used'         => $info['complete'] && $month < $cutoff->toDateString() && ! in_array(substr($month, 0, 7), $typedMonths, true),
+            ])
+            ->values();
+
         return response()->json([
             'periodType'     => 'month',
             'productId'      => $product->code,
@@ -83,6 +106,7 @@ class PastSalesController extends Controller
             'cutoff'         => $cutoff->format('Y-m'),
             'recordingStart' => $this->forecasts->recordingStart($product)?->format('Y-m'),
             'rows'           => $rows,
+            'fromWeeks'      => $fromWeeks,
         ]);
     }
 

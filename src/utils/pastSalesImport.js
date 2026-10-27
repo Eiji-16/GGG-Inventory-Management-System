@@ -11,6 +11,8 @@
              Product | Jan 2026 | Feb 2026 | Mar 2026 | …
    ========================================================================== */
 
+import { saveWorkbookFile } from './exportReportWorkbook';
+
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
 const ID_HEADERS = /^(product\s*(id|code|no\.?|#)|item\s*(id|code|no\.?)|sku|code|barcode)$/;
@@ -184,23 +186,71 @@ export function monthLabel(month) {
   return `${MONTHS[m - 1][0].toUpperCase()}${MONTHS[m - 1].slice(1)} ${year}`;
 }
 
-/** Download a ready-to-fill template: one row per product, last 12 months across. */
+/** Download a ready-to-fill template: one row per product, last 12 months across.
+    Product columns are grey (don't change them); the light-yellow cells are
+    where units sold are typed. The header row and product columns stay
+    frozen while scrolling. */
 export function downloadTemplate(XLSX, products, months = lastCompletedMonths(12)) {
   const header = ['Product ID', 'Product Name', ...months.map(monthLabel)];
   const body = products.map((product) => [product.id, product.name, ...months.map(() => null)]);
   const sheet = XLSX.utils.aoa_to_sheet([header, ...body]);
-  sheet['!cols'] = [{ wch: 14 }, { wch: 34 }, ...months.map(() => ({ wch: 11 }))];
-  sheet['!freeze'] = { xSplit: 2, ySplit: 1 };
+  sheet['!cols'] = [{ wch: 16 }, { wch: 36 }, ...months.map(() => ({ wch: 11 }))];
+  sheet['!rows'] = [{ hpt: 24 }];
+
+  const font = { name: 'Arial', sz: 10 };
+  const thin = { style: 'thin', color: { rgb: 'D0D7E2' } };
+  const box = { top: thin, bottom: thin, left: thin, right: thin };
+  header.forEach((_, column) => {
+    const address = XLSX.utils.encode_cell({ r: 0, c: column });
+    sheet[address].s = {
+      font: { ...font, bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '1A2A4A' } },
+      alignment: { horizontal: column < 2 ? 'left' : 'center', vertical: 'center' },
+      border: box,
+    };
+  });
+  body.forEach((row, offset) => {
+    row.forEach((value, column) => {
+      const address = XLSX.utils.encode_cell({ r: offset + 1, c: column });
+      // An empty text value keeps the cell (and its colour) in the file; it reads back as blank.
+      if (!sheet[address]) sheet[address] = { t: 's', v: '' };
+      sheet[address].s = column < 2
+        ? { font: { ...font, color: { rgb: '475467' } }, fill: { fgColor: { rgb: 'EEF1F5' } }, border: box }
+        : { font, fill: { fgColor: { rgb: 'FFF8DB' } }, alignment: { horizontal: 'center' }, border: box, numFmt: '#,##0' };
+    });
+  });
+
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, 'Past Sales');
-  const guide = XLSX.utils.aoa_to_sheet([
+  const guideRows = [
     ['How to fill this template'],
-    ['1. Type the number of units sold in each month cell. Leave a cell blank if you have no record.'],
-    ['2. Do not change the Product ID column — it is how the system finds each product.'],
-    ['3. You may add more month columns (e.g. "Jan 2025"), or use your own sheet with columns Product, Month, Units Sold.'],
+    [''],
+    ['1. Type the units sold in the light-yellow cells — one number per product per month. Leave a cell blank if there is no record.'],
+    ['2. Do not change the grey Product ID / Product Name columns — the Product ID is how the system finds each product.'],
+    ['3. You may add more month columns to the right (write the heading like "Jan 2025").'],
     ['4. Months already recorded in Stock Control are skipped automatically, so nothing is counted twice.'],
-  ]);
-  guide['!cols'] = [{ wch: 110 }];
+    ['5. Save the file, then in Forecasting → Past Sales click "Choose Excel file". You will see a preview before anything is saved.'],
+    [''],
+    ['Example (do not type this in the Past Sales sheet):'],
+    ['Product ID', 'Product Name', 'Jan 2026', 'Feb 2026', 'Mar 2026'],
+    ['PRD-0001', 'Sample Phone Case', 30, 25, ''],
+    ['', '', '', '', '← blank = no record for March'],
+  ];
+  const guide = XLSX.utils.aoa_to_sheet(guideRows);
+  guide['!cols'] = [{ wch: 16 }, { wch: 24 }, { wch: 11 }, { wch: 11 }, { wch: 30 }];
+  guide['!merges'] = [0, 2, 3, 4, 5, 6, 8].map((r) => ({ s: { r, c: 0 }, e: { r, c: 4 } }));
+  const setGuide = (address, style) => { if (guide[address]) guide[address].s = style; };
+  setGuide('A1', { font: { name: 'Arial', sz: 13, bold: true, color: { rgb: '1A2A4A' } } });
+  ['A3', 'A4', 'A5', 'A6', 'A7'].forEach((address) => setGuide(address, { font, alignment: { wrapText: true, vertical: 'top' } }));
+  setGuide('A9', { font: { ...font, bold: true } });
+  ['A10', 'B10', 'C10', 'D10', 'E10'].forEach((address) => setGuide(address, { font: { ...font, bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1A2A4A' } } }));
+  ['C11', 'D11'].forEach((address) => setGuide(address, { font, fill: { fgColor: { rgb: 'FFF8DB' } }, alignment: { horizontal: 'center' } }));
+  setGuide('E12', { font: { ...font, italic: true, color: { rgb: '667085' } } });
+  guide['!rows'] = [{ hpt: 22 }];
   XLSX.utils.book_append_sheet(workbook, guide, 'Instructions');
-  XLSX.writeFile(workbook, `past-sales-template-${new Date().toISOString().slice(0, 10)}.xlsx`);
+
+  saveWorkbookFile(XLSX, workbook, `past-sales-template-${new Date().toISOString().slice(0, 10)}.xlsx`, [
+    { freezeRows: 1, freezeCols: 2 },
+    { hideGrid: true },
+  ]);
 }

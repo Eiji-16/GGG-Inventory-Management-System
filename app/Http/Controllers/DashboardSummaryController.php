@@ -85,15 +85,21 @@ class DashboardSummaryController extends Controller
                 $m->movement_date->copy()->startOfMonth()->toDateString(),
                 (int) $m->qty
             ));
+        // Past sales per month — monthly entries, or complete months worked out
+        // from weekly entries — exactly as the monthly forecast uses them.
         \App\Models\PastSale::query()
             ->whereIn('product_id', $productsById->keys())
-            ->where('period_type', 'month') // monthly chart: weekly past sales are for weekly forecasts
-            ->get(['product_id', 'period_date', 'units_sold'])
-            ->each(function ($past) use ($productsById, $forecasts, $addSale): void {
-                $product = $productsById[$past->product_id];
-                $month = \Illuminate\Support\Carbon::parse($past->period_date)->startOfMonth();
-                if ($month->lt($forecasts->pastSalesCutoff($product))) {
-                    $addSale($product, $month->toDateString(), (int) $past->units_sold);
+            ->get(['product_id', 'period_type', 'period_date', 'units_sold'])
+            ->groupBy('product_id')
+            ->each(function ($pastRows, $productId) use ($productsById, $forecasts, $addSale): void {
+                $product = $productsById[$productId];
+                $rows = $pastRows->map(fn ($past) => [
+                    \Illuminate\Support\Carbon::parse($past->period_date)->toDateString(),
+                    (int) $past->units_sold,
+                    $past->period_type ?: 'month',
+                ])->all();
+                foreach ($forecasts->pastMonthlyTotals($product, $rows) as $month => $row) {
+                    $addSale($product, $month, $row['unitsSold']);
                 }
             });
         $salesHistory = collect(array_values($monthly))

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { AlertTriangle, Edit, Plus, Search, Trash2, Truck, X } from 'lucide-react';
 import apiFetch from '../../apiFetch';
 import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
+import MobileSelectBar from '../MobileSelectBar/MobileSelectBar';
 
 const EMPTY_SUPPLIER = { id: null, name: '', contact: '', leadTimeDays: '' };
 
@@ -182,9 +183,11 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
         </div>
         {canManage && selectedIds.size > 0 && (
           <button
-            className="ps-add-btn ps-delete-selected-btn"
+            className="ps-add-btn ps-delete-selected-btn ps-add-collapse"
             onClick={requestDeleteBulk}
             type="button"
+            data-count={selectedIds.size}
+            aria-label={`Delete ${selectedIds.size} selected`}
             title={`Delete ${selectedIds.size} selected`}
           >
             <p>Delete ({selectedIds.size})</p>
@@ -192,7 +195,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
           </button>
         )}
         {canManage && (
-        <button className="ps-add-btn" type="button" onClick={() => openForm()} title="Add Supplier">
+        <button className="ps-add-btn ps-add-collapse" type="button" onClick={() => openForm()} title="Add Supplier" aria-label="Add Supplier">
           <p>Add Supplier</p>
           <Plus size={12} className="ps-add-icon" />
         </button>
@@ -201,8 +204,15 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
 
       {error && <p className="ps-export-error" role="alert">{error}</p>}
 
+      <MobileSelectBar
+        total={visible.length}
+        count={selectedIds.size}
+        allSelected={allSelected}
+        onToggleAll={toggleSelectAll}
+        onClear={() => setSelectedIds(new Set())}
+      />
       <div className="ps-table-scroll">
-        <table className="ps-table ps-supplier-table">
+        <table className="ps-table ps-supplier-table m-folders">
           <thead>
             <tr>
               <th className="ps-th-check">
@@ -234,7 +244,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
               const supplied = supplier.products || [];
               return (
                 <tr key={supplier.id} className={selectedIds.has(supplier.id) ? 'is-selected' : ''}>
-                  <td className="ps-td-check">
+                  <td className="ps-td-check m-keep">
                     <input
                       type="checkbox"
                       checked={selectedIds.has(supplier.id)}
@@ -242,7 +252,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
                       aria-label={`Select ${supplier.name}`}
                     />
                   </td>
-                  <td className="ps-td-left" data-label="Supplier"><strong>{supplier.name}</strong></td>
+                  <td className="ps-td-left m-title" data-label="Supplier"><strong>{supplier.name}</strong></td>
                   <td className="ps-td-left ps-td-muted" data-label="Contact">{supplier.contact || '—'}</td>
                   <td className="ps-td-left" data-label="Products Supplied" title={supplied.map((p) => p.name).join(', ')}>
                     {supplied.length ? (
@@ -254,7 +264,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
                       </span>
                     ) : <span className="ps-td-muted">No products linked</span>}
                   </td>
-                  <td data-label="Lead Time">{supplier.leadTimeDays != null ? `${supplier.leadTimeDays} days` : '—'}</td>
+                  <td className="m-peek" data-label="Lead Time">{supplier.leadTimeDays != null ? `${supplier.leadTimeDays}-day lead time` : '—'}</td>
                   <td className="ps-td-actions" data-label="Actions">
                     <div className="ps-action-cell-container">
                       {canManage ? (

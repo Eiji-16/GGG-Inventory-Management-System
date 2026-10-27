@@ -26,7 +26,9 @@ body {
 
 
 /*==========DARK AND LIGHT MODE==========*/
-:root, [data-theme="white"] {
+/* Fallback values only — the app always sets a data-theme. (The pure White
+   theme was removed; saved "white" now opens as Soft White, see theme.js.) */
+:root {
     color-scheme: light;
     --bg-main: #F1F5FA;
     --bg-sidebar: #FFFFFF;
@@ -197,6 +199,360 @@ body {
     --drawer-label-color: #E4E4E7;
     --staff-primary-bg: #60A5FA;
     --staff-primary-text: #111827;
+}
+
+/* Soft White: warm off-white "paper" tones — less glare than pure white
+   for long sessions (easier on the eyes). */
+[data-theme="soft-white"] {
+    color-scheme: light;
+    --bg-main: #ECE8DF;
+    --bg-sidebar: #F6F3EC;
+    --bg-card: #F6F3EC;
+    --text-primary: #2A2823;
+    --text-muted: #6E6A60;
+    --border-color: rgba(60, 52, 36, 0.13);
+    --text-sidebar-icon: #2A2823;
+    --background-icon-active-color: #D9B23F;
+    --icon-active-color: #2A2823;
+    --background-icon-active-color-theme: rgba(217, 178, 63, 0.18);
+    --static-bg-color: #E7E2D7;
+    --scroll-thumb: rgba(60, 52, 36, 0.24);
+    --scroll-thumb-hover: rgba(60, 52, 36, 0.42);
+    --accent: #C99A2E;
+    --accent-low: #B8432F;
+    --accent-med: #B07D18;
+    --accent-high: #2F7D5B;
+    --accent-low-soft: rgba(184, 67, 47, 0.12);
+    --accent-med-soft: rgba(176, 125, 24, 0.14);
+    --accent-high-soft: rgba(47, 125, 91, 0.12);
+    --info-color: #3D6FB6;
+    --info-soft: rgba(61, 111, 182, 0.12);
+    --info-border: rgba(61, 111, 182, 0.35);
+    --border-strong: rgba(60, 52, 36, 0.24);
+    --btn-fill-bg: #2A2823;
+    --btn-fill-text: #F6F3EC;
+    --shadow-card: 0 1px 3px rgba(60, 52, 36, 0.08);
+    --shadow-hover: 0 8px 22px rgba(60, 52, 36, 0.14);
+    --overlay-soft: rgba(60, 52, 36, 0.05);
+    --overlay-medium: rgba(60, 52, 36, 0.10);
+    --hairline: rgba(60, 52, 36, 0.14);
+    --accent-ring: rgba(201, 154, 46, 0.18);
+    --accent-glow: rgba(201, 154, 46, 0.35);
+    --drawer-background: linear-gradient(180deg, #2f2b24 0%, #3b352b 100%);
+    --drawer-border: rgba(217, 178, 63, 0.4);
+    --drawer-section-label: #b3a88f;
+    --drawer-brand-color: #f6f3ec;
+    --drawer-muted: #c8bfa9;
+    --drawer-item-bg: rgba(255, 255, 255, 0.035);
+    --drawer-item-border: rgba(255, 255, 255, 0.025);
+    --drawer-item-hover: rgba(255, 255, 255, 0.075);
+    --drawer-item-hover-border: rgba(217, 178, 63, 0.25);
+    --drawer-active-bg: linear-gradient(135deg, #ecd07a 0%, #d9b23f 100%);
+    --drawer-active-border: rgba(240, 214, 140, 0.8);
+    --drawer-active-text: #2a2823;
+    --drawer-active-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28), 0 8px 18px rgba(217, 178, 63, 0.2);
+    --drawer-icon-color: #efe9dc;
+    --drawer-label-color: #f1ece1;
+    --input-bg: #EDE9E0;
+    --staff-primary-bg: #2A2823;
+    --staff-primary-text: #F6F3EC;
+}
+
+/* Emerald: deep green dark theme with a mint accent. */
+[data-theme="emerald"] {
+    color-scheme: dark;
+    --bg-main: linear-gradient(180deg, #13261F 0%, #17392D 100%);
+    --bg-sidebar: #142C23;
+    --bg-card: #142C23;
+    --text-primary: #F1F7F4;
+    --text-muted: #9DB8AC;
+    --border-color: rgba(52, 211, 153, 0.16);
+    --text-sidebar-icon: #F1F7F4;
+    --background-icon-active-color: #34D399;
+    --icon-active-color: #062018;
+    --background-icon-active-color-theme: rgba(52, 211, 153, 0.14);
+    --static-bg-color: #1E3B30;
+    --scroll-thumb: rgba(241, 247, 244, 0.22);
+    --scroll-thumb-hover: rgba(241, 247, 244, 0.42);
+    --accent: #34D399;
+    --accent-low: #FF8A75;
+    --accent-med: #F0C05A;
+    --accent-high: #6EE7B7;
+    --accent-low-soft: rgba(255, 138, 117, 0.14);
+    --accent-med-soft: rgba(240, 192, 90, 0.14);
+    --accent-high-soft: rgba(110, 231, 183, 0.14);
+    --info-color: #7DD3FC;
+    --info-soft: rgba(125, 211, 252, 0.14);
+    --info-border: rgba(125, 211, 252, 0.35);
+    --border-strong: rgba(52, 211, 153, 0.34);
+    --btn-fill-bg: #34D399;
+    --btn-fill-text: #062018;
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-hover: 0 8px 22px rgba(0, 0, 0, 0.4);
+    --overlay-soft: rgba(241, 247, 244, 0.06);
+    --overlay-medium: rgba(241, 247, 244, 0.12);
+    --hairline: rgba(241, 247, 244, 0.13);
+    --accent-ring: rgba(52, 211, 153, 0.18);
+    --accent-glow: rgba(52, 211, 153, 0.4);
+    --drawer-background: linear-gradient(180deg, #0f211a 0%, #163428 100%);
+    --drawer-border: rgba(52, 211, 153, 0.4);
+    --drawer-section-label: #7fa797;
+    --drawer-brand-color: #ecf7f2;
+    --drawer-muted: #9db8ac;
+    --drawer-item-bg: rgba(255, 255, 255, 0.035);
+    --drawer-item-border: rgba(255, 255, 255, 0.025);
+    --drawer-item-hover: rgba(255, 255, 255, 0.075);
+    --drawer-item-hover-border: rgba(52, 211, 153, 0.25);
+    --drawer-active-bg: linear-gradient(135deg, #6ee7b7 0%, #34d399 100%);
+    --drawer-active-border: rgba(167, 243, 208, 0.8);
+    --drawer-active-text: #062018;
+    --drawer-active-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22), 0 8px 18px rgba(52, 211, 153, 0.2);
+    --drawer-icon-color: #e1f1ea;
+    --drawer-label-color: #e6f3ed;
+    --input-bg: #1E3B30;
+    --staff-primary-bg: #34D399;
+    --staff-primary-text: #062018;
+}
+
+/* Lavender (light): soft off-white page, lavender accent, dark sidebar. */
+[data-theme="lavender"] {
+    color-scheme: light;
+    --bg-main: #ECE8DF;
+    --bg-sidebar: #1F1D2B;
+    --bg-card: #F7F4EE;
+    --text-primary: #25232B;
+    --text-muted: #6C6874;
+    --border-color: rgba(40, 36, 46, 0.12);
+    --text-sidebar-icon: #25232B;
+    --background-icon-active-color: #7C6FD0;
+    --icon-active-color: #FFFFFF;
+    --background-icon-active-color-theme: rgba(124, 111, 208, 0.16);
+    --static-bg-color: #E8E3DA;
+    --scroll-thumb: rgba(40, 36, 46, 0.24);
+    --scroll-thumb-hover: rgba(40, 36, 46, 0.42);
+    --accent: #7C6FD0;
+    --accent-low: #C2412D;
+    --accent-med: #B27A12;
+    --accent-high: #2F7D5B;
+    --accent-low-soft: rgba(194, 65, 45, 0.12);
+    --accent-med-soft: rgba(178, 122, 18, 0.14);
+    --accent-high-soft: rgba(15, 118, 110, 0.12);
+    --info-color: #3D6FB6;
+    --info-soft: rgba(59, 110, 190, 0.12);
+    --info-border: rgba(59, 110, 190, 0.35);
+    --border-strong: rgba(40, 36, 46, 0.22);
+    --btn-fill-bg: #25232B;
+    --btn-fill-text: #F7F4EE;
+    --shadow-card: 0 1px 3px rgba(40, 36, 46, 0.07);
+    --shadow-hover: 0 8px 22px rgba(40, 36, 46, 0.13);
+    --overlay-soft: rgba(40, 36, 46, 0.05);
+    --overlay-medium: rgba(40, 36, 46, 0.10);
+    --hairline: rgba(40, 36, 46, 0.13);
+    --accent-ring: rgba(124, 111, 208, 0.18);
+    --accent-glow: rgba(124, 111, 208, 0.35);
+    --drawer-background: linear-gradient(180deg, #23202f 0%, #2d2940 100%);
+    --drawer-border: rgba(124, 111, 208, 0.45);
+    --drawer-section-label: rgba(255, 255, 255, 0.55);
+    --drawer-brand-color: #F7F4EE;
+    --drawer-muted: rgba(255, 255, 255, 0.65);
+    --drawer-item-bg: rgba(255, 255, 255, 0.04);
+    --drawer-item-border: rgba(255, 255, 255, 0.03);
+    --drawer-item-hover: rgba(255, 255, 255, 0.08);
+    --drawer-item-hover-border: rgba(124, 111, 208, 0.3);
+    --drawer-active-bg: #7C6FD0;
+    --drawer-active-border: rgba(124, 111, 208, 0.8);
+    --drawer-active-text: #FFFFFF;
+    --drawer-active-shadow: 0 8px 18px rgba(124, 111, 208, 0.25);
+    --drawer-icon-color: #EEEAF4;
+    --drawer-label-color: #F1EEF6;
+    --input-bg: #EFEBE3;
+    --staff-primary-bg: #7C6FD0;
+    --staff-primary-text: #FFFFFF;
+}
+
+/* Teal Citrus (light): soft off-white page, orange accent, dark teal sidebar. */
+[data-theme="citrus"] {
+    color-scheme: light;
+    --bg-main: #ECE8DF;
+    --bg-sidebar: #0E4A41;
+    --bg-card: #F7F4EE;
+    --text-primary: #25232B;
+    --text-muted: #6C6874;
+    --border-color: rgba(40, 36, 46, 0.12);
+    --text-sidebar-icon: #25232B;
+    --background-icon-active-color: #E8672A;
+    --icon-active-color: #FFFFFF;
+    --background-icon-active-color-theme: rgba(232, 103, 42, 0.16);
+    --static-bg-color: #E8E3DA;
+    --scroll-thumb: rgba(40, 36, 46, 0.24);
+    --scroll-thumb-hover: rgba(40, 36, 46, 0.42);
+    --accent: #E8672A;
+    --accent-low: #C2412D;
+    --accent-med: #B27A12;
+    --accent-high: #0F766E;
+    --accent-low-soft: rgba(194, 65, 45, 0.12);
+    --accent-med-soft: rgba(178, 122, 18, 0.14);
+    --accent-high-soft: rgba(15, 118, 110, 0.12);
+    --info-color: #2F6FAE;
+    --info-soft: rgba(59, 110, 190, 0.12);
+    --info-border: rgba(59, 110, 190, 0.35);
+    --border-strong: rgba(40, 36, 46, 0.22);
+    --btn-fill-bg: #25232B;
+    --btn-fill-text: #F7F4EE;
+    --shadow-card: 0 1px 3px rgba(40, 36, 46, 0.07);
+    --shadow-hover: 0 8px 22px rgba(40, 36, 46, 0.13);
+    --overlay-soft: rgba(40, 36, 46, 0.05);
+    --overlay-medium: rgba(40, 36, 46, 0.10);
+    --hairline: rgba(40, 36, 46, 0.13);
+    --accent-ring: rgba(232, 103, 42, 0.18);
+    --accent-glow: rgba(232, 103, 42, 0.35);
+    --drawer-background: linear-gradient(180deg, #0b3d36 0%, #0f554a 100%);
+    --drawer-border: rgba(232, 103, 42, 0.45);
+    --drawer-section-label: rgba(255, 255, 255, 0.55);
+    --drawer-brand-color: #F7F4EE;
+    --drawer-muted: rgba(255, 255, 255, 0.65);
+    --drawer-item-bg: rgba(255, 255, 255, 0.04);
+    --drawer-item-border: rgba(255, 255, 255, 0.03);
+    --drawer-item-hover: rgba(255, 255, 255, 0.08);
+    --drawer-item-hover-border: rgba(232, 103, 42, 0.3);
+    --drawer-active-bg: #E8672A;
+    --drawer-active-border: rgba(232, 103, 42, 0.8);
+    --drawer-active-text: #FFFFFF;
+    --drawer-active-shadow: 0 8px 18px rgba(232, 103, 42, 0.25);
+    --drawer-icon-color: #EEEAF4;
+    --drawer-label-color: #F1EEF6;
+    --input-bg: #EFEBE3;
+    --staff-primary-bg: #E8672A;
+    --staff-primary-text: #FFFFFF;
+}
+
+/* Magenta (dark): near-black with a hot-pink accent. */
+[data-theme="magenta"] {
+    color-scheme: dark;
+    --bg-main: linear-gradient(180deg, #120B11 0%, #1A0F18 100%);
+    --bg-sidebar: #1D131B;
+    --bg-card: #1D131B;
+    --text-primary: #F7EEF4;
+    --text-muted: #B9A6B4;
+    --border-color: rgba(240, 40, 125, 0.16);
+    --text-sidebar-icon: #F7EEF4;
+    --background-icon-active-color: #F0287D;
+    --icon-active-color: #FFFFFF;
+    --background-icon-active-color-theme: rgba(240, 40, 125, 0.15);
+    --static-bg-color: #2A1D27;
+    --scroll-thumb: rgba(255, 255, 255, 0.2);
+    --scroll-thumb-hover: rgba(255, 255, 255, 0.38);
+    --accent: #F0287D;
+    --accent-low: #FF7A6B;
+    --accent-med: #F2BE57;
+    --accent-high: #4ADE9B;
+    --accent-low-soft: rgba(255, 122, 107, 0.14);
+    --accent-med-soft: rgba(242, 190, 87, 0.14);
+    --accent-high-soft: rgba(74, 222, 155, 0.14);
+    --info-color: #9CC3FF;
+    --info-soft: rgba(125, 180, 255, 0.14);
+    --info-border: rgba(125, 180, 255, 0.35);
+    --border-strong: rgba(240, 40, 125, 0.36);
+    --btn-fill-bg: #F0287D;
+    --btn-fill-text: #FFFFFF;
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-hover: 0 8px 22px rgba(0, 0, 0, 0.45);
+    --overlay-soft: rgba(255, 255, 255, 0.05);
+    --overlay-medium: rgba(255, 255, 255, 0.1);
+    --hairline: rgba(255, 255, 255, 0.11);
+    --accent-ring: rgba(240, 40, 125, 0.2);
+    --accent-glow: rgba(240, 40, 125, 0.42);
+    --drawer-background: linear-gradient(180deg, #140b12 0%, #211421 100%);
+    --drawer-border: rgba(240, 40, 125, 0.4);
+    --drawer-section-label: #B9A6B4;
+    --drawer-brand-color: #F7EEF4;
+    --drawer-muted: #B9A6B4;
+    --drawer-item-bg: rgba(255, 255, 255, 0.035);
+    --drawer-item-border: rgba(255, 255, 255, 0.03);
+    --drawer-item-hover: rgba(255, 255, 255, 0.07);
+    --drawer-item-hover-border: rgba(240, 40, 125, 0.3);
+    --drawer-active-bg: #F0287D;
+    --drawer-active-border: rgba(240, 40, 125, 0.8);
+    --drawer-active-text: #FFFFFF;
+    --drawer-active-shadow: 0 8px 18px rgba(240, 40, 125, 0.25);
+    --drawer-icon-color: #F7EEF4;
+    --drawer-label-color: #F7EEF4;
+    --input-bg: #2A1D27;
+    --staff-primary-bg: #F0287D;
+    --staff-primary-text: #FFFFFF;
+}
+
+/* Ember (dark): charcoal with an orange accent. */
+[data-theme="ember"] {
+    color-scheme: dark;
+    --bg-main: #0E0E0F;
+    --bg-sidebar: #171718;
+    --bg-card: #171718;
+    --text-primary: #F4F2EF;
+    --text-muted: #A29E98;
+    --border-color: #2A2A2C;
+    --text-sidebar-icon: #F4F2EF;
+    --background-icon-active-color: #F97316;
+    --icon-active-color: #140A02;
+    --background-icon-active-color-theme: rgba(249, 115, 22, 0.15);
+    --static-bg-color: #222224;
+    --scroll-thumb: rgba(255, 255, 255, 0.2);
+    --scroll-thumb-hover: rgba(255, 255, 255, 0.38);
+    --accent: #F97316;
+    --accent-low: #FF7A6B;
+    --accent-med: #F2BE57;
+    --accent-high: #4ADE9B;
+    --accent-low-soft: rgba(255, 122, 107, 0.14);
+    --accent-med-soft: rgba(242, 190, 87, 0.14);
+    --accent-high-soft: rgba(74, 222, 155, 0.14);
+    --info-color: #9CC3FF;
+    --info-soft: rgba(125, 180, 255, 0.14);
+    --info-border: rgba(125, 180, 255, 0.35);
+    --border-strong: #3A3A3D;
+    --btn-fill-bg: #F97316;
+    --btn-fill-text: #140A02;
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-hover: 0 8px 22px rgba(0, 0, 0, 0.45);
+    --overlay-soft: rgba(255, 255, 255, 0.05);
+    --overlay-medium: rgba(255, 255, 255, 0.1);
+    --hairline: rgba(255, 255, 255, 0.11);
+    --accent-ring: rgba(249, 115, 22, 0.2);
+    --accent-glow: rgba(249, 115, 22, 0.42);
+    --drawer-background: linear-gradient(180deg, #151516 0%, #1d1d1f 100%);
+    --drawer-border: rgba(249, 115, 22, 0.4);
+    --drawer-section-label: #A29E98;
+    --drawer-brand-color: #F4F2EF;
+    --drawer-muted: #A29E98;
+    --drawer-item-bg: rgba(255, 255, 255, 0.035);
+    --drawer-item-border: rgba(255, 255, 255, 0.03);
+    --drawer-item-hover: rgba(255, 255, 255, 0.07);
+    --drawer-item-hover-border: rgba(249, 115, 22, 0.3);
+    --drawer-active-bg: #F97316;
+    --drawer-active-border: rgba(249, 115, 22, 0.8);
+    --drawer-active-text: #140A02;
+    --drawer-active-shadow: 0 8px 18px rgba(249, 115, 22, 0.25);
+    --drawer-icon-color: #F4F2EF;
+    --drawer-label-color: #F4F2EF;
+    --input-bg: #222224;
+    --staff-primary-bg: #F97316;
+    --staff-primary-text: #140A02;
+}
+
+/* Light themes with a dark sidebar: icons inside the dark sidebar (and the
+   dark logout button) use light icons; the rest of the page stays dark-on-light. */
+[data-theme="lavender"] .sidebar-menu,
+[data-theme="lavender"] .sub-sidebar-footer-item-logout {
+    --text-sidebar-icon: #EEEAF8;
+    --text-primary: #EEEAF8;
+    --static-bg-color: rgba(255, 255, 255, 0.07);
+    --background-icon-active-color-theme: rgba(124, 111, 208, 0.28);
+}
+[data-theme="citrus"] .sidebar-menu,
+[data-theme="citrus"] .sub-sidebar-footer-item-logout {
+    --text-sidebar-icon: #E7F3F0;
+    --text-primary: #E7F3F0;
+    --static-bg-color: rgba(255, 255, 255, 0.08);
+    --background-icon-active-color-theme: rgba(232, 103, 42, 0.28);
 }
 
 /*==========DARK MODE GLOW==========*/
@@ -987,6 +1343,144 @@ body {
   }
 }
 
+/*==========NOTIFICATIONS — visual rows==========*/
+.notif-box { width: min(24rem, 92vw); }
+
+/* Summary chips under the header */
+.notif-summary {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--dropdown-menu-hover);
+}
+.notif-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--dropdown-menu-text);
+  background: var(--dropdown-menu-hover);
+  border-radius: 999px;
+}
+.notif-chip i { width: 7px; height: 7px; border-radius: 50%; }
+.notif-chip.is-out i { background: #ef4444; }
+.notif-chip.is-low i { background: #f59e0b; }
+.notif-chip.is-request i { background: var(--info-color, #38bdf8); }
+
+/* A stock / request row */
+.notif-row { align-items: center; padding: 0.7rem 1rem 0.7rem 0.85rem; border-left: 3px solid transparent; }
+.notif-row.is-out,
+.notif-row.is-critical { border-left-color: #ef4444; }
+.notif-row.is-low { border-left-color: #f59e0b; }
+.notif-row.is-request { border-left-color: var(--info-color, #38bdf8); }
+.notif-row .notif-item-icon { margin-top: 0; }
+.notif-row .notif-item-body { gap: 6px; }
+.notif-row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.notif-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dropdown-menu-text);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.notif-pill {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border-radius: 999px;
+}
+.notif-pill.is-out,
+.notif-pill.is-critical { color: #f87171; background: rgba(239, 68, 68, 0.14); }
+.notif-pill.is-low { color: #fbbf24; background: rgba(245, 158, 11, 0.14); }
+.notif-pill.is-request { color: var(--info-color, #38bdf8); background: var(--info-soft, rgba(56, 189, 248, 0.14)); }
+.notif-ic-request { color: var(--info-color, #38bdf8); background: var(--info-soft, rgba(56, 189, 248, 0.14)); }
+
+/* Stock bar: on hand compared with the reorder point */
+.notif-stock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.notif-stock-track {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+  background: var(--dropdown-menu-hover);
+  border-radius: 999px;
+}
+.notif-stock-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  min-width: 4px;
+  border-radius: 999px;
+}
+.notif-row.is-out .notif-stock-fill,
+.notif-row.is-critical .notif-stock-fill { background: #ef4444; }
+.notif-row.is-low .notif-stock-fill { background: #f59e0b; }
+.notif-stock-text {
+  flex-shrink: 0;
+  color: var(--dropdown-menu-muted);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+.notif-stock-text strong { color: var(--dropdown-menu-text); font-size: 0.74rem; }
+.notif-row-sub {
+  overflow: hidden;
+  color: var(--dropdown-menu-muted);
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Empty state */
+.notif-empty strong { color: var(--dropdown-menu-text); font-size: 0.82rem; }
+.notif-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  color: var(--accent-high, #22c55e);
+  background: rgba(34, 197, 94, 0.12);
+  border-radius: 50%;
+}
+
+/* Footer: Clear all + Open Reorder List */
+.notif-box-footer {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+}
+.notif-box-clear { width: auto; padding: 0.45rem 0.9rem; }
+.notif-box-open {
+  padding: 0.45rem;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--icon-active-color, #0B1B33);
+  background: var(--background-icon-active-color, #E8C547);
+  border: 0;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition: filter 0.18s ease;
+}
+.notif-box-open:hover { filter: brightness(1.08); }
+
 .main-content-window {
     position: relative;
     overflow-y: auto;
@@ -1002,7 +1496,10 @@ body {
 /* A view animates the first time it is mounted; visited views stay mounted
    while hidden so switching tabs preserves their current state. */
 .main-content-window > * {
-    animation: view-enter 0.32s cubic-bezier(0.4, 0, 0.2, 1) both;
+    /* "backwards", not "both": once the animation ends it leaves no transform
+       behind. A kept transform traps pop-ups (position: fixed) under the
+       sidebar, so the sidebar would not be dimmed/blurred. */
+    animation: view-enter 0.32s cubic-bezier(0.4, 0, 0.2, 1) backwards;
 }
 
 .main-content-window > .app-view-panel {
@@ -1031,7 +1528,10 @@ body {
 .f-scroll-table,
 .pf-scroll,
 .notif-box-list,
-.ra-tabbar {
+.ra-tabbar,
+.fx-table-modal,
+.f-event-modal,
+.ps-scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--scroll-thumb) transparent;
 }
@@ -1048,7 +1548,10 @@ body {
 .f-scroll-table::-webkit-scrollbar,
 .pf-scroll::-webkit-scrollbar,
 .notif-box-list::-webkit-scrollbar,
-.ra-tabbar::-webkit-scrollbar {
+.ra-tabbar::-webkit-scrollbar,
+.fx-table-modal::-webkit-scrollbar,
+.f-event-modal::-webkit-scrollbar,
+.ps-scroll::-webkit-scrollbar {
   width: 5px;
   height: 5px;
 }
@@ -1066,7 +1569,10 @@ body {
 .f-scroll-table::-webkit-scrollbar-track,
 .pf-scroll::-webkit-scrollbar-track,
 .notif-box-list::-webkit-scrollbar-track,
-.ra-tabbar::-webkit-scrollbar-track {
+.ra-tabbar::-webkit-scrollbar-track,
+.fx-table-modal::-webkit-scrollbar-track,
+.f-event-modal::-webkit-scrollbar-track,
+.ps-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
@@ -1083,7 +1589,10 @@ body {
 .f-scroll-table::-webkit-scrollbar-thumb,
 .pf-scroll::-webkit-scrollbar-thumb,
 .notif-box-list::-webkit-scrollbar-thumb,
-.ra-tabbar::-webkit-scrollbar-thumb {
+.ra-tabbar::-webkit-scrollbar-thumb,
+.fx-table-modal::-webkit-scrollbar-thumb,
+.f-event-modal::-webkit-scrollbar-thumb,
+.ps-scroll::-webkit-scrollbar-thumb {
   background: var(--scroll-thumb);
   border-radius: 999px;
   border: none;
@@ -1101,7 +1610,10 @@ body {
 .f-scroll-table::-webkit-scrollbar-thumb:hover,
 .pf-scroll::-webkit-scrollbar-thumb:hover,
 .notif-box-list::-webkit-scrollbar-thumb:hover,
-.ra-tabbar::-webkit-scrollbar-thumb:hover {
+.ra-tabbar::-webkit-scrollbar-thumb:hover,
+.fx-table-modal::-webkit-scrollbar-thumb:hover,
+.f-event-modal::-webkit-scrollbar-thumb:hover,
+.ps-scroll::-webkit-scrollbar-thumb:hover {
   background: var(--scroll-thumb-hover);
 }
 
@@ -1118,10 +1630,34 @@ body {
 .f-scroll-table::-webkit-scrollbar-button,
 .pf-scroll::-webkit-scrollbar-button,
 .notif-box-list::-webkit-scrollbar-button,
-.ra-tabbar::-webkit-scrollbar-button {
+.ra-tabbar::-webkit-scrollbar-button,
+.fx-table-modal::-webkit-scrollbar-button,
+.f-event-modal::-webkit-scrollbar-button,
+.ps-scroll::-webkit-scrollbar-button {
   display: none;
   width: 0;
   height: 0;
+}
+
+/* Pop-ups: keep the scrollbar clear of the rounded corners and a bit wider.
+   Chrome/Edge ignore the ::-webkit-scrollbar styles below when scrollbar-width
+   or scrollbar-color is set (and then draw arrow buttons), so those two are
+   reset only in browsers that support ::-webkit-scrollbar. Firefox keeps the
+   thin themed scrollbar from scrollbar-width/scrollbar-color above. */
+@supports selector(::-webkit-scrollbar) {
+  .fx-table-modal,
+  .f-event-modal {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+.fx-table-modal::-webkit-scrollbar,
+.f-event-modal::-webkit-scrollbar {
+  width: 6px;
+}
+.fx-table-modal::-webkit-scrollbar-track,
+.f-event-modal::-webkit-scrollbar-track {
+  margin-block: 14px;
 }
 
 /*==========HIDDEN TAB SCROLLBAR==========*/

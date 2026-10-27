@@ -636,3 +636,19 @@ body::-webkit-scrollbar {
         font-size: 17px;
     }
 }
+/* Stop Chrome's autofill from repainting the login inputs
+   (gray box + white text when a dark theme is saved). */
+.input-icon input:-webkit-autofill,
+.input-icon input:-webkit-autofill:hover,
+.input-icon input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #1a2a4a;
+    caret-color: #1a2a4a;
+    transition: background-color 9999s ease-out 0s;
+}
+
+[data-theme="graphite"] .input-icon input:-webkit-autofill,
+[data-theme="graphite"] .input-icon input:-webkit-autofill:hover,
+[data-theme="graphite"] .input-icon input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--text-primary);
+    caret-color: var(--text-primary);
+}

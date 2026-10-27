@@ -198,6 +198,75 @@ class PastSalesTest extends TestCase
             ->assertJsonPath('dataPoints', 0);
     }
 
+    public function test_weeks_are_split_into_months_by_days_and_always_add_back_to_the_weekly_total(): void
+    {
+        $service = app(\App\Services\SalesForecastService::class);
+
+        // Mon Sep 28 – Sun Oct 4, 2026: 3 days in September, 4 in October.
+        $months = $service->monthsFromWeeks(['2026-09-28' => 22]);
+        $this->assertSame(9, $months['2026-09-01']['unitsSold']);   // 22 × 3/7 = 9.43 → 9
+        $this->assertSame(13, $months['2026-10-01']['unitsSold']);  // the rest: 22 − 9
+        $this->assertSame(22, $months['2026-09-01']['unitsSold'] + $months['2026-10-01']['unitsSold']);
+
+        // A week fully inside one month counts fully for that month.
+        $this->assertSame(['2026-09-01'], array_keys($service->monthsFromWeeks(['2026-09-07' => 13])));
+        $this->assertSame(13, $service->monthsFromWeeks(['2026-09-07' => 13])['2026-09-01']['unitsSold']);
+
+        // Weeks touching a month: Sep 2026 (Tue 1st – Wed 30th) = 5, Feb 2027 (Mon 1st – Sun 28th) = 4, Nov 2026 = 6.
+        $this->assertSame(5, $service->weeksTouchingMonth(Carbon::parse('2026-09-01')));
+        $this->assertSame(4, $service->weeksTouchingMonth(Carbon::parse('2027-02-01')));
+        $this->assertSame(6, $service->weeksTouchingMonth(Carbon::parse('2026-11-01')));
+    }
+
+    public function test_monthly_forecast_uses_complete_weekly_months_and_typed_months_win(): void
+    {
+        $product = $this->product('PRD-AUTO', 'Auto Month Item');
+        // Every week touching August 2026 (Jul 27 … Aug 31) → August is complete.
+        // Jul 27 – Aug 2: 5 days July, 2 days August → 14 × 2/7 = 4 to August.
+        // Aug 31 – Sep 6: 1 day August → 14 × 1/7 = 2 to August.
+        foreach (['2026-07-27' => 14, '2026-08-03' => 10, '2026-08-10' => 10, '2026-08-17' => 10, '2026-08-24' => 10, '2026-08-31' => 14] as $week => $units) {
+            PastSale::create(['product_id' => $product->id, 'period_type' => 'week', 'period_date' => $week, 'units_sold' => $units]);
+        }
+        // Only some weeks of September → incomplete, not used.
+        PastSale::create(['product_id' => $product->id, 'period_type' => 'week', 'period_date' => '2026-09-07', 'units_sold' => 99]);
+        // June is typed as a monthly entry.
+        PastSale::create(['product_id' => $product->id, 'period_type' => 'month', 'period_date' => '2026-06-01', 'units_sold' => 30]);
+
+        $rows = $this->getJson('/api/forecasts/history?product=PRD-AUTO')->assertOk()->json('rows');
+        $this->assertSame(
+            ['2026-06-01:30:past:typed', '2026-07-01:0:none:typed', '2026-08-01:46:past:weeks', '2026-09-01:0:none:typed'],
+            array_map(fn ($r) => "{$r['periodDate']}:{$r['unitsSold']}:{$r['source']}:".(! empty($r['fromWeeks']) ? 'weeks' : 'typed'), $rows)
+        );
+
+        // A typed August entry replaces the weekly total (never both).
+        PastSale::create(['product_id' => $product->id, 'period_type' => 'month', 'period_date' => '2026-08-01', 'units_sold' => 40]);
+        $this->getJson('/api/forecasts/history?product=PRD-AUTO')
+            ->assertOk()
+            ->assertJsonPath('rows.2.unitsSold', 40)
+            ->assertJsonMissingPath('rows.2.fromWeeks');
+
+        // The weekly forecast still uses the weeks themselves.
+        $this->getJson('/api/forecasts/history?product=PRD-AUTO&periodType=week')
+            ->assertOk()
+            ->assertJsonPath('rows.0.periodDate', '2026-07-27')
+            ->assertJsonPath('rows.0.unitsSold', 14);
+    }
+
+    public function test_month_grid_reports_weekly_totals_with_completeness_and_whether_they_are_used(): void
+    {
+        $product = $this->product('PRD-GRID', 'Grid Item');
+        foreach (['2026-07-27' => 14, '2026-08-03' => 10, '2026-08-10' => 10, '2026-08-17' => 10, '2026-08-24' => 10, '2026-08-31' => 14, '2026-09-07' => 13] as $week => $units) {
+            PastSale::create(['product_id' => $product->id, 'period_type' => 'week', 'period_date' => $week, 'units_sold' => $units]);
+        }
+        PastSale::create(['product_id' => $product->id, 'period_type' => 'month', 'period_date' => '2026-09-01', 'units_sold' => 35]);
+
+        $fromWeeks = collect($this->getJson('/api/past-sales?product=PRD-GRID')->assertOk()->json('fromWeeks'))->keyBy('month');
+
+        $this->assertSame(['month' => '2026-08', 'unitsSold' => 46, 'weeksEntered' => 6, 'weeksNeeded' => 6, 'complete' => true, 'used' => true], $fromWeeks['2026-08']);
+        // September: 1 day of the Aug 31 week (12) + Sep 7 week (13) = 25 from 2 of 5 weeks; the typed 35 is used instead.
+        $this->assertSame(['month' => '2026-09', 'unitsSold' => 25, 'weeksEntered' => 2, 'weeksNeeded' => 5, 'complete' => false, 'used' => false], $fromWeeks['2026-09']);
+    }
+
     private function product(string $code, string $name): Product
     {
         return Product::create(['code' => $code, 'name' => $name, 'stock_on_hand' => 30]);

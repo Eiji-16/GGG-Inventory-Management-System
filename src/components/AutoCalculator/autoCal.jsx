@@ -84,41 +84,74 @@ export const calculateOrderQuantity = ({ annualDemand, orderingCost, holdingCost
 const sameInputs = (a, b) => INPUT_KEYS.every((key) => String(a?.[key] ?? '') === String(b?.[key] ?? ''));
 
 /* ===== HISTORY SIDE PANEL ===== */
+/* Short labels for the saved inputs (older entries keep the same keys). */
+const HISTORY_FIELDS = [
+  { key: 'Annual demand', label: 'Demand', suffix: '/yr' },
+  { key: 'Ordering cost', label: 'Order cost', money: true },
+  { key: 'Holding cost', label: 'Holding', money: true },
+  { key: 'Lead time (days)', label: 'Lead time', suffix: ' d' },
+  { key: 'Safety stock', label: 'Safety', suffix: '' },
+];
+
 function HistoryPanel({ onClose, history, onClear }) {
   const { formatCurrency } = useCurrency();
+  const show = (field, value) => {
+    if (value === '' || value == null) return '—';
+    if (field.money) return formatCurrency(value);
+    return `${Number(value).toLocaleString('en-PH')}${field.suffix || ''}`;
+  };
   return createPortal(
     <div className="ac-modal-overlay" onClick={onClose}>
-      <div className="ac-modal ac-modal-wide" onClick={(e) => e.stopPropagation()}>
+      <div className="ac-modal ac-modal-wide ac-history-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="ac-history-title">
         <div className="ac-modal-header">
-          <h3 className="ac-modal-title">Calculation History (this browser)</h3>
+          <div className="ac-history-head">
+            <span className="ac-history-head-icon" aria-hidden="true"><History size={16} /></span>
+            <div>
+              <h3 className="ac-modal-title" id="ac-history-title">Calculation History</h3>
+              <p className="ac-history-sub">
+                {history.length ? `${history.length} calculation${history.length === 1 ? '' : 's'} · saved in this browser` : 'Saved in this browser'}
+              </p>
+            </div>
+          </div>
           <button className="ac-modal-close" onClick={onClose} aria-label="Close history"><X size={14} /></button>
         </div>
         <div className="ac-modal-body">
           {history.length === 0 ? (
-            <p className="ac-source-note" style={{ textAlign: 'center', padding: '20px 0' }}>
-              No calculations yet. Every Compute Order Quantity is listed here and saved to Reports → Economic Order Quantity Calculator Summary.
-            </p>
+            <div className="ac-history-empty">
+              <span className="ac-history-head-icon" aria-hidden="true"><Calculator size={18} /></span>
+              <strong>No calculations yet</strong>
+              <span>Each “Compute Order Quantity” appears here and is saved to Reports.</span>
+            </div>
           ) : (
             <div className="ac-history-list">
               {history.map((h, i) => (
-                <div className="ac-history-item" key={i}>
-                  <div className="ac-history-top">
-                    <span className="ac-history-formula">{h.product || h.formulaName}</span>
-                    <span className="ac-history-date">{h.date}</span>
+                <article className="ac-history-item" key={i}>
+                  <div className="ac-history-qty" title="Economic order quantity">
+                    <strong>{Math.round(Number(h.result)).toLocaleString('en-PH')}</strong>
+                    <span>{h.unit || 'units'} / order</span>
                   </div>
-                  <div className="ac-history-inputs">
-                    {Object.entries(h.inputs).map(([k, v]) => (
-                      <span key={k} className="ac-history-input-chip">{k}: {/cost/i.test(k) && v !== '' && v != null ? formatCurrency(v) : v}</span>
-                    ))}
+                  <div className="ac-history-main">
+                    <div className="ac-history-top">
+                      <span className="ac-history-formula">{h.product || h.formulaName}</span>
+                      <span className="ac-history-date">{h.date}</span>
+                    </div>
+                    <dl className="ac-history-stats">
+                      {HISTORY_FIELDS.filter((field) => field.key in (h.inputs || {})).map((field) => (
+                        <div key={field.key}>
+                          <dt>{field.label}</dt>
+                          <dd>{show(field, h.inputs[field.key])}</dd>
+                        </div>
+                      ))}
+                    </dl>
                   </div>
-                  <div className="ac-history-result">Order <strong>{Math.round(Number(h.result)).toLocaleString('en-PH')} {h.unit}</strong> each time</div>
-                </div>
+                </article>
               ))}
             </div>
           )}
         </div>
-        <div className="ac-modal-footer">
-          <button className="ac-btn-cancel" onClick={onClear} disabled={history.length === 0}>Clear History</button>
+        <div className="ac-modal-footer ac-history-footer">
+          <span className="ac-history-note">Every calculation is also in Reports → Economic Order Quantity Calculator Summary.</span>
+          <button className="ac-btn-cancel ac-history-clear" onClick={onClear} disabled={history.length === 0}>Clear history</button>
         </div>
       </div>
     </div>,

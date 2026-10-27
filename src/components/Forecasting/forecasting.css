@@ -3313,7 +3313,28 @@
    Two panels fill the space under the toolbar: forecast + details (left),
    result (right). The full table opens in a pop-up from "View full table". */
 @media (min-width: 981px) and (min-height: 600px) {
-    .fx-top-split { min-height: max(380px, calc(100vh - 235px)); }
+    /* Fill exactly the space left in the scrolling content area (not the
+       whole browser window), so the two panels end at the bottom edge with
+       no page scroll. Only applies while the Sales Forecasting tab is shown. */
+    .app-view-panel:has(> .f-root .fx-top-split),
+    .f-root:has(.fx-top-split),
+    .f-root:has(.fx-top-split) .f-app { height: 100%; }
+    .f-root:has(.fx-top-split) .f-main {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        padding-bottom: 6px;
+    }
+    .f-main > .fx-layout {
+        flex: 1 1 auto;
+        min-height: 0;
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+    .fx-top-split { min-height: 0; }
+    /* If a screen is very short, scroll inside the card instead of the page. */
+    .fx-top-split > .fx-card { min-height: 0; overflow-y: auto; }
+    .fx-chart-card .fx-chart { min-height: 0; }
+    .fx-chart-card .fx-bars { min-height: 90px; }
 }
 /* Right card: sections spread evenly down the card (header, numbers, details, buttons). */
 .fx-output-card { display: flex; flex-direction: column; justify-content: space-between; }
@@ -3370,4 +3391,195 @@
     .fx-legend { flex-wrap: wrap; row-gap: 2px; }
     .fx-legend-hint { margin-left: 0; flex-basis: 100%; }
     .fx-calc-strip { font-size: 11.5px; }
+}
+
+/*==========PAST SALES: compact two-column layout on desktop==========
+   Left: intro + Excel import. Right: Enter manually.
+   Fits one screen at 1366×657 (100% zoom) without page scrolling. */
+@media (min-width: 981px) {
+    .fx-layout:has(> .ps-intro) {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+        grid-template-rows: auto 1fr;
+        align-items: start;
+        gap: 12px;
+    }
+    .fx-layout:has(> .ps-intro) > .ps-intro { grid-column: 1; grid-row: 1; }
+    .fx-layout:has(> .ps-intro) > .ps-card:nth-of-type(2) { grid-column: 1; grid-row: 2; }
+    .fx-layout:has(> .ps-intro) > .ps-card:last-child { grid-column: 2; grid-row: 1 / span 2; }
+
+    .fx-layout:has(> .ps-intro) > .fx-card { gap: 10px; padding: 12px 14px; }
+    .fx-layout:has(> .ps-intro) .fx-title h2 { font-size: 14px; }
+    .fx-layout:has(> .ps-intro) .fx-title p { font-size: 11.5px; line-height: 1.5; }
+    .ps-intro p { max-width: none; }
+    .f-main:has(.ps-intro) { padding-bottom: 6px; }
+
+    .ps-steps { gap: 6px; font-size: 12px; line-height: 1.45; }
+    .ps-upload-row { margin-top: 6px; }
+    .ps-upload.f-btn { min-height: 32px; padding: 6px 12px; font-size: 12.5px; }
+
+    .ps-manual-controls { gap: 10px; }
+    .ps-manual-controls .f-grow { flex: 1 1 170px; }
+    .ps-manual-controls input,
+    .ps-manual-controls select { min-height: 36px; padding: 6px 10px; }
+
+    .ps-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+    .ps-grid.ps-grid-weeks { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ps-month { gap: 2px; padding: 6px 8px; }
+    .ps-month span { font-size: 10.5px; }
+    .ps-month input { min-height: 30px; padding: 4px 8px; font-size: 13px; }
+    .ps-month em { min-height: 30px; font-size: 11px; }
+    .ps-card .fx-actions .f-btn { min-height: 32px; padding: 5px 12px; font-size: 12.5px; }
+    .ps-detected, .ps-muted { font-size: 11.5px; }
+
+    /* Import preview in the narrower left column. */
+    .ps-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ps-stats div { padding: 6px 8px; }
+    .ps-stats strong { font-size: 17px; }
+    .ps-scroll { max-height: 200px; }
+}
+
+/* Past Sales: stretch the cards to fill the full height of the content area
+   (same idea as the Sales Forecasting tab). Month boxes grow to use the space. */
+@media (min-width: 981px) and (min-height: 600px) {
+    .app-view-panel:has(> .f-root .ps-intro),
+    .f-root:has(.ps-intro),
+    .f-root:has(.ps-intro) .f-app { height: 100%; }
+    .f-root:has(.ps-intro) .f-main {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    .fx-layout:has(> .ps-intro) {
+        flex: 1 1 auto;
+        min-height: 0;
+        align-items: stretch;
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+    /* Very short screen or a big import preview: scroll inside the card. */
+    .fx-layout:has(> .ps-intro) > .fx-card { min-height: 0; overflow-y: auto; }
+
+    /* Import card: steps centred in the extra space. */
+    .fx-layout:has(> .ps-intro) > .ps-card:nth-of-type(2) { display: flex; flex-direction: column; }
+    .fx-layout:has(> .ps-intro) > .ps-card:nth-of-type(2) .ps-steps { flex: 1 0 auto; align-content: center; gap: 12px; font-size: 12.5px; }
+
+    /* Manual card: month grid takes all remaining height. */
+    .fx-layout:has(> .ps-intro) > .ps-card:last-child { display: flex; flex-direction: column; }
+    .fx-layout:has(> .ps-intro) > .ps-card:last-child .ps-grid {
+        flex: 1 0 auto;
+        grid-auto-rows: minmax(64px, 1fr);
+        gap: 8px;
+    }
+    .fx-layout:has(> .ps-intro) .ps-month { align-content: center; gap: 6px; padding: 8px 10px; }
+    .fx-layout:has(> .ps-intro) .ps-month span { font-size: 11.5px; }
+    .fx-layout:has(> .ps-intro) .ps-month input { min-height: 38px; font-size: 15px; }
+    .fx-layout:has(> .ps-intro) .ps-month em { min-height: 38px; }
+}
+
+/* Past Sales month grid: totals worked out from the weekly entries. */
+.ps-week-note {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 10.5px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ps-month.is-auto { border-color: var(--accent-med); border-style: dashed; }
+.ps-month.is-auto input::placeholder { color: var(--text-primary); opacity: 0.75; }
+.ps-month.is-auto .ps-week-note { color: var(--accent-med); font-weight: 700; }
+.ps-month.is-mismatch { border-color: var(--accent-low); }
+.ps-month.is-mismatch .ps-week-note { color: var(--accent-low); font-weight: 700; }
+
+/*==========CUSTOM SELECT (Past Sales: product, year, month)==========*/
+.cs-wrap { position: relative; min-width: 0; }
+.cs-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 38px;
+    padding: 7px 10px 7px 11px;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    background: var(--input-bg, var(--static-bg-color));
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.cs-button:hover:not(:disabled) { border-color: var(--border-strong); }
+.cs-button:focus-visible,
+.cs-button.is-open { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+.cs-button:disabled { cursor: not-allowed; opacity: 0.6; }
+.cs-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-value.is-placeholder { color: var(--text-muted); }
+.cs-caret { width: 10px; height: 6px; flex-shrink: 0; fill: var(--text-muted); transition: transform 0.15s ease; }
+.cs-button.is-open .cs-caret { transform: rotate(180deg); }
+.cs-sub {
+    flex-shrink: 0;
+    padding: 1px 6px;
+    color: var(--text-muted);
+    font-size: 10.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    background: var(--overlay-soft);
+    border-radius: 999px;
+}
+.cs-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 60;
+    min-width: 100%;
+    width: max-content;
+    max-width: min(420px, calc(100vw - 32px));
+    max-height: 280px;
+    padding: 4px;
+    overflow-y: auto;
+    background: var(--dropdown-menu-bg);
+    border: 1px solid var(--dropdown-menu-border);
+    border-radius: 10px;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35);
+    outline: none;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scroll-thumb) transparent;
+    animation: cs-pop 0.14s ease-out;
+}
+@keyframes cs-pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.cs-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 6px 10px;
+    color: var(--dropdown-menu-text);
+    font-size: 13px;
+    border-radius: 7px;
+    cursor: pointer;
+}
+.cs-option.is-active { background: var(--dropdown-menu-hover); }
+.cs-option.is-selected { font-weight: 700; color: var(--text-primary); background: var(--accent-ring); }
+.cs-option-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-check { width: 14px; height: 14px; flex-shrink: 0; fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.cs-empty { padding: 10px; color: var(--text-muted); font-size: 12px; }
+/* The menu of a field near the right edge opens toward the left. */
+.cs-align-right .cs-menu { left: auto; right: 0; }
+@media (prefers-reduced-motion: reduce) { .cs-menu { animation: none; } }
+
+/* Past Sales manual entry: Product, Year (and Month) always share one line;
+   "Find product" sits above them on narrow screens. */
+.ps-manual-controls { flex-wrap: wrap; }
+.ps-manual-controls .ps-product-field { flex: 1 1 220px; min-width: 0; }
+.ps-manual-controls .ps-year-field { flex: 0 0 92px; }
+.ps-manual-controls .ps-month-field { flex: 0 0 84px; }
+@media (max-width: 640px) {
+    .ps-manual-controls { gap: 8px; }
+    .ps-manual-controls .ps-find-field { flex: 1 1 100%; }
+    .ps-manual-controls .ps-product-field { flex: 1 1 0; }
+    .ps-manual-controls .ps-year-field { flex: 0 0 78px; }
+    .ps-manual-controls .ps-month-field { flex: 0 0 72px; }
+    .ps-manual-controls .cs-button { padding-inline: 9px 8px; }
+    .ps-manual-controls .ps-product-field .cs-button .cs-sub { display: none; }
 }

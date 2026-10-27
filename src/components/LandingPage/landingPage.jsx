@@ -153,6 +153,12 @@ function createNotifications(summary, policy) {
       time: 'Current stock',
       view: 'Reorder-Alerts',
       read: false,
+      // For the visual row in the bell: product, level, stock vs reorder point.
+      kind: 'stock',
+      product: product.name,
+      level,
+      stock,
+      reorderPoint,
     });
   });
 
@@ -459,6 +465,11 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
           time: formatNotificationTime(request.createdAt),
           view: 'Reorder-Alerts',
           read: false,
+          kind: 'request',
+          product: request.productName,
+          requestedBy: request.requestedBy,
+          note: request.note,
+          stock: request.stock ?? 0,
         }));
         // Forget read/cleared marks of requests that are closed now.
         const activeIds = new Set(items.map((item) => item.id));
@@ -921,6 +932,21 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                       )}
                     </div>
 
+                    {notifications.length > 0 && (() => {
+                      const counts = notifications.reduce((total, n) => {
+                        const key = n.kind === 'request' ? 'request' : n.level === 'low' ? 'low' : 'out';
+                        total[key] = (total[key] || 0) + 1;
+                        return total;
+                      }, {});
+                      return (
+                        <div className="notif-summary" aria-label="Summary">
+                          {counts.out > 0 && <span className="notif-chip is-out"><i />{counts.out} Out / critical</span>}
+                          {counts.low > 0 && <span className="notif-chip is-low"><i />{counts.low} Low</span>}
+                          {counts.request > 0 && <span className="notif-chip is-request"><i />{counts.request} Request{counts.request === 1 ? '' : 's'}</span>}
+                        </div>
+                      );
+                    })()}
+
                     <div className="notif-box-list">
                       {notificationsLoading ? (
                         <div className="notif-empty" role="status">Loading notifications…</div>
@@ -928,12 +954,53 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                         <div className="notif-empty" role="alert">{notificationError}</div>
                       ) : notifications.length === 0 ? (
                         <div className="notif-empty">
-                          <BellOff size={22} />
-                          <span>You’re all caught up</span>
+                          <span className="notif-empty-icon"><BellOff size={20} /></span>
+                          <strong>You’re all caught up</strong>
+                          <span>Stock alerts and restock requests show here.</span>
                         </div>
                       ) : (
                         notifications.map((notif) => {
                           const { Icon, cls } = NOTIF_ICONS[notif.type] || NOTIF_ICONS.info;
+                          if (notif.kind === 'stock' || notif.kind === 'request') {
+                            const isRequest = notif.kind === 'request';
+                            const level = isRequest ? 'request' : notif.level;
+                            const fill = !isRequest && notif.reorderPoint > 0
+                              ? Math.min(100, (notif.stock / notif.reorderPoint) * 100)
+                              : 0;
+                            return (
+                              <button
+                                key={notif.id}
+                                type="button"
+                                className={`notif-item notif-row is-${level} ${notif.read ? '' : 'is-unread'}`}
+                                onClick={() => openNotification(notif)}
+                                title={notif.meta}
+                              >
+                                <span className={`notif-item-icon ${isRequest ? 'notif-ic-request' : cls}`}>
+                                  {isRequest ? <BellRing size={15} /> : <Icon size={15} />}
+                                </span>
+                                <span className="notif-item-body">
+                                  <span className="notif-row-top">
+                                    <span className="notif-row-name">{notif.product}</span>
+                                    <span className={`notif-pill is-${level}`}>
+                                      {isRequest ? 'Request' : { out: 'Out of stock', critical: 'Critical', low: 'Low' }[level]}
+                                    </span>
+                                  </span>
+                                  {isRequest ? (
+                                    <span className="notif-row-sub">
+                                      {notif.requestedBy}{notif.note ? ` · “${notif.note}”` : ''} · {notif.stock} on hand
+                                    </span>
+                                  ) : (
+                                    <span className="notif-stock" aria-label={`${notif.stock} on hand, reorder point ${notif.reorderPoint}`}>
+                                      <span className="notif-stock-track"><span className="notif-stock-fill" style={{ width: `${fill}%` }} /></span>
+                                      <span className="notif-stock-text"><strong>{notif.stock}</strong> / {notif.reorderPoint}</span>
+                                    </span>
+                                  )}
+                                  {isRequest && <span className="notif-item-time">{notif.time}</span>}
+                                </span>
+                                {!notif.read && <span className="notif-item-dot" aria-hidden="true" />}
+                              </button>
+                            );
+                          }
                           return (
                             <button
                               key={notif.id}
@@ -958,6 +1025,13 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                       <div className="notif-box-footer">
                         <button className="notif-box-clear" type="button" onClick={clearNotifications}>
                           Clear all
+                        </button>
+                        <button
+                          className="notif-box-open"
+                          type="button"
+                          onClick={() => { setIsNotifOpen(false); handleNavigate('Reorder-Alerts'); }}
+                        >
+                          Open Reorder List →
                         </button>
                       </div>
                     )}

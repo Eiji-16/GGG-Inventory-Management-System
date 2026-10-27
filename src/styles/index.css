@@ -76,3 +76,151 @@ html[data-field-hints="hidden"] :is(
     flex-direction: column;
     min-height: 100%;
 }
+
+/* ==========================================================================
+   MOBILE LISTS (≤ 900px) — shared by Products, Suppliers, Stock Control,
+   Reorder List and Trash Bin. See utils/mobileFolders.js.
+   ========================================================================== */
+.m-select-bar { display: none; }
+
+@media (max-width: 900px) {
+    /* ---- Select-all bar (the table header is hidden in card view) ---- */
+    .m-select-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 0 0 0.6rem;
+        padding: 0.5rem 0.8rem;
+        color: var(--text-muted);
+        font-size: 12px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+    }
+    .m-select-all {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-primary);
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .m-select-all input,
+    table.m-folders td.m-keep input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--background-icon-active-color, #E8C547);
+        cursor: pointer;
+    }
+    .m-select-count { display: inline-flex; align-items: center; gap: 8px; color: var(--text-primary); font-weight: 700; }
+    .m-select-clear {
+        padding: 2px 8px;
+        color: var(--text-muted);
+        font: inherit;
+        font-size: 11px;
+        font-weight: 600;
+        background: transparent;
+        border: 1px solid var(--border-color);
+        border-radius: 999px;
+        cursor: pointer;
+    }
+    .m-select-hint { font-size: 11px; }
+
+    /* ---- Folder cards ---- */
+    table.m-folders > tbody > tr:has(> td.m-title) {
+        position: relative;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Closed: [checkbox] Title ............ ▾
+                          peek detail                */
+    table.m-folders > tbody > tr:has(> td.m-title):not([data-m-open]) {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) 16px;
+        align-items: center;
+        column-gap: 10px;
+        row-gap: 2px;
+        padding: 0.65rem 0.85rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    table.m-folders > tbody > tr:has(> td.m-keep):not([data-m-open]) {
+        grid-template-columns: auto minmax(0, 1fr) 16px;
+    }
+    table.m-folders > tbody > tr:has(> td.m-title):not([data-m-open]) > td:not(.m-title):not(.m-keep):not(.m-peek) {
+        display: none !important;
+    }
+    table.m-folders > tbody > tr:not([data-m-open]) > td.m-keep,
+    table.m-folders > tbody > tr:not([data-m-open]) > td.m-title,
+    table.m-folders > tbody > tr:not([data-m-open]) > td.m-peek {
+        width: auto !important;
+        min-height: 0;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+    }
+    table.m-folders > tbody > tr:not([data-m-open]) > td.m-keep { grid-column: 1; grid-row: 1 / span 2; }
+    table.m-folders > tbody > tr:not([data-m-open]) > td.m-title { grid-row: 1; font-size: 14px !important; }
+    table.m-folders > tbody > tr:not([data-m-open]) > td.m-peek { grid-row: 2; font-size: 11.5px; color: var(--text-muted); }
+    table.m-folders > tbody > tr:has(> td.m-keep):not([data-m-open]) > td.m-title,
+    table.m-folders > tbody > tr:has(> td.m-keep):not([data-m-open]) > td.m-peek { grid-column: 2; }
+    table.m-folders > tbody > tr:not([data-m-open]) > td.m-title::before,
+    table.m-folders > tbody > tr:not([data-m-open]) > td.m-peek::before,
+    table.m-folders > tbody > tr > td.m-keep::before { content: none !important; display: none !important; }
+    table.m-folders > tbody > tr:not([data-m-open]) > td.m-title * { text-align: left !important; }
+
+    /* The ▾ / ▴ arrow */
+    table.m-folders > tbody > tr:has(> td.m-title)::after {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-right: 2px solid var(--text-muted);
+        border-bottom: 2px solid var(--text-muted);
+        transform: rotate(45deg);
+        transition: transform 0.2s ease;
+    }
+    table.m-folders > tbody > tr:has(> td.m-title):not([data-m-open])::after {
+        grid-column: -2;
+        grid-row: 1 / span 2;
+        justify-self: center;
+        margin-top: -4px;
+    }
+
+    /* Open: title becomes the card header (checkbox on its left, arrow on
+       its right); every detail and the Edit/Delete buttons show below. */
+    table.m-folders > tbody > tr[data-m-open] { border-color: var(--accent, #E8C547) !important; }
+    table.m-folders > tbody > tr:has(> td.m-title)[data-m-open]::after {
+        position: absolute;
+        top: 1.15rem;
+        right: 1rem;
+        transform: rotate(-135deg);
+    }
+    table.m-folders > tbody > tr[data-m-open] > td.m-keep {
+        position: absolute !important;
+        top: 0.85rem;
+        left: 0.9rem;
+        width: auto !important;
+        padding: 0 !important;
+        border: 0 !important;
+    }
+    table.m-folders > tbody > tr[data-m-open] > td.m-title {
+        order: -1;
+        padding-right: 1.6rem !important;
+        justify-content: flex-start !important;
+        text-align: left !important;
+        font-size: 15px !important;
+    }
+    table.m-folders > tbody > tr[data-m-open]:has(> td.m-keep) > td.m-title { padding-left: 1.9rem !important; }
+    table.m-folders > tbody > tr[data-m-open] > td.m-title::before { content: none !important; display: none !important; }
+    table.m-folders > tbody > tr[data-m-open] > td.m-title * { text-align: left !important; }
+    /* Titles that stack a name over a code (Reorder List) line up on the left. */
+    table.m-folders > tbody > tr > td.m-title .ra-product { justify-items: start !important; }
+
+    @media (prefers-reduced-motion: reduce) {
+        table.m-folders > tbody > tr::after { transition: none; }
+    }
+}

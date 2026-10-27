@@ -839,3 +839,35 @@
         animation: none;
     }
 }
+
+/* ==========KPI CARDS ON PHONES: one compact row of three==========
+   Icon + number on one line, label underneath (instead of three tall
+   stacked cards). */
+@media (max-width: 640px) {
+    .st-kpi-row {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+    }
+    .st-kpi-card {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto auto;
+        align-items: center;
+        column-gap: 8px;
+        row-gap: 4px;
+        padding: 10px;
+    }
+    .st-kpi-card > div:last-child { display: contents; }
+    .st-kpi-icon { width: 28px; height: 28px; grid-row: 1; }
+    .st-kpi-icon svg { width: 15px; height: 15px; }
+    .st-kpi-value { grid-row: 1; grid-column: 2; font-size: 20px; }
+    .st-kpi-label {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        margin: 0;
+        overflow: hidden;
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}

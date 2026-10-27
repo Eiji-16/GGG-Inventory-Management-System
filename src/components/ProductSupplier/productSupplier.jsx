@@ -4,6 +4,7 @@ import { Search, Plus, Edit, Trash2, X, Package, Info, Download, AlertTriangle, 
 
 import './productSupplier.css';
 import SupplierRecords from './supplierRecords';
+import MobileSelectBar from '../MobileSelectBar/MobileSelectBar';
 import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
@@ -743,17 +744,19 @@ function ProductSupplier({
 
         {canDeleteProduct && selectedIds.size > 0 && (
           <button
-            className="ps-add-btn ps-delete-selected-btn"
+            className="ps-add-btn ps-delete-selected-btn ps-add-collapse"
             onClick={requestDeleteBulk}
             type="button"
             title={`Delete ${selectedIds.size} selected`}
+            data-count={selectedIds.size}
+            aria-label={`Delete ${selectedIds.size} selected`}
           >
             <p>Delete ({selectedIds.size})</p>
             <Trash2 size={12} />
           </button>
         )}
         {canAddProduct && (
-        <button className="ps-add-btn ps-add-btn-primary" onClick={openAddModal} type="button">
+        <button className="ps-add-btn ps-add-btn-primary ps-add-collapse" onClick={openAddModal} type="button" title="Add product" aria-label="Add product">
           <p>Add</p>
           <Plus size={12} className="ps-add-icon" />
         </button>
@@ -761,8 +764,15 @@ function ProductSupplier({
       </div>
 
       {/* ===== TABLE ===== */}
+      <MobileSelectBar
+        total={visibleProducts.length}
+        count={selectedIds.size}
+        allSelected={allSelected}
+        onToggleAll={toggleSelectAll}
+        onClear={() => setSelectedIds(new Set())}
+      />
       <div className="ps-table-scroll" ref={tableRef} aria-busy={productsLoading}>
-        <table className="ps-table">
+        <table className="ps-table m-folders">
           <thead>
             <tr>
               <th className="ps-th-check">
@@ -823,7 +833,7 @@ function ProductSupplier({
                 }}
                 tabIndex={0}
               >
-                <td className="ps-td-check" onClick={(e) => e.stopPropagation()}>
+                <td className="ps-td-check m-keep" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={selectedIds.has(product.id)}
@@ -831,7 +841,7 @@ function ProductSupplier({
                     aria-label={`Select ${product.name}`}
                   />
                 </td>
-                <td className="ps-td-nowrap ps-td-muted" data-label="Product ID">{product.id}</td>
+                <td className="ps-td-nowrap ps-td-muted m-peek" data-label="Product ID">{product.id}</td>
                 <td className="ps-td-pic" data-label="Picture">
                   {product.image ? (
                     <ProductImagePreview src={product.image} name={product.name} />
@@ -839,7 +849,7 @@ function ProductSupplier({
                     <span className="ps-thumb ps-thumb-empty" aria-hidden="true"><Package size={13} /></span>
                   )}
                 </td>
-                <td className="ps-td-left ps-cell-name" data-label="Product Name" title={product.name}>
+                <td className="ps-td-left ps-cell-name m-title" data-label="Product Name" title={product.name}>
                   <span className="ps-name-cell">
                     <span className="ps-name-text">{product.name}</span>
                   </span>

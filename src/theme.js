@@ -4,13 +4,15 @@ export const DEFAULT_THEME = 'midnight-blue';
 const LEGACY_THEME_VALUES = {
   dark: 'midnight-blue',
   true: 'midnight-blue',
-  light: 'white',
-  false: 'white',
+  light: 'soft-white',
+  false: 'soft-white',
+  // The pure White theme was removed: a saved "white" opens as Soft White.
+  white: 'soft-white',
 };
 
 export function normalizeTheme(value) {
   const theme = String(value || '').trim().toLowerCase();
-  if (theme === 'midnight-blue' || theme === 'graphite' || theme === 'white') {
+  if (['soft-white', 'lavender', 'citrus', 'graphite', 'midnight-blue', 'emerald', 'magenta', 'ember'].includes(theme)) {
     return theme;
   }
   return LEGACY_THEME_VALUES[theme] || null;

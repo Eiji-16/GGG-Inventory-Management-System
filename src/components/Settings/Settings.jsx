@@ -22,10 +22,16 @@ import { CURRENCIES, useCurrency } from '../../CurrencyContext';
 import RoleAccess from './roleAccess';
 
 const THEMES = [
-  { value: 'white', label: 'White' },
+  { value: 'soft-white', label: 'Soft White' },
+  { value: 'lavender', label: 'Lavender' },
+  { value: 'citrus', label: 'Teal Citrus' },
   { value: 'graphite', label: 'Graphite' },
   { value: 'midnight-blue', label: 'Midnight Blue' },
+  { value: 'emerald', label: 'Emerald' },
+  { value: 'magenta', label: 'Magenta' },
+  { value: 'ember', label: 'Ember' },
 ];
+const LIGHT_THEMES = ['soft-white', 'lavender', 'citrus'];
 
 function Settings({
   theme,
@@ -47,7 +53,8 @@ function Settings({
   const themeButtonRefs = useRef([]);
   selectedThemeRef.current = theme;
 
-  const [advancedOpen, setAdvancedOpen] = useState(role === 'Super Admin');
+  // Starts closed for everyone; the Super Admin opens it when needed.
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [policyQuery, setPolicyQuery] = useState('');
   const [draft, setDraft] = useState(() => safetyStock);
   const [saved, setSaved] = useState(false);
@@ -254,7 +261,7 @@ function Settings({
         {/* Appearance */}
         <div className="s-pref-row">
           <span className="s-pref-icon" aria-hidden="true">
-            {theme === 'white' ? <Sun size={15} /> : <Moon size={15} />}
+            {LIGHT_THEMES.includes(theme) ? <Sun size={15} /> : <Moon size={15} />}
           </span>
           <div className="s-pref-text">
             <span className="s-pref-title">Appearance</span>
@@ -265,6 +272,8 @@ function Settings({
             role="radiogroup"
             aria-label="Choose appearance theme"
             data-active-theme={theme}
+            // The gold line fills up to the chosen dot (works for any number of themes).
+            style={{ '--theme-count': THEMES.length, '--theme-index': Math.max(0, THEMES.findIndex((option) => option.value === theme)) }}
             onPointerLeave={restoreThemePreview}
           >
             <span className="s-theme-track" aria-hidden="true">

@@ -288,7 +288,7 @@ export default function BulkOrder({ items, onClose, onSaved }) {
           <table className="ra-table ra-bulk-table">
             <thead>
               <tr>
-                <th>Product</th>
+                <th className="ra-left">Product</th>
                 <th>Stock</th>
                 <th>Annual demand</th>
                 <th>Ordering cost</th>

@@ -310,7 +310,9 @@
     align-items: center;
     justify-content: center;
     padding: 16px;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(5, 8, 16, 0.62);
+    -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(5px);
 }
 
 .ra-modal {
@@ -535,4 +537,82 @@
     .ra-bulk-btn.is-ready,
     .ra-bulk-btn.is-ready .ra-bulk-cart,
     .ra-bulk-count { animation: none; }
+}
+
+
+/* ==========COLUMN ALIGNMENT (desktop table)==========
+   Text columns that identify the item (Product, Category, Supplier) are
+   left-aligned; numbers, status and actions are centred. */
+@media (min-width: 901px) {
+    .ra-table th,
+    .ra-table td { text-align: center; }
+    .ra-table th.ra-left,
+    .ra-table td[data-label="Product"],
+    .ra-table td[data-label="Category"],
+    .ra-table td[data-label="Supplier"] { text-align: left; }
+    .ra-table td:not([data-label="Product"]):not([data-label="Category"]):not([data-label="Supplier"]) .ra-product { justify-items: center; }
+    .ra-table .ra-status-cell { align-items: center; }
+    .ra-table .ra-request-info { text-align: center; }
+    .ra-table .ra-actions { justify-content: center; }
+}
+
+/* ==========SELECTED (ticked for Bulk order)==========
+   Desktop: tint the whole row with a gold edge on the left.
+   Cards (≤900px): tint and outline the whole card instead of each cell,
+   so there is no inner box with gaps around it. */
+.ra-table tbody tr.is-selected td { background: rgba(232, 197, 71, 0.08); }
+.ra-table tbody tr.is-selected td:first-child { box-shadow: inset 3px 0 0 var(--accent, #E8C547); }
+
+@media (max-width: 900px) {
+    .ra-table tbody tr { transition: border-color 0.15s ease, background 0.15s ease; }
+    .ra-table tbody tr.is-selected {
+        background: color-mix(in srgb, var(--accent, #E8C547) 9%, var(--bg-card));
+        border-color: var(--accent, #E8C547);
+        box-shadow: 0 0 0 1px var(--accent, #E8C547), var(--shadow-card);
+    }
+    .ra-table tbody tr.is-selected td { background: transparent; }
+    .ra-table tbody tr.is-selected td:first-child { box-shadow: none; }
+}
+
+/* ==========KPI CARDS — Dashboard style (icon + label + number)========== */
+.ra-kpis { gap: 8px; }
+.ra-kpi {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 60px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--border-color);
+}
+.ra-kpi-icon {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+    color: var(--accent, #E8C547);
+    background: var(--static-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+.ra-kpi-out .ra-kpi-icon { color: var(--accent-low); }
+.ra-kpi-low .ra-kpi-icon { color: var(--accent-med); }
+.ra-kpi-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ra-kpi .ra-kpi-label {
+    overflow: hidden;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ra-kpi strong { font-size: 19px; font-weight: 800; line-height: 1.1; }
+
+/* Phones: two cards side by side, the third one full width below. */
+@media (max-width: 640px) {
+    .ra-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ra-kpis > .ra-kpi:nth-child(3) { grid-column: 1 / -1; }
+    .ra-kpi strong { font-size: 19px; }
+    .ra-kpi .ra-kpi-label { white-space: normal; line-height: 1.25; }
 }

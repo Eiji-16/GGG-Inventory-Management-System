@@ -176,7 +176,7 @@ function TrashBin({
 
       <div className="sc-table-scroll">
         {tab === 'products' ? (
-          <table className="sc-table">
+          <table className="sc-table m-folders">
             <thead>
               <tr>
                 <th className="sc-th-left">Product</th>
@@ -197,7 +197,7 @@ function TrashBin({
                 const busy = busyKey === `p-${product.id}`;
                 return (
                   <tr key={product.id}>
-                    <td className="sc-td-left" data-label="Product">
+                    <td className="sc-td-left m-title" data-label="Product">
                       <span className="sc-name-cell">
                         <span className="sc-thumb sc-thumb-empty" aria-hidden="true"><Package size={12} /></span>
                         <span>{product.name} <small className="tb-muted">{product.id}</small></span>
@@ -230,7 +230,7 @@ function TrashBin({
             </tbody>
           </table>
         ) : (
-          <table className="sc-table">
+          <table className="sc-table m-folders">
             <thead>
               <tr>
                 <th>Date</th>
@@ -256,12 +256,12 @@ function TrashBin({
                 return (
                   <tr key={entry.id}>
                     <td className="sc-td-nowrap" data-label="Date">{entry.date}</td>
-                    <td className="sc-td-left" data-label="Product" title={entry.notes || ''}>
+                    <td className="sc-td-left m-title" data-label="Product" title={entry.notes || ''}>
                       {entry.productName}
                       {entry.productInTrash && <small className="sc-deleted-tag" title="This product is in the Trash Bin too. Restore the product to bring this entry back."> (product in Trash Bin)</small>}
                     </td>
                     <td data-label="Variant">{entry.variantName || '—'}</td>
-                    <td data-label="Type">
+                    <td className="m-peek" data-label="Type">
                       <span className={`sc-type-pill sc-type-${(entry.type || '').replace(/\s+/g, '').toLowerCase()}`}>{movementLabel(entry.type)}</span>
                     </td>
                     <td className={`sc-td-strong ${entry.change >= 0 ? 'sc-in' : 'sc-out'}`} data-label="QTY">{changeText}</td>

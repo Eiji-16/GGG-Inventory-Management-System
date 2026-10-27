@@ -6,6 +6,7 @@ import LandingPage from '../components/LandingPage/landingPage';
 import './app-error.css';
 import '../styles/motion.css'; /* subtle shared animations (hover, fades, pop-ups) */
 import { startSlidingTabs } from '../utils/slidingTabs';
+import { startMobileFolders } from '../utils/mobileFolders';
 import { readSavedTheme, saveTheme } from '../theme';
 import { CurrencyProvider } from '../CurrencyContext';
 import { applyShowFieldHints, readShowFieldHints } from '../fieldHints';
@@ -14,6 +15,8 @@ import { applyShowFieldHints, readShowFieldHints } from '../fieldHints';
 applyShowFieldHints(readShowFieldHints());
 // Active tab highlights slide to the newly selected tab (all tab groups).
 startSlidingTabs();
+// Phones: list cards open/close on tap (see utils/mobileFolders.js).
+startMobileFolders();
 
 function App() {
     const [authStatus, setAuthStatus] = useState('checking');

@@ -931,7 +931,7 @@ export default function DemandForecastDesign({
                             row.wmaForecast != null ? `forecast ${Number(row.wmaForecast).toFixed(1)}` : null,
                             row.variance != null ? `variance ${formatSigned(row.variance)}` : null,
                             row.weight ? `weight ×${row.weight} in the next forecast` : null,
-                            row.source === 'past' ? 'from Past Sales' : row.source === 'mixed' ? 'Past Sales + Stock Out' : null,
+                            row.source === 'past' ? (row.fromWeeks ? 'from Past Sales (weekly entries)' : 'from Past Sales') : row.source === 'mixed' ? 'Past Sales + Stock Out' : null,
                           ].filter(Boolean).join(' · ');
                         return (
                           <div className={`fx-bar-col${row.isForecast ? ' is-forecast' : ''}${row.weight ? ' is-weighted' : ''}`} key={`${row.periodDate}-${row.isForecast ? 'f' : 'a'}`} title={tip}>
@@ -1116,8 +1116,8 @@ export default function DemandForecastDesign({
                               <td>
                                 {formatHistoryPeriod(row.periodDate, selectedPeriodType)}
                                 {(row.source === 'past' || row.source === 'mixed') && (
-                                  <span className="fx-src" title={row.source === 'past' ? 'From Past Sales (entered or imported)' : 'Past Sales + Stock Out records'}>
-                                    {row.source === 'past' ? 'Past' : 'Past + Stock'}
+                                  <span className="fx-src" title={row.fromWeeks ? 'From Past Sales — total of the weekly entries (weeks crossing a month border split by days)' : row.source === 'past' ? 'From Past Sales (entered or imported)' : 'Past Sales + Stock Out records'}>
+                                    {row.fromWeeks ? 'Past · weeks' : row.source === 'past' ? 'Past' : 'Past + Stock'}
                                   </span>
                                 )}
                               </td>

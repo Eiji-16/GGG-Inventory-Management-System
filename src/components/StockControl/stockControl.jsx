@@ -24,6 +24,7 @@ import {
 
 import './stockControl.css';
 import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
+import MobileSelectBar from '../MobileSelectBar/MobileSelectBar';
 import apiFetch from '../../apiFetch';
 import { useCurrency } from '../../CurrencyContext';
 import { buildForecastHandoff } from '../../utils/forecastHandoff';
@@ -510,6 +511,16 @@ function StockControl({
   const pageRows = visibleRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   // A new search or sort starts again at page 1.
   useEffect(() => { setPage(1); }, [query, sortBy, sortDir]);
+  // Ticks only count for entries that still match the search: an entry hidden
+  // by a search (or removed) is unticked, so "Clear stock (N)" never counts
+  // something you can't see.
+  useEffect(() => {
+    const shown = new Set(visibleRows.map(({ id }) => id));
+    setSelectedIds((prev) => {
+      const next = new Set([...prev].filter((id) => shown.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [visibleRows]);
 
   /* ===== EXPORT FORMATTED EXCEL REPORT ===== */
   const exportStockReport = async () => {
@@ -1336,11 +1347,13 @@ function StockControl({
           )}
         </div>
 
-        {canClearStock && selectedIds.size > 0 && (
+        {canClearStock && selectedProductIds.length > 0 && (
           <button
-            className="sc-add-btn sc-delete-selected-btn"
+            className="sc-add-btn sc-delete-selected-btn sc-add-collapse"
             onClick={requestClearSelectedProducts}
             type="button"
+            data-count={selectedProductIds.length}
+            aria-label={`Clear stock for ${selectedProductIds.length} selected product(s)`}
             title={`Clear stock for ${selectedProductIds.length} selected product(s)`}
           >
             <p>Clear stock ({selectedProductIds.length})</p>
@@ -1348,7 +1361,7 @@ function StockControl({
           </button>
         )}
         {canAddStock && (
-        <button className="sc-add-btn sc-add-btn-primary" onClick={openAddModal} type="button">
+        <button className="sc-add-btn sc-add-btn-primary sc-add-collapse" onClick={openAddModal} type="button" title="Update Stock" aria-label="Update Stock">
           <p>Update Stock</p>
           <Plus size={12} className="sc-add-icon" />
         </button>
@@ -1406,8 +1419,15 @@ function StockControl({
       )}
 
       {/* ===== TABLE ===== */}
+      <MobileSelectBar
+        total={pageRows.length}
+        count={selectedIds.size}
+        allSelected={allSelected}
+        onToggleAll={toggleSelectAll}
+        onClear={() => setSelectedIds(new Set())}
+      />
       <div className="sc-table-scroll">
-        <table className="sc-table">
+        <table className="sc-table m-folders">
           <thead>
             <tr>
               <th className="sc-th-check">
@@ -1451,7 +1471,7 @@ function StockControl({
                   className={`${status ? `sc-row-${status}` : ''} ${selectedIds.has(id) ? 'is-selected' : ''} ${highlightId && stock.productId === highlightId ? 'sc-row-highlight' : ''}`}
                   key={id}
                 >
-                  <td className="sc-td-check">
+                  <td className="sc-td-check m-keep">
                     <input
                       type="checkbox"
                       checked={selectedIds.has(id)}
@@ -1460,7 +1480,7 @@ function StockControl({
                     />
                   </td>
                   <td className="sc-td-nowrap" data-label="Date">{stock.date}</td>
-                  <td className="sc-td-left sc-cell-name" data-label="Product" title={stock.productName}>
+                  <td className="sc-td-left sc-cell-name m-title" data-label="Product" title={stock.productName}>
                     <span className="sc-name-cell">
                       {productImageByName.get(stock.productId) ? (
                         <img className="sc-thumb" src={productImageByName.get(stock.productId)} alt="" loading="lazy" />
@@ -1479,7 +1499,7 @@ function StockControl({
                     </span>
                   </td>
                   <td data-label="Variant">{stock.variantName || '—'}</td>
-                  <td data-label="Type">
+                  <td className="m-peek" data-label="Type">
                     <span
                       className={`sc-type-pill sc-type-${(stock.type || '').replace(/\s+/g, '').toLowerCase()}`}
                       title={`${movementLabel(stock.type)} on ${stock.date}: ${signedText} units`}

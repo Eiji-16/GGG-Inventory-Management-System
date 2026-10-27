@@ -3,6 +3,70 @@ const GREEN = '176B57';
 const DARK_GREEN = '123B32';
 const BORDER = { bottom: { style: 'thin', color: { rgb: 'D9E2EC' } } };
 
+/* ===== SAVE WITH FROZEN HEADERS ===== 
+   The Excel library (xlsx-js-style / SheetJS Community) silently ignores
+   frozen panes and "hide gridlines", so they are written into each sheet's
+   XML here, right before download. views[i] applies to sheet i+1:
+   { freezeRows, freezeCols, hideGrid }. If anything goes wrong the file is
+   still saved, just without those view settings. */
+export function saveWorkbookFile(XLSX, workbook, fileName, views = []) {
+  const data = XLSX.write(workbook, { bookType: 'xlsx', type: 'array', cellStyles: true });
+  let output = data;
+  try {
+    const zip = XLSX.CFB.read(new Uint8Array(data), { type: 'array' });
+    views.forEach((view, index) => {
+      if (!view) return;
+      const entry = XLSX.CFB.find(zip, `/xl/worksheets/sheet${index + 1}.xml`);
+      if (!entry || !entry.content) return;
+      const rows = Math.max(0, view.freezeRows || 0);
+      const cols = Math.max(0, view.freezeCols || 0);
+      let pane = '';
+      if (rows || cols) {
+        const topLeft = `${XLSX.utils.encode_col(cols)}${rows + 1}`;
+        const active = rows && cols ? 'bottomRight' : rows ? 'bottomLeft' : 'topRight';
+        pane = `<pane${cols ? ` xSplit="${cols}"` : ''}${rows ? ` ySplit="${rows}"` : ''} topLeftCell="${topLeft}" activePane="${active}" state="frozen"/>`
+          + `<selection pane="${active}" activeCell="${topLeft}" sqref="${topLeft}"/>`;
+      }
+      const xml = new TextDecoder().decode(entry.content);
+      const sheetView = `<sheetView workbookViewId="0"${view.hideGrid ? ' showGridLines="0"' : ''}>${pane}</sheetView>`;
+      const next = xml.replace(/<sheetView workbookViewId="0"\s*\/>/, sheetView);
+      if (next !== xml) {
+        entry.content = new TextEncoder().encode(next);
+        entry.size = entry.content.length;
+      }
+    });
+    output = XLSX.CFB.write(zip, { fileType: 'zip', type: 'array' });
+  } catch (error) {
+    console.warn('Saved without frozen headers:', error);
+    output = data;
+  }
+  const blob = new Blob([output], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* How each column lines up: the first text columns (product, name…) left,
+   everything after them centred — same rule as the tables on screen.
+   Number columns also get a thousands separator (and 2 decimals if needed). */
+function columnLayout(sections, columnCount) {
+  const isNumberLike = (value) => typeof value === 'number' || value === '—' || value === '-' || value === '' || value == null;
+  const numeric = Array.from({ length: columnCount }, (_, column) => {
+    const values = sections.flatMap((section) => section.rows.map((row) => row[column]));
+    return values.some((value) => typeof value === 'number') && values.every(isNumberLike);
+  });
+  const decimals = Array.from({ length: columnCount }, (_, column) => sections.some((section) => section.rows
+    .some((row) => typeof row[column] === 'number' && !Number.isInteger(row[column]))));
+  let leftCount = 0;
+  while (leftCount < Math.min(3, columnCount) && !numeric[leftCount]) leftCount += 1;
+  return { numeric, decimals, leftCount: Math.max(1, leftCount) };
+}
+
 export default async function exportReportWorkbook({
   title,
   subtitle,
@@ -82,16 +146,7 @@ export default async function exportReportWorkbook({
     { hpt: 22 },
     { hpt: 20 },
   ];
-  worksheet['!views'] = [{ showGridLines: false }];
-  if (firstHeaderRow !== null) {
-    worksheet['!freeze'] = {
-      xSplit: 0,
-      ySplit: firstHeaderRow + 1,
-      topLeftCell: `A${firstHeaderRow + 2}`,
-      activePane: 'bottomLeft',
-      state: 'frozen',
-    };
-  }
+  // Frozen header row + hidden gridlines are applied in saveWorkbookFile().
   if (sections.length === 1 && sectionRows[0].count > 0) {
     const { headerRow, firstDataRow, count } = sectionRows[0];
     worksheet['!autofilter'] = {
@@ -146,6 +201,7 @@ export default async function exportReportWorkbook({
     });
   }
 
+  const layout = columnLayout(sections, columnCount);
   sectionRows.forEach(({ headingRow, headerRow, firstDataRow, count }) => {
     setStyle(XLSX.utils.encode_cell({ r: headingRow, c: 0 }), {
       font: { name: 'Aptos', sz: 11, bold: true, color: { rgb: GREEN } },
@@ -157,18 +213,21 @@ export default async function exportReportWorkbook({
       setStyle(headerAddress, {
         font: { name: 'Aptos', sz: 10, bold: true, color: { rgb: 'FFFFFF' } },
         fill: { fgColor: { rgb: '244B43' } },
-        alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+        alignment: { horizontal: column < layout.leftCount ? 'left' : 'center', vertical: 'center', wrapText: true },
         border: { bottom: { style: 'medium', color: { rgb: GREEN } } },
       });
     }
     for (let offset = 0; offset < count; offset += 1) {
       const rowIndex = firstDataRow + offset;
       for (let column = 0; column < columnCount; column += 1) {
-        setStyle(XLSX.utils.encode_cell({ r: rowIndex, c: column }), {
+        const address = XLSX.utils.encode_cell({ r: rowIndex, c: column });
+        const isNumber = worksheet[address] && typeof worksheet[address].v === 'number';
+        setStyle(address, {
           font: { name: 'Aptos', sz: 10, color: { rgb: '253247' } },
           fill: { fgColor: { rgb: offset % 2 === 0 ? 'FFFFFF' : 'F5F8FA' } },
-          alignment: { vertical: 'center', wrapText: true },
+          alignment: { horizontal: column < layout.leftCount ? 'left' : 'center', vertical: 'center', wrapText: true },
           border: BORDER,
+          ...(isNumber ? { numFmt: layout.decimals[column] ? '#,##0.00' : '#,##0' } : {}),
         });
       }
     }
@@ -202,7 +261,9 @@ export default async function exportReportWorkbook({
   };
   const date = new Date().toISOString().slice(0, 10);
   const safeName = fileName || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, 'report');
-  XLSX.writeFile(workbook, `${safeName}-${date}.xlsx`);
+  saveWorkbookFile(XLSX, workbook, `${safeName}-${date}.xlsx`, [
+    { freezeRows: firstHeaderRow !== null ? firstHeaderRow + 1 : 0, hideGrid: true },
+  ]);
 
   return { dataRowCount };
 }

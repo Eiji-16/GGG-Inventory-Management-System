@@ -1438,3 +1438,72 @@
     border-radius: 8px;
     background: rgba(232, 197, 71, 0.08);
 }
+
+
+/*==========TOOLBAR BUTTONS ON SMALL SCREENS==========
+   Labels never wrap onto two lines; on very small phones the Add / Update /
+   Delete buttons become square icon buttons (Delete keeps its count). */
+.ps-add-btn { white-space: nowrap; flex-shrink: 0; }
+.ps-add-collapse[data-count]::after { content: none; }
+@media (max-width: 480px) {
+    .ps-add-btn.ps-add-collapse {
+        position: relative;
+        width: 2.1rem;
+        height: 2.1rem;
+        padding: 0;
+        justify-content: center;
+    }
+    .ps-add-btn.ps-add-collapse p { display: none; }
+    .ps-add-btn.ps-add-collapse svg { width: 15px; height: 15px; }
+    .ps-add-btn.ps-add-collapse[data-count]::after {
+        content: attr(data-count);
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        color: #fff;
+        font-size: 9.5px;
+        font-weight: 800;
+        line-height: 16px;
+        text-align: center;
+        background: #ef4444;
+        border-radius: 999px;
+    }
+}
+
+/*==========EMPTY / LOADING MESSAGE IN CARD VIEW==========
+   The message row is not a card: centre it instead of pushing it right. */
+@media (max-width: 900px) {
+    .ps-table tbody td.ps-empty-state {
+        display: block;
+        justify-content: center;
+        text-align: center !important;
+    }
+    .ps-table tbody td.ps-empty-state::before { content: none; }
+}
+@media (max-width: 900px) {
+    .ps-table tbody tr:has(> td.ps-empty-state) {
+        padding: 0;
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+    }
+}
+
+/* Phones: search box on its own full-width row, buttons underneath on the
+   right (same as Stock Control). */
+@media (max-width: 640px) {
+    .ps-navigation-bar {
+        flex-wrap: wrap;
+    }
+    .ps-search-wrapper {
+        flex: 1 1 100%;
+        margin-right: 0;
+    }
+    .ps-search-box {
+        min-width: 0;
+        width: 100%;
+    }
+}

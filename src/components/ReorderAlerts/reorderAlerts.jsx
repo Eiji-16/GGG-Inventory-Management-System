@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BellRing, Calculator, Check, PackageCheck, Search, ShoppingCart } from 'lucide-react';
+import { AlertTriangle, BellRing, Calculator, Check, ClipboardList, PackageCheck, PackageX, Search, ShoppingCart } from 'lucide-react';
 import apiFetch from '../../apiFetch';
 import './reorderAlerts.css';
 import { reorderPointFor, safetyPointFor, statusPointsFor, SAFETY_STOCK_DEFAULTS } from '../../data/safetyStock';
 import { buildForecastHandoff } from '../../utils/forecastHandoff';
 import BulkOrder from './bulkOrder';
+import MobileSelectBar from '../MobileSelectBar/MobileSelectBar';
 import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
 
 /* ===== REORDER LIST (Figure 9, formerly "Auto Reorder Alerts") =====
@@ -199,18 +200,28 @@ export default function ReorderAlerts({
 
   return (
     <div className="ra-root">
+      {/* Same card style as the Dashboard KPI row: icon + label + number. */}
       <div className="ra-kpis">
         <div className="ra-kpi">
-          <span className="ra-kpi-label">Items needing reorder</span>
-          <strong>{loading ? '—' : alerts.length}</strong>
+          <span className="ra-kpi-icon" aria-hidden="true"><ClipboardList size={17} strokeWidth={1.8} /></span>
+          <span className="ra-kpi-copy">
+            <span className="ra-kpi-label">Items needing reorder</span>
+            <strong>{loading ? '—' : alerts.length}</strong>
+          </span>
         </div>
         <div className="ra-kpi ra-kpi-out">
-          <span className="ra-kpi-label">Out of stock</span>
-          <strong>{loading ? '—' : outCount}</strong>
+          <span className="ra-kpi-icon" aria-hidden="true"><PackageX size={17} strokeWidth={1.8} /></span>
+          <span className="ra-kpi-copy">
+            <span className="ra-kpi-label">Out of stock</span>
+            <strong>{loading ? '—' : outCount}</strong>
+          </span>
         </div>
         <div className="ra-kpi ra-kpi-low">
-          <span className="ra-kpi-label">Low stock</span>
-          <strong>{loading ? '—' : lowCount}</strong>
+          <span className="ra-kpi-icon" aria-hidden="true"><AlertTriangle size={17} strokeWidth={1.8} /></span>
+          <span className="ra-kpi-copy">
+            <span className="ra-kpi-label">Low stock</span>
+            <strong>{loading ? '—' : lowCount}</strong>
+          </span>
         </div>
       </div>
 
@@ -281,8 +292,17 @@ export default function ReorderAlerts({
           </p>
         )}
 
+        {canComputeEoq && (
+          <MobileSelectBar
+            total={visible.length}
+            count={selectedAlerts.length}
+            allSelected={allVisibleSelected}
+            onToggleAll={toggleSelectAll}
+            onClear={() => setSelectedIds(new Set())}
+          />
+        )}
         <div className="ra-table-scroll">
-          <table className="ra-table">
+          <table className="ra-table m-folders">
             <thead>
               <tr>
                 {canComputeEoq && (
@@ -290,9 +310,9 @@ export default function ReorderAlerts({
                     <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Select all alerts for bulk order" />
                   </th>
                 )}
-                <th>Product</th>
-                <th>Category</th>
-                <th>Supplier</th>
+                <th className="ra-left">Product</th>
+                <th className="ra-left">Category</th>
+                <th className="ra-left">Supplier</th>
                 <th>Current Stock</th>
                 <th>Reorder Point</th>
                 <th>Status</th>
@@ -313,11 +333,11 @@ export default function ReorderAlerts({
               ) : visible.map((item) => (
                 <tr key={item.id} className={selectedIds.has(item.id) ? 'is-selected' : ''}>
                   {canComputeEoq && (
-                    <td className="ra-check" data-label="Bulk order">
+                    <td className="ra-check m-keep" data-label="Bulk order">
                       <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} aria-label={`Select ${item.name} for bulk order`} />
                     </td>
                   )}
-                  <td data-label="Product">
+                  <td className="m-title" data-label="Product">
                     <span className="ra-product">
                       <strong>{item.name}</strong>
                       <small>{[item.id, ...(item.variants || []).slice(0, 3)].join(' · ')}</small>
@@ -334,7 +354,7 @@ export default function ReorderAlerts({
                   </td>
                   <td data-label="Current Stock" className="ra-num">{item.stock}</td>
                   <td data-label="Reorder Point" className="ra-num">{item.reorderPoint}</td>
-                  <td data-label="Status">
+                  <td className="m-peek" data-label="Status">
                     <span className="ra-status-cell">
                       <span className={`ra-status ${item.status === 'Out of Stock' ? 'is-out' : 'is-low'}`} title={`Low at ${item.points.low}${item.points.mode === 'manual' ? ' (set manually)' : ''} · safety stock ${item.safety}`}>
                         <AlertTriangle size={11} aria-hidden="true" /> {item.status}

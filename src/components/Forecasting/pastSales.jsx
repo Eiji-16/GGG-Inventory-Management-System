@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import apiFetch from '../../apiFetch';
 import { readSalesFile, downloadTemplate, monthLabel } from '../../utils/pastSalesImport';
+import CustomSelect from './CustomSelect';
 
 /* ==========================================================================
    PAST SALES
@@ -10,7 +11,9 @@ import { readSalesFile, downloadTemplate, monthLabel } from '../../utils/pastSal
      1. Import from Excel (many products at once, with a preview first)
      2. Enter manually (one product: 12-month grid, or the weeks of a month)
    Monthly entries feed the month/year forecasts; weekly entries feed the
-   weekly forecast (a month can't be split into weeks, so they stay separate).
+   weekly forecast. A month with no monthly entry also uses its weeks, once
+   every week of it is entered (border weeks split by days). A month can't be
+   split into weeks, so monthly entries never feed the weekly forecast.
    ========================================================================== */
 
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -356,6 +359,11 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
       });
   const unitWord = isWeekly ? 'week' : 'month';
   const valueFor = (key) => (key in drafts ? drafts[key] : (saved[key] ?? ''));
+  /* Monthly mode: the month totals worked out from the weekly entries. */
+  const weekTotals = useMemo(
+    () => (isWeekly ? {} : Object.fromEntries((data?.fromWeeks || []).map((row) => [row.month, row]))),
+    [data, isWeekly],
+  );
   const dirty = cells.some(({ key, locked }) => !locked && key in drafts && String(drafts[key]) !== String(saved[key] ?? ''));
 
   const save = async () => {
@@ -418,30 +426,44 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
         </div>
       </header>
 
-      <div className="ps-manual-controls">
-        <div className="f-field f-grow">
+      <div className={`ps-manual-controls${isWeekly ? ' is-weekly' : ''}`}>
+        <div className="f-field f-grow ps-find-field">
           <label htmlFor="ps-search">Find product</label>
           <input id="ps-search" type="text" placeholder="Name, ID or category…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <div className="f-field f-grow">
+        <div className="f-field f-grow ps-product-field">
           <label htmlFor="ps-product">Product</label>
-          <select id="ps-product" value={productId || ''} onChange={(e) => onProductChange(e.target.value)}>
-            {!productId && <option value="">Select a product…</option>}
-            {filtered.slice(0, 500).map((p) => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
-          </select>
+          <CustomSelect
+            id="ps-product"
+            value={productId || ''}
+            placeholder="Select a product…"
+            emptyText="No products match"
+            options={filtered.slice(0, 500).map((p) => ({ value: p.id, label: p.name, sub: p.id }))}
+            onChange={(value) => onProductChange(value)}
+          />
         </div>
-        <div className="f-field">
+        <div className="f-field ps-year-field">
           <label htmlFor="ps-year">Year</label>
-          <select id="ps-year" value={year ?? ''} onChange={(e) => { setYear(Number(e.target.value)); setDrafts({}); }} disabled={!dataReady}>
-            {years.map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
+          <CustomSelect
+            id="ps-year"
+            className={isWeekly ? '' : 'cs-align-right'}
+            value={year ?? ''}
+            disabled={!dataReady}
+            options={years.map((y) => ({ value: y, label: String(y) }))}
+            onChange={(value) => { setYear(Number(value)); setDrafts({}); }}
+          />
         </div>
         {isWeekly && (
-          <div className="f-field">
+          <div className="f-field ps-month-field">
             <label htmlFor="ps-month">Month</label>
-            <select id="ps-month" value={monthIndex} onChange={(e) => { setMonthIndex(Number(e.target.value)); setDrafts({}); }} disabled={!dataReady}>
-              {MONTH_SHORT.map((label, i) => <option key={label} value={i}>{label}</option>)}
-            </select>
+            <CustomSelect
+              id="ps-month"
+              className="cs-align-right"
+              value={monthIndex}
+              disabled={!dataReady}
+              options={MONTH_SHORT.map((label, i) => ({ value: i, label }))}
+              onChange={(value) => { setMonthIndex(Number(value)); setDrafts({}); }}
+            />
           </div>
         )}
       </div>
@@ -457,25 +479,45 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
 
       {loading ? <p className="ps-muted">Loading…</p> : dataReady && (
         <div className={`ps-grid${isWeekly ? ' ps-grid-weeks' : ''}`}>
-          {cells.map(({ key, label, title, locked, unfinished }) => (
-            <label key={key} className={`ps-month${locked ? ' is-locked' : ''}${saved[key] !== undefined ? ' has-value' : ''}`} title={title}>
-              <span>{label}</span>
-              {locked ? (
-                <em>{unfinished ? 'Not finished' : 'From Stock Control'}</em>
-              ) : (
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  inputMode="numeric"
-                  placeholder="—"
-                  value={valueFor(key)}
-                  onChange={(e) => setDrafts((current) => ({ ...current, [key]: e.target.value }))}
-                  aria-label={`${title} units sold`}
-                />
-              )}
-            </label>
-          ))}
+          {cells.map(({ key, label, title, locked, unfinished }) => {
+            const weeks = !locked ? weekTotals[key] : null;
+            const typed = String(valueFor(key)).trim();
+            // Auto: no monthly number, and every week of this month is entered.
+            const auto = weeks && weeks.complete && typed === '';
+            const mismatch = weeks && weeks.complete && typed !== '' && Number(typed) !== weeks.unitsSold;
+            return (
+              <label key={key} className={`ps-month${locked ? ' is-locked' : ''}${saved[key] !== undefined ? ' has-value' : ''}${auto ? ' is-auto' : ''}${mismatch ? ' is-mismatch' : ''}`} title={title}>
+                <span>{label}</span>
+                {locked ? (
+                  <em>{unfinished ? 'Not finished' : 'From Stock Control'}</em>
+                ) : (
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputMode="numeric"
+                    placeholder={auto ? String(weeks.unitsSold) : '—'}
+                    value={valueFor(key)}
+                    onChange={(e) => setDrafts((current) => ({ ...current, [key]: e.target.value }))}
+                    aria-label={`${title} units sold`}
+                  />
+                )}
+                {weeks && (
+                  <small
+                    className="ps-week-note"
+                    title={weeks.complete
+                      ? `Total of the weekly entries for ${title}. Weeks that cross into another month are split by days.`
+                      : `${weeks.weeksEntered} of the ${weeks.weeksNeeded} weeks of ${title} have weekly entries — enter all of them to use the weekly total.`}
+                  >
+                    {auto ? `Auto from weeks`
+                      : mismatch ? `⚠ Weeks total ${weeks.unitsSold.toLocaleString()}`
+                      : weeks.complete ? 'Matches weeks ✓'
+                      : `Weeks: ${weeks.weeksEntered} of ${weeks.weeksNeeded} entered`}
+                  </small>
+                )}
+              </label>
+            );
+          })}
         </div>
       )}
 
@@ -488,7 +530,9 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
         </button>
         {dirty && <button type="button" className="f-btn f-btn-ghost" onClick={() => setDrafts({})} disabled={saving}>Undo changes</button>}
       </div>
-      <p className="ps-muted hint-text">Leave a {unitWord} blank if there is no record. Clearing a saved {unitWord} and saving removes it.{isWeekly ? ' Weekly entries are used by the weekly forecast; monthly entries by the monthly and yearly forecast.' : ''}</p>
+      <p className="ps-muted hint-text">Leave a {unitWord} blank if there is no record. Clearing a saved {unitWord} and saving removes it.{isWeekly
+        ? ' Weekly entries are used by the weekly forecast. Once every week of a month is entered, its total is also used for that month (if it has no monthly entry).'
+        : ' A blank month whose weeks are all entered uses the weekly total automatically; a typed monthly number always takes priority.'}</p>
     </section>
   );
 }
@@ -502,7 +546,7 @@ export default function PastSalesPanel({ products, productId, onProductChange, o
           <p>
             Monthly or weekly sales from <strong>before</strong> a product was recorded in Stock Control — for example from the owner’s old Excel sheets.
             They give the forecast history to work with right away. They are only used for forecasting and never change stock on hand.
-            From the month (or week) a product’s Stock Control records begin, its sales come from Stock Out transactions instead, so nothing is counted twice. Monthly entries are used by the monthly and yearly forecast; weekly entries by the weekly forecast.
+            From the month (or week) a product’s Stock Control records begin, its sales come from Stock Out transactions instead, so nothing is counted twice. Monthly entries are used by the monthly and yearly forecast; weekly entries by the weekly forecast — and by a month with no monthly entry once all its weeks are entered.
           </p>
         </div>
       </section>

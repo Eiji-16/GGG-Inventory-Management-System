@@ -1641,3 +1641,227 @@
 /* User Accounts in the top row (Super Admin) and the Reorder List card below. */
 .db-kpi-users .db-kpi-icon { color: var(--accent); }
 .db-stat-reorder { color: var(--accent-med); }
+
+
+/*==========SALES HISTORY: y-axis labels==========*/
+.salesAnalytics-card .db-hero-plot { padding-left: 34px; }
+.db-hero-yaxis {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 30px;
+    pointer-events: none;
+}
+.db-hero-yaxis span {
+    position: absolute;
+    right: 0;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 9.5px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+.salesAnalytics-card .db-hero-xaxis { padding-left: 40px; }
+
+/*==========SMALL CHIP (Total Units Sold)==========*/
+.db-chip {
+    align-self: flex-start;
+    padding: 2px 8px;
+    color: var(--accent-high);
+    font-size: 10.5px;
+    font-weight: 700;
+    background: rgba(67, 211, 158, 0.12);
+    border-radius: 999px;
+}
+
+/*==========STOCK ALERTS: rows are buttons — drop the browser's default border==========*/
+.db-alert-row {
+    border: 0;
+    border-left: 3px solid transparent;
+}
+
+/*==========REORDER LIST CARD: ring + chips==========*/
+.db-reorder-kpi {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 14px;
+}
+.db-reorder-ring {
+    width: 92px;
+    height: 92px;
+    flex-shrink: 0;
+}
+.db-reorder-ring circle { transition: stroke-dasharray 0.6s ease; }
+.db-reorder-ring-value {
+    fill: var(--text-primary);
+    font-size: 20px;
+    font-weight: 800;
+}
+.db-reorder-ring-label {
+    fill: var(--text-muted);
+    font-size: 8.5px;
+    font-weight: 600;
+}
+.db-reorder-chips {
+    display: grid;
+    gap: 6px;
+}
+.db-reorder-chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 5px 10px;
+    color: var(--text-primary);
+    font-size: 15px;
+    font-weight: 800;
+    background: var(--overlay-soft);
+    border-radius: 8px;
+}
+.db-reorder-chip small {
+    color: var(--text-muted);
+    font-size: 10.5px;
+    font-weight: 600;
+}
+.db-reorder-chip i {
+    width: 8px;
+    height: 8px;
+    align-self: center;
+    border-radius: 50%;
+}
+.db-reorder-chip.is-out i { background: var(--accent-low); }
+.db-reorder-chip.is-low i { background: var(--accent-med); }
+.db-reorder-ok {
+    color: var(--accent-high);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/*==========INVENTORY BY CATEGORY — rose pie==========*/
+.db-rose-svg { overflow: visible; }
+.db-rose-slice {
+    stroke: var(--bg-card);
+    stroke-width: 1.6;
+    stroke-linejoin: round;
+    transition: opacity 0.15s ease, transform 0.2s ease;
+    transform-origin: 60px 60px;
+}
+.db-rose-svg:hover .db-rose-slice { opacity: 0.55; }
+.db-rose-svg .db-rose-slice:hover { opacity: 1; transform: scale(1.04); }
+.db-rose-tag { pointer-events: none; }
+.db-rose-tag rect {
+    fill: var(--bg-card);
+    stroke: var(--border-color);
+    stroke-width: 0.6;
+}
+.db-rose-tag text {
+    fill: var(--text-primary);
+    font-size: 8px;
+    font-weight: 800;
+}
+.db-category-section .db-donut-svg.db-rose-svg { width: 132px; height: 132px; flex: 0 0 132px; }
+@media (max-width: 640px) { .db-category-section .db-donut-svg.db-rose-svg { width: 136px; height: 136px; flex-basis: 136px; } }
+
+/*==========SALES HISTORY — trend overview==========*/
+.db-trend-total {
+    display: grid;
+    gap: 1px;
+    margin: 2px 0 4px;
+    padding-left: 10px;
+    border-left: 3px solid var(--accent);
+}
+.db-trend-total-label { color: var(--text-muted); font-size: 10.5px; }
+.db-trend-total strong { font-size: 24px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.db-trend-hit { fill: transparent; cursor: crosshair; outline: none; }
+.db-trend-guide { stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.7; }
+.db-trend-dot {
+    position: absolute;
+    z-index: 2;
+    width: 10px;
+    height: 10px;
+    background: #fff;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 0 4px var(--accent-ring);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+.db-trend-tag {
+    flex-direction: column;
+    gap: 1px;
+    padding: 6px 10px 6px 12px;
+    border-left: 3px solid var(--accent);
+    transform: translate(16px, -110%);
+}
+.db-trend-tag.db-hero-tooltip-left { transform: translate(calc(-100% - 16px), -110%); }
+.db-trend-tag strong { font-size: 13px; }
+.db-trend-tag span { font-size: 10px; }
+/* The y-axis takes the first 34px of the plot, so the overlays shift with it. */
+.salesAnalytics-card .db-trend-plot .db-trend-tag,
+.salesAnalytics-card .db-trend-plot .db-trend-dot { margin-left: 0; }
+.salesAnalytics-card .db-trend-plot > svg { width: 100%; }
+
+/*==========TOTAL UNITS SOLD — smooth area==========*/
+.db-smooth-area { display: block; width: 100%; height: 100%; min-height: 60px; overflow: visible; }
+
+/*==========COLOURED CARDS==========
+   Four fixed tones (same in every theme). Each tone re-points the theme
+   variables inside its card so text, borders, bars and charts stay readable. */
+.db-tone { border-color: transparent !important; }
+.db-tone-ink {
+    --bg-card: #1D1C22;
+    --text-primary: #F6F4F8;
+    --text-muted: rgba(246, 244, 248, 0.62);
+    --static-bg-color: rgba(255, 255, 255, 0.08);
+    --border-color: rgba(255, 255, 255, 0.1);
+    --hairline: rgba(255, 255, 255, 0.12);
+    --overlay-soft: rgba(255, 255, 255, 0.07);
+    --accent-ring: rgba(255, 255, 255, 0.14);
+    color-scheme: dark;
+    background: radial-gradient(120% 90% at 100% 0%, #34323c 0%, #1d1c22 55%, #141317 100%) !important;
+}
+.db-tone-flame {
+    --bg-card: #FF4A1C;
+    --text-primary: #FFFFFF;
+    --text-muted: rgba(255, 255, 255, 0.8);
+    --static-bg-color: rgba(255, 255, 255, 0.18);
+    --border-color: rgba(255, 255, 255, 0.22);
+    --hairline: rgba(255, 255, 255, 0.24);
+    --overlay-soft: rgba(255, 255, 255, 0.12);
+    --accent: #FFFFFF;
+    --accent-ring: rgba(255, 255, 255, 0.22);
+    color-scheme: dark;
+    background: linear-gradient(150deg, #FF6A33 0%, #FF4A1C 55%, #E8380F 100%) !important;
+}
+.db-tone-mist {
+    --bg-card: #ECEBEF;
+    --text-primary: #1E1D23;
+    --text-muted: #5E5C66;
+    --static-bg-color: rgba(30, 29, 35, 0.06);
+    --border-color: rgba(30, 29, 35, 0.1);
+    --hairline: rgba(30, 29, 35, 0.1);
+    --overlay-soft: rgba(30, 29, 35, 0.05);
+    --accent-high: #1E8A5F;
+    --accent-med: #C08A1E;
+    --accent-low: #D2452C;
+    color-scheme: light;
+    background: linear-gradient(160deg, #F4F3F6 0%, #E4E3E8 100%) !important;
+}
+.db-tone-peach {
+    --bg-card: #F4DCCB;
+    --text-primary: #2B1D15;
+    --text-muted: #7A5B4B;
+    --static-bg-color: rgba(255, 255, 255, 0.45);
+    --border-color: rgba(43, 29, 21, 0.1);
+    --hairline: rgba(43, 29, 21, 0.12);
+    --overlay-soft: rgba(255, 255, 255, 0.4);
+    --accent-med: #B87508;
+    --accent-low: #C93A22;
+    color-scheme: light;
+    background: linear-gradient(165deg, #FBEDE3 0%, #F2D3BF 100%) !important;
+}
+/* KPI icons follow the card's own text colour on the strong tones. */
+.db-kpi-card.db-tone-ink .db-kpi-icon,
+.db-kpi-card.db-tone-flame .db-kpi-icon { color: var(--text-primary); }
+/* Stock Movements bars on the orange card: white, the busiest day solid. */
+.db-tone-flame .db-col-bar { opacity: 0.5; }
+.db-tone-flame .db-col-bar-max { opacity: 1; }

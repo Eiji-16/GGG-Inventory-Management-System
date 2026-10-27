@@ -31,6 +31,10 @@ const fallbackCategoryColors = ['#A78BFA', '#FB7185', '#38BDF8', '#F97316', '#2D
    (instead of cutting a row in half at the bottom of the card). */
 const LIST_LIMIT = 3;
 
+/* Background colours of the four KPI cards (left to right) and the four
+   status cards: ink (near-black), flame (orange-red), mist (light grey), peach. */
+const KPI_TONES = ['ink', 'flame', 'mist', 'peach'];
+
 const KPI_CARDS = [
   { key: 'totalProducts', label: 'Total Products', Icon: Package, accent: 'products' },
   { key: 'totalStockUnits', label: 'Total Stock Units', Icon: Boxes, accent: 'stock' },
@@ -47,10 +51,10 @@ const kpiCardsFor = (isSuperAdmin) => (isSuperAdmin
     : card))
   : KPI_CARDS);
 
-function scalePoints(values, width, height, padX = 6, padTop = 10, padBottom = 8) {
+function scalePoints(values, width, height, padX = 6, padTop = 10, padBottom = 8, bounds = null) {
   if (!values.length) return [];
-  const max = Math.max(...values);
-  const min = Math.min(...values);
+  const max = bounds ? bounds.max : Math.max(...values);
+  const min = bounds ? bounds.min : Math.min(...values);
   const range = max - min || 1;
   const innerWidth = width - padX * 2;
   const innerHeight = height - padTop - padBottom;
@@ -60,6 +64,14 @@ function scalePoints(values, width, height, padX = 6, padTop = 10, padBottom = 8
     padX + index * step,
     padTop + innerHeight - ((value - min) / range) * innerHeight,
   ]);
+}
+
+/* A round axis top just above the peak (e.g. 276 → 300), so axis labels read cleanly. */
+function niceCeil(value) {
+  if (value <= 0) return 1;
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const step = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((s) => s * magnitude >= value);
+  return step * magnitude;
 }
 
 /* Smooth line through the points that never overshoots them (monotone
@@ -123,6 +135,35 @@ function Sparkline({ values, stroke, gid }) {
       </defs>
       <path d={area} fill={`url(#${gid})`} />
       <path d={line} fill="none" stroke={stroke} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/* Smooth gold area chart with month dots — used by the Total Units Sold card
+   (this was the Sales History look before the trend-line redesign). */
+function SmoothArea({ values, gid }) {
+  if (values.length < 2 || values.every((value) => value === 0)) {
+    return <EmptyChart message="No chart data yet" />;
+  }
+  const width = 240;
+  const height = 90;
+  const top = niceCeil(Math.max(...values));
+  const points = scalePoints(values, width, height, 6, 8, 6, { min: 0, max: top });
+  const line = smoothLine(points);
+  const area = `${line} L ${points[points.length - 1][0]},${height - 6} L ${points[0][0]},${height - 6} Z`;
+  return (
+    <svg className="db-smooth-area" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.38" />
+          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gid})`} />
+      <path d={line} fill="none" stroke="var(--accent)" strokeWidth="2.2" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+      {points.map(([x, y], index) => (
+        <circle key={index} cx={x} cy={y} r="2.6" fill="var(--accent)" stroke="var(--bg-card)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+      ))}
     </svg>
   );
 }
@@ -281,20 +322,27 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
       const otherColor = fallbackCategoryColors.find((color) => !usedColors.has(color)) || '#64748B';
       topCategories.push({ name: 'Other', count: otherCount, pct: stock.length ? otherCount / stock.length : 0, color: otherColor });
     }
+    /* Rose pie: a slice's angle is its share of products, and bigger
+       categories also reach further out, so the largest stands out at a
+       glance. Each slice carries a small % tag just outside its edge. */
     let angle = -Math.PI / 2;
+    const maxPct = Math.max(...topCategories.map((category) => category.pct), 0.0001);
     const donut = topCategories.map((category) => {
       const sweep = category.pct * 2 * Math.PI;
-      const outer = 46;
-      const inner = 26;
+      const outer = 24 + (category.pct / maxPct) * 26; // 24–50
+      const inner = 9;
       const point = (radius, radians) => [60 + radius * Math.cos(radians), 60 + radius * Math.sin(radians)];
       const [x1, y1] = point(outer, angle);
       const [x2, y2] = point(outer, angle + sweep);
       const [ix1, iy1] = point(inner, angle + sweep);
       const [ix2, iy2] = point(inner, angle);
       const large = sweep > Math.PI ? 1 : 0;
-      const path = `M ${x1},${y1} A ${outer},${outer} 0 ${large},1 ${x2},${y2} L ${ix1},${iy1} A ${inner},${inner} 0 ${large},0 ${ix2},${iy2} Z`;
+      const path = sweep >= 2 * Math.PI - 0.001
+        ? `M 60,${60 - outer} A ${outer},${outer} 0 1,1 59.99,${60 - outer} Z`
+        : `M ${x1},${y1} A ${outer},${outer} 0 ${large},1 ${x2},${y2} L ${ix1},${iy1} A ${inner},${inner} 0 ${large},0 ${ix2},${iy2} Z`;
+      const [labelX, labelY] = point(Math.max(28, Math.min(outer + 2, 48)), angle + sweep / 2);
       angle += sweep;
-      return { ...category, path };
+      return { ...category, path, labelX, labelY, pctLabel: `${Math.round(category.pct * 100)}%` };
     });
 
     const now = new Date();
@@ -432,9 +480,25 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
     userCount: summary.userCount,
   };
   const heroValues = derived.monthly.map((month) => month.units);
-  const heroPoints = derived.hasSalesData ? scalePoints(heroValues, 520, 150, 10, 16, 12) : [];
-  const heroLine = smoothLine(heroPoints);
   const heroPeak = Math.max(0, ...heroValues);
+  // Zero-based axis: the height of each point is its real share of the axis top.
+  const heroTop = niceCeil(heroPeak);
+  const heroPoints = derived.hasSalesData ? scalePoints(heroValues, 520, 150, 10, 16, 12, { min: 0, max: heroTop }) : [];
+  // Trend line: straight segments between months (shows each change honestly).
+  const heroLine = heroPoints.map(([x, y], index) => `${index ? 'L' : 'M'} ${x},${y}`).join(' ');
+  const heroStep = heroPoints.length > 1 ? heroPoints[1][0] - heroPoints[0][0] : 520;
+  const monthTitle = (key) => {
+    const [y, m] = String(key).split('-').map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString('en', { month: 'long', year: 'numeric' });
+  };
+  const heroTicks = [1, 2 / 3, 1 / 3, 0].map((share) => ({ value: Math.round(heroTop * share), y: 138 - share * 122 }));
+  const monthsWithSales = derived.monthly.filter((month) => month.units > 0).length;
+  const heroAverage = monthsWithSales ? Math.round(derived.unitsSold / derived.monthly.length) : 0;
+  // Reorder ring: share of tracked products that need reordering, split out / low.
+  const reorderTotal = derived.outOfStock.length + derived.lowStock.length;
+  const ringCircumference = 2 * Math.PI * 34;
+  const outShare = derived.totalProducts ? derived.outOfStock.length / derived.totalProducts : 0;
+  const lowShare = derived.totalProducts ? derived.lowStock.length / derived.totalProducts : 0;
   const supplierGauge = Arc({ cx: 60, cy: 60, radius: 46, start: 180, end: 180 + (derived.supplierCoverage / 100) * 180 });
 
   return (
@@ -442,8 +506,8 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
       <div className="dashboard-scroll-container">
         {error && <p role="alert">{error} Showing the last data loaded.</p>}
         <section className="db-kpi-row" aria-label="Inventory summary">
-          {kpiCardsFor(isSuperAdmin).map(({ key, label, Icon, accent }) => (
-            <article className={`db-kpi-card db-kpi-${accent}`} key={key}>
+          {kpiCardsFor(isSuperAdmin).map(({ key, label, Icon, accent }, index) => (
+            <article className={`db-kpi-card db-kpi-${accent} db-tone db-tone-${KPI_TONES[index % KPI_TONES.length]}`} key={key}>
               <span className="db-kpi-icon" aria-hidden="true"><Icon size={17} strokeWidth={1.8} /></span>
               <span className="db-kpi-copy">
                 <span className="db-kpi-label">{label}</span>
@@ -459,7 +523,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             <div className="db-card-head">
               <div className="db-card-titles">
                 <span className="db-card-title">Sales History</span>
-                <span className="db-card-sub">Units sold recorded by month</span>
+                <span className="db-card-sub">Track units sold by month to spot seasonal trends</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <div className="db-seg">
@@ -472,63 +536,78 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                 <button className="db-open-arrow-btn" onClick={() => go('Forecasting')} aria-label="Open Forecasting" type="button"><OpenArrow /></button>
               </div>
             </div>
-            <div className={`db-hero-plot${heroPoints.length ? '' : ' db-chart-empty-plot'}`}>
+            {/* Total for the selected range, with an accent bar (trend-overview style). */}
+            <div className="db-trend-total">
+              <span className="db-trend-total-label">Total units sold · last {range} months</span>
+              <strong>{derived.hasSalesData ? fmt(derived.unitsSold) : '—'}</strong>
+            </div>
+            <div className={`db-hero-plot db-trend-plot${heroPoints.length ? '' : ' db-chart-empty-plot'}`}>
               {heroPoints.length ? (
                 <>
+                  <div className="db-hero-yaxis" aria-hidden="true">
+                    {heroTicks.map((tick) => (
+                      <span key={tick.y} style={{ top: `${(tick.y / 150) * 100}%` }}>{fmt(tick.value)}</span>
+                    ))}
+                  </div>
                   <svg className="db-hero-svg" viewBox="0 0 520 150" preserveAspectRatio="none" aria-label="Monthly units sold">
-                    {[16, 57, 98, 138].map((y) => <line key={y} x1="0" y1={y} x2="520" y2={y} stroke="var(--hairline)" />)}
-                    <path d={heroLine} fill="none" stroke="var(--accent)" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
-                    {heroPoints.map(([x, y], index) => (
-                      <g
+                    {heroTicks.map((tick) => <line key={tick.y} x1="0" y1={tick.y} x2="520" y2={tick.y} stroke="var(--hairline)" vectorEffect="non-scaling-stroke" />)}
+                    {hoveredSalesMonth !== null && heroPoints[hoveredSalesMonth] && (
+                      <line className="db-trend-guide" x1={heroPoints[hoveredSalesMonth][0]} y1={heroPoints[hoveredSalesMonth][1]} x2={heroPoints[hoveredSalesMonth][0]} y2="138" vectorEffect="non-scaling-stroke" />
+                    )}
+                    <path d={heroLine} fill="none" stroke="var(--accent)" strokeWidth="1.8" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+                    {heroPoints.map(([x], index) => (
+                      <rect
                         key={derived.monthly[index].key}
-                        className="db-hero-point"
+                        className="db-hero-point db-trend-hit"
+                        x={x - heroStep / 2}
+                        y="0"
+                        width={heroStep}
+                        height="150"
                         tabIndex={0}
                         role="img"
-                        aria-label={`${derived.monthly[index].label}: ${fmt(derived.monthly[index].units)} units sold`}
+                        aria-label={`${monthTitle(derived.monthly[index].key)}: ${fmt(derived.monthly[index].units)} units sold`}
                         onMouseEnter={() => setHoveredSalesMonth(index)}
                         onMouseLeave={() => setHoveredSalesMonth(null)}
                         onFocus={() => setHoveredSalesMonth(index)}
                         onBlur={() => setHoveredSalesMonth(null)}
-                      >
-                        <circle className="db-hero-hit-area" cx={x} cy={y} r="12" />
-                        <circle
-                          className="db-hero-point-dot"
-                          cx={x}
-                          cy={y}
-                          r={hoveredSalesMonth === index ? '5' : '3.5'}
-                          fill="var(--accent)"
-                          stroke="var(--bg-card)"
-                          strokeWidth="2"
-                          vectorEffect="non-scaling-stroke"
-                        />
-                      </g>
+                      />
                     ))}
                   </svg>
                   {hoveredSalesMonth !== null && derived.monthly[hoveredSalesMonth] && (
-                    <div
-                      className={`db-hero-tooltip${heroPoints[hoveredSalesMonth][0] > 390 ? ' db-hero-tooltip-left' : ''}`}
-                      style={{
-                        left: `${(heroPoints[hoveredSalesMonth][0] / 520) * 100}%`,
-                        top: `${(heroPoints[hoveredSalesMonth][1] / 150) * 100}%`,
-                      }}
-                      role="status"
-                      aria-live="polite"
-                    >
-                      <span>{derived.monthly[hoveredSalesMonth].label}</span>
-                      <strong>{fmt(derived.monthly[hoveredSalesMonth].units)} units sold</strong>
-                    </div>
+                    <>
+                      <span
+                        className="db-trend-dot"
+                        style={{
+                          left: `${(heroPoints[hoveredSalesMonth][0] / 520) * 100}%`,
+                          top: `${(heroPoints[hoveredSalesMonth][1] / 150) * 100}%`,
+                        }}
+                        aria-hidden="true"
+                      />
+                      <div
+                        className={`db-hero-tooltip db-trend-tag${heroPoints[hoveredSalesMonth][0] > 390 ? ' db-hero-tooltip-left' : ''}`}
+                        style={{
+                          left: `${(heroPoints[hoveredSalesMonth][0] / 520) * 100}%`,
+                          top: `${(heroPoints[hoveredSalesMonth][1] / 150) * 100}%`,
+                        }}
+                        role="status"
+                        aria-live="polite"
+                      >
+                        <strong>{fmt(derived.monthly[hoveredSalesMonth].units)}</strong>
+                        <span>units sold in {monthTitle(derived.monthly[hoveredSalesMonth].key)}</span>
+                      </div>
+                    </>
                   )}
                 </>
               ) : <EmptyChart message="No sales recorded in this period" />}
             </div>
             {heroPoints.length > 0 && <div className="db-hero-xaxis">{derived.monthly.map((month) => <span key={month.key}>{month.label}</span>)}</div>}
             <div className="db-card-foot db-hero-foot">
-              <div className="db-metric"><span className="db-metric-label">Units sold</span><span className="db-metric-value">{derived.hasSalesData ? fmt(derived.unitsSold) : '—'}</span></div>
               <div className="db-metric"><span className="db-metric-label">Monthly peak</span><span className="db-metric-value">{derived.hasSalesData ? fmt(heroPeak) : '—'}</span></div>
+              <div className="db-metric"><span className="db-metric-label">Avg / month</span><span className="db-metric-value">{derived.hasSalesData ? fmt(heroAverage) : '—'}</span></div>
             </div>
           </div>
 
-          <div className="catalogStatus-card card">
+          <div className="catalogStatus-card card db-tone db-tone-mist">
             <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Catalog Status</span></div><button className="db-open-arrow-btn" onClick={() => go('Product-Supplier')} aria-label="Open products" type="button"><OpenArrow /></button></div>
             {derived.products.length > 0 ? <>
               <div className="db-catalog-total">{fmt(derived.products.length)} <span>SKUs</span></div>
@@ -545,10 +624,11 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             </> : <EmptyChart message="No products registered yet" />}
           </div>
 
-          <div className="totalRevenue-card card">
+          <div className="totalRevenue-card card db-tone db-tone-ink">
             <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Total Units Sold</span><span className="db-card-sub">Selected {range} months</span></div></div>
             <div className="db-stat-value">{derived.hasSalesData ? fmt(derived.unitsSold) : '—'}</div>
-            <div className="db-spark-wrap"><Sparkline values={derived.hasSalesData ? heroValues : []} stroke="var(--accent-high)" gid="dbSalesGrad" /></div>
+            {derived.hasSalesData && <span className="db-chip">≈ {fmt(heroAverage)} / month</span>}
+            <div className="db-spark-wrap"><SmoothArea values={derived.hasSalesData ? heroValues : []} gid="dbUnitsArea" /></div>
           </div>
 
           {/* ===== REORDER SUGGESTIONS (demand-linked) =====
@@ -639,10 +719,18 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                 <div className="db-category-metrics">
                   {derived.products.length ? (
                     <div className="db-donut-row">
-                      <svg className="db-donut-svg" viewBox="0 0 120 120" aria-label="Inventory by category">
-                        {derived.donut.length === 1
-                          ? <circle cx="60" cy="60" r="36" fill="none" stroke={derived.donut[0].color} strokeWidth="20" opacity="0.92" />
-                          : derived.donut.map((segment) => <path key={segment.name} d={segment.path} fill={segment.color} opacity="0.92" />)}
+                      <svg className="db-donut-svg db-rose-svg" viewBox="-4 -4 128 128" aria-label="Inventory by category">
+                        {derived.donut.map((segment) => (
+                          <path key={segment.name} className="db-rose-slice" d={segment.path} fill={segment.color}>
+                            <title>{`${segment.name}: ${fmt(segment.count)} (${segment.pctLabel})`}</title>
+                          </path>
+                        ))}
+                        {derived.donut.filter((segment) => segment.pct >= 0.06).map((segment) => (
+                          <g key={`${segment.name}-tag`} className="db-rose-tag" transform={`translate(${segment.labelX} ${segment.labelY})`}>
+                            <rect x="-13" y="-7" width="26" height="14" rx="7" />
+                            <text x="0" y="0.4" textAnchor="middle" dominantBaseline="middle">{segment.pctLabel}</text>
+                          </g>
+                        ))}
                       </svg>
                       <div className="db-donut-details">
                         <strong className="db-donut-total">{fmt(derived.products.length)} products</strong>
@@ -663,7 +751,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             </div>
           </div>
 
-          <div className="totalOrder-card card">
+          <div className="totalOrder-card card db-tone db-tone-flame">
             <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Stock Movements</span><span className="db-card-sub">Ledger entries · last 7 days</span></div><button className="db-open-arrow-btn" onClick={() => go('Stock')} aria-label="Open Stock Control" type="button"><OpenArrow /></button></div>
             <div className="db-stat-value">{derived.hasMovementData ? fmt(derived.movementCount) : '—'}</div>
             {derived.hasMovementData ? (
@@ -736,7 +824,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
           {isSuperAdmin && (
             /* Reorder List card (Super Admin): sits where User Accounts used to be;
                User Accounts is now in the top row. */
-            <div className="totalStaff-card card">
+            <div className="totalStaff-card card db-tone db-tone-peach">
               <div className="db-card-head">
                 <div className="db-card-titles">
                   <span className="db-card-title">Reorder List</span>
@@ -746,11 +834,30 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                   <OpenArrow />
                 </button>
               </div>
-              <div className="db-stat-value db-stat-reorder">{fmt(kpiValues.lowStockItems)}</div>
-              <div className="db-stat-sub">
-                {kpiValues.lowStockItems
-                  ? `${fmt(derived.outOfStock.length)} out of stock · ${fmt(derived.lowStock.length)} low`
-                  : 'Nothing needs reordering right now.'}
+              <div className="db-reorder-kpi">
+                <svg className="db-reorder-ring" viewBox="0 0 84 84" role="img"
+                  aria-label={`${fmt(reorderTotal)} of ${fmt(derived.totalProducts)} products need reordering`}>
+                  <circle cx="42" cy="42" r="34" fill="none" stroke="var(--static-bg-color)" strokeWidth="9" />
+                  {outShare > 0 && (
+                    <circle cx="42" cy="42" r="34" fill="none" stroke="var(--accent-low)" strokeWidth="9"
+                      strokeDasharray={`${outShare * ringCircumference} ${ringCircumference}`} transform="rotate(-90 42 42)" />
+                  )}
+                  {lowShare > 0 && (
+                    <circle cx="42" cy="42" r="34" fill="none" stroke="var(--accent-med)" strokeWidth="9"
+                      strokeDasharray={`${lowShare * ringCircumference} ${ringCircumference}`}
+                      strokeDashoffset={-outShare * ringCircumference} transform="rotate(-90 42 42)" />
+                  )}
+                  <text x="42" y="42" textAnchor="middle" className="db-reorder-ring-value">{fmt(reorderTotal)}</text>
+                  <text x="42" y="54" textAnchor="middle" className="db-reorder-ring-label">of {fmt(derived.totalProducts)}</text>
+                </svg>
+                {reorderTotal ? (
+                  <div className="db-reorder-chips">
+                    <span className="db-reorder-chip is-out"><i />{fmt(derived.outOfStock.length)} <small>Out</small></span>
+                    <span className="db-reorder-chip is-low"><i />{fmt(derived.lowStock.length)} <small>Low</small></span>
+                  </div>
+                ) : (
+                  <span className="db-reorder-ok">All stocked</span>
+                )}
               </div>
             </div>
           )}

@@ -177,15 +177,135 @@ class SalesForecastService
     }
 
     /**
+     * All past-sales rows of one product as [date, units, 'month'|'week'].
+     *
+     * @return array<int, array{0: string, 1: int, 2: string}>
+     */
+    private function pastRowsFor(Product $product): array
+    {
+        return PastSale::query()
+            ->where('product_id', $product->id)
+            ->get(['period_type', 'period_date', 'units_sold'])
+            ->map(fn (PastSale $row) => [Carbon::parse($row->period_date)->toDateString(), (int) $row->units_sold, $row->period_type ?: 'month'])
+            ->all();
+    }
+
+    /**
+     * Past sales per calendar month, as used by the month and year forecasts.
+     *
+     * 1. A month typed in (or imported) as a MONTHLY entry is used as it is.
+     * 2. Otherwise, if EVERY week touching that month has a WEEKLY entry, the
+     *    month total is worked out from those weeks (see monthsFromWeeks()).
+     * 3. Months with only some weeks entered are left out, so half-entered
+     *    data never looks like a slow month.
+     * Only months before pastSalesCutoff() count, and only weeks before
+     * weeklyPastSalesCutoff(), so nothing overlaps Stock Control sales.
+     *
+     * @param  array<int, array{0: string, 1: int, 2: string}>|null  $rows  [date, units, type]; null = read them
+     * @return array<string, array{unitsSold: int, fromWeeks: bool}>  keyed by 'YYYY-MM-01', oldest first
+     */
+    public function pastMonthlyTotals(Product $product, ?array $rows = null): array
+    {
+        $rows ??= $this->isPreloaded($product) ? ($this->preloaded['past'][$product->id] ?? []) : $this->pastRowsFor($product);
+        $monthCutoff = $this->pastSalesCutoff($product)->toDateString();
+        $weekCutoff = $this->weeklyPastSalesCutoff($product)->toDateString();
+
+        $months = [];
+        $weeks = [];
+        foreach ($rows as [$date, $units, $type]) {
+            if ($type === 'week') {
+                if ($date < $weekCutoff) {
+                    $weeks[$date] = $units;
+                }
+            } elseif ($date < $monthCutoff) {
+                $months[Carbon::parse($date)->startOfMonth()->toDateString()] = ['unitsSold' => $units, 'fromWeeks' => false];
+            }
+        }
+
+        foreach ($this->monthsFromWeeks($weeks) as $month => $info) {
+            if ($info['complete'] && $month < $monthCutoff && ! isset($months[$month])) {
+                $months[$month] = ['unitsSold' => $info['unitsSold'], 'fromWeeks' => true];
+            }
+        }
+
+        ksort($months);
+
+        return $months;
+    }
+
+    /**
+     * Pure (no database) — turn weekly entries into calendar-month totals.
+     *
+     * A week that lies inside one month counts fully for that month. A week
+     * that crosses two months (e.g. Mon Sep 28 – Sun Oct 4) is split by its
+     * days, assuming its sales were spread evenly over the 7 days (proration):
+     * the first month gets round(units × days / 7) and the second month gets
+     * the rest, so the two parts always add back to the exact weekly total.
+     *
+     * Example: 22 units for Sep 28 – Oct 4 → September 3/7 × 22 = 9.4 → 9,
+     * October 22 − 9 = 13.
+     *
+     * A month is "complete" when every Monday-to-Sunday week that touches it
+     * has an entry.
+     *
+     * @param  array<string, int>  $weeks  Monday date ('YYYY-MM-DD') => units sold that week
+     * @return array<string, array{unitsSold: int, weeksEntered: int, weeksNeeded: int, complete: bool}>  keyed by 'YYYY-MM-01'
+     */
+    public function monthsFromWeeks(array $weeks): array
+    {
+        $months = [];
+        foreach ($weeks as $monday => $units) {
+            $start = Carbon::parse($monday)->startOfWeek(Carbon::MONDAY)->startOfDay();
+            $end = $start->copy()->addDays(6);
+            $firstMonth = $start->copy()->startOfMonth()->toDateString();
+            $lastMonth = $end->copy()->startOfMonth()->toDateString();
+
+            if ($firstMonth === $lastMonth) {
+                $parts = [$firstMonth => (int) $units];
+            } else {
+                $daysInFirst = (int) round($start->diffInDays($end->copy()->startOfMonth())); // days before the 1st of the next month
+                $first = (int) round($units * $daysInFirst / 7, 0, PHP_ROUND_HALF_UP);
+                $parts = [$firstMonth => $first, $lastMonth => (int) $units - $first];
+            }
+
+            foreach ($parts as $month => $share) {
+                $months[$month] ??= ['unitsSold' => 0, 'weeksEntered' => 0];
+                $months[$month]['unitsSold'] += $share;
+                $months[$month]['weeksEntered']++;
+            }
+        }
+
+        foreach ($months as $month => &$info) {
+            $info['weeksNeeded'] = $this->weeksTouchingMonth(Carbon::parse($month));
+            $info['complete'] = $info['weeksEntered'] >= $info['weeksNeeded'];
+        }
+        unset($info);
+        ksort($months);
+
+        return $months;
+    }
+
+    /** How many Monday-to-Sunday weeks touch this calendar month (4, 5 or 6). */
+    public function weeksTouchingMonth(Carbon $month): int
+    {
+        $firstMonday = $month->copy()->startOfMonth()->startOfWeek(Carbon::MONDAY);
+        $lastMonday = $month->copy()->endOfMonth()->startOfDay()->startOfWeek(Carbon::MONDAY);
+
+        return (int) $firstMonday->diffInWeeks($lastMonday) + 1;
+    }
+
+    /**
      * Units sold per completed period, oldest first, zero-filled from the first
      * period with a sale up to the last completed period.
      *
      * Sources: Stock Out transactions (Stock Movement Tracking) plus Past
      * Sales from before the product's Stock Control records begin:
-     *  - month and year views use the MONTHLY past sales,
-     *  - the week view uses the WEEKLY past sales (a monthly total cannot be
-     *    split into weeks, and weeks are never added into months), so the
-     *    same sale is never counted twice.
+     *  - month and year views use the MONTHLY past sales; a month with no
+     *    monthly entry uses its WEEKLY entries instead, once every week of
+     *    that month is entered (see pastMonthlyTotals()),
+     *  - the week view uses the WEEKLY past sales only (a monthly total
+     *    cannot be split into weeks — nobody knows which week it sold in).
+     * A month is never taken from both, so the same sale is never counted twice.
      *
      * @return array<int, array{periodDate: string, unitsSold: int, source: string}>
      */
@@ -196,11 +316,15 @@ class SalesForecastService
         $totals = [];
         $sources = [];
         $first = null;
-        $add = function (Carbon $date, int $units, string $source) use (&$totals, &$sources, &$first, $periodType): void {
+        $fromWeeks = [];
+        $add = function (Carbon $date, int $units, string $source, bool $weekly = false) use (&$totals, &$sources, &$first, &$fromWeeks, $periodType): void {
             $start = $this->periodStart($date, $periodType);
             $key = $start->toDateString();
             $totals[$key] = ($totals[$key] ?? 0) + $units;
             $sources[$key][$source] = true;
+            if ($weekly) {
+                $fromWeeks[$key] = true;
+            }
             if ($first === null || $start->lt($first)) {
                 $first = $start;
             }
@@ -214,13 +338,7 @@ class SalesForecastService
                     $add(Carbon::parse($date), $qty, 'stock');
                 }
             }
-            $pastType = $periodType === 'week' ? 'week' : 'month';
-            $cutoff = ($pastType === 'week' ? $this->weeklyPastSalesCutoff($product) : $this->pastSalesCutoff($product))->toDateString();
-            foreach ($this->preloaded['past'][$product->id] ?? [] as [$date, $units, $type]) {
-                if ($type === $pastType && $date < $cutoff) {
-                    $add(Carbon::parse($date), $units, 'past');
-                }
-            }
+            $pastRows = $this->preloaded['past'][$product->id] ?? [];
         } else {
             $movements = StockMovement::query()
                 ->where('product_id', $product->id)
@@ -232,15 +350,19 @@ class SalesForecastService
                 $add(Carbon::parse($movement->movement_date), (int) $movement->qty, 'stock');
             }
 
-            $pastType = $periodType === 'week' ? 'week' : 'month';
-            $cutoff = $pastType === 'week' ? $this->weeklyPastSalesCutoff($product) : $this->pastSalesCutoff($product);
-            $pastSales = PastSale::query()
-                ->where('product_id', $product->id)
-                ->where('period_type', $pastType)
-                ->where('period_date', '<', $cutoff->toDateString())
-                ->get(['period_date', 'units_sold']);
-            foreach ($pastSales as $pastSale) {
-                $add(Carbon::parse($pastSale->period_date), (int) $pastSale->units_sold, 'past');
+            $pastRows = $this->pastRowsFor($product);
+        }
+
+        if ($periodType === 'week') {
+            $cutoff = $this->weeklyPastSalesCutoff($product)->toDateString();
+            foreach ($pastRows as [$date, $units, $type]) {
+                if ($type === 'week' && $date < $cutoff) {
+                    $add(Carbon::parse($date), $units, 'past');
+                }
+            }
+        } else {
+            foreach ($this->pastMonthlyTotals($product, $pastRows) as $month => $row) {
+                $add(Carbon::parse($month), $row['unitsSold'], 'past', $row['fromWeeks']);
             }
         }
 
@@ -261,7 +383,7 @@ class SalesForecastService
                 'periodDate' => $key,
                 'unitsSold'  => (int) ($totals[$key] ?? 0),
                 'source'     => count($kinds) > 1 ? 'mixed' : ($kinds[0] ?? 'none'),
-            ];
+            ] + (isset($fromWeeks[$key]) ? ['fromWeeks' => true] : []);
         }
 
         return $series;
@@ -309,7 +431,7 @@ class SalesForecastService
                 'wmaForecast' => $forecast,
                 'variance'    => $forecast === null ? null : round($units[$index] - $forecast, 1),
                 'source'      => $row['source'] ?? 'stock',
-            ];
+            ] + (empty($row['fromWeeks']) ? [] : ['fromWeeks' => true]);
         }
 
         $variances = array_values(array_filter(array_column($rows, 'variance'), fn ($value) => $value !== null));
