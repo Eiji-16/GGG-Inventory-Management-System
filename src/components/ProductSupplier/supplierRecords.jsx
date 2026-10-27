@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Edit, Plus, Search, Trash2, Truck, X } from 'lucide-react';
 import apiFetch from '../../apiFetch';
+import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
 
 const EMPTY_SUPPLIER = { id: null, name: '', contact: '', leadTimeDays: '' };
 
@@ -160,16 +161,24 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
     <div className="ps-table-parent">
       <div className="ps-navigation-bar">
         <div className="ps-search-wrapper">
-          <div className="ps-search-box">
-            <Search size={13} className="ps-search-icon" />
-            <input
-              type="search"
-              placeholder="Search suppliers or products…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search suppliers"
-            />
-          </div>
+          {/* Preset searches: the names of your suppliers. */}
+          <SearchSuggestions
+            query={query}
+            suggestions={suppliers.map((supplier) => supplier.name)}
+            onPick={setQuery}
+            label="Suppliers"
+          >
+            <div className="ps-search-box">
+              <Search size={13} className="ps-search-icon" />
+              <input
+                type="search"
+                placeholder="Search suppliers or products…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search suppliers"
+              />
+            </div>
+          </SearchSuggestions>
         </div>
         {canManage && selectedIds.size > 0 && (
           <button

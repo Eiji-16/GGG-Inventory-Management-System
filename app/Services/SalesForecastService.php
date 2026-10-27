@@ -64,9 +64,9 @@ class SalesForecastService
                 });
             PastSale::query()
                 ->whereIn('product_id', $chunk)
-                ->get(['product_id', 'period_date', 'units_sold'])
+                ->get(['product_id', 'period_type', 'period_date', 'units_sold'])
                 ->each(function (PastSale $row) use (&$data): void {
-                    $data['past'][$row->product_id][] = [Carbon::parse($row->period_date)->toDateString(), (int) $row->units_sold];
+                    $data['past'][$row->product_id][] = [Carbon::parse($row->period_date)->toDateString(), (int) $row->units_sold, $row->period_type ?: 'month'];
                 });
             StockMovement::query()
                 ->whereIn('product_id', $chunk)
@@ -138,6 +138,30 @@ class SalesForecastService
         return $first ? Carbon::parse($first)->startOfMonth() : null;
     }
 
+    /** The exact date of the product's first stock movement, or null if none yet. */
+    public function firstMovementDate(Product $product): ?Carbon
+    {
+        $first = $this->isPreloaded($product)
+            ? ($this->preloaded['first'][$product->id] ?? null)
+            : StockMovement::query()->where('product_id', $product->id)->min('movement_date');
+
+        return $first ? Carbon::parse($first)->startOfDay() : null;
+    }
+
+    /**
+     * Weekly past sales are used only for weeks BEFORE this Monday: the week
+     * in which the product's Stock Control records begin, and never the
+     * current, unfinished week. Same idea as pastSalesCutoff() for months.
+     */
+    public function weeklyPastSalesCutoff(Product $product): Carbon
+    {
+        $currentWeek = now()->startOfWeek(Carbon::MONDAY)->startOfDay();
+        $first = $this->firstMovementDate($product);
+        $firstWeek = $first?->copy()->startOfWeek(Carbon::MONDAY);
+
+        return $firstWeek && $firstWeek->lt($currentWeek) ? $firstWeek : $currentWeek;
+    }
+
     /**
      * Past monthly sales (entered or imported from Excel) are used only for
      * months BEFORE this date: before the product's Stock Control records
@@ -156,10 +180,12 @@ class SalesForecastService
      * Units sold per completed period, oldest first, zero-filled from the first
      * period with a sale up to the last completed period.
      *
-     * Sources: Stock Out transactions (Stock Movement Tracking) plus, for
-     * month and year views, past monthly sales for months before the product's
-     * Stock Control records begin. Weekly views use Stock Out records only,
-     * because monthly totals cannot be split into weeks.
+     * Sources: Stock Out transactions (Stock Movement Tracking) plus Past
+     * Sales from before the product's Stock Control records begin:
+     *  - month and year views use the MONTHLY past sales,
+     *  - the week view uses the WEEKLY past sales (a monthly total cannot be
+     *    split into weeks, and weeks are never added into months), so the
+     *    same sale is never counted twice.
      *
      * @return array<int, array{periodDate: string, unitsSold: int, source: string}>
      */
@@ -188,12 +214,11 @@ class SalesForecastService
                     $add(Carbon::parse($date), $qty, 'stock');
                 }
             }
-            if ($periodType !== 'week') {
-                $cutoff = $this->pastSalesCutoff($product)->toDateString();
-                foreach ($this->preloaded['past'][$product->id] ?? [] as [$date, $units]) {
-                    if ($date < $cutoff) {
-                        $add(Carbon::parse($date), $units, 'past');
-                    }
+            $pastType = $periodType === 'week' ? 'week' : 'month';
+            $cutoff = ($pastType === 'week' ? $this->weeklyPastSalesCutoff($product) : $this->pastSalesCutoff($product))->toDateString();
+            foreach ($this->preloaded['past'][$product->id] ?? [] as [$date, $units, $type]) {
+                if ($type === $pastType && $date < $cutoff) {
+                    $add(Carbon::parse($date), $units, 'past');
                 }
             }
         } else {
@@ -207,14 +232,15 @@ class SalesForecastService
                 $add(Carbon::parse($movement->movement_date), (int) $movement->qty, 'stock');
             }
 
-            if ($periodType !== 'week') {
-                $pastSales = PastSale::query()
-                    ->where('product_id', $product->id)
-                    ->where('period_date', '<', $this->pastSalesCutoff($product)->toDateString())
-                    ->get(['period_date', 'units_sold']);
-                foreach ($pastSales as $pastSale) {
-                    $add(Carbon::parse($pastSale->period_date), (int) $pastSale->units_sold, 'past');
-                }
+            $pastType = $periodType === 'week' ? 'week' : 'month';
+            $cutoff = $pastType === 'week' ? $this->weeklyPastSalesCutoff($product) : $this->pastSalesCutoff($product);
+            $pastSales = PastSale::query()
+                ->where('product_id', $product->id)
+                ->where('period_type', $pastType)
+                ->where('period_date', '<', $cutoff->toDateString())
+                ->get(['period_date', 'units_sold']);
+            foreach ($pastSales as $pastSale) {
+                $add(Carbon::parse($pastSale->period_date), (int) $pastSale->units_sold, 'past');
             }
         }
 
@@ -308,7 +334,7 @@ class SalesForecastService
         $history = $this->history($product, $periodType);
         if ($history['dataPoints'] === 0) {
             throw ValidationException::withMessages([
-                'productId' => "No completed {$periodType} of sales yet. Record Stock Out transactions in Stock Control, or add past monthly sales in Forecasting → Past Sales.",
+                'productId' => "No completed {$periodType} of sales yet. Record Stock Out transactions in Stock Control, or add past sales in Forecasting → Past Sales.",
             ]);
         }
 

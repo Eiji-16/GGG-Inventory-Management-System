@@ -1605,3 +1605,39 @@
     .db-category-section .db-donut-row { gap: 8px; }
     .db-coverage-content { gap: 12px; }
 }
+
+/*==========AFTER REMOVING "PRODUCTS WITH SALES"==========
+   That card (totalCustomer-card) used a grid spot; these rules let the
+   neighbouring cards fill the space so no empty hole is left. */
+/* Super Admin desktop: Stock Alerts in cols 4-5, Reorder List card in cols 6-7
+   (same width as the Stock Movements card above it). */
+.lowStockalerts-card { grid-column: 4 / span 2; }
+.totalStaff-card { grid-column: 6 / span 2; }
+.parent-without-user-accounts .productSales-card { grid-column: 1 / span 3; }
+.parent-without-user-accounts .lowStockalerts-card { grid-column: 4 / span 3; }
+
+@media (max-width: 1024px) {
+    .totalStaff-card { grid-column: 3 / span 2; }
+    .parent-without-user-accounts .totalOrder-card { grid-column: 1 / span 4; }
+    .lowStockalerts-card,
+    .parent-without-user-accounts .lowStockalerts-card { grid-column: 3 / span 2; }
+    .parent-without-user-accounts .productSales-card { grid-column: 1 / span 2; }
+}
+
+@media (max-width: 640px) {
+    .totalStaff-card { grid-column: 1 / -1; }
+    .lowStockalerts-card,
+    .parent-without-user-accounts .productSales-card,
+    .parent-without-user-accounts .lowStockalerts-card { grid-column: 1 / span 2; }
+}
+
+@media (max-width: 400px) {
+    .lowStockalerts-card,
+    .totalStaff-card,
+    .parent-without-user-accounts .productSales-card,
+    .parent-without-user-accounts .lowStockalerts-card { grid-column: 1; }
+}
+
+/* User Accounts in the top row (Super Admin) and the Reorder List card below. */
+.db-kpi-users .db-kpi-icon { color: var(--accent); }
+.db-stat-reorder { color: var(--accent-med); }

@@ -1180,7 +1180,8 @@
 }
 
 .sc-form-group input,
-.sc-form-group select {
+.sc-form-group select,
+.sc-form-group textarea {
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
@@ -1194,21 +1195,34 @@
     font-family: inherit;
 }
 
-.sc-form-group input::placeholder {
+.sc-form-group input::placeholder,
+.sc-form-group textarea::placeholder {
     color: var(--text-muted);
     opacity: 0.6;
 }
 
 .sc-form-group input:hover,
-.sc-form-group select:hover {
+.sc-form-group select:hover,
+.sc-form-group textarea:hover {
     border-color: var(--text-muted);
 }
 
 .sc-form-group input:focus,
-.sc-form-group select:focus {
+.sc-form-group select:focus,
+.sc-form-group textarea:focus {
     border-color: var(--accent, #E8C547);
     box-shadow: 0 0 0 3px var(--accent-ring);
     outline: none;
+}
+
+/* Notes box in Edit Entry: full width, a few lines tall, can be made taller. */
+.sc-form-group textarea {
+    min-height: 4.5rem;
+    resize: vertical;
+    line-height: 1.4;
+}
+.sc-form-row.sc-form-row-full {
+    grid-template-columns: 1fr;
 }
 
 .sc-modal-actions {

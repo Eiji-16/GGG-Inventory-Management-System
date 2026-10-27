@@ -1,0 +1,217 @@
+/* ==========================================================================
+   MOTION — subtle, shared UI animations for the whole system
+   --------------------------------------------------------------------------
+   Loaded once (src/layouts/App.jsx). Rules are wrapped in :where() so they
+   have the LOWEST priority: any screen that already animates something keeps
+   its own animation, and these only fill the gaps.
+     - Buttons: smooth colour change, slight lift + soft shadow on hover
+     - Tabs: the active highlight slides (see src/utils/slidingTabs.js)
+     - Table rows, menus, pop-ups and page panels: short fade / rise
+   Everything is fast (120–220 ms) and turns off for people who choose
+   "reduce motion" in their device settings.
+   ========================================================================== */
+
+:root {
+    --ui-fast: 140ms;
+    --ui-medium: 200ms;
+    --ui-ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --ui-ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --ui-lift-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.35);
+}
+
+/* ===== BUTTONS: smooth colour/border/shadow changes everywhere ===== */
+:where(button, a, [role="button"]) {
+    transition:
+        background-color var(--ui-fast) var(--ui-ease),
+        border-color var(--ui-fast) var(--ui-ease),
+        color var(--ui-fast) var(--ui-ease),
+        box-shadow var(--ui-fast) var(--ui-ease),
+        opacity var(--ui-fast) var(--ui-ease),
+        transform var(--ui-fast) var(--ui-ease),
+        filter var(--ui-fast) var(--ui-ease);
+}
+
+/* Slight lift + soft shadow on real action buttons (not tabs, icon buttons
+   inside tables, close "×" buttons, links or sidebar items). */
+:where(
+    [class*="-btn"], [class*="btn-"], .f-btn, .ps-link-btn
+):where(:not(:disabled, [aria-disabled="true"], [role="tab"], [class*="action-btn"], [class*="close"], [class*="link"], [class*="stepper"], [class*="qty-btn"], [class*="seg-btn"])):hover {
+    transform: translateY(-1px);
+    box-shadow: var(--ui-lift-shadow);
+}
+:where(
+    [class*="-btn"], [class*="btn-"], .f-btn
+):where(:not(:disabled, [aria-disabled="true"], [role="tab"])):active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: none;
+    transition-duration: 60ms;
+}
+
+/* Inputs: smooth focus ring */
+:where(input, select, textarea) {
+    transition: border-color var(--ui-fast) var(--ui-ease), box-shadow var(--ui-fast) var(--ui-ease), background-color var(--ui-fast) var(--ui-ease);
+}
+
+/* ===== SELECTIONS: rows and cards change colour smoothly ===== */
+:where(tr, li, [class*="card"]) {
+    transition: background-color var(--ui-fast) var(--ui-ease), border-color var(--ui-fast) var(--ui-ease), box-shadow var(--ui-fast) var(--ui-ease);
+}
+
+/* ===== TABLE CONTENT: new rows fade in (switching tab, filter, search, page) ===== */
+@keyframes ui-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes ui-rise-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ui-pop-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes ui-drop-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+:where(tbody > tr) {
+    animation: ui-fade-in var(--ui-medium) var(--ui-ease) both;
+}
+
+/* ===== POP-UPS: backdrop fades, window gently rises ===== */
+:where([class*="overlay"], [class*="backdrop"]):where(:not([class*="-card"], tr, td)) {
+    animation: ui-fade-in var(--ui-fast) var(--ui-ease) both;
+}
+:where([role="dialog"], [role="alertdialog"]):where(:not([class*="drawer"])) {
+    animation: ui-pop-in var(--ui-medium) var(--ui-ease-out) both;
+}
+
+/* ===== MENUS: dropdowns and suggestion lists slide down a little ===== */
+:where([role="menu"], [role="listbox"], [class*="sort-menu"], [class*="dropdown"], .search-suggest-menu, .notif-box) {
+    animation: ui-drop-in var(--ui-fast) var(--ui-ease-out) both;
+}
+
+/* ===== PAGE / TAB PANELS: content swaps with a short rise ===== */
+:where([role="tabpanel"], .fx-layout, .ps-card, .fx-top-split) {
+    animation: ui-rise-in var(--ui-medium) var(--ui-ease-out) both;
+}
+
+/* Status messages (saved, error, notices) fade in instead of popping. */
+:where([role="status"], [role="alert"]) {
+    animation: ui-fade-in var(--ui-medium) var(--ui-ease) both;
+}
+
+/* ===== SLIDING TAB HIGHLIGHT (positioned by src/utils/slidingTabs.js) ===== */
+.ui-tab-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition:
+        transform var(--ui-medium) var(--ui-ease),
+        width var(--ui-medium) var(--ui-ease),
+        height var(--ui-medium) var(--ui-ease),
+        background-color var(--ui-medium) var(--ui-ease),
+        opacity var(--ui-fast) var(--ui-ease);
+}
+.ui-tab-slider.is-ready { opacity: 1; }
+.ui-tab-slider.no-anim { transition: none; }
+/* While the slider is showing, the active tab's own background is hidden so
+   the slider is what you see moving. Text colour still changes on the tab. */
+.ui-has-slider > [role="tab"] {
+    position: relative;
+    z-index: 1;
+}
+.ui-has-slider > [role="tab"][aria-selected="true"],
+.ui-has-slider > [role="tab"].is-active,
+.ui-has-slider > [role="tab"].active {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+}
+
+/* ===== CHARTS: grow, draw and settle in (when a chart appears or its data changes) ===== */
+@keyframes ui-grow-up {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+}
+@keyframes ui-grow-right {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+@keyframes ui-reveal-left {
+    from { clip-path: inset(0 100% 0 0); }
+    to { clip-path: inset(0 0 0 0); }
+}
+@keyframes ui-spin-in {
+    from { opacity: 0; transform: rotate(-90deg) scale(0.85); }
+    to { opacity: 1; transform: rotate(0) scale(1); }
+}
+@keyframes ui-draw-arc {
+    from { stroke-dashoffset: 200; }
+    to { stroke-dashoffset: 0; }
+}
+
+/* Bars rise from the bottom, one after another (Forecasting + Dashboard columns). */
+:where(.fx-bar, .db-col-bar) {
+    transform-origin: bottom center;
+    animation: ui-grow-up 520ms var(--ui-ease-out) both;
+    transition: height 320ms var(--ui-ease), background-color var(--ui-fast) var(--ui-ease);
+}
+:where(.fx-bar-col:nth-child(1) .fx-bar, .db-col-item:nth-child(1) .db-col-bar) { animation-delay: 35ms; }
+:where(.fx-bar-col:nth-child(2) .fx-bar, .db-col-item:nth-child(2) .db-col-bar) { animation-delay: 70ms; }
+:where(.fx-bar-col:nth-child(3) .fx-bar, .db-col-item:nth-child(3) .db-col-bar) { animation-delay: 105ms; }
+:where(.fx-bar-col:nth-child(4) .fx-bar, .db-col-item:nth-child(4) .db-col-bar) { animation-delay: 140ms; }
+:where(.fx-bar-col:nth-child(5) .fx-bar, .db-col-item:nth-child(5) .db-col-bar) { animation-delay: 175ms; }
+:where(.fx-bar-col:nth-child(6) .fx-bar, .db-col-item:nth-child(6) .db-col-bar) { animation-delay: 210ms; }
+:where(.fx-bar-col:nth-child(7) .fx-bar, .db-col-item:nth-child(7) .db-col-bar) { animation-delay: 245ms; }
+:where(.fx-bar-col:nth-child(8) .fx-bar, .db-col-item:nth-child(8) .db-col-bar) { animation-delay: 280ms; }
+:where(.fx-bar-col:nth-child(9) .fx-bar, .db-col-item:nth-child(9) .db-col-bar) { animation-delay: 315ms; }
+:where(.fx-bar-col:nth-child(10) .fx-bar, .db-col-item:nth-child(10) .db-col-bar) { animation-delay: 350ms; }
+:where(.fx-bar-col:nth-child(11) .fx-bar, .db-col-item:nth-child(11) .db-col-bar) { animation-delay: 385ms; }
+:where(.fx-bar-col:nth-child(12) .fx-bar, .db-col-item:nth-child(12) .db-col-bar) { animation-delay: 420ms; }
+
+/* Stacked status bars fill from the left. */
+:where(.db-stack-seg) {
+    transform-origin: left center;
+    animation: ui-grow-right 600ms var(--ui-ease-out) both;
+    transition: width 320ms var(--ui-ease);
+}
+
+/* Line charts (monthly sales, sparklines) draw from left to right. */
+:where(.db-hero-svg, .db-spark-svg) {
+    animation: ui-reveal-left 750ms var(--ui-ease-out) both;
+}
+:where(.db-hero-point) {
+    animation: ui-fade-in 300ms var(--ui-ease) 500ms both;
+}
+
+/* Donut turns into place; the supplier gauge arc draws itself. */
+:where(.db-donut-svg) {
+    transform-origin: center;
+    animation: ui-spin-in 600ms var(--ui-ease-out) both;
+}
+:where(.db-gauge-svg path + path) {
+    stroke-dasharray: 200;
+    animation: ui-draw-arc 800ms var(--ui-ease-out) 150ms both;
+}
+
+/* Chart values and labels appear just after their bars. */
+:where(.fx-bar-value, .fx-calc-strip) {
+    animation: ui-fade-in 300ms var(--ui-ease) 320ms both;
+}
+
+/* ===== RESPECT "REDUCE MOTION" ===== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 1ms !important;
+    }
+    :where([class*="-btn"], [class*="btn-"], .f-btn):hover { transform: none; }
+}

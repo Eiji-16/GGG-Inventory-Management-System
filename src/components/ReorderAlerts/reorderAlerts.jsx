@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BellRing, Calculator, Check, PackageCheck, Search } from 'lucide-react';
+import { AlertTriangle, BellRing, Calculator, Check, PackageCheck, Search, ShoppingCart } from 'lucide-react';
 import apiFetch from '../../apiFetch';
 import './reorderAlerts.css';
 import { reorderPointFor, safetyPointFor, statusPointsFor, SAFETY_STOCK_DEFAULTS } from '../../data/safetyStock';
 import { buildForecastHandoff } from '../../utils/forecastHandoff';
+import BulkOrder from './bulkOrder';
+import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
 
-/* ===== AUTO REORDER ALERTS (Figure 9) =====
+/* ===== REORDER LIST (Figure 9, formerly "Auto Reorder Alerts") =====
    Lists every product whose stock is at or below its reorder point.
    Reorder point = safety stock + (annual demand ÷ 365 × lead time). */
 /* canNotify / canManageRequests come from Role Access ("Send restock
@@ -27,6 +29,9 @@ export default function ReorderAlerts({
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [orderingId, setOrderingId] = useState(null);
+  // Bulk order: products ticked in the table, and the open Bulk Order window.
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkItems, setBulkItems] = useState(null);
 
   /* ===== RESTOCK REQUESTS (Staff "Notify") ===== */
   const [requests, setRequests] = useState([]);          // open requests
@@ -161,6 +166,22 @@ export default function ReorderAlerts({
     return matchesQuery && matchesStatus;
   });
 
+  /* ===== BULK ORDER SELECTION ===== */
+  // Ticks on products that are no longer alerts are ignored.
+  const selectedAlerts = alerts.filter((item) => selectedIds.has(item.id));
+  const allVisibleSelected = visible.length > 0 && visible.every((item) => selectedIds.has(item.id));
+  const toggleSelect = (id) => setSelectedIds((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const toggleSelectAll = () => setSelectedIds((prev) => {
+    const next = new Set(prev);
+    visible.forEach((item) => (allVisibleSelected ? next.delete(item.id) : next.add(item.id)));
+    return next;
+  });
+  const columnCount = canComputeEoq ? 8 : 7;
+
   /* Order Now sends the product's forecast demand (WMA + seasonal, per month
      × 12) to the EOQ Calculator. If no forecast is possible yet, it falls back
      to actual sales and the calculator says so. */
@@ -196,20 +217,28 @@ export default function ReorderAlerts({
       <div className="ra-card">
         <div className="ra-card-head">
           <div>
-            <h2>Auto Reorder Alerts</h2>
+            <h2>Reorder List</h2>
             <p>Products that have reached their reorder point (safety stock + demand during lead time) and need restocking.</p>
           </div>
           <div className="ra-tools">
-            <div className="ra-search">
-              <Search size={13} aria-hidden="true" />
-              <input
-                type="search"
-                placeholder="Search alerts…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                aria-label="Search reorder alerts"
-              />
-            </div>
+            {/* Preset searches: the categories of the products in this list. */}
+            <SearchSuggestions
+              query={query}
+              suggestions={alerts.map((item) => item.category)}
+              onPick={setQuery}
+              label="Categories"
+            >
+              <div className="ra-search">
+                <Search size={13} aria-hidden="true" />
+                <input
+                  type="search"
+                  placeholder="Search the list…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  aria-label="Search the reorder list"
+                />
+              </div>
+            </SearchSuggestions>
             <div className="ra-filter" role="tablist" aria-label="Filter by status">
               {[['all', 'All'], ['out', 'Out of stock'], ['low', 'Low stock']].map(([value, label]) => (
                 <button
@@ -224,6 +253,23 @@ export default function ReorderAlerts({
                 </button>
               ))}
             </div>
+            {canComputeEoq && (
+              <button
+                type="button"
+                className={`ra-order-btn is-urgent ra-bulk-btn${selectedAlerts.length ? ' is-ready' : ''}`}
+                onClick={() => setBulkItems(selectedAlerts)}
+                disabled={selectedAlerts.length === 0}
+                title={selectedAlerts.length ? 'Work out the order quantity for every ticked product' : 'Tick products in the table first'}
+              >
+                <ShoppingCart size={13} aria-hidden="true" className="ra-bulk-cart" /> Bulk order
+                {/* key = count, so the number "pops" each time a product is ticked */}
+                {selectedAlerts.length > 0 && (
+                  <span key={selectedAlerts.length} className="ra-bulk-count" aria-label={`${selectedAlerts.length} selected`}>
+                    {selectedAlerts.length}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
         </div>
 
@@ -239,6 +285,11 @@ export default function ReorderAlerts({
           <table className="ra-table">
             <thead>
               <tr>
+                {canComputeEoq && (
+                  <th className="ra-check">
+                    <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Select all alerts for bulk order" />
+                  </th>
+                )}
                 <th>Product</th>
                 <th>Category</th>
                 <th>Supplier</th>
@@ -250,17 +301,22 @@ export default function ReorderAlerts({
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="ra-empty">Checking stock levels…</td></tr>
+                <tr><td colSpan={columnCount} className="ra-empty">Checking stock levels…</td></tr>
               ) : visible.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="ra-empty">
+                  <td colSpan={columnCount} className="ra-empty">
                     {alerts.length === 0 ? (
                       <span className="ra-all-good"><PackageCheck size={18} /> All products are above their reorder point.</span>
-                    ) : 'No alerts match your search.'}
+                    ) : 'No products match your search.'}
                   </td>
                 </tr>
               ) : visible.map((item) => (
-                <tr key={item.id}>
+                <tr key={item.id} className={selectedIds.has(item.id) ? 'is-selected' : ''}>
+                  {canComputeEoq && (
+                    <td className="ra-check" data-label="Bulk order">
+                      <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} aria-label={`Select ${item.name} for bulk order`} />
+                    </td>
+                  )}
                   <td data-label="Product">
                     <span className="ra-product">
                       <strong>{item.name}</strong>
@@ -342,6 +398,14 @@ export default function ReorderAlerts({
           </div>,
           document.body,
         )}
+        {bulkItems && (
+          <BulkOrder
+            items={bulkItems}
+            onClose={() => setBulkItems(null)}
+            onSaved={() => setSelectedIds(new Set())}
+          />
+        )}
+        <p className="ra-help">Tick several products and press “Bulk order” to work out all their order quantities at once (same method as “Order Now”, for each product).</p>
         <p className="ra-help">“Order Now” opens the Economic Order Quantity Calculator with this product’s forecast annual demand (next month’s weighted moving average forecast, seasonal adjustment included, × 12). If there isn’t enough sales history to forecast yet, it uses the last 12 months of actual sales instead.</p>
       </div>
     </div>

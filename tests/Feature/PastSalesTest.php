@@ -11,8 +11,8 @@ use Tests\Concerns\AuthenticatesBusinessApi;
 use Tests\TestCase;
 
 /**
- * Past monthly sales (before Stock Control records begin) as extra
- * forecasting history — manual month grid and Excel import.
+ * Past sales (before Stock Control records begin) as extra forecasting
+ * history — manual month/week grid and Excel import.
  */
 class PastSalesTest extends TestCase
 {
@@ -144,6 +144,58 @@ class PastSalesTest extends TestCase
         $this->postJson('/api/past-sales/import', ['rows' => $rows, 'commit' => true])->assertOk();
         $this->assertSame(2, PastSale::count());
         $this->assertSame(11, PastSale::where('product_id', $ip->id)->value('units_sold'));
+    }
+
+    public function test_week_grid_saves_weeks_before_stock_control_begins_and_keeps_months_separate(): void
+    {
+        $product = $this->product('PRD-WK', 'Weekly Item');
+        $this->movement($product, '2026-09-16', 'in', 50);   // a Wednesday → weekly cutoff is Mon Sep 14
+
+        $this->putJson('/api/past-sales', ['productId' => 'PRD-WK', 'periodType' => 'week', 'records' => [
+            ['week' => '2026-08-31', 'unitsSold' => 10],
+            ['week' => '2026-09-07', 'unitsSold' => 20],
+        ]])->assertOk()
+            ->assertJsonPath('periodType', 'week')
+            ->assertJsonPath('cutoff', '2026-09-14')
+            ->assertJsonCount(2, 'rows')
+            ->assertJsonPath('rows.0.week', '2026-08-31');
+
+        // The week Stock Control starts, and a non-Monday date, are refused.
+        $this->putJson('/api/past-sales', ['productId' => 'PRD-WK', 'periodType' => 'week', 'records' => [
+            ['week' => '2026-09-14', 'unitsSold' => 5],
+        ]])->assertUnprocessable()->assertJsonValidationErrors('records.0.week');
+        $this->putJson('/api/past-sales', ['productId' => 'PRD-WK', 'periodType' => 'week', 'records' => [
+            ['week' => '2026-09-08', 'unitsSold' => 5],
+        ]])->assertUnprocessable()->assertJsonValidationErrors('records.0.week');
+
+        // A monthly row for the same dates is stored separately.
+        $this->putJson('/api/past-sales', ['productId' => 'PRD-WK', 'records' => [
+            ['month' => '2026-08', 'unitsSold' => 40],
+        ]])->assertOk()->assertJsonCount(1, 'rows');
+        $this->getJson('/api/past-sales?product=PRD-WK&periodType=week')->assertJsonCount(2, 'rows');
+
+        // Clearing a week removes only that week.
+        $this->putJson('/api/past-sales', ['productId' => 'PRD-WK', 'periodType' => 'week', 'records' => [
+            ['week' => '2026-08-31', 'unitsSold' => null],
+        ]])->assertOk()->assertJsonCount(1, 'rows');
+        $this->assertSame(1, PastSale::where('period_type', 'month')->count());
+    }
+
+    public function test_weekly_forecast_uses_weekly_past_sales_and_monthly_view_ignores_them(): void
+    {
+        $product = $this->product('PRD-WF', 'Weekly Forecast Item');
+        foreach (['2026-09-28' => 10, '2026-10-05' => 20, '2026-10-12' => 40] as $week => $units) {
+            PastSale::create(['product_id' => $product->id, 'period_type' => 'week', 'period_date' => $week, 'units_sold' => $units]);
+        }
+
+        $this->postJson('/api/forecasts', ['productId' => 'PRD-WF', 'periodType' => 'week'])
+            ->assertOk()
+            ->assertJsonPath('dataPoints', 3)
+            ->assertJsonPath('baseForecast', 28.3)   // (10×1 + 20×2 + 40×3) ÷ 6
+            ->assertJsonPath('forecastPeriod', '2026-10-19');
+        $this->getJson('/api/forecasts/history?product=PRD-WF&periodType=month')
+            ->assertOk()
+            ->assertJsonPath('dataPoints', 0);
     }
 
     private function product(string $code, string $name): Product

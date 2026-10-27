@@ -163,6 +163,8 @@ export default function AutoCalculatorDesign({
   const { currency, currencySymbol, formatCurrency } = useCurrency();
   const [savedDraft] = useState(() => readCalculatorDraft(currentUserId));
   const [showHistory, setShowHistory] = useState(false);
+  // Results open in a pop-up (no empty result panel taking space on the page).
+  const [showResult, setShowResult] = useState(false);
 
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
@@ -411,6 +413,7 @@ export default function AutoCalculatorDesign({
     });
     setResult(calculation);
     setResultInputs({ ...inputs });
+    setShowResult(true);
     setHistory((prev) => [{
       formulaName: 'Economic Order Quantity',
       product: selectedProduct?.name || 'Manual calculation',
@@ -572,6 +575,13 @@ export default function AutoCalculatorDesign({
     printWindow.document.close();
   };
 
+  useEffect(() => {
+    if (!showResult) return undefined;
+    const onKey = (event) => { if (event.key === 'Escape') setShowResult(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showResult]);
+
   const productOptions = useMemo(() => [...products].sort((a, b) => String(a.name).localeCompare(String(b.name))), [products]);
 
   return (
@@ -608,7 +618,7 @@ export default function AutoCalculatorDesign({
         </div>
       )}
 
-      <div className="eq-grid">
+      <div className="eq-grid eq-grid-single">
         {/* ===== INPUTS ===== */}
         <section className="eq-card" aria-labelledby="eq-inputs-title">
           <h2 id="eq-inputs-title">Inputs</h2>
@@ -698,21 +708,37 @@ export default function AutoCalculatorDesign({
               <Calculator size={14} /> {saving ? 'Saving…' : 'Compute Order Quantity'}
             </button>
             <button className="ac-btn-reset" onClick={handleReset} type="button" disabled={saving}>Reset</button>
+            {result && (
+              <button className="ac-btn-reset eq-last-result" onClick={() => setShowResult(true)} type="button">
+                View last result · {fmt(result.recommendedOrder)} unit{result.recommendedOrder === 1 ? '' : 's'}{resultIsStale ? ' (inputs changed)' : ''}
+              </button>
+            )}
           </div>
+          {saveStatus.text && !showResult && (
+            <p className={`eq-save is-${saveStatus.type}`} role={saveStatus.type === 'error' ? 'alert' : 'status'}>{saveStatus.text}</p>
+          )}
         </section>
+      </div>
 
-        {/* ===== RESULT ===== */}
-        <section className="eq-card eq-result" aria-labelledby="eq-result-title" aria-live="polite">
-          <h2 id="eq-result-title">Computation Result</h2>
-
-          {!result ? (
-            <div className="eq-empty">
-              <Calculator size={28} />
-              <p>Fill in the inputs and click <strong>Compute Order Quantity</strong>.</p>
-              <span>The result shows how many units to order each time and when to reorder.</span>
+      {/* ===== RESULT POP-UP ===== */}
+      {showResult && result && createPortal(
+        <div className="ac-modal-overlay" onClick={() => setShowResult(false)}>
+          <section
+            className="ac-modal eq-result-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="eq-result-title"
+            aria-live="polite"
+          >
+            <div className="ac-modal-header">
+              <div>
+                <h3 className="ac-modal-title" id="eq-result-title">Computation Result</h3>
+                <p className="eq-result-sub">{selectedProduct?.name || 'Manual calculation'}</p>
+              </div>
+              <button className="ac-modal-close" type="button" onClick={() => setShowResult(false)} aria-label="Close result"><X size={14} /></button>
             </div>
-          ) : (
-            <>
+            <div className="ac-modal-body eq-result-body">
               {resultIsStale && (
                 <p className="eq-stale" role="status">Inputs changed — click <strong>Compute Order Quantity</strong> again to update this result.</p>
               )}
@@ -743,7 +769,7 @@ export default function AutoCalculatorDesign({
               </div>
 
               <p className="eq-sentence">
-                When stock drops to <strong>{fmt(result.reorderPoint)} unit{result.reorderPoint === 1 ? '' : 's'}</strong>, a reorder alert appears — order <strong>{fmt(result.recommendedOrder)} unit{result.recommendedOrder === 1 ? '' : 's'}</strong> each time.
+                When stock drops to <strong>{fmt(result.reorderPoint)} unit{result.reorderPoint === 1 ? '' : 's'}</strong>, the product appears in the Reorder List — order <strong>{fmt(result.recommendedOrder)} unit{result.recommendedOrder === 1 ? '' : 's'}</strong> each time.
               </p>
               {stockStatus && <p className={`eq-status is-${stockStatus.tone}`}>{stockStatus.text}</p>}
 
@@ -756,20 +782,23 @@ export default function AutoCalculatorDesign({
               </table>
               <p className="eq-note"><Info size={12} /> At the economic order quantity the ordering and holding costs are equal — that balance is what makes it the cheapest order size.</p>
 
-              {canExport && (
-              <div className="eq-actions">
-                <button className="ac-btn-reset" onClick={exportExcel} type="button"><Download size={13} /> Export Excel</button>
-                <button className="ac-btn-reset" onClick={exportPdf} type="button"><Download size={13} /> Export PDF</button>
-              </div>
+              {saveStatus.text && (
+                <p className={`eq-save is-${saveStatus.type}`} role={saveStatus.type === 'error' ? 'alert' : 'status'}>{saveStatus.text}</p>
               )}
-            </>
-          )}
-
-          {saveStatus.text && (
-            <p className={`eq-save is-${saveStatus.type}`} role={saveStatus.type === 'error' ? 'alert' : 'status'}>{saveStatus.text}</p>
-          )}
-        </section>
-      </div>
+            </div>
+            <div className="ac-modal-footer">
+              {canExport && (
+                <>
+                  <button className="ac-btn-reset" onClick={exportExcel} type="button"><Download size={13} /> Excel</button>
+                  <button className="ac-btn-reset" onClick={exportPdf} type="button"><Download size={13} /> PDF</button>
+                </>
+              )}
+              <button className="ac-btn-compute" onClick={() => setShowResult(false)} type="button">Done</button>
+            </div>
+          </section>
+        </div>,
+        document.body
+      )}
 
       {showHistory && (
         <HistoryPanel onClose={() => setShowHistory(false)} history={history} onClear={() => setHistory([])} />

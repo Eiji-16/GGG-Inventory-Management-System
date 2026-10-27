@@ -1540,3 +1540,32 @@
 
 .eq-card .eq-note { margin: 0; }
 .eq-card .eq-actions .ac-btn-reset { min-height: 32px; }
+
+/*==========RESULT IN A POP-UP (no empty result panel on the page)==========
+   The Inputs card now uses the full width; on wider screens the five number
+   fields sit in one tidy 3-column grid. Compute opens the result pop-up. */
+.eq-grid.eq-grid-single { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) {
+    .eq-grid-single .eq-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .eq-grid-single .eq-pair { display: contents; }   /* Lead Time + Safety Stock join the grid */
+}
+.eq-last-result { margin-left: auto; }
+
+.ac-modal.eq-result-modal {
+    max-width: 560px;
+    max-height: 90vh;
+    color: var(--text-primary, #111);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+}
+.eq-result-sub { margin: 2px 0 0; color: var(--text-muted); font-size: 11.5px; }
+.eq-result-body { gap: 0.75rem; }
+.eq-result-modal .ac-modal-footer { flex-wrap: wrap; }
+.eq-result-modal .ac-modal-footer .ac-btn-compute { flex: 0 0 auto; min-width: 90px; justify-content: center; }
+
+@media (max-width: 560px) {
+    .ac-modal-overlay { padding: 0.5rem; align-items: flex-end; }
+    .ac-modal.eq-result-modal { max-height: 92vh; border-radius: 0.75rem 0.75rem 0.5rem 0.5rem; }
+    .eq-result-modal .ac-modal-footer > * { flex: 1 1 auto; }
+    .eq-last-result { margin-left: 0; width: 100%; }
+}

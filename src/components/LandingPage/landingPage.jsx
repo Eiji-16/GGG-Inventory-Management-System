@@ -751,9 +751,9 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
           )}
           {canAccess('Reorder-Alerts') && (
           <li className={`sidebar-item ${activeView === 'Reorder-Alerts' ? 'active' : ''}`}>
-            <button onClick={() => handleNavigate('Reorder-Alerts')} title={reorderAlertCount ? `${reorderAlertCount} items need reorder` : 'Reorder Alerts'}>
+            <button onClick={() => handleNavigate('Reorder-Alerts')} title={reorderAlertCount ? `${reorderAlertCount} items need reorder` : 'Reorder List'}>
               <BellRing className="sidebar-icon" />
-              <span className="sidebar-label">Reorder Alerts</span>
+              <span className="sidebar-label">Reorder List</span>
               {reorderAlertCount > 0 && (
                 <span className="sidebar-count-badge" aria-label={`${reorderAlertCount} items need reorder`}>
                   {reorderAlertCount > 99 ? '99+' : reorderAlertCount}
@@ -858,7 +858,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                   {activeView === 'Dashboard' && 'Dashboard Overview'}
                   {activeView === 'Product-Supplier' && 'Product & Supplier'}
                   {activeView === 'Stock' && 'Stock Control'}
-                  {activeView === 'Reorder-Alerts' && 'Auto Reorder Alerts'}
+                  {activeView === 'Reorder-Alerts' && 'Reorder List'}
                   {activeView === 'Auto-Calculator' && 'Economic Order Quantity Calculator'}
                   {activeView === 'Forecasting' && 'Sales Forecasting'}
                   {activeView === 'Reports' && 'Reports & Analytics'}

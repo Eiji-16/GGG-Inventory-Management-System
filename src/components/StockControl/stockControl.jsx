@@ -1221,6 +1221,40 @@ function StockControl({
     }
   };
 
+  /* Unit Price field: beside Notes on a new entry, beside Category when editing. */
+  const unitPriceField = (
+    <>
+                      <label htmlFor="unitPrice">
+                        Unit Price ({currencySymbol}) {!editingCorrection && <span className="sc-required">*</span>}
+                      </label>
+                      <input
+                        id="unitPrice"
+                        name="unitPrice"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={formData.unitPrice}
+                        onChange={handleFormChange}
+                        placeholder="e.g. 299.00"
+                        required={!editingCorrection}
+                      />
+                      {/* Helper text until a price is typed; then the computed total,
+                          which stays visible even with field descriptions turned off. */}
+                      <span className={`sc-field-hint${formData.unitPrice === '' || !(Number(formData.unitPrice) >= 0) ? '' : ' sc-field-total'}`}>
+                        {(() => {
+                          if (formData.unitPrice === '' || !(Number(formData.unitPrice) >= 0)) {
+                            return 'Required · cost per unit (Stock In) or selling price per unit (Stock Out).';
+                          }
+                          const units = canSetOpeningStock ? Number(openingStock) : Math.abs(Number(projectedChange));
+                          return Number.isFinite(units) && units > 0
+                            ? `Total: ${formatCurrency(Number(formData.unitPrice) * units)} for ${units} unit${units === 1 ? '' : 's'}`
+                            : `${formatCurrency(Number(formData.unitPrice))} per unit`;
+                        })()}
+                      </span>
+    </>
+  );
+
   return (
     <div className="sc-table-parent">
 
@@ -1769,15 +1803,10 @@ function StockControl({
                           </span>
                         </>
                       ) : editId !== null ? (
-                        /* Edit mode: no quantity changer. Stock is changed with
-                           the − / + buttons in the table's QTY column. */
-                        <>
-                          <label>Type</label>
-                          <input value={movementLabel(stockFromDatabase.find((row) => row.id === editId)?.type)} readOnly aria-readonly="true" />
-                          <span className="sc-field-hint">
-                            Quantity can't be changed here. Use − / + in the QTY column, or delete this entry and record a new one.
-                          </span>
-                        </>
+                        /* Edit mode: no quantity changer (stock is changed with
+                           − / + in the table's QTY column) and no Type field.
+                           Unit Price takes this spot, beside Category. */
+                        unitPriceField
                       ) : (
                         <>
                           <label htmlFor="type">
@@ -1837,47 +1866,33 @@ function StockControl({
                     </div>
                   </div>
 
-                  {/* ===== PRICE + NOTES (below quantity) ===== */}
-                  <div className="sc-form-row">
-                    <div className="sc-form-group">
-                      <label htmlFor="unitPrice">
-                        Unit Price ({currencySymbol}) {!editingCorrection && <span className="sc-required">*</span>}
-                      </label>
-                      <input
-                        id="unitPrice"
-                        name="unitPrice"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        inputMode="decimal"
-                        value={formData.unitPrice}
-                        onChange={handleFormChange}
-                        placeholder="e.g. 299.00"
-                        required={!editingCorrection}
-                      />
-                      {/* Helper text until a price is typed; then the computed total,
-                          which stays visible even with field descriptions turned off. */}
-                      <span className={`sc-field-hint${formData.unitPrice === '' || !(Number(formData.unitPrice) >= 0) ? '' : ' sc-field-total'}`}>
-                        {(() => {
-                          if (formData.unitPrice === '' || !(Number(formData.unitPrice) >= 0)) {
-                            return 'Required · cost per unit (Stock In) or selling price per unit (Stock Out).';
-                          }
-                          const units = canSetOpeningStock ? Number(openingStock) : Math.abs(Number(projectedChange));
-                          return Number.isFinite(units) && units > 0
-                            ? `Total: ${formatCurrency(Number(formData.unitPrice) * units)} for ${units} unit${units === 1 ? '' : 's'}`
-                            : `${formatCurrency(Number(formData.unitPrice))} per unit`;
-                        })()}
-                      </span>
-                    </div>
+                  {/* ===== PRICE + NOTES (below quantity) =====
+                      New entry: Unit Price | Notes side by side.
+                      Edit: Unit Price sits beside Category (above), and Notes
+                      gets its own full-width last row. */}
+                  <div className={editId === null ? 'sc-form-row' : 'sc-form-row sc-form-row-full'}>
+                    {editId === null && <div className="sc-form-group">{unitPriceField}</div>}
                     <div className="sc-form-group">
                       <label htmlFor="notes">Notes</label>
-                      <input
-                        id="notes"
-                        name="notes"
-                        value={formData.notes}
-                        onChange={handleFormChange}
-                        placeholder="Delivery reference, sales batch…"
-                      />
+                      {editId === null ? (
+                        <input
+                          id="notes"
+                          name="notes"
+                          value={formData.notes}
+                          onChange={handleFormChange}
+                          placeholder="Delivery reference, sales batch…"
+                        />
+                      ) : (
+                        <textarea
+                          id="notes"
+                          name="notes"
+                          rows={3}
+                          maxLength={255}
+                          value={formData.notes}
+                          onChange={handleFormChange}
+                          placeholder="Delivery reference, sales batch…"
+                        />
+                      )}
                     </div>
                   </div>
                 </section>

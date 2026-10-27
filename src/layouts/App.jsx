@@ -4,12 +4,16 @@ import { CircleAlert, RefreshCw } from 'lucide-react';
 import Login from '../components/Login/Login';
 import LandingPage from '../components/LandingPage/landingPage';
 import './app-error.css';
+import '../styles/motion.css'; /* subtle shared animations (hover, fades, pop-ups) */
+import { startSlidingTabs } from '../utils/slidingTabs';
 import { readSavedTheme, saveTheme } from '../theme';
 import { CurrencyProvider } from '../CurrencyContext';
 import { applyShowFieldHints, readShowFieldHints } from '../fieldHints';
 
 // Apply the saved "Show field descriptions" choice before the first render.
 applyShowFieldHints(readShowFieldHints());
+// Active tab highlights slide to the newly selected tab (all tab groups).
+startSlidingTabs();
 
 function App() {
     const [authStatus, setAuthStatus] = useState('checking');

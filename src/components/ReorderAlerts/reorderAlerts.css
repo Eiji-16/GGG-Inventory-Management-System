@@ -351,7 +351,7 @@
 @media (max-width: 640px) {
     .ra-kpis { grid-template-columns: 1fr; }
     .ra-kpi strong { font-size: 22px; }
-    .ra-tools, .ra-search, .ra-search input { width: 100%; }
+    .ra-tools, .ra-tools .search-suggest, .ra-search, .ra-search input { width: 100%; }
     .ra-card { padding: 12px; }
 }
 
@@ -450,4 +450,89 @@
 
     .ra-table tbody tr { margin-bottom: 0; }
     .ra-table tbody tr:has(.ra-empty) { grid-column: 1 / -1; }
+}
+
+/* ==========BULK ORDER========== */
+.ra-check { width: 34px; text-align: center; }
+.ra-table tbody tr.is-selected td { background: var(--accent-ring, rgba(232, 197, 71, 0.08)); }
+
+.ra-bulk-modal {
+    width: min(1040px, 100%);
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    gap: 12px;
+}
+.ra-bulk-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.ra-bulk-close {
+    display: inline-flex; padding: 4px; color: var(--text-muted);
+    background: transparent; border: none; border-radius: 6px; cursor: pointer;
+}
+.ra-bulk-close:hover { color: var(--text-primary); }
+
+.ra-bulk-same {
+    display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;
+    padding: 10px 12px; border: 1px dashed var(--border-color); border-radius: 8px;
+    font-size: 12px; color: var(--text-muted);
+}
+.ra-bulk-same label { display: grid; gap: 3px; text-transform: none; letter-spacing: 0; font-weight: 600; }
+
+.ra-bulk-input,
+.ra-bulk-same input {
+    width: 110px; padding: 6px 8px;
+    color: var(--text-primary); font: inherit; font-size: 12px;
+    background: var(--static-bg-color); border: 1px solid var(--border-color); border-radius: 7px;
+}
+.ra-bulk-input:focus,
+.ra-bulk-same input:focus { outline: none; border-color: var(--accent, #E8C547); box-shadow: 0 0 0 3px var(--accent-ring); }
+.ra-bulk-table tr.is-incomplete .ra-bulk-input:placeholder-shown { border-color: var(--accent-low); }
+
+.ra-bulk-qty { font-size: 15px; color: var(--accent-high, #16804a); }
+.ra-bulk-totals {
+    display: flex; flex-wrap: wrap; gap: 6px 18px;
+    padding: 8px 2px; font-size: 12px; border-top: 1px solid var(--border-color);
+}
+
+@media (max-width: 900px) {
+    .ra-check { width: auto; text-align: left; }
+    .ra-bulk-input { width: 100%; }
+}
+
+/* ==========BULK ORDER BUTTON: "ready" indicator==========
+   Dimmed until a product is ticked. Once ready it glows softly in a loop,
+   the cart gives a small nudge, and the count pops each time it changes. */
+.ra-bulk-btn { position: relative; transition: opacity 0.2s ease, transform 0.15s ease; }
+.ra-bulk-btn:disabled { opacity: 0.45; cursor: not-allowed; filter: saturate(0.6); }
+.ra-bulk-btn.is-ready { animation: ra-bulk-glow 1.8s ease-in-out infinite; }
+.ra-bulk-btn.is-ready:hover { transform: translateY(-1px); animation-play-state: paused; }
+.ra-bulk-btn.is-ready .ra-bulk-cart { animation: ra-bulk-nudge 1.8s ease-in-out infinite; }
+
+.ra-bulk-count {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; padding: 0 5px; margin-left: 2px;
+    font-size: 11px; font-weight: 800; line-height: 1;
+    color: inherit; background: rgba(0, 0, 0, 0.18);
+    border-radius: 999px;
+    animation: ra-bulk-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes ra-bulk-glow {
+    /* Glow in the button's own color (follows light/dark theme). */
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--background-icon-active-color, #60a5fa) 60%, transparent); }
+    50%      { box-shadow: 0 0 0 7px color-mix(in srgb, var(--background-icon-active-color, #60a5fa) 0%, transparent); }
+}
+@keyframes ra-bulk-nudge {
+    0%, 70%, 100% { transform: translateX(0); }
+    80% { transform: translateX(2px) rotate(-8deg); }
+    90% { transform: translateX(-1px) rotate(4deg); }
+}
+@keyframes ra-bulk-pop {
+    0%   { transform: scale(0.4); opacity: 0; }
+    100% { transform: scale(1);   opacity: 1; }
+}
+
+/* People who turn off animations in their device settings get a still button. */
+@media (prefers-reduced-motion: reduce) {
+    .ra-bulk-btn.is-ready,
+    .ra-bulk-btn.is-ready .ra-bulk-cart,
+    .ra-bulk-count { animation: none; }
 }

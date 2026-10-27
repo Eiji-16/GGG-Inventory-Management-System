@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Package, Boxes, TriangleAlert, ArrowLeftRight } from 'lucide-react';
+import { Package, Boxes, TriangleAlert, ArrowLeftRight, UsersRound } from 'lucide-react';
 import './dashboard.css';
 import { statusPointsFor } from '../../data/safetyStock';
 
@@ -34,9 +34,18 @@ const LIST_LIMIT = 3;
 const KPI_CARDS = [
   { key: 'totalProducts', label: 'Total Products', Icon: Package, accent: 'products' },
   { key: 'totalStockUnits', label: 'Total Stock Units', Icon: Boxes, accent: 'stock' },
-  { key: 'lowStockItems', label: 'Reorder Alerts', Icon: TriangleAlert, accent: 'low' },
+  { key: 'lowStockItems', label: 'Reorder List', Icon: TriangleAlert, accent: 'low' },
   { key: 'stockMovementsToday', label: 'Stock Movements Today', Icon: ArrowLeftRight, accent: 'movement' },
 ];
+
+/* Super Admin: "User Accounts" takes the Reorder List spot in the top row,
+   and the Reorder List moves down to the card where User Accounts was.
+   Admin and Staff (no User Accounts card) keep the Reorder List up top. */
+const kpiCardsFor = (isSuperAdmin) => (isSuperAdmin
+  ? KPI_CARDS.map((card) => (card.key === 'lowStockItems'
+    ? { key: 'userCount', label: 'User Accounts', Icon: UsersRound, accent: 'users' }
+    : card))
+  : KPI_CARDS);
 
 function scalePoints(values, width, height, padX = 6, padTop = 10, padBottom = 8) {
   if (!values.length) return [];
@@ -368,7 +377,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
       <main className="dashboard-content-view">
         <div className="dashboard-scroll-container">
           <div className="db-kpi-row db-kpi-skeleton" aria-hidden="true">
-            {KPI_CARDS.map(({ key, label, Icon }) => (
+            {kpiCardsFor(isSuperAdmin).map(({ key, label, Icon }) => (
               <div className="db-kpi-card" key={key}>
                 <span className="db-kpi-icon"><Icon size={17} /></span>
                 <span className="db-kpi-copy">
@@ -393,12 +402,6 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             <div className="lowStockalerts-card card db-skel-card">
               <div className="db-skel-line db-skel-title" />
               <div className="db-skel-row" /><div className="db-skel-row" /><div className="db-skel-row" />
-            </div>
-            <div className="totalCustomer-card card db-skel-card">
-              <div className="db-skel-line db-skel-title" />
-              <div className="db-skel-line db-skel-big" />
-              <div className="db-skel-line db-skel-sub" />
-              <div className="db-skel-spark" />
             </div>
             {isSuperAdmin && (
               <div className="totalStaff-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-line db-skel-big" /></div>
@@ -426,6 +429,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
     totalStockUnits: derived.totalStock,
     lowStockItems: derived.alerts.length,
     stockMovementsToday: derived.movementsToday,
+    userCount: summary.userCount,
   };
   const heroValues = derived.monthly.map((month) => month.units);
   const heroPoints = derived.hasSalesData ? scalePoints(heroValues, 520, 150, 10, 16, 12) : [];
@@ -438,7 +442,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
       <div className="dashboard-scroll-container">
         {error && <p role="alert">{error} Showing the last data loaded.</p>}
         <section className="db-kpi-row" aria-label="Inventory summary">
-          {KPI_CARDS.map(({ key, label, Icon, accent }) => (
+          {kpiCardsFor(isSuperAdmin).map(({ key, label, Icon, accent }) => (
             <article className={`db-kpi-card db-kpi-${accent}`} key={key}>
               <span className="db-kpi-icon" aria-hidden="true"><Icon size={17} strokeWidth={1.8} /></span>
               <span className="db-kpi-copy">
@@ -559,7 +563,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                   {(summary.reorderSuggestions || []).length ? ` · ${fmt(summary.reorderSuggestions.length)} product${summary.reorderSuggestions.length === 1 ? '' : 's'}` : ''}
                 </span>
               </div>
-              <button className="db-open-arrow-btn" onClick={() => go('Reorder-Alerts')} aria-label="Open Reorder Alerts" type="button"><OpenArrow /></button>
+              <button className="db-open-arrow-btn" onClick={() => go('Reorder-Alerts')} aria-label="Open Reorder List" type="button"><OpenArrow /></button>
             </div>
             {(summary.reorderSuggestions || []).length ? (
               <div className="db-order-list">
@@ -591,7 +595,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                 })}
                 {summary.reorderSuggestions.length > LIST_LIMIT && (
                   <button type="button" className="db-list-more" onClick={() => go('Reorder-Alerts')}>
-                    View all {fmt(summary.reorderSuggestions.length)} in Reorder Alerts →
+                    View all {fmt(summary.reorderSuggestions.length)} in the Reorder List →
                   </button>
                 )}
               </div>
@@ -728,26 +732,26 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             </div>
           </div>
 
-          <div className="totalCustomer-card card">
-            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Products with Sales</span><span className="db-card-sub">Products sold in the selected {range} months</span></div></div>
-            <div className="db-stat-value">{derived.hasSalesData ? fmt(derived.soldProductCount) : '—'}</div>
-            <div className="db-stat-sub">{derived.hasSalesData ? `${fmt(derived.unitsSold)} units sold · line = products sold each month` : 'No sales history recorded in this period'}</div>
-            <div className="db-spark-wrap"><Sparkline values={derived.hasSalesData ? derived.monthly.map((month) => month.records) : []} stroke="var(--accent)" gid="dbHistoryGrad" /></div>
-          </div>
-
+          {/* "Products with Sales" card removed (not needed); the cards beside it widen to fill its space. */}
           {isSuperAdmin && (
+            /* Reorder List card (Super Admin): sits where User Accounts used to be;
+               User Accounts is now in the top row. */
             <div className="totalStaff-card card">
               <div className="db-card-head">
                 <div className="db-card-titles">
-                  <span className="db-card-title">User Accounts</span>
-                  <span className="db-card-sub">Accounts registered in the system</span>
+                  <span className="db-card-title">Reorder List</span>
+                  <span className="db-card-sub">Products at or below their low point</span>
                 </div>
-                <button className="db-open-arrow-btn" onClick={() => go('Staffs')} aria-label="Open Staffs" type="button">
+                <button className="db-open-arrow-btn" onClick={() => go('Reorder-Alerts')} aria-label="Open Reorder List" type="button">
                   <OpenArrow />
                 </button>
               </div>
-              <div className="db-stat-value">{fmt(summary.userCount)}</div>
-              <div className="db-stat-sub">Role breakdown is not available in the current data.</div>
+              <div className="db-stat-value db-stat-reorder">{fmt(kpiValues.lowStockItems)}</div>
+              <div className="db-stat-sub">
+                {kpiValues.lowStockItems
+                  ? `${fmt(derived.outOfStock.length)} out of stock · ${fmt(derived.lowStock.length)} low`
+                  : 'Nothing needs reordering right now.'}
+              </div>
             </div>
           )}
         </div>

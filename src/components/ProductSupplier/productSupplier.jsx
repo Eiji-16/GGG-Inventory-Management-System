@@ -7,7 +7,6 @@ import SupplierRecords from './supplierRecords';
 import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
-import { useCurrency } from '../../CurrencyContext';
 
 
 
@@ -18,7 +17,6 @@ const emptyForm = {
   category: '',
   brand: '',
   model: '',
-  unitCost: '',
   unitMeasure: '',
   image: '',
   variants: [], /* ===== VARIANTS (e.g. Black / M) ===== */
@@ -31,7 +29,7 @@ const emptySupplier = { name: '', contact: '' };
 
 /* ===== DETAIL FIELDS ===== */
 const DETAIL_FIELDS = [
-  { key: 'id', label: 'SKU', hint: 'Unique product code used across every tab' },
+  { key: 'id', label: 'Product ID', hint: 'System reference used across every tab' },
   { key: 'name', label: 'Product Name', hint: 'Name shown in Stock Movement and forecasts', wide: true },
   { key: 'category', label: 'Category', hint: 'Grouping used for reports' },
   { key: 'brand', label: 'Brand', hint: 'Manufacturer of the item' },
@@ -196,7 +194,6 @@ function ProductSupplier({
   dataRevision = 0,
 }) {
   const PAGE_SIZE = 10;
-  const { currencySymbol, formatCurrency } = useCurrency();
   const [productsFromDatabase, setProductsFromDatabase] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState('');
@@ -279,7 +276,7 @@ function ProductSupplier({
     const matched = !q
       ? productsFromDatabase
       : productsFromDatabase.filter((p) =>
-          [p.sku, p.id, p.name, (p.variants || []).join(' '), p.category, p.brand, p.model, p.unitCost, p.unitMeasure, p.supplierId, p.supplierName, p.supplierContact, p.supplierLeadTimeDays, p.stock]
+          [p.id, p.name, (p.variants || []).join(' '), p.category, p.brand, p.model, p.unitMeasure, p.supplierName, p.supplierContact]
             .some((field) => String(field ?? '').toLowerCase().includes(q))
         );
 
@@ -288,7 +285,7 @@ function ProductSupplier({
       const bv = b[sortBy];
       // Numeric sort for stock; string sort (locale-aware) for the rest.
       let cmp;
-      if (['stock', 'unitCost', 'supplierId', 'supplierLeadTimeDays'].includes(sortBy)) {
+      if (sortBy === 'stock') {
         cmp = (Number(av) || 0) - (Number(bv) || 0);
       } else {
         cmp = String(av ?? '').localeCompare(String(bv ?? ''), undefined, { numeric: true, sensitivity: 'base' });
@@ -380,7 +377,6 @@ function ProductSupplier({
     setFormData({
       ...emptyForm,
       ...product,
-      unitCost: product.unitCost ?? '',
       image: product.image || '', // coerce null → '' so the preview/URL input never crashes
       // Start from the product's own list; for older products that only have
       // names typed in Stock Control, offer those so saving adopts them.
@@ -480,7 +476,6 @@ function ProductSupplier({
       category: formData.category,
       brand: formData.brand,
       model: formData.model,
-      unitCost: formData.unitCost === '' ? null : Number(formData.unitCost),
       unitMeasure: formData.unitMeasure,
       // Include a variant still sitting in the input box, if any.
       variants: [...(formData.variants || []), ...(variantDraft.trim() ? [variantDraft.trim()] : [])],
@@ -601,28 +596,26 @@ function ProductSupplier({
   /* ===== EXPORT FORMATTED PRODUCT WORKBOOK ===== */
   const exportProducts = async () => {
     if (filteredProducts.length === 0) return;
-    const headers = ['SKU', 'Image', 'Product Name', 'Category', 'Brand', 'Model', 'Cost', 'Supplier ID', 'Supplier Name', 'Lead Time', 'Total Inventory'];
+    const headers = ['Product ID', 'Product Name', 'Variant', 'Category', 'Brand', 'Model', 'Unit Measure', 'Supplier', 'Supplier Contact'];
     setExportError('');
     try {
       await exportReportWorkbook({
         title: 'Product and Supplier Directory',
-        subtitle: 'Current product catalog and linked supplier information',
+        subtitle: 'Current product catalog and linked supplier contact information',
         fileName: 'product-supplier-directory',
         sections: [{
           title: 'Product records',
           headers,
           rows: filteredProducts.map((product) => [
-            product.sku || product.id,
-            product.image,
+            product.id,
             product.name,
+            (product.variants || []).join(', '),
             product.category,
             product.brand,
             product.model,
-            product.unitCost,
-            product.supplierId,
+            product.unitMeasure,
             product.supplierName,
-            product.supplierLeadTimeDays != null ? `${product.supplierLeadTimeDays} days` : null,
-            product.stock,
+            product.supplierContact,
           ]),
         }],
         summary: [
@@ -631,7 +624,7 @@ function ProductSupplier({
           { label: 'Suppliers', value: new Set(filteredProducts.map((product) => product.supplierName).filter(Boolean)).size },
         ],
         scope: query.trim() ? `Filtered by: ${query.trim()}` : 'All matching product records',
-        columnWidths: [16, 24, 28, 20, 20, 18, 18, 14, 28, 16, 18],
+        columnWidths: [16, 28, 24, 20, 20, 18, 18, 28, 28],
       });
     } catch (error) {
       console.error('Could not export product and supplier directory:', error);
@@ -722,11 +715,8 @@ function ProductSupplier({
                 { key: 'name', label: 'Product Name' },
                 { key: 'category', label: 'Category' },
                 { key: 'brand', label: 'Brand' },
-                { key: 'unitCost', label: 'Cost' },
-                { key: 'supplierId', label: 'Supplier ID' },
-                { key: 'supplierName', label: 'Supplier Name' },
-                { key: 'supplierLeadTimeDays', label: 'Lead Time' },
-                { key: 'stock', label: 'Total Inventory' },
+                { key: 'supplierName', label: 'Supplier' },
+                { key: 'stock', label: 'Stock' },
               ].map((opt) => (
                 <button
                   key={opt.key}
@@ -783,17 +773,15 @@ function ProductSupplier({
                   aria-label="Select all rows"
                 />
               </th>
-              <th>SKU</th>
-              <th className="ps-th-pic">Image</th>
+              <th>Product ID</th>
+              <th className="ps-th-pic">Picture</th>
               <th className="ps-th-left">Product Name{sortIndicator('name')}</th>
+              <th className="ps-th-left">Variant</th>
               <th>Category{sortIndicator('category')}</th>
               <th>Brand{sortIndicator('brand')}</th>
               <th>Model</th>
-              <th>Cost{sortIndicator('unitCost')}</th>
-              <th>Supplier ID{sortIndicator('supplierId')}</th>
-              <th className="ps-th-left">Supplier Name{sortIndicator('supplierName')}</th>
-              <th>Lead Time{sortIndicator('supplierLeadTimeDays')}</th>
-              <th>Total Inventory{sortIndicator('stock')}</th>
+              <th>Unit Measure</th>
+              <th className="ps-th-left">Supplier{sortIndicator('supplierName')}</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -810,13 +798,11 @@ function ProductSupplier({
                 <td><span className="ps-skeleton-block ps-skeleton-short" /></td>
                 <td><span className="ps-skeleton-block ps-skeleton-short" /></td>
                 <td><span className="ps-skeleton-block ps-skeleton-wide" /></td>
-                <td><span className="ps-skeleton-block ps-skeleton-short" /></td>
-                <td><span className="ps-skeleton-block ps-skeleton-short" /></td>
                 <td><span className="ps-skeleton-block ps-skeleton-actions" /></td>
               </tr>
             )) : productsError ? (
               <tr>
-                <td colSpan={13} className="ps-empty-state" role="alert">
+                <td colSpan={11} className="ps-empty-state" role="alert">
                   {productsError}{' '}
                   <button type="button" className="ps-retry-btn" onClick={() => setProductsRetry((retry) => retry + 1)}>
                     Retry
@@ -845,8 +831,8 @@ function ProductSupplier({
                     aria-label={`Select ${product.name}`}
                   />
                 </td>
-                <td className="ps-td-nowrap ps-td-muted" data-label="SKU">{product.sku || product.id}</td>
-                <td className="ps-td-pic" data-label="Image">
+                <td className="ps-td-nowrap ps-td-muted" data-label="Product ID">{product.id}</td>
+                <td className="ps-td-pic" data-label="Picture">
                   {product.image ? (
                     <ProductImagePreview src={product.image} name={product.name} />
                   ) : (
@@ -858,20 +844,32 @@ function ProductSupplier({
                     <span className="ps-name-text">{product.name}</span>
                   </span>
                 </td>
+                <td className="ps-td-left" data-label="Variant" title={(product.variants || []).join(', ')}>
+                  {product.variants?.length ? (
+                    <span className="ps-variant-list">
+                      {product.variants.slice(0, 3).map((variant) => (
+                        <span className="ps-variant-chip" key={variant}>{variant}</span>
+                      ))}
+                      {product.variants.length > 3 && (
+                        <span className="ps-variant-chip ps-variant-more">+{product.variants.length - 3}</span>
+                      )}
+                    </span>
+                  ) : <span className="ps-td-muted">—</span>}
+                </td>
                 <td data-label="Category">{product.category || '—'}</td>
                 <td data-label="Brand">{product.brand || '—'}</td>
                 <td data-label="Model">{product.model || '—'}</td>
-                <td data-label="Cost">{product.unitCost != null ? formatCurrency(product.unitCost) : '—'}</td>
-                <td data-label="Supplier ID">{product.supplierId ?? '—'}</td>
-                <td className="ps-td-left ps-td-muted" data-label="Supplier Name" title={product.supplierName}>
+                <td data-label="Unit Measure">{product.unitMeasure || '—'}</td>
+                <td className="ps-td-left ps-td-muted" data-label="Supplier" title={product.supplierName}>
                   {product.supplierName ? (
                     <span className="ps-supplier-cell">
                       <span className="ps-supplier-name">{product.supplierName}</span>
+                      {product.supplierContact && (
+                        <span className="ps-supplier-contact">{product.supplierContact}</span>
+                      )}
                     </span>
                   ) : '—'}
                 </td>
-                <td data-label="Lead Time">{product.supplierLeadTimeDays != null ? `${product.supplierLeadTimeDays} days` : '—'}</td>
-                <td data-label="Total Inventory">{product.stock ?? 0}</td>
                 <td className="ps-td-actions" data-label="Actions" onClick={(e) => e.stopPropagation()}>
                   <div className="ps-action-cell-container">
                     {canEditProduct && (
@@ -904,7 +902,7 @@ function ProductSupplier({
 
             {!productsLoading && !productsError && visibleProducts.length === 0 && (
               <tr>
-                <td colSpan={13} className="ps-empty-state">
+                <td colSpan={11} className="ps-empty-state">
                   {productsFromDatabase.length === 0
                     ? 'No products registered yet. Click “Add” to register one.'
                     : 'No products match your search.'}
@@ -967,7 +965,7 @@ function ProductSupplier({
 
             <div className="ps-modal-body">
               <div className="ps-modal-idtag">
-                <span className="ps-modal-idtag-label">SKU</span>
+                <span className="ps-modal-idtag-label">Product ID</span>
                 <span className="ps-modal-idtag-value">{detailProduct.id}</span>
               </div>
 
@@ -1050,7 +1048,7 @@ function ProductSupplier({
               <div className="ps-modal-body">
                 {modalMode === 'edit' && formData.id && (
                   <div className="ps-modal-idtag">
-                    <span className="ps-modal-idtag-label">SKU</span>
+                    <span className="ps-modal-idtag-label">Product ID</span>
                     <span className="ps-modal-idtag-value">{formData.id}</span>
                   </div>
                 )}
@@ -1107,29 +1105,15 @@ function ProductSupplier({
                       />
                     </div>
                     <div className="ps-form-group">
-                      <label htmlFor="unitCost">Unit Purchase Cost ({currencySymbol})</label>
+                      <label htmlFor="unitMeasure">Unit Measure</label>
                       <input
-                        id="unitCost"
-                        name="unitCost"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={formData.unitCost}
+                        id="unitMeasure"
+                        name="unitMeasure"
+                        value={formData.unitMeasure}
                         onChange={handleFormChange}
-                        placeholder="Per-unit purchase cost"
+                        placeholder="Units, Pairs, Boxes…"
                       />
                     </div>
-                  </div>
-
-                  <div className="ps-form-group ps-form-group-wide">
-                    <label htmlFor="unitMeasure">Unit Measure</label>
-                    <input
-                      id="unitMeasure"
-                      name="unitMeasure"
-                      value={formData.unitMeasure}
-                      onChange={handleFormChange}
-                      placeholder="Units, Pairs, Boxes…"
-                    />
                   </div>
 
                   <div className="ps-form-group ps-form-group-wide">
@@ -1323,7 +1307,7 @@ function ProductSupplier({
                     {confirmTarget.type === 'single'
                       ? <>This product still has <strong>{units}</strong> in stock.</>
                       : <><strong>{withStock.length}</strong> of these still {withStock.length === 1 ? 'has' : 'have'} stock (<strong>{units}</strong> units in total).</>}
-                    {' '}It will disappear from Stock Control, Reorder Alerts, Reports and forecasts. Its stock entries go to the Trash Bin with it and come back if it is restored.
+                    {' '}It will disappear from Stock Control, the Reorder List, Reports and forecasts. Its stock entries go to the Trash Bin with it and come back if it is restored.
                   </p>
                 );
               })()}

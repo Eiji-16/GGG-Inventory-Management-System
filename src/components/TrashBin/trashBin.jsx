@@ -6,6 +6,7 @@ import { Search, RotateCcw, Trash2, AlertTriangle, Package, X } from 'lucide-rea
 import '../StockControl/stockControl.css';
 import './trashBin.css';
 import apiFetch from '../../apiFetch';
+import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
 import { useCurrency } from '../../CurrencyContext';
 
 /* ===== TRASH BIN =====
@@ -141,10 +142,18 @@ function TrashBin({
 
       <div className="sc-navigation-bar">
         <div className="sc-search-wrapper">
-          <div className="sc-search-box">
-            <Search size={13} className="sc-search-icon" />
-            <input type="search" placeholder="Search the Trash Bin…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search the Trash Bin" />
-          </div>
+          {/* Preset searches: categories of the deleted items on the open tab. */}
+          <SearchSuggestions
+            query={query}
+            suggestions={(tab === 'products' ? products : movements).map((item) => item.category)}
+            onPick={setQuery}
+            label="Categories"
+          >
+            <div className="sc-search-box">
+              <Search size={13} className="sc-search-icon" />
+              <input type="search" placeholder="Search the Trash Bin…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search the Trash Bin" />
+            </div>
+          </SearchSuggestions>
         </div>
       </div>
 

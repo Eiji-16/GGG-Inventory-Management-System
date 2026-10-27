@@ -69,10 +69,10 @@ class RoleAccessService
         'stock.export'  => ['code' => 'kx', 'group' => 'Stock Control', 'label' => 'Export to Excel', 'parent' => 'stock.view'],
         'stock.history' => ['code' => 'kh', 'group' => 'Stock Control', 'label' => 'Activity history', 'parent' => 'stock.view'],
 
-        // Reorder Alerts
-        'reorder.view' => ['code' => 'rv', 'group' => 'Reorder Alerts', 'label' => 'Open Reorder Alerts'],
-        'reorder.notify'   => ['code' => 'rn', 'group' => 'Reorder Alerts', 'label' => 'Send restock requests (Notify button)', 'parent' => 'reorder.view'],
-        'reorder.requests' => ['code' => 'rr', 'group' => 'Reorder Alerts', 'label' => 'See and close restock requests (bell)', 'parent' => 'reorder.view'],
+        // Reorder List (was "Auto Reorder Alerts"; the keys and codes stay the same)
+        'reorder.view' => ['code' => 'rv', 'group' => 'Reorder List', 'label' => 'Open Reorder List'],
+        'reorder.notify'   => ['code' => 'rn', 'group' => 'Reorder List', 'label' => 'Send restock requests (Notify button)', 'parent' => 'reorder.view'],
+        'reorder.requests' => ['code' => 'rr', 'group' => 'Reorder List', 'label' => 'See and close restock requests (bell)', 'parent' => 'reorder.view'],
 
         // Order Quantity Calculator (also controls "Order Now" and the row calculator buttons)
         'calculator.use'        => ['code' => 'cu', 'group' => 'Order Quantity Calculator', 'label' => 'Open and compute (also "Order Now")'],

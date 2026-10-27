@@ -87,6 +87,7 @@ class DashboardSummaryController extends Controller
             ));
         \App\Models\PastSale::query()
             ->whereIn('product_id', $productsById->keys())
+            ->where('period_type', 'month') // monthly chart: weekly past sales are for weekly forecasts
             ->get(['product_id', 'period_date', 'units_sold'])
             ->each(function ($past) use ($productsById, $forecasts, $addSale): void {
                 $product = $productsById[$past->product_id];

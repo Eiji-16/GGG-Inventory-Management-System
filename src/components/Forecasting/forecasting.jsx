@@ -438,6 +438,8 @@ export default function DemandForecastDesign({
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [computing, setComputing] = useState(false);
   const [showAllRows, setShowAllRows] = useState(false);
+  // The full forecast table now opens in a pop-up (the page itself fits on one screen).
+  const [showTable, setShowTable] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -800,8 +802,18 @@ export default function DemandForecastDesign({
     ? [...chartHistory, { periodDate: forecast.forecastPeriod, unitsSold: forecastDemand, isForecast: true }]
     : chartHistory;
   const chartMax = Math.max(1, ...chartRows.map((row) => Number(row.unitsSold)));
+  /* The periods that make up the next forecast (newest = heaviest weight). */
+  const weightedRows = historyRows.filter((row) => row.weight);
+  const weightTotal = weightedRows.reduce((sum, row) => sum + Number(row.weight), 0);
 
   const busy = loadingHistory || computing;
+
+  useEffect(() => {
+    if (!showTable) return undefined;
+    const onKey = (event) => { if (event.key === 'Escape') setShowTable(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showTable]);
 
   return (
     <div className="f-root">
@@ -881,11 +893,165 @@ export default function DemandForecastDesign({
                 </div>
               </div>
 
-              {/* ===== WMA TABLE + CHART (Figure 11) ===== */}
-              <section className="fx-card" aria-busy={busy}>
+              {/* ===== TOP ROW: chart (left) + compact forecast output (right) ===== */}
+              <div className="fx-top-split">
+              <section className="fx-card fx-chart-card" aria-busy={busy}>
                 <header className="fx-card-head">
                   <div className="fx-title">
-                    <h2>{selectedProduct?.name || 'Select a product'}</h2>
+                    <h2>{selectedProduct?.name || 'Sales Trend'}</h2>
+                    <p>
+                      {selectedProduct
+                        ? [selectedProduct.id, selectedProduct.category, `${Number(selectedProduct.stock || 0)} in stock`, `${periodAdjective} sales and the next forecast`].filter(Boolean).join(' · ')
+                        : 'Choose a product to see its sales trend and weighted moving average forecast.'}
+                    </p>
+                  </div>
+                  <div className="fx-pills">
+                    {forecast && (
+                      <span className={`fx-pill fx-conf-${confidence}`} title={`${dataPoints} completed ${dataPoints === 1 ? periodUnit : periodPlural} of sales`}>
+                        {confidence} confidence
+                      </span>
+                    )}
+                    {historyRows.length > 0 && (
+                      <button type="button" className="fx-pill fx-pill-btn" onClick={() => setShowTable(true)} title="See every period: actual sales, weight, forecast and variance">
+                        View full table
+                      </button>
+                    )}
+                  </div>
+                </header>
+                {chartRows.length > 0 ? (
+                  <div className="fx-chart" role="img" aria-label={`${periodAdjective} units sold and next-period forecast`}>
+                    <div className="fx-bars">
+                      {chartRows.map((row) => {
+                        const value = Number(row.unitsSold);
+                        // Hover details = the same numbers the table shows for that period.
+                        const tip = row.isForecast
+                          ? `${formatHistoryPeriod(row.periodDate, selectedPeriodType)} forecast: ${value.toFixed(1)} units${forecast?.seasonalEnabled ? ` (base ${Number(forecast.baseForecast).toFixed(1)}, ${formatSigned(effectivePct, 1)}% seasonal)` : ''}`
+                          : [
+                            `${formatHistoryPeriod(row.periodDate, selectedPeriodType)}: ${value.toLocaleString()} sold`,
+                            row.wmaForecast != null ? `forecast ${Number(row.wmaForecast).toFixed(1)}` : null,
+                            row.variance != null ? `variance ${formatSigned(row.variance)}` : null,
+                            row.weight ? `weight ×${row.weight} in the next forecast` : null,
+                            row.source === 'past' ? 'from Past Sales' : row.source === 'mixed' ? 'Past Sales + Stock Out' : null,
+                          ].filter(Boolean).join(' · ');
+                        return (
+                          <div className={`fx-bar-col${row.isForecast ? ' is-forecast' : ''}${row.weight ? ' is-weighted' : ''}`} key={`${row.periodDate}-${row.isForecast ? 'f' : 'a'}`} title={tip}>
+                            <span className="fx-bar-value">{row.isForecast ? value.toFixed(1) : value.toLocaleString()}</span>
+                            <div className="fx-bar-track">
+                              <div className="fx-bar" style={{ height: `${Math.max(2, (value / chartMax) * 100)}%` }} />
+                            </div>
+                            <span className="fx-bar-label">
+                              {shortPeriodLabel(row.periodDate, selectedPeriodType)}
+                              {row.weight ? <em className="fx-bar-weight">×{row.weight}</em> : null}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="fx-legend">
+                      <span><i className="fx-dot-actual" />Actual</span>
+                      {forecast && <span><i className="fx-dot-forecast" />Forecast{forecast.seasonalEnabled ? ' (adjusted)' : ''}</span>}
+                      {weightedRows.length > 0 && <span className="fx-legend-hint">×1 ×2 ×3 = weights · hover a bar for details</span>}
+                    </div>
+                    {/* How the forecast was computed (the key part of the old table). */}
+                    {forecast && weightedRows.length > 0 && (
+                      <p className="fx-calc-strip">
+                        <span className="fx-calc-label">{FORECAST_METHOD}</span>
+                        <span>
+                          ({weightedRows.map((row) => `${Number(row.unitsSold).toLocaleString()}×${row.weight}`).join(' + ')}) ÷ {weightTotal} = <strong>{Number(forecast.baseForecast).toFixed(1)}</strong>
+                          {forecast.seasonalEnabled ? <> → <strong className="fx-calc-adj">{Number(adjustedDemand).toFixed(1)}</strong> with {formatSigned(effectivePct, 1)}% seasonal</> : null}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="fx-chart-empty">{busy ? 'Loading sales history…' : productId ? `No completed ${periodPlural} of sales yet.` : 'Select a product.'}</p>
+                )}
+              </section>
+
+              {/* Compact forecast output: numbers, details and buttons. */}
+              <section className="fx-card fx-output-card">
+                <header className="fx-card-head">
+                  <div className="fx-title">
+                    <h2>Adjusted Forecast Output</h2>
+                    <p>{forecast ? `Forecast for ${formatPeriod(forecast.forecastPeriod, selectedPeriodType)}` : 'Waiting for a forecast'}</p>
+                  </div>
+                  {forecast?.seasonalEnabled && (
+                    <div className="fx-pills">
+                      {forecast.seasonalEvents.map((item) => (
+                        <span
+                          className="fx-pill fx-pill-gold"
+                          key={item.id}
+                          title={`${item.name}: ${formatSigned(item.adjustmentPct, 0)}% on ${item.appliedDays ?? item.overlapDays} of ${forecast.periodDays} days${item.appliedDays < item.overlapDays ? ` (${item.overlapDays - item.appliedDays} day(s) covered by a stronger event)` : ''}`}
+                        >
+                          {formatSigned(item.contributionPct ?? item.adjustmentPct, 1)}% {item.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </header>
+
+                <div className="fx-output">
+                  <div className="fx-stat">
+                    <span>Base Forecast</span>
+                    <strong>{forecast ? Number(forecast.baseForecast).toFixed(1) : '—'}</strong>
+                    <small>units / {periodUnit}</small>
+                  </div>
+                  <div className="fx-stat fx-stat-main">
+                    <span>Adjusted ({forecast ? formatPeriod(forecast.forecastPeriod, selectedPeriodType) : periodUnit})</span>
+                    <strong>{forecast ? Number(adjustedDemand).toFixed(1) : '—'}</strong>
+                    <small>{forecast ? `${formatSigned(effectivePct, 1)}% seasonal` : 'units'}</small>
+                  </div>
+                  <div className="fx-stat">
+                    <span>Annual Estimate</span>
+                    <strong>{forecast ? annualDemand.toLocaleString() : '—'}</strong>
+                    <small>{forecast ? `${Number(adjustedDemand).toFixed(1)} × ${annualPeriods}` : 'units / year'}</small>
+                  </div>
+                </div>
+                <dl className="fx-facts">
+                  <div><dt>Current stock</dt><dd>{selectedProduct ? `${Number(selectedProduct.stock || 0)} units` : '—'}</dd></div>
+                  <div><dt>Suggested reorder</dt><dd>{forecast ? `${reorderQuantity} units` : '—'}</dd></div>
+                  <div><dt>Avg. {periodAdjective} sales</dt><dd>{historyRows.length ? `${Math.round(overallAverage)} units` : '—'}</dd></div>
+                  <div><dt>Avg. variance</dt><dd>{forecast?.meanAbsoluteDeviation != null ? `±${forecast.meanAbsoluteDeviation}` : '—'}</dd></div>
+                </dl>
+
+                {forecast && dataPoints < 3 && (
+                  <p className="fx-warning" role="note">
+                    Only {dataPoints} completed {dataPoints === 1 ? periodUnit : periodPlural} of sales — this forecast may not be reliable yet.
+                  </p>
+                )}
+
+                <div className="fx-actions">
+                  {canComputeEoq && (
+                  <button type="button" className="f-btn f-btn-primary" onClick={computeEoqFromForecast} disabled={!forecast || annualDemand <= 0}>
+                    <CalculatorIcon /> Compute Order Quantity
+                  </button>
+                  )}
+                  {canExport && (
+                  <>
+                  <button type="button" className="f-btn f-btn-ghost" onClick={exportForecastExcel} disabled={!forecast}>
+                    <FileIcon /> Excel
+                  </button>
+                  <button type="button" className="f-btn f-btn-ghost" onClick={exportForecastPdf} disabled={!forecast}>
+                    <FileIcon /> PDF
+                  </button>
+                  </>
+                  )}
+                </div>
+                {forecast && canComputeEoq && (
+                  <p className="fx-handoff">
+                    Sends {annualDemand.toLocaleString()} units/year to the Economic Order Quantity Calculator as annual demand.
+                  </p>
+                )}
+              </section>
+              </div>
+
+              {/* ===== FULL FORECAST TABLE (Figure 11) — opens in a pop-up ===== */}
+              {showTable && createPortal(
+              <div className="f-event-modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowTable(false); }}>
+              <section className="fx-card fx-table-modal" aria-busy={busy} role="dialog" aria-modal="true" aria-labelledby="fx-table-title">
+                <header className="fx-card-head">
+                  <div className="fx-title">
+                    <h2 id="fx-table-title">Forecast table — {selectedProduct?.name || 'Select a product'}</h2>
                     <p>
                       {selectedProduct
                         ? [selectedProduct.id, selectedProduct.category, `${Number(selectedProduct.stock || 0)} in stock`].filter(Boolean).join(' · ')
@@ -901,6 +1067,7 @@ export default function DemandForecastDesign({
                     {forecast?.seasonalEnabled && (
                       <span className="fx-pill fx-pill-gold">Seasonal adj. active {formatSigned(effectivePct, 1)}%</span>
                     )}
+                    <button type="button" className="fx-modal-close" onClick={() => setShowTable(false)} aria-label="Close table">×</button>
                   </div>
                 </header>
 
@@ -924,7 +1091,7 @@ export default function DemandForecastDesign({
                             {productId ? (
                               <>
                                 No completed {periodPlural} of sales yet. Sales appear here automatically from Stock Out transactions in Stock Control
-                                {selectedPeriodType !== 'week' && canEditPastSales && (
+                                {canEditPastSales && (
                                   <>, or add her earlier sales in{' '}
                                     <button type="button" className="fx-inline-link" onClick={() => setView('past')}>Past Sales</button>
                                   </>
@@ -980,111 +1147,15 @@ export default function DemandForecastDesign({
                   </table>
                 </div>
 
-                {chartRows.length > 0 && (
-                  <div className="fx-chart" role="img" aria-label={`${periodAdjective} units sold and next-period forecast`}>
-                    <div className="fx-bars">
-                      {chartRows.map((row) => {
-                        const value = Number(row.unitsSold);
-                        return (
-                          <div className={`fx-bar-col${row.isForecast ? ' is-forecast' : ''}`} key={`${row.periodDate}-${row.isForecast ? 'f' : 'a'}`}>
-                            <span className="fx-bar-value">{row.isForecast ? value.toFixed(1) : value.toLocaleString()}</span>
-                            <div className="fx-bar-track">
-                              <div className="fx-bar" style={{ height: `${Math.max(2, (value / chartMax) * 100)}%` }} />
-                            </div>
-                            <span className="fx-bar-label" title={formatHistoryPeriod(row.periodDate, selectedPeriodType)}>{shortPeriodLabel(row.periodDate, selectedPeriodType)}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="fx-legend">
-                      <span><i className="fx-dot-actual" />Actual</span>
-                      {forecast && <span><i className="fx-dot-forecast" />Forecast{forecast.seasonalEnabled ? ' (adjusted)' : ''}</span>}
-                    </div>
-                  </div>
-                )}
-
                 <p className="fx-note">
-                  <strong>{FORECAST_METHOD}:</strong> {FORECAST_METHOD_NOTE} Actual sales are the Stock Out quantities recorded in Stock Control for each completed {periodUnit}{selectedPeriodType !== 'week' ? ' (rows marked Past come from Past Sales)' : ''};
+                  <strong>{FORECAST_METHOD}:</strong> {FORECAST_METHOD_NOTE} Actual sales are the Stock Out quantities recorded in Stock Control for each completed {periodUnit} (rows marked Past come from Past Sales{selectedPeriodType === 'week' ? ' — weekly entries' : ' — monthly entries'});
                   Variance = Actual − Forecast.
                 </p>
               </section>
+              </div>,
+              document.body,
+              )}
 
-              {/* ===== ADJUSTED FORECAST OUTPUT ===== */}
-              <section className="fx-card">
-                <header className="fx-card-head">
-                  <div className="fx-title">
-                    <h2>Adjusted Forecast Output</h2>
-                    <p>{forecast ? `Forecast for ${formatPeriod(forecast.forecastPeriod, selectedPeriodType)}` : 'Waiting for a forecast'}</p>
-                  </div>
-                  {forecast?.seasonalEnabled && (
-                    <div className="fx-pills">
-                      {forecast.seasonalEvents.map((item) => (
-                        <span
-                          className="fx-pill fx-pill-gold"
-                          key={item.id}
-                          title={`${item.name}: ${formatSigned(item.adjustmentPct, 0)}% on ${item.appliedDays ?? item.overlapDays} of ${forecast.periodDays} days${item.appliedDays < item.overlapDays ? ` (${item.overlapDays - item.appliedDays} day(s) covered by a stronger event)` : ''}`}
-                        >
-                          {formatSigned(item.contributionPct ?? item.adjustmentPct, 1)}% {item.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </header>
-
-                <div className="fx-output">
-                  <div className="fx-stat">
-                    <span>Base Forecast</span>
-                    <strong>{forecast ? Number(forecast.baseForecast).toFixed(1) : '—'}</strong>
-                    <small>units / {periodUnit}</small>
-                  </div>
-                  <div className="fx-stat fx-stat-main">
-                    <span>Adjusted ({forecast ? formatPeriod(forecast.forecastPeriod, selectedPeriodType) : periodUnit})</span>
-                    <strong>{forecast ? Number(adjustedDemand).toFixed(1) : '—'}</strong>
-                    <small>{forecast ? `${formatSigned(effectivePct, 1)}% seasonal` : 'units'}</small>
-                  </div>
-                  <div className="fx-stat">
-                    <span>Annual Estimate</span>
-                    <strong>{forecast ? annualDemand.toLocaleString() : '—'}</strong>
-                    <small>{forecast ? `${Number(adjustedDemand).toFixed(1)} × ${annualPeriods}` : 'units / year'}</small>
-                  </div>
-                </div>
-
-                <dl className="fx-facts">
-                  <div><dt>Current stock</dt><dd>{selectedProduct ? `${Number(selectedProduct.stock || 0)} units` : '—'}</dd></div>
-                  <div><dt>Suggested reorder</dt><dd>{forecast ? `${reorderQuantity} units` : '—'}</dd></div>
-                  <div><dt>Avg. {periodAdjective} sales</dt><dd>{historyRows.length ? `${Math.round(overallAverage)} units` : '—'}</dd></div>
-                  <div><dt>Avg. variance</dt><dd>{forecast?.meanAbsoluteDeviation != null ? `±${forecast.meanAbsoluteDeviation}` : '—'}</dd></div>
-                </dl>
-
-                {forecast && dataPoints < 3 && (
-                  <p className="fx-warning" role="note">
-                    Only {dataPoints} completed {dataPoints === 1 ? periodUnit : periodPlural} of sales — this forecast may not be reliable yet.
-                  </p>
-                )}
-
-                <div className="fx-actions">
-                  {canComputeEoq && (
-                  <button type="button" className="f-btn f-btn-primary" onClick={computeEoqFromForecast} disabled={!forecast || annualDemand <= 0}>
-                    <CalculatorIcon /> Compute Order Quantity from Forecast
-                  </button>
-                  )}
-                  {canExport && (
-                  <>
-                  <button type="button" className="f-btn f-btn-ghost" onClick={exportForecastExcel} disabled={!forecast}>
-                    <FileIcon /> Excel
-                  </button>
-                  <button type="button" className="f-btn f-btn-ghost" onClick={exportForecastPdf} disabled={!forecast}>
-                    <FileIcon /> PDF
-                  </button>
-                  </>
-                  )}
-                </div>
-                {forecast && canComputeEoq && (
-                  <p className="fx-handoff">
-                    Sends {annualDemand.toLocaleString()} units/year to the Economic Order Quantity Calculator as annual demand.
-                  </p>
-                )}
-              </section>
             </div>
           )}
 

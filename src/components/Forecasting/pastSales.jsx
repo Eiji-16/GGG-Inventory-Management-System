@@ -4,11 +4,13 @@ import { readSalesFile, downloadTemplate, monthLabel } from '../../utils/pastSal
 
 /* ==========================================================================
    PAST SALES
-   Monthly sales from BEFORE a product's Stock Control records begin (e.g.
+   Monthly or weekly sales from BEFORE a product's Stock Control records begin (e.g.
    from the owner's old Excel sheets). Used only as forecasting history —
    it never changes stock on hand. Two ways in:
      1. Import from Excel (many products at once, with a preview first)
-     2. Enter manually (12-month grid for one product)
+     2. Enter manually (one product: 12-month grid, or the weeks of a month)
+   Monthly entries feed the month/year forecasts; weekly entries feed the
+   weekly forecast (a month can't be split into weeks, so they stay separate).
    ========================================================================== */
 
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -36,6 +38,29 @@ const currentMonthKey = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 };
+
+/* ===== WEEK HELPERS (local dates, Monday-start weeks like the forecast) ===== */
+const pad2 = (n) => String(n).padStart(2, '0');
+const dateKey = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const parseKey = (key) => { const [y, m, d] = key.split('-').map(Number); return new Date(y, m - 1, d); };
+const currentWeekKey = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));   // back to Monday
+  return dateKey(d);
+};
+/* The weeks whose Monday falls in the given month (4 or 5 weeks). */
+const weeksOfMonth = (year, monthIndex) => {
+  const d = new Date(year, monthIndex, 1);
+  d.setDate(d.getDate() + ((8 - d.getDay()) % 7));   // first Monday on/after the 1st
+  const weeks = [];
+  while (d.getMonth() === monthIndex) {
+    const end = new Date(d); end.setDate(end.getDate() + 6);
+    weeks.push({ key: dateKey(d), start: new Date(d), end });
+    d.setDate(d.getDate() + 7);
+  }
+  return weeks;
+};
+const shortDate = (d) => `${MONTH_SHORT[d.getMonth()]} ${d.getDate()}`;
 
 /* ===== IMPORT FROM EXCEL ===== */
 function ImportCard({ products, onImported }) {
@@ -136,7 +161,7 @@ function ImportCard({ products, onImported }) {
       <header className="fx-card-head">
         <div className="fx-title">
           <h2>Import from Excel</h2>
-          <p>For many products at once — use her existing Excel sheet or the template.</p>
+          <p>For many products at once — use her existing Excel sheet or the template. (Excel import is for monthly sales; weekly sales are entered below.)</p>
         </div>
       </header>
 
@@ -257,9 +282,11 @@ function ImportCard({ products, onImported }) {
 /* ===== ENTER MANUALLY (one product, 12-month grid) ===== */
 function ManualCard({ products, productId, onProductChange, onSaved }) {
   const [search, setSearch] = useState('');
+  const [periodType, setPeriodType] = useState('month'); // 'month' | 'week'
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [year, setYear] = useState(null);
+  const [monthIndex, setMonthIndex] = useState(0);        // weekly mode: which month's weeks
   const [drafts, setDrafts] = useState({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -283,42 +310,66 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
     if (!productId) return undefined;
     let active = true;
     setLoading(true);
-    requestJson(`/api/past-sales?product=${encodeURIComponent(productId)}`, { cache: 'no-store' })
+    requestJson(`/api/past-sales?product=${encodeURIComponent(productId)}&periodType=${periodType}`, { cache: 'no-store' })
       .then((result) => {
         if (!active) return;
         setData(result);
-        const cutoffYear = Number(result.cutoff.slice(0, 4));
-        const cutoffMonth = Number(result.cutoff.slice(5, 7));
-        setYear(cutoffMonth === 1 ? cutoffYear - 1 : cutoffYear);
+        if (periodType === 'week') {
+          // Open on the month of the last week that can still be entered.
+          const lastAllowed = parseKey(result.cutoff);
+          lastAllowed.setDate(lastAllowed.getDate() - 7);
+          setYear(lastAllowed.getFullYear());
+          setMonthIndex(lastAllowed.getMonth());
+        } else {
+          const cutoffYear = Number(result.cutoff.slice(0, 4));
+          const cutoffMonth = Number(result.cutoff.slice(5, 7));
+          setYear(cutoffMonth === 1 ? cutoffYear - 1 : cutoffYear);
+        }
       })
       .catch((loadError) => { if (active) setError(loadError.message || 'Could not load past sales.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [productId]);
+  }, [productId, periodType]);
 
-  const saved = useMemo(() => Object.fromEntries((data?.rows || []).map((row) => [row.month, row.unitsSold])), [data]);
-  const cutoff = data?.cutoff || currentMonthKey();
+  const isWeekly = periodType === 'week';
+  const saved = useMemo(
+    () => Object.fromEntries((data?.rows || []).map((row) => [isWeekly ? row.week : row.month, row.unitsSold])),
+    [data, isWeekly],
+  );
+  // Data loaded for the other mode while switching: wait for the right one.
+  const dataReady = data && (data.periodType || 'month') === periodType;
+  const cutoff = data?.cutoff || (isWeekly ? currentWeekKey() : currentMonthKey());
   const cutoffYear = Number(cutoff.slice(0, 4));
   const years = Array.from({ length: 6 }, (_, i) => cutoffYear - i);
-  const months = year ? MONTH_SHORT.map((label, i) => {
-    const key = `${year}-${String(i + 1).padStart(2, '0')}`;
-    return { key, label, locked: key >= cutoff };
-  }) : [];
+  /* The boxes to show: 12 months of the year, or the weeks of one month. */
+  const cells = !year || !dataReady ? [] : isWeekly
+    ? weeksOfMonth(year, monthIndex).map(({ key, start, end }) => ({
+        key,
+        label: `${shortDate(start)} – ${shortDate(end)}`,
+        title: `Week of ${shortDate(start)}, ${start.getFullYear()}`,
+        locked: key >= cutoff,
+        unfinished: key >= currentWeekKey(),
+      }))
+    : MONTH_SHORT.map((label, i) => {
+        const key = `${year}-${String(i + 1).padStart(2, '0')}`;
+        return { key, label: `${label} ${year}`, title: `${label} ${year}`, locked: key >= cutoff, unfinished: key >= currentMonthKey() };
+      });
+  const unitWord = isWeekly ? 'week' : 'month';
   const valueFor = (key) => (key in drafts ? drafts[key] : (saved[key] ?? ''));
-  const dirty = months.some(({ key, locked }) => !locked && key in drafts && String(drafts[key]) !== String(saved[key] ?? ''));
+  const dirty = cells.some(({ key, locked }) => !locked && key in drafts && String(drafts[key]) !== String(saved[key] ?? ''));
 
   const save = async () => {
     const records = [];
-    for (const { key, label, locked } of months) {
+    for (const { key, title, locked } of cells) {
       if (locked || !(key in drafts)) continue;
       const text = String(drafts[key]).trim();
       if (text === String(saved[key] ?? '')) continue;
       const units = text === '' ? null : Number(text);
       if (units !== null && (!Number.isInteger(units) || units < 0)) {
-        setError(`${label} ${year}: enter a whole number of 0 or more, or leave it blank.`);
+        setError(`${title}: enter a whole number of 0 or more, or leave it blank.`);
         return;
       }
-      records.push({ month: key, unitsSold: units });
+      records.push(isWeekly ? { week: key, unitsSold: units } : { month: key, unitsSold: units });
     }
     if (!records.length) return;
     setSaving(true);
@@ -326,11 +377,11 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
     try {
       const result = await requestJson('/api/past-sales', {
         method: 'PUT',
-        body: JSON.stringify({ productId, records }),
+        body: JSON.stringify(isWeekly ? { productId, periodType: 'week', records } : { productId, records }),
       });
       setData(result);
       setDrafts({});
-      setNotice(`Saved ${records.length} month${records.length === 1 ? '' : 's'} for ${result.productName}. The forecast now includes them.`);
+      setNotice(`Saved ${records.length} ${unitWord}${records.length === 1 ? '' : 's'} for ${result.productName}. The ${isWeekly ? 'weekly' : 'monthly and yearly'} forecast now includes them.`);
       onSaved?.();
     } catch (saveError) {
       setError(saveError.message || 'Could not save past sales.');
@@ -340,14 +391,30 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
   };
 
   const product = products.find((p) => p.id === productId);
-  const cutoffText = monthLabel(cutoff);
+  const cutoffText = isWeekly ? `the week of ${shortDate(parseKey(cutoff))}, ${cutoff.slice(0, 4)}` : monthLabel(cutoff);
 
   return (
     <section className="fx-card ps-card">
       <header className="fx-card-head">
         <div className="fx-title">
           <h2>Enter manually</h2>
-          <p>For one product — type the units sold per month.</p>
+          <p>For one product — type the units sold per {isWeekly ? 'week' : 'month'}.</p>
+        </div>
+        {/* Monthly entries feed the month/year forecast; weekly entries feed the weekly forecast. */}
+        <div className="fx-segmented ps-period-toggle" role="tablist" aria-label="Enter sales per">
+          {[['month', 'Monthly'], ['week', 'Weekly']].map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={periodType === value}
+              className={periodType === value ? 'is-active' : ''}
+              disabled={saving}
+              onClick={() => { if (value !== periodType) { setPeriodType(value); setDrafts({}); setNotice(''); setError(''); } }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </header>
 
@@ -365,27 +432,36 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
         </div>
         <div className="f-field">
           <label htmlFor="ps-year">Year</label>
-          <select id="ps-year" value={year ?? ''} onChange={(e) => { setYear(Number(e.target.value)); setDrafts({}); }} disabled={!data}>
+          <select id="ps-year" value={year ?? ''} onChange={(e) => { setYear(Number(e.target.value)); setDrafts({}); }} disabled={!dataReady}>
             {years.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
+        {isWeekly && (
+          <div className="f-field">
+            <label htmlFor="ps-month">Month</label>
+            <select id="ps-month" value={monthIndex} onChange={(e) => { setMonthIndex(Number(e.target.value)); setDrafts({}); }} disabled={!dataReady}>
+              {MONTH_SHORT.map((label, i) => <option key={label} value={i}>{label}</option>)}
+            </select>
+          </div>
+        )}
       </div>
 
-      {data && (
+      {dataReady && (
         <p className="ps-detected">
           {data.recordingStart
-            ? <>Stock Control records for <strong>{product?.name || data.productName}</strong> begin in <strong>{monthLabel(data.recordingStart)}</strong>, so past sales can be entered up to the month before.</>
-            : <>No Stock Control records for <strong>{product?.name || data.productName}</strong> yet — any finished month before {cutoffText} can be entered.</>}
+            ? <>Stock Control records for <strong>{product?.name || data.productName}</strong> begin {isWeekly ? <>on <strong>{shortDate(parseKey(data.recordingStart))}, {data.recordingStart.slice(0, 4)}</strong></> : <>in <strong>{monthLabel(data.recordingStart)}</strong></>}, so past sales can be entered up to the {unitWord} before.</>
+            : <>No Stock Control records for <strong>{product?.name || data.productName}</strong> yet — any finished {unitWord} before {cutoffText} can be entered.</>}
+          {isWeekly && ' Weeks run Monday to Sunday, the same as the weekly forecast.'}
         </p>
       )}
 
-      {loading ? <p className="ps-muted">Loading…</p> : data && (
-        <div className="ps-grid">
-          {months.map(({ key, label, locked }) => (
-            <label key={key} className={`ps-month${locked ? ' is-locked' : ''}${saved[key] !== undefined ? ' has-value' : ''}`}>
-              <span>{label} {year}</span>
+      {loading ? <p className="ps-muted">Loading…</p> : dataReady && (
+        <div className={`ps-grid${isWeekly ? ' ps-grid-weeks' : ''}`}>
+          {cells.map(({ key, label, title, locked, unfinished }) => (
+            <label key={key} className={`ps-month${locked ? ' is-locked' : ''}${saved[key] !== undefined ? ' has-value' : ''}`} title={title}>
+              <span>{label}</span>
               {locked ? (
-                <em>{key >= currentMonthKey() ? 'Not finished' : 'From Stock Control'}</em>
+                <em>{unfinished ? 'Not finished' : 'From Stock Control'}</em>
               ) : (
                 <input
                   type="number"
@@ -395,7 +471,7 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
                   placeholder="—"
                   value={valueFor(key)}
                   onChange={(e) => setDrafts((current) => ({ ...current, [key]: e.target.value }))}
-                  aria-label={`${label} ${year} units sold`}
+                  aria-label={`${title} units sold`}
                 />
               )}
             </label>
@@ -408,11 +484,11 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
 
       <div className="fx-actions">
         <button type="button" className="f-btn f-btn-primary" onClick={save} disabled={!dirty || saving}>
-          {saving ? 'Saving…' : 'Save months'}
+          {saving ? 'Saving…' : `Save ${unitWord}s`}
         </button>
         {dirty && <button type="button" className="f-btn f-btn-ghost" onClick={() => setDrafts({})} disabled={saving}>Undo changes</button>}
       </div>
-      <p className="ps-muted hint-text">Leave a month blank if there is no record. Clearing a saved month and saving removes it.</p>
+      <p className="ps-muted hint-text">Leave a {unitWord} blank if there is no record. Clearing a saved {unitWord} and saving removes it.{isWeekly ? ' Weekly entries are used by the weekly forecast; monthly entries by the monthly and yearly forecast.' : ''}</p>
     </section>
   );
 }
@@ -424,9 +500,9 @@ export default function PastSalesPanel({ products, productId, onProductChange, o
         <div className="fx-title">
           <h2>Past Sales</h2>
           <p>
-            Monthly sales from <strong>before</strong> a product was recorded in Stock Control — for example from the owner’s old Excel sheets.
+            Monthly or weekly sales from <strong>before</strong> a product was recorded in Stock Control — for example from the owner’s old Excel sheets.
             They give the forecast history to work with right away. They are only used for forecasting and never change stock on hand.
-            From the month a product’s Stock Control records begin, its sales come from Stock Out transactions instead, so nothing is counted twice.
+            From the month (or week) a product’s Stock Control records begin, its sales come from Stock Out transactions instead, so nothing is counted twice. Monthly entries are used by the monthly and yearly forecast; weekly entries by the weekly forecast.
           </p>
         </div>
       </section>
