@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
+use App\Models\Supplier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Tests\Concerns\AuthenticatesBusinessApi;
@@ -166,5 +167,53 @@ class ProductPersistenceTest extends TestCase
             'name' => 'Poco X6 Pro Updated',
         ]);
         $this->assertSame(1, Product::where('code', $created['id'])->count());
+    }
+
+    public function test_product_catalog_returns_sku_cost_supplier_and_current_inventory_fields(): void
+    {
+        $supplier = Supplier::create([
+            'name' => 'Catalog Supplier',
+            'lead_time_days' => 6,
+        ]);
+
+        $createdResponse = $this->postJson('/api/products', [
+            'name' => 'Catalog Item',
+            'supplierName' => $supplier->name,
+            'unitCost' => 12.75,
+            'stock' => 8,
+        ])->assertCreated();
+        $created = $createdResponse->json();
+
+        $createdResponse
+            ->assertJsonPath('sku', $created['id'])
+            ->assertJsonPath('unitCost', '12.75')
+            ->assertJsonPath('supplierId', $supplier->id)
+            ->assertJsonPath('supplierName', $supplier->name)
+            ->assertJsonPath('supplierLeadTimeDays', 6)
+            ->assertJsonPath('stock', 8);
+
+        $this->putJson('/api/products/'.$created['id'], [
+            'unitCost' => 15.5,
+        ])->assertOk()
+            ->assertJsonPath('unitCost', '15.50')
+            ->assertJsonPath('supplierId', $supplier->id)
+            ->assertJsonPath('supplierLeadTimeDays', 6)
+            ->assertJsonPath('stock', 8);
+
+        $this->assertDatabaseHas('products', [
+            'code' => $created['id'],
+            'unit_cost' => 15.5,
+            'supplier_id' => $supplier->id,
+            'stock_on_hand' => 8,
+        ]);
+
+        $this->getJson('/api/products')->assertOk()->assertJsonFragment([
+            'sku' => $created['id'],
+            'unitCost' => '15.50',
+            'supplierId' => $supplier->id,
+            'supplierName' => $supplier->name,
+            'supplierLeadTimeDays' => 6,
+            'stock' => 8,
+        ]);
     }
 }
