@@ -39,6 +39,7 @@ import ReorderAlerts from '../ReorderAlerts/reorderAlerts'; /* ===== REORDER ALE
 import Settings from '../Settings/Settings'; /* ===== SETTINGS ===== */
 import Profile from '../Profile/profile'; /* ===== PROFILE ===== */
 import Staffs from '../Staffs/staffs'; /* ===== STAFFS ===== */
+import TrashBin from '../TrashBin/trashBin'; /* ===== TRASH BIN ===== */
 
 /* ===== NOTIFICATION ICONS ===== */
 const NOTIF_ICONS = {
@@ -116,9 +117,14 @@ function readSavedEoqHandoff(userId) {
   }
 }
 
+/* Bell items = reorder alerts. Same rule as the Dashboard "Reorder Alerts"
+   card, the sidebar badge and the Reorder Alerts page: a product that has
+   at least one stock entry and is at or below its low point. (Staff restock
+   requests are added to the bell separately.) */
 function createNotifications(summary, policy) {
   const notifications = [];
   (summary.products || []).forEach((product) => {
+    if (product.inStockControl === false) return; // no stock entries yet
     const stock = Number(product.stock) || 0;
     const reorderPoint = reorderPointFor({
       productId: product.id,
@@ -150,18 +156,9 @@ function createNotifications(summary, policy) {
     });
   });
 
-  (summary.stockMovements || []).slice(-5).reverse().forEach((movement) => {
-    const stockIn = movement.type === 'in';
-    notifications.push({
-      id: `movement-${movement.id}`,
-      type: stockIn ? 'success' : 'info',
-      title: `Stock ${stockIn ? 'in' : 'out'} recorded — ${movement.qty} units`,
-      meta: movement.productName,
-      time: formatNotificationTime(movement.createdAt || movement.date),
-      view: 'Stock',
-      read: false,
-    });
-  });
+  // "Stock in/out recorded" notices are no longer added: they made the bell
+  // number bigger than the Reorder Alerts count. Recent entries are still on
+  // the Dashboard and in Stock Control's activity history.
 
   return notifications;
 }
@@ -218,6 +215,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
     'Auto-Calculator':  'calculator.use',
     Forecasting:        'forecast.view',
     Reports:            'reports.view',
+    'Trash-Bin':        'trash.view',
   };
   const canAccess = (view) => {
     if (view === 'Dashboard' || view === 'Profile' || view === 'Setting') return true;
@@ -337,6 +335,11 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
   const notifRef = useRef(null); /* ===== NOTIFICATION REF ===== */
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  /* Red number on the bell = every current reorder alert (read or not, so it
+     always matches the Dashboard card and Reorder Alerts) + unread restock
+     requests from Staff. */
+  const unreadRequestCount = notifications.filter((n) => n.id.startsWith('request-') && !n.read).length;
+  const bellCount = reorderAlertCount + unreadRequestCount;
 
   useEffect(() => {
     if (!isLogoutConfirmOpen) return undefined;
@@ -427,7 +430,9 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
         if (active) setNotificationsLoading(false);
       });
     return () => { active = false; };
-  }, [notificationPreferenceKey, policyLoading, safetyStock]);
+  // Reload when stock changes (auto-refresh or a change on this device), so
+  // the bell and sidebar badge stay equal to the Dashboard card.
+  }, [notificationPreferenceKey, policyLoading, safetyStock, dataRevision, policyRefreshKey]);
 
   /* ===== RESTOCK REQUESTS IN THE BELL =====
      Staff "Notify" requests (Reorder Alerts). Checked every 30 seconds while
@@ -798,6 +803,14 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                 </button>
               </div>
               )}
+              {canAccess('Trash-Bin') && (
+              <div className={`siderbar-item ${activeView === 'Trash-Bin' ? 'active' : ''}`}>
+                <button onClick={() => handleNavigate('Trash-Bin')} title="Deleted products and stock entries">
+                  <Trash2 className="sidebar-icon"/>
+                  <span className="sidebar-label">Trash Bin</span>
+                </button>
+              </div>
+              )}
               <div className={`siderbar-item ${activeView === 'Profile' ? 'active' : ''}`}>
                 <button onClick={() => handleNavigate('Profile')} title="User Profile">
                   <User className="sidebar-icon"/>
@@ -851,6 +864,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                   {activeView === 'Reports' && 'Reports & Analytics'}
 
                   {activeView === 'Staffs' && 'Staffs'}
+                  {activeView === 'Trash-Bin' && 'Trash Bin'}
                   {activeView === 'Setting' && 'Settings'}
                   {activeView === 'Profile' && 'User Profile'}
                 </p>
@@ -865,6 +879,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                   {activeView === 'Reports' && 'Review inventory performance, optimization metrics, and forecasting trends'}
 
                   {activeView === 'Staffs' && 'Manage staffs'}
+                  {activeView === 'Trash-Bin' && 'Deleted products and stock entries — restore or delete permanently'}
                   {activeView === 'Setting' && 'Manage your workspace preferences'}
                   {activeView === 'Profile' && 'View and manage your account details'}
                 </p>
@@ -882,8 +897,8 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                   onClick={() => setIsNotifOpen((open) => !open)}
                 >
                   <Bell size={16} />
-                  {unreadCount > 0 && (
-                    <span className="notif-bell-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                  {bellCount > 0 && (
+                    <span className="notif-bell-badge">{bellCount > 9 ? '9+' : bellCount}</span>
                   )}
                 </button>
 
@@ -1059,6 +1074,17 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     isActive={activeView === 'Reports'}
                     canTab={(key) => can(`reports.tab.${key}`)}
                     canExport={can('reports.export')}
+                  />
+                </div>
+              )}
+              {visitedViews.has('Trash-Bin') && canAccess('Trash-Bin') && (
+                <div className="app-view-panel" hidden={activeView !== 'Trash-Bin'}>
+                  <TrashBin
+                    isActive={activeView === 'Trash-Bin'}
+                    refreshKey={`${policyRefreshKey}-${dataRevision}`}
+                    onRestored={() => setPolicyRefreshKey((key) => key + 1)}
+                    canRestore={can('trash.restore')}
+                    canPurge={can('trash.purge')}
                   />
                 </div>
               )}

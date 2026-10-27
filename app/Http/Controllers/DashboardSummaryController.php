@@ -18,9 +18,9 @@ class DashboardSummaryController extends Controller
         // Speed: read every product's sales once instead of once per product.
         // The same two services are used for every number on this page.
         $reorderPoints->preload($productRecords);
-        // Deleted products keep their sales history on this page. Only the
-        // columns used here (not the product photos).
-        $productsById = Product::withTrashed()->get(['id', 'code', 'name', 'deleted_at'])->keyBy('id');
+        // Products in the Trash Bin are left out of every number here.
+        // Only the columns used here (not the product photos).
+        $productsById = Product::query()->get(['id', 'code', 'name', 'deleted_at'])->keyBy('id');
         $forecasts->preload($productsById);
         $demandReorder = new DemandReorderService($forecasts, $reorderPoints);
 

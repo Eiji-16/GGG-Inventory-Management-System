@@ -1325,6 +1325,52 @@
   font-weight: 700;
 }
 
+/* ===== QTY CELL: [ − ] qty [ + ] ===== */
+.sc-qty-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.sc-qty-value {
+  min-width: 2ch;
+  text-align: center;
+  font-weight: 700;
+}
+.sc-qty-btn {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.sc-qty-minus:hover:not(:disabled) { border-color: var(--accent-low); color: var(--accent-low); background: var(--accent-low-soft); }
+.sc-qty-plus:hover:not(:disabled) { border-color: var(--accent-high); color: var(--accent-high); background: var(--accent-high-soft); }
+.sc-qty-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.sc-qty-apply:hover:not(:disabled) { border-color: var(--accent-high); color: var(--accent-high); background: var(--accent-high-soft); }
+/* A draft is waiting: make ✓ stand out so it isn't forgotten. */
+.sc-qty-control.has-pending .sc-qty-apply:not(:disabled) {
+  border-color: var(--accent-high);
+  color: var(--accent-high);
+  background: var(--accent-high-soft);
+}
+.sc-qty-pending {
+  margin-left: 3px;
+  font-size: 0.7em;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
 /* ===== QUANTITY STEPPER (−  amount  +) ===== */
 .sc-stepper {
   display: flex;

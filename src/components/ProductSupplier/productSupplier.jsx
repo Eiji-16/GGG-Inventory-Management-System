@@ -4,6 +4,7 @@ import { Search, Plus, Edit, Trash2, X, Package, Info, Download, AlertTriangle, 
 
 import './productSupplier.css';
 import SupplierRecords from './supplierRecords';
+import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
 
@@ -664,16 +665,24 @@ function ProductSupplier({
       {/* ===== SEARCH BAR ===== */}
       <div className="ps-navigation-bar">
         <div className="ps-search-wrapper">
-          <div className="ps-search-box">
-            <Search size={13} className="ps-search-icon" />
-            <input
-              type="search"
-              placeholder="Search products…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search products"
-            />
-          </div>
+          {/* Preset searches: the categories your products already use. */}
+          <SearchSuggestions
+            query={query}
+            suggestions={productsFromDatabase.map((product) => product.category)}
+            onPick={setQuery}
+            label="Categories"
+          >
+            <div className="ps-search-box">
+              <Search size={13} className="ps-search-icon" />
+              <input
+                type="search"
+                placeholder="Search products…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search products"
+              />
+            </div>
+          </SearchSuggestions>
         </div>
         {canExportProducts && (
         <button
@@ -1283,7 +1292,7 @@ function ProductSupplier({
                 ) : (
                   <>You’re about to delete the selected products. </>
                 )}
-                This can’t be undone.
+                {confirmTarget.type === 'single' ? 'It' : 'They'} will move to the Trash Bin, where {confirmTarget.type === 'single' ? 'it' : 'they'} can be restored.
               </p>
               {/* Warn (but allow) when stock is still on hand. */}
               {(() => {
@@ -1298,7 +1307,7 @@ function ProductSupplier({
                     {confirmTarget.type === 'single'
                       ? <>This product still has <strong>{units}</strong> in stock.</>
                       : <><strong>{withStock.length}</strong> of these still {withStock.length === 1 ? 'has' : 'have'} stock (<strong>{units}</strong> units in total).</>}
-                    {' '}It will disappear from Stock Control totals, Reorder Alerts and Reports. Its past stock entries stay in the history marked “deleted product”.
+                    {' '}It will disappear from Stock Control, Reorder Alerts, Reports and forecasts. Its stock entries go to the Trash Bin with it and come back if it is restored.
                   </p>
                 );
               })()}

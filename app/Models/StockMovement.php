@@ -4,14 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * StockMovement — one stock movement or physical-count adjustment in the ledger.
  *
  * Writes, edits, and deletions update Product::stock_on_hand transactionally.
+ *
+ * Trash Bin: deleting an entry only sets deleted_at (soft delete), so every
+ * normal query (Stock Control, balances, reports, forecasts) skips it
+ * automatically. It can be restored or permanently deleted from the Trash Bin.
  */
 class StockMovement extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'product_id',
         'product_name',
@@ -25,6 +32,9 @@ class StockMovement extends Model
         'notes',
         'recorded_by',
         'movement_date',
+        'deleted_by',
+        'deleted_by_name',
+        'deleted_with_product',
     ];
 
     protected $casts = [
@@ -33,6 +43,7 @@ class StockMovement extends Model
         'is_adjustment'   => 'boolean',
         'remaining_stock' => 'integer',
         'movement_date'   => 'date',
+        'deleted_with_product' => 'boolean',
     ];
 
     /**

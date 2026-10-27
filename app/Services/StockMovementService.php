@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Product;
 use App\Models\SalesHistory;
 use App\Models\StockMovement;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -145,9 +146,14 @@ class StockMovementService
         });
     }
 
-    public function delete(StockMovement $existingMovement): void
+    /**
+     * Move one entry to the Trash Bin. The stock goes back to what it was
+     * before that entry (same as before), but the row is kept so it can be
+     * restored. Trashed rows are skipped by every normal query.
+     */
+    public function delete(StockMovement $existingMovement, ?User $deletedBy = null): void
     {
-        DB::transaction(function () use ($existingMovement) {
+        DB::transaction(function () use ($existingMovement, $deletedBy) {
             $movement = StockMovement::query()
                 ->lockForUpdate()
                 ->findOrFail($existingMovement->id);
@@ -158,6 +164,7 @@ class StockMovementService
             $this->ensureNonNegative($newStock);
             $lowestBefore = $this->historyLow($product)['min'];
 
+            $movement->forceFill($this->deletedByColumns($deletedBy) + ['deleted_with_product' => false])->save();
             $movement->delete();
             $product->update(['stock_on_hand' => $newStock]);
             $this->assertHistoryNotNegative($product, $this->reconcileMovementBalances($product), $lowestBefore);
@@ -165,15 +172,19 @@ class StockMovementService
         });
     }
 
-    public function clearProductStock(Product $existingProduct): int
+    /** "Clear stock": move ALL of a product's entries to the Trash Bin and set its stock to 0. */
+    public function clearProductStock(Product $existingProduct, ?User $deletedBy = null): int
     {
-        return DB::transaction(function () use ($existingProduct) {
+        return DB::transaction(function () use ($existingProduct, $deletedBy) {
             $product = Product::query()
                 ->lockForUpdate()
                 ->findOrFail($existingProduct->id);
 
             $movementCount = $product->stockMovements()->count();
-            $product->stockMovements()->delete();
+            $product->stockMovements()->update($this->deletedByColumns($deletedBy) + [
+                'deleted_at' => now(),
+                'deleted_with_product' => false,
+            ]);
             $product->update(['stock_on_hand' => 0]);
             // Its monthly sales came from those entries, so clear them too
             // (they were left behind before, and still showed on the Dashboard).
@@ -181,6 +192,138 @@ class StockMovementService
 
             return $movementCount;
         });
+    }
+
+    /* ===================== TRASH BIN ===================== */
+
+    /**
+     * Bring one entry back from the Trash Bin. Its quantity is applied to the
+     * stock again (a restored Stock In adds, a restored Stock Out subtracts)
+     * and every "Balance After" is recalculated. Refused if the product is
+     * itself in the Trash Bin, or if it would make the stock go below zero.
+     */
+    public function restore(int $movementId): StockMovement
+    {
+        return DB::transaction(function () use ($movementId) {
+            $movement = StockMovement::onlyTrashed()->lockForUpdate()->findOrFail($movementId);
+            $product = Product::withTrashed()->lockForUpdate()->findOrFail($movement->product_id);
+
+            if ($product->trashed()) {
+                throw ValidationException::withMessages([
+                    'product' => "{$product->name} is in the Trash Bin. Restore the product first.",
+                ]);
+            }
+
+            $lowestBefore = $this->historyLow($product)['min'];
+            $newStock = (int) $product->stock_on_hand + $this->deltaFor($movement);
+            if ($newStock < 0) {
+                throw ValidationException::withMessages([
+                    'qty' => "Restoring this entry would make {$product->name}'s stock go below zero ({$newStock}). Record the missing Stock In first.",
+                ]);
+            }
+
+            $movement->restore();
+            $movement->forceFill(['deleted_by' => null, 'deleted_by_name' => null, 'deleted_with_product' => false])->save();
+            $product->update(['stock_on_hand' => $newStock]);
+            $this->assertHistoryNotNegative($product, $this->reconcileMovementBalances($product), $lowestBefore);
+            $this->syncSalesFromMovements($product);
+
+            return $movement->fresh();
+        });
+    }
+
+    /** Erase one entry from the Trash Bin for good. Stock is not changed (it was already taken out). */
+    public function forceDelete(int $movementId): StockMovement
+    {
+        return DB::transaction(function () use ($movementId) {
+            $movement = StockMovement::onlyTrashed()->lockForUpdate()->findOrFail($movementId);
+            $copy = $movement->replicate();
+            $copy->id = $movement->id;
+            $movement->forceDelete();
+
+            return $copy;
+        });
+    }
+
+    /**
+     * Move a product to the Trash Bin together with all of its active stock
+     * entries. Its stock number is left as it is, so restoring the product
+     * later brings everything back exactly as it was.
+     */
+    public function trashProduct(Product $existingProduct, ?User $deletedBy = null): int
+    {
+        return DB::transaction(function () use ($existingProduct, $deletedBy) {
+            $product = Product::query()->lockForUpdate()->findOrFail($existingProduct->id);
+            $columns = $this->deletedByColumns($deletedBy);
+
+            $entryCount = $product->stockMovements()->count();
+            $product->stockMovements()->update($columns + [
+                'deleted_at' => now(),
+                'deleted_with_product' => true,
+            ]);
+
+            $product->forceFill($columns)->save();
+            $product->delete();
+            // Its saved monthly sales are kept (nothing is erased); screens
+            // skip products in the Trash Bin, and a restore recalculates them.
+
+            return $entryCount;
+        });
+    }
+
+    /** Bring a product back from the Trash Bin with the entries that went there with it. */
+    public function restoreProduct(Product $trashedProduct): int
+    {
+        return DB::transaction(function () use ($trashedProduct) {
+            $product = Product::onlyTrashed()->lockForUpdate()->findOrFail($trashedProduct->id);
+
+            $product->restore();
+            $product->forceFill(['deleted_by' => null, 'deleted_by_name' => null])->save();
+
+            $entryCount = StockMovement::onlyTrashed()
+                ->where('product_id', $product->id)
+                ->where('deleted_with_product', true)
+                ->update([
+                    'deleted_at' => null,
+                    'deleted_by' => null,
+                    'deleted_by_name' => null,
+                    'deleted_with_product' => false,
+                ]);
+
+            $this->reconcileMovementBalances($product);
+            $this->syncSalesFromMovements($product);
+
+            return $entryCount;
+        });
+    }
+
+    /**
+     * Erase a product from the Trash Bin for good, with every stock entry it
+     * still has (active or trashed) and the records that belong only to it
+     * (safety stock policy, saved sales, past sales, restock requests).
+     */
+    public function forceDeleteProduct(Product $trashedProduct): int
+    {
+        return DB::transaction(function () use ($trashedProduct) {
+            $product = Product::onlyTrashed()->lockForUpdate()->findOrFail($trashedProduct->id);
+
+            $entryCount = StockMovement::withTrashed()->where('product_id', $product->id)->count();
+            StockMovement::withTrashed()->where('product_id', $product->id)->forceDelete();
+            // The other related tables are removed by the database itself
+            // (their product_id is set to "cascade on delete").
+            $product->forceDelete();
+
+            return $entryCount;
+        });
+    }
+
+    /** @return array{deleted_by: ?int, deleted_by_name: ?string} */
+    private function deletedByColumns(?User $user): array
+    {
+        return [
+            'deleted_by' => $user?->id,
+            'deleted_by_name' => $user ? ($user->name ?: $user->email) : null,
+        ];
     }
 
     /**

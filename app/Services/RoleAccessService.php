@@ -98,6 +98,11 @@ class RoleAccessService
         'reports.tab.reorder_point'   => ['code' => 't8', 'group' => 'Reports', 'label' => 'Reorder Point Report tab', 'parent' => 'reports.view'],
         'reports.export'              => ['code' => 'tx', 'group' => 'Reports', 'label' => 'Export PDF / Excel', 'parent' => 'reports.view'],
 
+        // Trash Bin (deleted products and stock entries)
+        'trash.view'    => ['code' => 'bv', 'group' => 'Trash Bin', 'label' => 'Open Trash Bin'],
+        'trash.restore' => ['code' => 'br', 'group' => 'Trash Bin', 'label' => 'Restore deleted items', 'parent' => 'trash.view'],
+        'trash.purge'   => ['code' => 'bp', 'group' => 'Trash Bin', 'label' => 'Permanently delete items', 'parent' => 'trash.view'],
+
         // Other
         'notifications.view' => ['code' => 'nv', 'group' => 'Other', 'label' => 'Notification bell'],
         'settings.currency'  => ['code' => 'sc', 'group' => 'Other', 'label' => 'Change currency'],
@@ -125,13 +130,16 @@ class RoleAccessService
         'notifications.view',
     ];
 
+    /** Admin defaults: every feature EXCEPT these (erasing for good stays with the Super Admin). */
+    private const ADMIN_OFF = ['trash.purge'];
+
     /** @return array{admin: array<string,bool>, staff: array<string,bool>} */
     public static function defaults(): array
     {
         $admin = [];
         $staff = [];
         foreach (array_keys(self::FEATURES) as $key) {
-            $admin[$key] = true;                       // Admin could use every listed feature before
+            $admin[$key] = ! in_array($key, self::ADMIN_OFF, true); // Admin could use every listed feature before
             $staff[$key] = in_array($key, self::STAFF_ON, true);
         }
 

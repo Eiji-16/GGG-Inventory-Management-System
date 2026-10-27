@@ -30,6 +30,8 @@ class Product extends Model
         'supplier_id',
         'stock_on_hand',
         'unit_cost',
+        'deleted_by',
+        'deleted_by_name',
     ];
 
     protected $casts = [

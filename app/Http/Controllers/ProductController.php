@@ -46,10 +46,15 @@ class ProductController extends Controller
                 ->values()
                 ->all());
 
+        // Products with at least one stock entry ("tracked"). Only these can
+        // be reorder alerts — the same rule as the Dashboard card and the bell.
+        $tracked = array_flip(\App\Models\StockMovement::query()->distinct()->pluck('product_id')->filter()->all());
+
         return response()->json($products->map(fn ($p) => $this->format(
             $p,
             (int) ($demand[$p->id] ?? 0),
-            $variants[$p->id] ?? []
+            $variants[$p->id] ?? [],
+            isset($tracked[$p->id])
         )));
     }
 
@@ -221,22 +226,22 @@ class ProductController extends Controller
         return app(\App\Services\ProductPhotoService::class);
     }
 
-    /** DELETE /api/products/{code} */
-    public function destroy(string $code)
+    /** DELETE /api/products/{code} — moves the product (and its stock entries) to the Trash Bin. */
+    public function destroy(Request $request, string $code)
     {
         $product = Product::where('code', $code)->firstOrFail();
         $productName = $product->name;
         $stockOnHand = $product->stock_on_hand;
-        $product->delete();
+        $entryCount = app(\App\Services\StockMovementService::class)->trashProduct($product, $request->user());
 
         \App\Models\ActivityLog::record(
             'product.delete',
-            "Deleted product — {$productName}",
+            "Moved product to the Trash Bin — {$productName}",
             'boxes',
-            ['productId' => $code, 'product' => $productName, 'stockOnHand' => $stockOnHand]
+            ['productId' => $code, 'product' => $productName, 'stockOnHand' => $stockOnHand, 'trashedEntries' => $entryCount]
         );
 
-        return response()->json(['deleted' => true]);
+        return response()->json(['deleted' => true, 'trashed' => true, 'trashedEntries' => $entryCount]);
     }
 
     /**
@@ -273,7 +278,7 @@ class ProductController extends Controller
      *
      * @param  array{name: ?string, category: ?string, brand: ?string, model: ?string, unit_measure: ?string, supplier_id: ?int}  $values
      */
-    private function ensureNotDuplicate(array $values, ?int $ignoreProductId = null): void
+    public function ensureNotDuplicate(array $values, ?int $ignoreProductId = null): void
     {
         $query = Product::query();
 
@@ -331,8 +336,9 @@ class ProductController extends Controller
         return $code;
     }
 
-    private function format(Product $p, int $demandFromHistory = 0, ?array $variants = null): array
+    private function format(Product $p, int $demandFromHistory = 0, ?array $variants = null, ?bool $inStockControl = null): array
     {
+        $inStockControl ??= \App\Models\StockMovement::where('product_id', $p->id)->exists();
         // $variants here = names already typed on stock movements (older data).
         $variants ??= \App\Models\StockMovement::query()
             ->where('product_id', $p->id)
@@ -376,6 +382,8 @@ class ProductController extends Controller
             'holdingCost'     => auth()->user()?->isAdminOrAbove() ? $p->safetyStock?->holding_cost : null,
             // Units sold (stock out) in the trailing 12 months — real demand.
             'demandFromHistory' => $demandFromHistory,
+            // True once the product has a stock entry (see index()).
+            'inStockControl'  => $inStockControl,
         ];
     }
 

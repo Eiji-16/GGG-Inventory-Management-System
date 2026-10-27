@@ -19,9 +19,11 @@ import {
   Clock,
   ClipboardList,
   ArrowUpDown,
+  Check,
   Package } from 'lucide-react';
 
 import './stockControl.css';
+import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
 import apiFetch from '../../apiFetch';
 import { useCurrency } from '../../CurrencyContext';
 import { buildForecastHandoff } from '../../utils/forecastHandoff';
@@ -86,7 +88,8 @@ const activityPresentation = (item) => {
   if (item.action === 'stock.safety') return { Icon: AlertTriangle, cls: 'sc-act-delete', label: item.meta?.outOfStock ? 'Out of stock' : 'Below safety stock' };
   if (item.action === 'stock.clear') return { Icon: Trash2, cls: 'sc-act-delete', label: 'Cleared' };
   if (item.action === 'stock.edit') return { Icon: Pencil, cls: 'sc-act-edit', label: 'Updated' };
-  if (item.action === 'stock.delete') return { Icon: Trash2, cls: 'sc-act-delete', label: 'Deleted' };
+  if (item.action === 'stock.delete') return { Icon: Trash2, cls: 'sc-act-delete', label: 'Moved to Trash Bin' };
+  if (item.action === 'stock.restore') return { Icon: History, cls: 'sc-act-add', label: 'Restored' };
   if (item.meta?.type === 'Adjustment') return { Icon: Activity, cls: 'sc-act-edit', label: 'Corrected' };
   if (item.action === 'stock.out') return { Icon: ArrowDownRight, cls: 'sc-act-delete', label: 'Stock Out' };
   return { Icon: PlusCircle, cls: 'sc-act-add', label: 'Stock In' };
@@ -338,14 +341,20 @@ function StockControl({
   }, [productById, formData.productId]);
 
   /* ===== ENTRY PREVIEW =====
-     The signed quantity is the movement: positive adds stock, negative removes it. */
+     The quantity is always a positive number; the Type (Stock In / Stock Out)
+     decides whether it adds or removes stock. Edit mode has no quantity at all:
+     stock is changed with the − / + buttons in the QTY column instead. */
   const parsedQty = formData.qty === '' ? null : Number(formData.qty);
-  const projectedChange = Number.isInteger(parsedQty) ? parsedQty : null;
-  const isOut = projectedChange !== null && projectedChange < 0;
-  const validMovementQuantity = projectedChange !== null
-    && (projectedChange !== 0 || editId !== null)
+  const enteredQty = editId === null && Number.isInteger(parsedQty) && parsedQty >= 1 ? parsedQty : null;
+  const projectedChange = enteredQty === null
+    ? null
+    : (formData.type === 'Stock Out' ? -enteredQty : enteredQty);
+  const isOut = formData.type === 'Stock Out';
+  const validMovementQuantity = editId !== null || (
+    enteredQty !== null
     && currentOnHand !== null
-    && projectedChange >= -currentOnHand;
+    && (!isOut || enteredQty <= currentOnHand)
+  );
 
   const projectedRemaining = !formData.productName || currentOnHand === null || projectedChange === null
     ? null
@@ -381,6 +390,8 @@ function StockControl({
   // Shown after a new entry was added to an existing same-day entry.
   const [mergeNotice, setMergeNotice] = useState('');
   const [safetyAlert, setSafetyAlert] = useState(null);
+  // Products whose − / + button is saving right now (stops double clicks).
+  const [quickBusy, setQuickBusy] = useState(new Set());
   const [safetyOrdering, setSafetyOrdering] = useState(false);
   const orderFromSafetyAlert = async () => {
     if (!safetyAlert || !onNavigate) return;
@@ -479,9 +490,6 @@ function StockControl({
       case 'product':
         cmp = String(a.row.productName || '').localeCompare(String(b.row.productName || ''), undefined, { sensitivity: 'base' });
         break;
-      case 'change':
-        cmp = a.change - b.change;
-        break;
       case 'total':
         cmp = a.balanceAfter - b.balanceAfter;
         break;
@@ -514,7 +522,7 @@ function StockControl({
       setStockError('The Excel export could not be loaded. Please refresh the page and try again.');
       return;
     }
-    const headers = ['Date', 'Product', 'Variant', 'Type', 'Change', 'Balance After', 'Stock Status', 'Notes', 'Recorded By', `Unit Price (${currency})`];
+    const headers = ['Date', 'Product', 'Variant', 'Type', 'Change', 'QTY', 'Stock Status', 'Notes', 'Recorded By', `Unit Price (${currency})`];
     const exportedAt = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
     const uniqueProducts = new Set(visibleRows.map(({ row }) => row.productId)).size;
     const stockInCount = visibleRows.filter(({ row }) => row.type === 'Stock In').length;
@@ -562,7 +570,7 @@ function StockControl({
       ...bodyRows.map(({ values }) => values),
       [],
       ['Report scope', query.trim() ? `Filtered by: ${query.trim()}` : 'All records in the current view'],
-      ['Note', 'Change is the signed quantity of each transaction; Balance After is the product stock right after that transaction. Stock Status reflects current stock.'],
+      ['Note', 'Change is the signed quantity of each transaction; QTY is the product stock right after that transaction. Stock Status reflects current stock.'],
     ];
     const worksheet = XLSX.utils.aoa_to_sheet(rows);
     const lastDataRow = 7 + bodyRows.length;
@@ -746,7 +754,7 @@ function StockControl({
   };
 
   const openAddModal = () => {
-    setFormData({ ...emptyForm, date: todayLocal(), qty: '0', recordedBy: currentUserName });
+    setFormData({ ...emptyForm, date: todayLocal(), qty: '1', recordedBy: currentUserName });
     setEditId(null);
     setOpeningStock('');
     setIsModalOpen(true);
@@ -964,12 +972,12 @@ function StockControl({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  /* The counter stores a signed change: positive adds stock, negative removes it. */
+  /* The counter is a positive quantity (never below 1). */
   const adjustQuantity = (amount) => {
-    setFormData((prev) => ({
-      ...prev,
-      qty: String((Number.isInteger(Number(prev.qty)) ? Number(prev.qty) : 0) + amount),
-    }));
+    setFormData((prev) => {
+      const current = Number.isInteger(Number(prev.qty)) ? Number(prev.qty) : 1;
+      return { ...prev, qty: String(Math.max(1, current + amount)) };
+    });
   };
 
   const handleSave = async (e, { confirmed = false } = {}) => {
@@ -987,12 +995,10 @@ function StockControl({
       return;
     }
 
-    /* The signed quantity determines whether this is Stock In or Stock Out. */
-    const signedAmount = Number(formData.qty);
-
-    /* Editing with a change of 0 updates only the details (variant, price,
-       notes, recorded by) and keeps the transaction's quantity as it is. */
-    if (editId !== null && signedAmount === 0) {
+    /* Editing updates only the details (variant, price, notes, recorded by)
+       and keeps the entry's quantity as it is. Stock is changed with the
+       − / + buttons in the QTY column, not here. */
+    if (editId !== null) {
       try {
         const response = await apiFetch(`/api/stock-movements/${editId}`, {
           method: 'PUT',
@@ -1021,8 +1027,10 @@ function StockControl({
       return;
     }
 
-    if (!Number.isInteger(signedAmount) || signedAmount === 0) {
-      setStockError('Use + or − to enter a non-zero stock change.');
+    /* Quantity is a positive number; the Type decides Stock In or Stock Out. */
+    const amount = Number(formData.qty);
+    if (!Number.isInteger(amount) || amount < 1) {
+      setStockError('Enter a quantity of 1 or more.');
       return;
     }
 
@@ -1031,8 +1039,7 @@ function StockControl({
       return;
     }
 
-    const isStockOut = signedAmount < 0;
-    const amount = Math.abs(signedAmount);
+    const isStockOut = formData.type === 'Stock Out';
     if (isStockOut && currentOnHand - amount < 0) {
       setStockError(`Only ${currentOnHand} on hand — a Stock Out of ${amount} would make the total negative.`);
       return;
@@ -1094,22 +1101,150 @@ function StockControl({
       setStockError(error.message || 'Could not save stock movement.');
     }
   };
+
+  /* ===== QUICK − / + / ✓ (QTY column) =====
+     − and + only change a draft amount for that row (nothing is saved yet),
+     so they can be pressed many times. ✓ saves the draft as ONE entry dated
+     today for the row's product and variant: a positive draft is a Stock In,
+     a negative draft is a Stock Out (sale). Same-day entries are merged by
+     the server. Stock can never go below 0, and the safety-stock
+     confirmation still appears before a deduction that reaches it. */
+  // Draft amount per row id, e.g. { 12: +3, 15: -2 }. Not saved until ✓.
+  const [pendingQty, setPendingQty] = useState({});
+  const pendingFor = (rowId) => pendingQty[rowId] || 0;
+
+  const stepPending = (row, direction) => {
+    const product = productById.get(row.productId);
+    const onHand = Number(product?.stock);
+    if (!Number.isInteger(onHand)) return;
+    setPendingQty((prev) => {
+      const next = (prev[row.id] || 0) + direction;
+      if (onHand + next < 0) return prev; // never below 0 on hand
+      const updated = { ...prev };
+      if (next === 0) delete updated[row.id];
+      else updated[row.id] = next;
+      return updated;
+    });
+  };
+
+  const clearPending = (rowId) => {
+    setPendingQty((prev) => {
+      const updated = { ...prev };
+      delete updated[rowId];
+      return updated;
+    });
+  };
+
+  const lastPriceFor = (productId, type) => {
+    let latest = null;
+    stockFromDatabase.forEach((row) => {
+      if (row.productId !== productId || row.type !== type || row.unitPrice == null) return;
+      if (!latest
+        || new Date(row.date) - new Date(latest.date) > 0
+        || (row.date === latest.date && Number(row.id) > Number(latest.id))) {
+        latest = row;
+      }
+    });
+    return latest ? Number(latest.unitPrice) : null;
+  };
+
+  const applyPending = async (row, { confirmed = false } = {}) => {
+    const product = productById.get(row.productId);
+    const amount = pendingFor(row.id);
+    if (!product || amount === 0 || quickBusy.has(row.productId)) return;
+
+    const before = Number(product.stock);
+    if (!Number.isInteger(before) || before < 0) {
+      setStockError('This product does not have a valid stock balance. Refresh and try again.');
+      return;
+    }
+    const after = before + amount;
+    if (after < 0) {
+      setStockError(`Only ${before} of ${product.name} on hand — you can't deduct ${Math.abs(amount)}.`);
+      return;
+    }
+
+    const safetyInfo = { productId: product.id, productName: product.name, safetyStock: product.safetyStock };
+    if (amount < 0 && !confirmed) {
+      const reached = safetyReachedFor(safetyInfo, before, after, safetyStock);
+      if (reached) {
+        setConfirmSale({ ...reached, productName: product.name, quick: { row } });
+        return;
+      }
+    }
+    setConfirmSale(null);
+    const crossed = amount < 0 ? safetyCrossingFor(safetyInfo, before, after, safetyStock) : null;
+
+    const type = amount > 0 ? 'Stock In' : 'Stock Out';
+    // Unit price stays the same per unit: reuse the last price recorded for
+    // this product and type, then this row's price, then 0.
+    const unitPrice = lastPriceFor(product.id, type) ?? (row.unitPrice != null ? Number(row.unitPrice) : 0);
+
+    setQuickBusy((prev) => new Set(prev).add(product.id));
+    try {
+      const response = await apiFetch('/api/stock-movements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          productId: product.id,
+          productName: product.name,
+          variantName: row.variantName || null,
+          type,
+          qty: Math.abs(amount),
+          unitPrice,
+          notes: null,
+          recordedBy: currentUserName || null,
+          date: todayLocal(),
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const validationError = result.errors ? Object.values(result.errors).flat()[0] : result.message;
+        throw new Error(validationError || `Could not update the quantity (${response.status}).`);
+      }
+      clearPending(row.id);
+      setStockError('');
+      setMergeNotice('');
+      setSafetyAlert(crossed ? { ...crossed, productId: product.id, productName: product.name } : null);
+      await refreshStockData();
+      await loadStockActivities();
+      if (historyProduct && historyProduct !== '—') await loadStockActivities(historyProduct);
+      onInventoryChanged?.();
+    } catch (error) {
+      setStockError(error.message || 'Could not update the quantity.');
+    } finally {
+      setQuickBusy((prev) => {
+        const next = new Set(prev);
+        next.delete(product.id);
+        return next;
+      });
+    }
+  };
+
   return (
     <div className="sc-table-parent">
 
       {/* ===== SEARCH BAR ===== */}
       <div className="sc-navigation-bar">
         <div className="sc-search-wrapper">
-          <div className="sc-search-box">
-            <Search size={13} className="sc-search-icon" />
-            <input
-              type="search"
-              placeholder="Search movements…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search stock movements"
-            />
-          </div>
+          {/* Preset searches: the categories your products already use. */}
+          <SearchSuggestions
+            query={query}
+            suggestions={productOptions.map((product) => product.category)}
+            onPick={setQuery}
+            label="Categories"
+          >
+            <div className="sc-search-box">
+              <Search size={13} className="sc-search-icon" />
+              <input
+                type="search"
+                placeholder="Search movements…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search stock movements"
+              />
+            </div>
+          </SearchSuggestions>
         </div>
 
         {canExportStock && (
@@ -1142,8 +1277,7 @@ function StockControl({
               {[
                 { key: 'date', label: 'Date' },
                 { key: 'product', label: 'Product' },
-                { key: 'change', label: 'Change' },
-                { key: 'total', label: 'Balance After' },
+                { key: 'total', label: 'QTY' },
               ].map((opt) => (
                 <button
                   key={opt.key}
@@ -1254,8 +1388,7 @@ function StockControl({
               <th className="sc-th-left">Product</th>
               <th>Variant</th>
               <th>Type</th>
-              <th className="sc-th-quantity" title="Signed quantity of this transaction.">Change</th>
-              <th className="sc-th-quantity" title="Product stock right after this transaction.">Balance After</th>
+              <th className="sc-th-quantity" title="Product stock right after this entry. Use − / + to deduct or add one unit.">QTY</th>
               <th className="sc-th-quantity" title="Unit price recorded on this transaction (cost on Stock In, selling price on Stock Out).">Price</th>
               <th>Reorder Point</th>
               <th className="sc-th-left">Notes</th>
@@ -1265,7 +1398,7 @@ function StockControl({
           </thead>
           <tbody>
             {stockLoading ? (
-              <tr><td colSpan={12} className="sc-empty-state">Loading stock movements…</td></tr>
+              <tr><td colSpan={11} className="sc-empty-state">Loading stock movements…</td></tr>
             ) : pageRows.map(({ row: stock, id, totalQty, change, balanceAfter }) => {
               const product = productById.get(stock.productId);
               const statusRow = {
@@ -1313,19 +1446,71 @@ function StockControl({
                   </td>
                   <td data-label="Variant">{stock.variantName || '—'}</td>
                   <td data-label="Type">
-                    <span className={`sc-type-pill sc-type-${(stock.type || '').replace(/\s+/g, '').toLowerCase()}`}>
+                    <span
+                      className={`sc-type-pill sc-type-${(stock.type || '').replace(/\s+/g, '').toLowerCase()}`}
+                      title={`${movementLabel(stock.type)} on ${stock.date}: ${signedText} units`}
+                    >
                       {movementLabel(stock.type)}
                     </span>
                   </td>
-                  <td className="sc-td-nowrap" data-label="Change">
-                    <span
-                      className={`sc-qty-change ${stock.type === 'Adjustment' ? 'sc-adj' : change >= 0 ? 'sc-in' : 'sc-out'}`}
-                      title={`${movementLabel(stock.type)} on ${stock.date}: ${change >= 0 ? '+' : '−'}${Math.abs(change)}`}
-                    >
-                      {signedText}
-                    </span>
+                  <td className="sc-td-nowrap sc-td-strong" data-label="QTY">
+                    {canAddStock && !stock.productDeleted ? (() => {
+                      const pending = pendingFor(id);
+                      const onHand = Number(product?.stock);
+                      const busy = quickBusy.has(stock.productId);
+                      const newTotal = onHand + pending;
+                      const pendingText = `${pending > 0 ? '+' : '−'}${Math.abs(pending)}`;
+                      return (
+                        <span className={`sc-qty-control${pending ? ' has-pending' : ''}`}>
+                          <button
+                            type="button"
+                            className="sc-qty-btn sc-qty-minus"
+                            onClick={() => stepPending(stock, -1)}
+                            disabled={busy || !(newTotal > 0)}
+                            aria-label={`Deduct one ${stock.productName}`}
+                            title={newTotal > 0 ? 'Deduct 1 (press ✓ to save)' : 'Nothing left to deduct'}
+                          >
+                            −
+                          </button>
+                          {pending ? (
+                            <span
+                              className={`sc-qty-value ${pending > 0 ? 'sc-in' : 'sc-out'}`}
+                              title={`${onHand} on hand now ${pendingText} = ${newTotal} after you press ✓`}
+                            >
+                              {newTotal}
+                              <small className="sc-qty-pending">{pendingText}</small>
+                            </span>
+                          ) : (
+                            <span className="sc-qty-value" title={`${after} on hand after this entry · ${totalQty} on hand now`}>{after}</span>
+                          )}
+                          <button
+                            type="button"
+                            className="sc-qty-btn sc-qty-plus"
+                            onClick={() => stepPending(stock, 1)}
+                            disabled={busy}
+                            aria-label={`Add one ${stock.productName}`}
+                            title="Add 1 (press ✓ to save)"
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            className="sc-qty-btn sc-qty-apply"
+                            onClick={() => applyPending(stock)}
+                            disabled={busy || pending === 0}
+                            aria-label={pending ? `Save ${pendingText} for ${stock.productName}` : 'No change to save'}
+                            title={pending
+                              ? `Save ${pendingText} (${pending > 0 ? 'Stock In' : 'Stock Out / sale'}) → ${newTotal} on hand`
+                              : 'Use − / + first, then press ✓ to save'}
+                          >
+                            {busy ? '…' : <Check size={12} strokeWidth={3} />}
+                          </button>
+                        </span>
+                      );
+                    })() : (
+                      <span title={`${after} on hand after this entry · ${totalQty} on hand now`}>{after}</span>
+                    )}
                   </td>
-                  <td className="sc-td-nowrap sc-td-strong" data-label="Balance After" title={`${after} on hand after this transaction · ${totalQty} on hand now`}>{after}</td>
                   <td
                     className="sc-td-nowrap"
                     data-label="Price"
@@ -1411,7 +1596,7 @@ function StockControl({
 
             {!stockLoading && !stockError && visibleRows.length === 0 && (
               <tr>
-                <td colSpan={12} className="sc-empty-state">
+                <td colSpan={11} className="sc-empty-state">
                   {stockFromDatabase.length === 0
                     ? 'No stock movements recorded yet. Click “Add Item” to record one.'
                     : 'No movements match your search.'}
@@ -1459,10 +1644,10 @@ function StockControl({
                   </h3>
                   <p className="sc-modal-subtitle">
                     {editId !== null
-                      ? 'Saving replaces this entry.'
+                      ? 'Change the details of this entry. To change the quantity, use − / + in the QTY column.'
                       : canSetOpeningStock
                         ? 'This product has no movements yet. Set its starting quantity on hand.'
-                        : 'Pick a product, then + to add new stock or − to record items sold.'}
+                        : 'Pick a product, choose Stock In or Stock Out, then enter how many.'}
                   </p>
                 </div>
               </div>
@@ -1481,7 +1666,7 @@ function StockControl({
                       <label htmlFor="date">
                         Date <span className="sc-required">*</span>
                       </label>
-                      <input id="date" name="date" type="date" value={formData.date} onChange={handleFormChange} max={todayLocal()} required />
+                      <input id="date" name="date" type="date" value={formData.date} onChange={handleFormChange} max={todayLocal()} required disabled={editId !== null} />
                     </div>
                     <div className="sc-form-group">
                       <label htmlFor="recordedBy">Recorded by</label>
@@ -1512,6 +1697,7 @@ function StockControl({
                         value={formData.productId}
                         onChange={handleProductSelect}
                         required
+                        disabled={editId !== null}
                       >
                         <option value="" disabled hidden>
                           {productOptions.length === 0
@@ -1582,18 +1768,35 @@ function StockControl({
                             before the first movement.
                           </span>
                         </>
+                      ) : editId !== null ? (
+                        /* Edit mode: no quantity changer. Stock is changed with
+                           the − / + buttons in the table's QTY column. */
+                        <>
+                          <label>Type</label>
+                          <input value={movementLabel(stockFromDatabase.find((row) => row.id === editId)?.type)} readOnly aria-readonly="true" />
+                          <span className="sc-field-hint">
+                            Quantity can't be changed here. Use − / + in the QTY column, or delete this entry and record a new one.
+                          </span>
+                        </>
                       ) : (
                         <>
+                          <label htmlFor="type">
+                            Type <span className="sc-required">*</span>
+                          </label>
+                          <select id="type" name="type" value={formData.type} onChange={handleFormChange} required>
+                            <option value="Stock In">Stock In (Added)</option>
+                            <option value="Stock Out">Stock Out (Sold)</option>
+                          </select>
                           <label htmlFor="qty">
-                            Change Quantity (+ / −) <span className="sc-required">*</span>
+                            Quantity <span className="sc-required">*</span>
                           </label>
                           <div className="sc-stepper">
                             <button
                               type="button"
                               className="sc-stepper-btn sc-stepper-minus"
-                              aria-label="Decrease change quantity by one"
+                              aria-label="Decrease quantity by one"
                               onClick={() => adjustQuantity(-1)}
-                              disabled={currentOnHand !== null && Number(formData.qty) <= -currentOnHand}
+                              disabled={!(Number(formData.qty) > 1)}
                               title="Decrease quantity by one"
                             >
                               <span>−</span>
@@ -1604,7 +1807,8 @@ function StockControl({
                               type="number"
                               className="sc-stepper-value"
                               aria-describedby="sc-qty-hint"
-                              min={currentOnHand === null ? undefined : -currentOnHand}
+                              min="1"
+                              max={isOut && currentOnHand !== null ? currentOnHand : undefined}
                               step="1"
                               value={formData.qty}
                               onChange={handleFormChange}
@@ -1613,8 +1817,9 @@ function StockControl({
                             <button
                               type="button"
                               className="sc-stepper-btn sc-stepper-plus"
-                              aria-label="Increase change quantity by one"
+                              aria-label="Increase quantity by one"
                               onClick={() => adjustQuantity(1)}
+                              disabled={isOut && currentOnHand !== null && Number(formData.qty) >= currentOnHand}
                               title="Increase quantity by one"
                             >
                               <span>+</span>
@@ -1623,9 +1828,9 @@ function StockControl({
                           <span className="sc-field-hint" id="sc-qty-hint">
                             {!formData.productName
                               ? 'Select a product first.'
-                              : editId === null
-                                ? `${currentOnHand} units on hand. + adds one; − removes one. Negative quantities record stock out.`
-                                : `${currentOnHand} units currently on hand. Saving applies this signed change; total after save: ${projectedRemaining ?? '—'} units.`}
+                              : isOut
+                                ? `${currentOnHand} units on hand. You can sell up to ${currentOnHand}.`
+                                : `${currentOnHand} units on hand. This many will be added.`}
                           </span>
                         </>
                       )}
@@ -1677,6 +1882,8 @@ function StockControl({
                   </div>
                 </section>
 
+                {/* Result preview only for new entries; editing keeps the quantity. */}
+                {editId === null && (
                 <section className="sc-form-section">
                   <h4 className="sc-form-section-title">Result</h4>
 
@@ -1693,7 +1900,7 @@ function StockControl({
                           <span className="sc-computed-empty">Set the opening stock for this product</span>
                         )
                       ) : projectedRemaining === null ? (
-                        <span className="sc-computed-empty">Pick a product and set a change quantity</span>
+                        <span className="sc-computed-empty">Pick a product and enter a quantity</span>
                       ) : (
                         <span className="sc-computed-note">
                           Current {currentOnHand} · Change {projectedChange >= 0 ? '+' : '−'}{Math.abs(projectedChange)} · New total {projectedRemaining}
@@ -1755,6 +1962,7 @@ function StockControl({
                   )}
 
                 </section>
+                )}
               </div>
 
               {safetyReached && (
@@ -1813,7 +2021,7 @@ function StockControl({
               <>
                 <h3 id="sc-delete-title">Delete this entry?</h3>
                 <p id="sc-delete-text">
-                  The stock will go back to what it was before this entry. Other entries are not affected.
+                  The stock will go back to what it was before this entry. Other entries are not affected. The entry moves to the Trash Bin, where it can be restored.
                   <span className="sc-confirm-detail">
                     {confirmDelete.stock.productName}
                     {confirmDelete.stock.variantName ? ` (${confirmDelete.stock.variantName})` : ''}
@@ -1827,10 +2035,10 @@ function StockControl({
               <>
                 <h3 id="sc-delete-title">Clear stock for {confirmDelete.products.length} product{confirmDelete.products.length === 1 ? '' : 's'}?</h3>
                 <p id="sc-delete-text">
-                  This deletes <strong>every</strong> stock movement for the selected products and sets their stock to 0.
+                  This moves <strong>every</strong> stock entry for the selected products to the Trash Bin and sets their stock to 0.
                   <span className="sc-confirm-detail">
                     {confirmDelete.products.map((product) => product.name).join(', ')}
-                    <br />The products themselves stay. This can’t be undone.
+                    <br />The products themselves stay. Entries can be restored from the Trash Bin.
                   </span>
                 </p>
               </>
@@ -1838,8 +2046,8 @@ function StockControl({
               <>
                 <h3 id="sc-delete-title">Clear all stock records?</h3>
                 <p id="sc-delete-text">
-                  This deletes <strong>every</strong> stock movement for {confirmDelete.productName} and sets its stock to 0.
-                  <span className="sc-confirm-detail">The product itself stays. This can’t be undone.</span>
+                  This moves <strong>every</strong> stock entry for {confirmDelete.productName} to the Trash Bin and sets its stock to 0.
+                  <span className="sc-confirm-detail">The product itself stays. Entries can be restored from the Trash Bin.</span>
                 </p>
               </>
             )}
@@ -1892,7 +2100,9 @@ function StockControl({
               <button type="button" className="sc-modal-cancel-btn" onClick={() => setConfirmSale(null)} autoFocus>
                 Cancel
               </button>
-              <button type="button" className="sc-modal-save-btn" onClick={() => handleSave(null, { confirmed: true })}>
+              <button type="button" className="sc-modal-save-btn" onClick={() => (confirmSale.quick
+                ? applyPending(confirmSale.quick.row, { confirmed: true })
+                : handleSave(null, { confirmed: true }))}>
                 Proceed with sale
               </button>
             </div>

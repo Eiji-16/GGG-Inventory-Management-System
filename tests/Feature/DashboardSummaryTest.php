@@ -99,7 +99,7 @@ class DashboardSummaryTest extends TestCase
             ->assertJsonPath('kpis.stockMovementsToday', 0);
     }
 
-    public function test_dashboard_excludes_archived_products_while_retaining_their_history(): void
+    public function test_dashboard_leaves_out_products_in_the_trash_bin_and_their_history(): void
     {
         $product = Product::create([
             'code' => 'PRD-ARCHIVED',
@@ -119,14 +119,16 @@ class DashboardSummaryTest extends TestCase
             'remaining_stock' => 0,
             'movement_date' => now()->toDateString(),
         ]);
-        $product->delete();
+        // Delete the same way the Delete button does (moves it to the Trash Bin with its entries).
+        $this->deleteJson('/api/products/PRD-ARCHIVED')->assertOk();
 
         $this->getJson('/api/dashboard/summary')
             ->assertOk()
             ->assertJsonPath('kpis.totalProducts', 0)
             ->assertJsonMissing(['id' => 'PRD-ARCHIVED'])
-            ->assertJsonPath('salesHistory.0.productId', 'PRD-ARCHIVED')
-            ->assertJsonPath('salesHistory.0.productName', 'Archived Product')
-            ->assertJsonPath('stockMovements.0.productName', 'Archived Product');
+            // Trash Bin rule: a deleted product's sales are left out of the
+            // Dashboard numbers. (Its rows are kept in the database.)
+            ->assertJsonMissing(['productId' => 'PRD-ARCHIVED']);
+        $this->assertDatabaseHas('sales_history', ['product_id' => $product->id]);
     }
 }

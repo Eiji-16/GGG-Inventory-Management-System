@@ -344,7 +344,8 @@ class StockMovementPersistenceTest extends TestCase
             'name' => 'Stock Test Item',
             'stock_on_hand' => 0,
         ]);
-        $this->assertDatabaseMissing('stock_movements', ['id' => $movement['id']]);
+        // Cleared entries go to the Trash Bin (kept, but hidden everywhere).
+        $this->assertSoftDeleted('stock_movements', ['id' => $movement['id']]);
         $this->getJson('/api/products')
             ->assertOk()
             ->assertJsonFragment(['id' => $product->code, 'stock' => 0]);
@@ -437,7 +438,8 @@ class StockMovementPersistenceTest extends TestCase
             ->assertJsonPath('deleted', true);
 
         $this->assertSame(14, $product->fresh()->stock_on_hand);
-        $this->assertDatabaseMissing('stock_movements', ['id' => $adjustment['id']]);
+        // Deleted entries go to the Trash Bin (kept, but hidden everywhere).
+        $this->assertSoftDeleted('stock_movements', ['id' => $adjustment['id']]);
     }
 
     public function test_stock_movement_edit_and_delete_appear_in_the_database_after_reload(): void

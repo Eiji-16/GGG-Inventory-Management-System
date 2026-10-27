@@ -120,7 +120,11 @@ export default function ReorderAlerts({
     return () => { active = false; };
   }, [catalogRevision]);
 
+  // Only products that already have a stock entry ("tracked") can be alerts —
+  // the same rule as the Dashboard card, the bell and the sidebar badge.
+  // Brand-new products with no entries yet are left out.
   const alerts = useMemo(() => products
+    .filter((product) => product.inStockControl !== false)
     .map((product) => {
       const stock = Number(product.stock) || 0;
       const reorderPoint = reorderPointFor({
@@ -134,8 +138,10 @@ export default function ReorderAlerts({
       const row = { productId: product.id, productName: product.name, safetyStock: product.safetyStock, annualDemand: product.annualDemand, demandFromHistory: product.demandFromHistory, leadTimeDays: product.leadTimeDays };
       const safety = safetyPointFor(row, safetyStock);
       const points = statusPointsFor(row, safetyStock);
-      // Out (0) · Critical (≤ critical point) · Low (≤ low point) — Automatic or Manual
-      const status = stock <= 0 ? 'Out of Stock' : stock <= points.critical ? 'Critical' : 'Low Stock';
+      // This tab shows only two statuses: Out of Stock (0) and Low Stock
+      // (at or below the low point, Automatic or Manual). Critical is still
+      // used on the other pages.
+      const status = stock <= 0 ? 'Out of Stock' : 'Low Stock';
       return { ...product, stock, reorderPoint, safety, points, status };
     })
     .filter((product) => product.stock <= product.points.low)
@@ -205,7 +211,7 @@ export default function ReorderAlerts({
               />
             </div>
             <div className="ra-filter" role="tablist" aria-label="Filter by status">
-              {[['all', 'All'], ['out', 'Out of stock'], ['low', 'Low & critical']].map(([value, label]) => (
+              {[['all', 'All'], ['out', 'Out of stock'], ['low', 'Low stock']].map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
@@ -274,7 +280,7 @@ export default function ReorderAlerts({
                   <td data-label="Reorder Point" className="ra-num">{item.reorderPoint}</td>
                   <td data-label="Status">
                     <span className="ra-status-cell">
-                      <span className={`ra-status ${item.status === 'Out of Stock' ? 'is-out' : item.status === 'Critical' ? 'is-critical' : 'is-low'}`} title={`Low at ${item.points.low} · Critical at ${item.points.critical}${item.points.mode === 'manual' ? ' (set manually)' : ''} · safety stock ${item.safety}`}>
+                      <span className={`ra-status ${item.status === 'Out of Stock' ? 'is-out' : 'is-low'}`} title={`Low at ${item.points.low}${item.points.mode === 'manual' ? ' (set manually)' : ''} · safety stock ${item.safety}`}>
                         <AlertTriangle size={11} aria-hidden="true" /> {item.status}
                       </span>
                       {requestByProduct[item.id] && (

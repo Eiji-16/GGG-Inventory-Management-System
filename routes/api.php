@@ -13,6 +13,7 @@ use App\Http\Controllers\SafetyStockController;
 use App\Http\Controllers\SeasonalEventController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\TrashBinController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['web', 'auth', 'active'])->group(function (): void {
@@ -71,6 +72,13 @@ Route::middleware(['web', 'auth', 'active'])->group(function (): void {
     Route::get('/restock-requests', [RestockRequestController::class, 'index'])->middleware('feature:reorder.notify|reorder.requests');
     Route::post('/restock-requests', [RestockRequestController::class, 'store'])->middleware('feature:reorder.notify');
     Route::put('/restock-requests/{restockRequest}/done', [RestockRequestController::class, 'done'])->middleware('feature:reorder.requests');
+
+    // Trash Bin: deleted products and stock entries (soft deletes).
+    Route::get('/trash', [TrashBinController::class, 'index'])->middleware('feature:trash.view');
+    Route::post('/trash/products/{code}/restore', [TrashBinController::class, 'restoreProduct'])->middleware('feature:trash.restore');
+    Route::delete('/trash/products/{code}', [TrashBinController::class, 'forceDeleteProduct'])->middleware('feature:trash.purge');
+    Route::post('/trash/stock-movements/{id}/restore', [TrashBinController::class, 'restoreMovement'])->whereNumber('id')->middleware('feature:trash.restore');
+    Route::delete('/trash/stock-movements/{id}', [TrashBinController::class, 'forceDeleteMovement'])->whereNumber('id')->middleware('feature:trash.purge');
 
     // Safety Stock Policy stays Super Admin only (not in Role Access).
     Route::put('/safety-stock', [SafetyStockController::class, 'update'])

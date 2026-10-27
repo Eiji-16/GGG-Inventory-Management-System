@@ -39,14 +39,16 @@ class ProductStockLinkTest extends TestCase
         $this->assertFalse($row['productDeleted']);
     }
 
-    public function test_rows_of_a_deleted_product_stay_as_history_and_are_marked(): void
+    public function test_rows_of_a_deleted_product_go_to_the_trash_bin_with_it(): void
     {
         $this->entry()->assertCreated();
         $this->deleteJson("/api/products/{$this->code}")->assertOk();   // allowed even with stock (screen warns first)
 
-        $row = $this->getJson('/api/stock-movements')->json('0');
-        $this->assertTrue($row['productDeleted']);
+        $this->assertSame([], $this->getJson('/api/stock-movements')->json());
+        $row = $this->getJson('/api/trash')->json('movements.0');
         $this->assertSame('Link Shirt', $row['productName']);
+        $this->assertTrue($row['withProduct']);
+        $this->assertTrue($row['productInTrash']);
     }
 
     public function test_variant_must_be_one_of_the_products_variants(): void

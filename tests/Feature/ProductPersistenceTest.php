@@ -12,7 +12,7 @@ class ProductPersistenceTest extends TestCase
     use RefreshDatabase;
     use AuthenticatesBusinessApi;
 
-    public function test_deleting_a_product_hides_it_but_preserves_historical_records(): void
+    public function test_deleting_a_product_moves_it_and_its_entries_to_the_trash_bin(): void
     {
         $product = $this->postJson('/api/products', [
             'name' => 'Aula',
@@ -51,20 +51,26 @@ class ProductPersistenceTest extends TestCase
             'name' => 'Aula',
         ]);
         $this->assertNotNull(Product::withTrashed()->where('code', $product['id'])->firstOrFail()->deleted_at);
-        $this->assertDatabaseHas('stock_movements', ['id' => $movement['id']]);
-        $this->assertDatabaseHas('stock_movements', ['id' => $outgoingMovement['id']]);
+        // Entries are kept (not erased) but went to the Trash Bin with the product.
+        $this->assertSoftDeleted('stock_movements', ['id' => $movement['id']]);
+        $this->assertSoftDeleted('stock_movements', ['id' => $outgoingMovement['id']]);
         $this->assertDatabaseHas('sales_history', [
             'product_id' => Product::withTrashed()->where('code', $product['id'])->value('id'),
             'units_sold' => 8,
         ]);
         $this->getJson('/api/products')->assertOk()->assertJsonMissing(['id' => $product['id']]);
         $this->getJson('/api/products/'.$product['id'])->assertNotFound();
+        // Left out of Stock Control and reports while in the Trash Bin ...
         $this->getJson('/api/stock-movements')
             ->assertOk()
-            ->assertJsonFragment(['id' => $movement['id'], 'productName' => 'Aula']);
-        $this->getJson('/api/reports')
+            ->assertJsonMissing(['id' => $movement['id']]);
+        $topMoving = collect($this->getJson('/api/reports')->assertOk()->json('topMoving.rows'));
+        $this->assertFalse($topMoving->contains(fn ($row) => ($row['product'] ?? null) === 'Aula'));
+        // ... and listed in the Trash Bin with its 2 entries.
+        $this->getJson('/api/trash')
             ->assertOk()
-            ->assertJsonPath('topMoving.rows.0.product', 'Aula');
+            ->assertJsonPath('products.0.id', $product['id'])
+            ->assertJsonPath('products.0.entries', 2);
         $this->assertDatabaseHas('activity_logs', [
             'action' => 'product.delete',
         ]);

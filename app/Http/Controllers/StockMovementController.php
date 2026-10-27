@@ -136,15 +136,15 @@ class StockMovementController extends Controller
         return response()->json($this->format($movement));
     }
 
-    /** DELETE /api/stock-movements/{stockMovement} */
-    public function destroy(StockMovement $stockMovement): JsonResponse
+    /** DELETE /api/stock-movements/{stockMovement} — moves the entry to the Trash Bin. */
+    public function destroy(Request $request, StockMovement $stockMovement): JsonResponse
     {
         $before = $this->activitySnapshot($stockMovement->loadMissing('product'));
-        $this->stockMovements->delete($stockMovement);
+        $this->stockMovements->delete($stockMovement, $request->user());
         $currentTotal = Product::where('code', $before['productId'])->value('stock_on_hand');
         ActivityLog::record(
             'stock.delete',
-            "Deleted {$before['type']} {$before['changeText']} for {$before['product']}",
+            "Moved {$before['type']} {$before['changeText']} for {$before['product']} to the Trash Bin",
             'boxes',
             [
                 'productId' => $before['productId'],
@@ -158,20 +158,20 @@ class StockMovementController extends Controller
             ]
         );
 
-        return response()->json(['deleted' => true]);
+        return response()->json(['deleted' => true, 'trashed' => true]);
     }
 
-    /** DELETE /api/stock-movements/products/{productCode} */
-    public function clearProduct(string $productCode): JsonResponse
+    /** DELETE /api/stock-movements/products/{productCode} — moves all its entries to the Trash Bin. */
+    public function clearProduct(Request $request, string $productCode): JsonResponse
     {
         $product = Product::where('code', $productCode)->firstOrFail();
         $productName = $product->name;
         $previousStock = (int) $product->stock_on_hand;
-        $movementCount = $this->stockMovements->clearProductStock($product);
+        $movementCount = $this->stockMovements->clearProductStock($product, $request->user());
 
         ActivityLog::record(
             'stock.clear',
-            "Cleared stock for {$productName} ({$previousStock} units)",
+            "Cleared stock for {$productName} ({$previousStock} units, {$movementCount} entries moved to the Trash Bin)",
             'boxes',
             [
                 'productId' => $productCode,

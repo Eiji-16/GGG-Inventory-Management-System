@@ -1,0 +1,61 @@
+/* ===== TRASH BIN =====
+   Table, buttons and popups come from stockControl.css (sc-*); only the
+   tabs and small text live here. */
+
+.tb-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 5px;
+    margin-bottom: 4px;
+}
+
+.tb-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.4rem 0.8rem;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.tb-tab:hover { color: var(--text-primary); }
+
+.tb-tab.is-active {
+    color: var(--text-primary);
+    border-color: var(--accent, #E8C547);
+    box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.tb-count {
+    min-width: 1.4em;
+    padding: 0 6px;
+    font-size: 10px;
+    line-height: 1.6;
+    text-align: center;
+    border-radius: 999px;
+    background: var(--dropdown-menu-hover);
+}
+
+.tb-hint {
+    margin: 0 5px 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.tb-muted {
+    color: var(--text-muted);
+    font-size: 0.85em;
+}
+
+.tb-page .sc-table-action-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    transform: none;
+}
