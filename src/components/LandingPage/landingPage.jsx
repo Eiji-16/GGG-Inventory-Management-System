@@ -892,7 +892,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                   {activeView === 'Staffs' && 'Manage staffs'}
                   {activeView === 'Trash-Bin' && 'Deleted products and stock entries — restore or delete permanently'}
                   {activeView === 'Setting' && 'Manage your workspace preferences'}
-                  {activeView === 'Profile' && 'View and manage your account details'}
+                  {activeView === 'Profile' && 'View and manage your accounts details'}
                 </p>
               </div>
             </div>
