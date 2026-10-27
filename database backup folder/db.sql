@@ -32,9 +32,9 @@ CREATE TABLE IF NOT EXISTS `activity_logs` (
   PRIMARY KEY (`id`),
   KEY `activity_logs_user_id_created_at_index` (`user_id`,`created_at`),
   CONSTRAINT `activity_logs_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=230 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=290 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table ggg_inventory.activity_logs: ~166 rows (approximately)
+-- Dumping data for table ggg_inventory.activity_logs: ~288 rows (approximately)
 INSERT INTO `activity_logs` (`id`, `user_id`, `action`, `description`, `icon`, `meta`, `created_at`, `updated_at`) VALUES
 	(1, NULL, 'login', 'Signed in', 'login', NULL, '2026-10-06 13:55:49', '2026-10-06 13:55:49'),
 	(2, 3, 'login', 'Signed in', 'login', NULL, '2026-10-06 14:18:03', '2026-10-06 14:18:03'),
@@ -263,7 +263,67 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `action`, `description`, `icon`, `
 	(226, 3, 'stock.edit', 'Updated Honor X3 movement: −14 → +20', 'boxes', '{"qty": 20, "date": "2026-10-25", "type": "Stock In", "change": 20, "product": "Honor X3", "totalQty": 20, "productId": "PRD-7113", "movementId": 66, "previousType": "Stock Out", "previousChange": -14, "previousProductId": "PRD-7113"}', '2026-10-25 01:44:26', '2026-10-25 01:44:26'),
 	(227, 3, 'stock.in', 'Stock In +10 for Honor X3 (added to the same day\'s entry, now +30)', 'boxes', '{"qty": 10, "date": "2026-10-25", "type": "Stock In", "change": 10, "product": "Honor X3", "totalQty": 30, "productId": "PRD-7113", "movementId": 66, "previousType": null, "previousChange": null, "previousProductId": null}', '2026-10-25 01:44:44', '2026-10-25 01:44:44'),
 	(228, 3, 'stock.in', 'Stock In +10 for Honor X3', 'boxes', '{"qty": 10, "date": "2026-10-25", "type": "Stock In", "change": 10, "product": "Honor X3", "totalQty": 40, "productId": "PRD-7113", "movementId": 67, "previousType": null, "previousChange": null, "previousProductId": null}', '2026-10-25 01:45:02', '2026-10-25 01:45:02'),
-	(229, 3, 'stock.delete', 'Deleted Stock In +10 for Honor X3', 'boxes', '{"qty": 10, "date": "2026-10-25", "type": "Stock In", "change": 10, "product": "Honor X3", "totalQty": 30, "productId": "PRD-7113", "movementId": 67}', '2026-10-25 01:45:10', '2026-10-25 01:45:10');
+	(229, 3, 'stock.delete', 'Deleted Stock In +10 for Honor X3', 'boxes', '{"qty": 10, "date": "2026-10-25", "type": "Stock In", "change": 10, "product": "Honor X3", "totalQty": 30, "productId": "PRD-7113", "movementId": 67}', '2026-10-25 01:45:10', '2026-10-25 01:45:10'),
+	(230, 3, 'formula.compute', 'Computed order quantity — 7 units for Honor X3', 'calculator', '{"by": "Super Admin User", "unit": "units", "inputs": {"holdingCost": 280, "annualDemand": 14, "annualOrders": 1.979898987322333, "orderingCost": 500}, "result": 7.0710678118654755, "formula": "EOQ", "product": "Honor X3", "forecast": null, "productId": "PRD-7113", "demandSource": "historical", "recommendedOrderQuantity": 7}', '2026-10-25 02:08:01', '2026-10-25 02:08:01'),
+	(231, 3, 'stock.edit', 'Updated details of ArcLight USB-C Docking Station movement', 'boxes', '{"date": "2026-10-24", "type": "Stock Out", "product": "ArcLight USB-C Docking Station", "productId": "PRD-TECH-0009", "movementId": 55}', '2026-10-25 02:16:56', '2026-10-25 02:16:56'),
+	(232, 3, 'stock.edit', 'Updated details of PixelWave 27-Inch Monitor movement', 'boxes', '{"date": "2026-10-24", "type": "Stock Out", "product": "PixelWave 27-Inch Monitor", "productId": "PRD-TECH-0004", "movementId": 50}', '2026-10-25 02:17:06', '2026-10-25 02:17:06'),
+	(233, 3, 'stock.edit', 'Updated details of Streamline 1080p Webcam movement', 'boxes', '{"date": "2026-10-24", "type": "Stock In", "product": "Streamline 1080p Webcam", "productId": "PRD-TECH-0008", "movementId": 54}', '2026-10-25 02:17:19', '2026-10-25 02:17:19'),
+	(234, 3, 'stock.edit', 'Updated details of AeroBook Pro 14 Laptop movement', 'boxes', '{"date": "2026-10-24", "type": "Stock In", "product": "AeroBook Pro 14 Laptop", "productId": "PRD-TECH-0001", "movementId": 47}', '2026-10-25 02:17:30', '2026-10-25 02:17:30'),
+	(235, 3, 'stock.edit', 'Updated details of AeroBook Pro 14 Laptop movement', 'boxes', '{"date": "2026-10-24", "type": "Stock In", "product": "AeroBook Pro 14 Laptop", "productId": "PRD-TECH-0001", "movementId": 47}', '2026-10-25 02:17:41', '2026-10-25 02:17:41'),
+	(236, 3, 'stock.edit', 'Updated details of AeroBook Pro 14 Laptop movement', 'boxes', '{"date": "2026-10-24", "type": "Stock In", "product": "AeroBook Pro 14 Laptop", "productId": "PRD-TECH-0001", "movementId": 47}', '2026-10-25 02:17:42', '2026-10-25 02:17:42'),
+	(237, 3, 'stock.edit', 'Updated details of CoreVault 1TB Portable SSD movement', 'boxes', '{"date": "2026-10-24", "type": "Stock In", "product": "CoreVault 1TB Portable SSD", "productId": "PRD-TECH-0007", "movementId": 53}', '2026-10-25 02:17:51', '2026-10-25 02:17:51'),
+	(238, 3, 'stock.edit', 'Updated details of CoreVault 1TB Portable SSD movement', 'boxes', '{"date": "2026-10-24", "type": "Stock In", "product": "CoreVault 1TB Portable SSD", "productId": "PRD-TECH-0007", "movementId": 53}', '2026-10-25 02:17:53', '2026-10-25 02:17:53'),
+	(239, 3, 'stock.edit', 'Updated details of VoltEdge Mechanical Keyboard movement', 'boxes', '{"date": "2026-10-24", "type": "Stock In", "product": "VoltEdge Mechanical Keyboard", "productId": "PRD-TECH-0003", "movementId": 49}', '2026-10-25 02:18:02', '2026-10-25 02:18:02'),
+	(240, 3, 'stock.edit', 'Updated details of SonicPulse Noise-Canceling Headphones movement', 'boxes', '{"date": "2026-10-24", "type": "Stock In", "product": "SonicPulse Noise-Canceling Headphones", "productId": "PRD-TECH-0006", "movementId": 52}', '2026-10-25 02:18:22', '2026-10-25 02:18:22'),
+	(241, 3, 'stock.edit', 'Updated details of SonicPulse Noise-Canceling Headphones movement', 'boxes', '{"date": "2026-10-24", "type": "Stock In", "product": "SonicPulse Noise-Canceling Headphones", "productId": "PRD-TECH-0006", "movementId": 52}', '2026-10-25 02:18:23', '2026-10-25 02:18:23'),
+	(242, 3, 'stock.edit', 'Updated details of NovaCore Wireless Mouse movement', 'boxes', '{"date": "2026-10-24", "type": "Stock In", "product": "NovaCore Wireless Mouse", "productId": "PRD-TECH-0002", "movementId": 48}', '2026-10-25 02:18:33', '2026-10-25 02:18:33'),
+	(243, 3, 'stock.edit', 'Updated details of NovaCore Wireless Mouse movement', 'boxes', '{"date": "2026-10-24", "type": "Stock In", "product": "NovaCore Wireless Mouse", "productId": "PRD-TECH-0002", "movementId": 48}', '2026-10-25 02:18:35', '2026-10-25 02:18:35'),
+	(244, 3, 'stock.edit', 'Updated details of LinkForge Wi-Fi 6 Router movement', 'boxes', '{"date": "2026-10-24", "type": "Stock In", "product": "LinkForge Wi-Fi 6 Router", "productId": "PRD-TECH-0005", "movementId": 51}', '2026-10-25 02:18:45', '2026-10-25 02:18:45'),
+	(245, 3, 'login', 'Signed in', 'login', NULL, '2026-10-26 17:14:42', '2026-10-26 17:14:42'),
+	(246, 3, 'stock.out', 'Stock Out −1 for Honor X3', 'boxes', '{"qty": 1, "date": "2026-10-27", "type": "Stock Out", "change": -1, "product": "Honor X3", "totalQty": 29, "productId": "PRD-7113", "movementId": 68, "previousType": null, "previousChange": null, "previousProductId": null}', '2026-10-26 17:54:56', '2026-10-26 17:54:56'),
+	(247, 3, 'stock.out', 'Stock Out −1 for Honor X3 (added to the same day\'s entry, now −2)', 'boxes', '{"qty": 1, "date": "2026-10-27", "type": "Stock Out", "change": -1, "product": "Honor X3", "totalQty": 28, "productId": "PRD-7113", "movementId": 68, "previousType": null, "previousChange": null, "previousProductId": null}', '2026-10-26 17:55:08', '2026-10-26 17:55:08'),
+	(248, 3, 'stock.in', 'Stock In +23 for Honor X3', 'boxes', '{"qty": 23, "date": "2026-10-27", "type": "Stock In", "change": 23, "product": "Honor X3", "totalQty": 51, "productId": "PRD-7113", "movementId": 69, "previousType": null, "previousChange": null, "previousProductId": null}', '2026-10-26 19:38:52', '2026-10-26 19:38:52'),
+	(249, 3, 'stock.in', 'Stock In +6 for Honor X3 (added to the same day\'s entry, now +29)', 'boxes', '{"qty": 6, "date": "2026-10-27", "type": "Stock In", "change": 6, "product": "Honor X3", "totalQty": 57, "productId": "PRD-7113", "movementId": 69, "previousType": null, "previousChange": null, "previousProductId": null}', '2026-10-26 19:39:05', '2026-10-26 19:39:05'),
+	(250, 3, 'stock.in', 'Stock In +1 for Honor X3 (added to the same day\'s entry, now +30)', 'boxes', '{"qty": 1, "date": "2026-10-27", "type": "Stock In", "change": 1, "product": "Honor X3", "totalQty": 58, "productId": "PRD-7113", "movementId": 69, "previousType": null, "previousChange": null, "previousProductId": null}', '2026-10-26 19:41:10', '2026-10-26 19:41:10'),
+	(251, 3, 'stock.in', 'Stock In +1 for Honor X3 (added to the same day\'s entry, now +31)', 'boxes', '{"qty": 1, "date": "2026-10-27", "type": "Stock In", "change": 1, "product": "Honor X3", "totalQty": 59, "productId": "PRD-7113", "movementId": 69, "previousType": null, "previousChange": null, "previousProductId": null}', '2026-10-26 19:42:52', '2026-10-26 19:42:52'),
+	(252, 3, 'stock.in', 'Stock In +1 for Honor X3 (added to the same day\'s entry, now +32)', 'boxes', '{"qty": 1, "date": "2026-10-27", "type": "Stock In", "change": 1, "product": "Honor X3", "totalQty": 60, "productId": "PRD-7113", "movementId": 69, "previousType": null, "previousChange": null, "previousProductId": null}', '2026-10-26 19:42:59', '2026-10-26 19:42:59'),
+	(253, 3, 'stock.in', 'Stock In +1 for Honor X3 (added to the same day\'s entry, now +33)', 'boxes', '{"qty": 1, "date": "2026-10-27", "type": "Stock In", "change": 1, "product": "Honor X3", "totalQty": 61, "productId": "PRD-7113", "movementId": 69, "previousType": null, "previousChange": null, "previousProductId": null}', '2026-10-26 19:43:25', '2026-10-26 19:43:25'),
+	(254, 3, 'stock.in', 'Stock In +1 for Honor X3 (added to the same day\'s entry, now +34)', 'boxes', '{"qty": 1, "date": "2026-10-27", "type": "Stock In", "change": 1, "product": "Honor X3", "totalQty": 62, "productId": "PRD-7113", "movementId": 69, "previousType": null, "previousChange": null, "previousProductId": null}', '2026-10-26 19:43:29', '2026-10-26 19:43:29'),
+	(255, 3, 'stock.delete', 'Moved Stock Out −45 for ArcLight USB-C Docking Station to the Trash Bin', 'boxes', '{"qty": 45, "date": "2026-10-24", "type": "Stock Out", "change": -45, "product": "ArcLight USB-C Docking Station", "totalQty": 45, "productId": "PRD-TECH-0009", "movementId": 55}', '2026-10-26 19:48:37', '2026-10-26 19:48:37'),
+	(256, 3, 'formula.compute', 'Computed order quantity — 7 units for Honor X3', 'calculator', '{"by": "Super Admin User", "unit": "units", "inputs": {"holdingCost": 280, "annualDemand": 14, "annualOrders": 1.979898987322333, "orderingCost": 500}, "result": 7.0710678118654755, "formula": "EOQ", "product": "Honor X3", "forecast": null, "productId": "PRD-7113", "demandSource": "historical", "recommendedOrderQuantity": 7}', '2026-10-26 20:39:41', '2026-10-26 20:39:41'),
+	(257, 3, 'pastsales.save', 'Updated past weekly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro", "periodType": "week"}', '2026-10-26 20:43:49', '2026-10-26 20:43:49'),
+	(258, 3, 'login', 'Signed in', 'login', NULL, '2026-10-26 23:13:34', '2026-10-26 23:13:34'),
+	(259, 3, 'formula.compute', 'Computed order quantity — 7 units for Honor X3', 'calculator', '{"by": "Super Admin User", "unit": "units", "inputs": {"holdingCost": 280, "annualDemand": 14, "annualOrders": 1.979898987322333, "orderingCost": 500}, "result": 7.0710678118654755, "formula": "EOQ", "product": "Honor X3", "forecast": null, "productId": "PRD-7113", "demandSource": "historical", "recommendedOrderQuantity": 7}', '2026-10-26 23:16:45', '2026-10-26 23:16:45'),
+	(260, 3, 'formula.compute', 'Computed order quantity — 7 units for Honor X3', 'calculator', '{"by": "Super Admin User", "unit": "units", "inputs": {"holdingCost": 280, "annualDemand": 14, "annualOrders": 1.979898987322333, "orderingCost": 500}, "result": 7.0710678118654755, "formula": "EOQ", "product": "Honor X3", "forecast": null, "productId": "PRD-7113", "demandSource": "historical", "recommendedOrderQuantity": 7}', '2026-10-26 23:16:52', '2026-10-26 23:16:52'),
+	(261, 3, 'formula.compute', 'Computed order quantity — 7 units for Honor X3', 'calculator', '{"by": "Super Admin User", "unit": "units", "inputs": {"holdingCost": 280, "annualDemand": 14, "annualOrders": 1.979898987322333, "orderingCost": 500}, "result": 7.0710678118654755, "formula": "EOQ", "product": "Honor X3", "forecast": null, "productId": "PRD-7113", "demandSource": "historical", "recommendedOrderQuantity": 7}', '2026-10-26 23:16:54', '2026-10-26 23:16:54'),
+	(262, 3, 'pastsales.save', 'Updated past weekly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro", "periodType": "week"}', '2026-10-26 23:22:42', '2026-10-26 23:22:42'),
+	(263, 3, 'pastsales.save', 'Updated past weekly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro", "periodType": "week"}', '2026-10-26 23:44:53', '2026-10-26 23:44:53'),
+	(264, 3, 'pastsales.save', 'Updated past monthly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro"}', '2026-10-26 23:45:27', '2026-10-26 23:45:27'),
+	(265, 3, 'pastsales.save', 'Updated past weekly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro", "periodType": "week"}', '2026-10-26 23:45:58', '2026-10-26 23:45:58'),
+	(266, 3, 'pastsales.save', 'Updated past weekly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro", "periodType": "week"}', '2026-10-26 23:46:10', '2026-10-26 23:46:10'),
+	(267, 3, 'pastsales.save', 'Updated past weekly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro", "periodType": "week"}', '2026-10-26 23:46:36', '2026-10-26 23:46:36'),
+	(268, 3, 'pastsales.save', 'Updated past weekly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro", "periodType": "week"}', '2026-10-26 23:46:49', '2026-10-26 23:46:49'),
+	(269, 3, 'pastsales.save', 'Updated past weekly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro", "periodType": "week"}', '2026-10-26 23:47:00', '2026-10-26 23:47:00'),
+	(270, 3, 'pastsales.save', 'Updated past weekly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro", "periodType": "week"}', '2026-10-26 23:47:11', '2026-10-26 23:47:11'),
+	(271, 3, 'pastsales.save', 'Updated past weekly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro", "periodType": "week"}', '2026-10-26 23:47:21', '2026-10-26 23:47:21'),
+	(272, 3, 'pastsales.save', 'Updated past weekly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro", "periodType": "week"}', '2026-10-26 23:47:30', '2026-10-26 23:47:30'),
+	(273, 3, 'pastsales.save', 'Updated past monthly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro"}', '2026-10-26 23:47:45', '2026-10-26 23:47:45'),
+	(274, 3, 'pastsales.save', 'Updated past weekly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro", "periodType": "week"}', '2026-10-26 23:49:35', '2026-10-26 23:49:35'),
+	(275, 3, 'pastsales.save', 'Updated past monthly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro"}', '2026-10-26 23:49:57', '2026-10-26 23:49:57'),
+	(276, 3, 'pastsales.save', 'Updated past weekly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro", "periodType": "week"}', '2026-10-26 23:50:44', '2026-10-26 23:50:44'),
+	(277, 3, 'pastsales.save', 'Updated past weekly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro", "periodType": "week"}', '2026-10-26 23:50:53', '2026-10-26 23:50:53'),
+	(278, 3, 'pastsales.save', 'Updated past weekly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro", "periodType": "week"}', '2026-10-26 23:51:27', '2026-10-26 23:51:27'),
+	(279, 3, 'pastsales.save', 'Updated past weekly sales — Poco X6 Pro', 'boxes', '{"product": "Poco X6 Pro", "periodType": "week"}', '2026-10-26 23:52:10', '2026-10-26 23:52:10'),
+	(280, 3, 'formula.compute', 'Computed order quantity — 21 units for Poco X6 Pro', 'calculator', '{"by": "Super Admin User", "unit": "units", "inputs": {"holdingCost": 1000, "annualDemand": 702, "annualOrders": 33.06747562069463, "orderingCost": 321}, "result": 21.22931934848595, "formula": "EOQ", "product": "Poco X6 Pro", "forecast": {"periodType": "week", "baseForecast": 13.5, "adjustmentPct": 0, "annualPeriods": 52, "seasonalEvent": null, "forecastPeriod": "2026-10-26", "seasonalEnabled": false, "adjustedForecast": 13.5}, "productId": "PRD-4158", "demandSource": "forecast", "recommendedOrderQuantity": 21}', '2026-10-26 23:58:26', '2026-10-26 23:58:26'),
+	(281, 3, 'formula.compute', 'Computed order quantity — 43 units for Aula Keyboard', 'calculator', '{"by": "Super Admin User", "unit": "units", "inputs": {"holdingCost": 121, "annualDemand": 333, "annualOrders": 7.789879903802282, "orderingCost": 332}, "result": 42.74777071177451, "formula": "EOQ", "product": "Aula Keyboard", "forecast": null, "productId": "PRD-5704", "demandSource": "historical", "recommendedOrderQuantity": 43}', '2026-10-26 23:59:51', '2026-10-26 23:59:51'),
+	(282, 3, 'formula.compute', 'Computed order quantity — 8 units for PixelWave 27-Inch Monitor', 'calculator', '{"by": "Super Admin User", "unit": "units", "inputs": {"holdingCost": 322, "annualDemand": 32, "annualOrders": 3.933379141586973, "orderingCost": 333}, "result": 8.135498472971813, "formula": "EOQ", "product": "PixelWave 27-Inch Monitor", "forecast": null, "productId": "PRD-TECH-0004", "demandSource": "historical", "recommendedOrderQuantity": 8}', '2026-10-26 23:59:52', '2026-10-26 23:59:52'),
+	(283, 3, 'formula.compute', 'Computed order quantity — 11 units for Streamline 1080p Webcam', 'calculator', '{"by": "Super Admin User", "unit": "units", "inputs": {"holdingCost": 2233, "annualDemand": 42, "annualOrders": 3.7571124603523782, "orderingCost": 3322}, "result": 11.178797665284907, "formula": "EOQ", "product": "Streamline 1080p Webcam", "forecast": null, "productId": "PRD-TECH-0008", "demandSource": "historical", "recommendedOrderQuantity": 11}', '2026-10-26 23:59:52', '2026-10-26 23:59:52'),
+	(284, 3, 'formula.compute', 'Computed order quantity — 21 units for Poco X6 Pro', 'calculator', '{"by": "Super Admin User", "unit": "units", "inputs": {"holdingCost": 1000, "annualDemand": 702, "annualOrders": 33.06747562069463, "orderingCost": 321}, "result": 21.22931934848595, "formula": "EOQ", "product": "Poco X6 Pro", "forecast": {"periodType": "week", "baseForecast": 13.5, "adjustmentPct": 0, "annualPeriods": 52, "seasonalEvent": null, "forecastPeriod": "2026-10-26", "seasonalEnabled": false, "adjustedForecast": 13.5}, "productId": "PRD-4158", "demandSource": "forecast", "recommendedOrderQuantity": 21}', '2026-10-27 00:15:51', '2026-10-27 00:15:51'),
+	(285, 3, 'stock.in', 'Stock In +3 for Honor X3 (added to the same day\'s entry, now +37)', 'boxes', '{"qty": 3, "date": "2026-10-27", "type": "Stock In", "change": 3, "product": "Honor X3", "totalQty": 65, "productId": "PRD-7113", "movementId": 69, "previousType": null, "previousChange": null, "previousProductId": null}', '2026-10-27 00:33:16', '2026-10-27 00:33:16'),
+	(286, 3, 'formula.compute', 'Computed order quantity — 21 units for Poco X6 Pro', 'calculator', '{"by": "Super Admin User", "unit": "units", "inputs": {"holdingCost": 1000, "annualDemand": 702, "annualOrders": 33.06747562069463, "orderingCost": 321}, "result": 21.22931934848595, "formula": "EOQ", "product": "Poco X6 Pro", "forecast": {"periodType": "week", "baseForecast": 13.5, "adjustmentPct": 0, "annualPeriods": 52, "seasonalEvent": null, "forecastPeriod": "2026-10-26", "seasonalEnabled": false, "adjustedForecast": 13.5}, "productId": "PRD-4158", "demandSource": "forecast", "recommendedOrderQuantity": 21}', '2026-10-27 00:36:38', '2026-10-27 00:36:38'),
+	(287, 3, 'stock.in', 'Stock In +1 for Honor X3 (added to the same day\'s entry, now +38)', 'boxes', '{"qty": 1, "date": "2026-10-27", "type": "Stock In", "change": 1, "product": "Honor X3", "totalQty": 66, "productId": "PRD-7113", "movementId": 69, "previousType": null, "previousChange": null, "previousProductId": null}', '2026-10-27 01:31:50', '2026-10-27 01:31:50'),
+	(288, 3, 'formula.compute', 'Computed order quantity — 21 units for Poco X6 Pro', 'calculator', '{"by": "Super Admin User", "unit": "units", "inputs": {"holdingCost": 1000, "annualDemand": 702, "annualOrders": 33.06747562069463, "orderingCost": 321}, "result": 21.22931934848595, "formula": "EOQ", "product": "Poco X6 Pro", "forecast": {"periodType": "week", "baseForecast": 13.5, "adjustmentPct": 0, "annualPeriods": 52, "seasonalEvent": null, "forecastPeriod": "2026-10-26", "seasonalEnabled": false, "adjustedForecast": 13.5}, "productId": "PRD-4158", "demandSource": "forecast", "recommendedOrderQuantity": 21}', '2026-10-27 01:35:55', '2026-10-27 01:35:55'),
+	(289, 3, 'settings.logo', 'Changed the system logo', 'settings', NULL, '2026-10-27 01:41:17', '2026-10-27 01:41:17');
 
 -- Dumping structure for table ggg_inventory.app_settings
 CREATE TABLE IF NOT EXISTS `app_settings` (
@@ -274,10 +334,10 @@ CREATE TABLE IF NOT EXISTS `app_settings` (
   PRIMARY KEY (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table ggg_inventory.app_settings: ~1 rows (approximately)
+-- Dumping data for table ggg_inventory.app_settings: ~4 rows (approximately)
 INSERT INTO `app_settings` (`key`, `value`, `created_at`, `updated_at`) VALUES
 	('currency', 'USD', '2026-10-23 19:35:44', '2026-10-25 01:44:10'),
-	('logo', 'branding/RsfYH8DtzaWaPFFOMX30fsd0PxMV1KpLItFTjXHI.webp', '2026-10-24 03:26:11', '2026-10-24 03:26:11'),
+	('logo', 'branding/zIOC7PTbhWaBPXN8t402dbqI07Q3xfNpxxzJIXXv.png', '2026-10-24 03:26:11', '2026-10-27 01:41:17'),
 	('role_access_admin', 'pv,pc,pe,pd,px,sv,sm,kv,kc,ke,kd,kl,kx,kh,rv,cu,cs,ch,cx,fv,fx,fp,fe,tv,t1,t2,t3,t4,t5,t6,t7,t8,tx,nv,sc', '2026-10-24 19:29:59', '2026-10-24 19:29:59'),
 	('role_access_staff', 'kv,kc,ke,kd,kx,kh,rv,tv,t1,t2,t3,t4,t5,t6,t7,t8,tx,nv', '2026-10-24 19:30:00', '2026-10-24 19:32:07');
 
@@ -290,12 +350,12 @@ CREATE TABLE IF NOT EXISTS `cache` (
   KEY `cache_expiration_index` (`expiration`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table ggg_inventory.cache: ~0 rows (approximately)
+-- Dumping data for table ggg_inventory.cache: ~4 rows (approximately)
 INSERT INTO `cache` (`key`, `value`, `expiration`) VALUES
-	('laravel-cache-4f50de7223b8615f385a14b93377a51c', 'i:1;', 1792918426),
-	('laravel-cache-4f50de7223b8615f385a14b93377a51c:timer', 'i:1792918426;', 1792918426),
-	('laravel-cache-94d92f976fd06fd3e8cf53ec4e03d646', 'i:1;', 1792918426),
-	('laravel-cache-94d92f976fd06fd3e8cf53ec4e03d646:timer', 'i:1792918426;', 1792918426);
+	('laravel-cache-4f50de7223b8615f385a14b93377a51c', 'i:1;', 1793085269),
+	('laravel-cache-4f50de7223b8615f385a14b93377a51c:timer', 'i:1793085269;', 1793085269),
+	('laravel-cache-94d92f976fd06fd3e8cf53ec4e03d646', 'i:1;', 1793085270),
+	('laravel-cache-94d92f976fd06fd3e8cf53ec4e03d646:timer', 'i:1793085270;', 1793085270);
 
 -- Dumping structure for table ggg_inventory.cache_locks
 CREATE TABLE IF NOT EXISTS `cache_locks` (
@@ -378,7 +438,7 @@ CREATE TABLE IF NOT EXISTS `migrations` (
   `migration` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `batch` int NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=37 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table ggg_inventory.migrations: ~33 rows (approximately)
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
@@ -417,7 +477,9 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 	(33, '2026_10_24_000004_update_default_safety_stock', 11),
 	(34, '2026_10_25_000001_create_restock_requests_table', 12),
 	(35, '2026_10_25_000002_add_order_details_to_restock_requests_table', 13),
-	(36, '2026_10_25_000003_remove_order_details_from_restock_requests_table', 14);
+	(36, '2026_10_25_000003_remove_order_details_from_restock_requests_table', 14),
+	(37, '2026_10_27_000001_add_trash_bin_columns', 15),
+	(38, '2026_10_27_000002_add_period_type_to_past_sales_table', 16);
 
 -- Dumping structure for table ggg_inventory.password_reset_otps
 CREATE TABLE IF NOT EXISTS `password_reset_otps` (
@@ -446,39 +508,74 @@ CREATE TABLE IF NOT EXISTS `password_reset_tokens` (
 CREATE TABLE IF NOT EXISTS `past_sales` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `product_id` bigint unsigned NOT NULL,
+  `period_type` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'month',
   `period_date` date NOT NULL,
   `units_sold` int unsigned NOT NULL,
   `source` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'manual',
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `past_sales_product_id_period_date_unique` (`product_id`,`period_date`),
+  UNIQUE KEY `past_sales_product_type_date_unique` (`product_id`,`period_type`,`period_date`),
   CONSTRAINT `past_sales_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=69 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table ggg_inventory.past_sales: ~21 rows (approximately)
-INSERT INTO `past_sales` (`id`, `product_id`, `period_date`, `units_sold`, `source`, `created_at`, `updated_at`) VALUES
-	(1, 25, '2026-01-01', 18, 'manual', '2026-10-23 03:23:06', '2026-10-23 03:23:06'),
-	(2, 25, '2026-02-01', 22, 'manual', '2026-10-23 03:23:06', '2026-10-23 03:23:06'),
-	(3, 25, '2026-03-01', 20, 'manual', '2026-10-23 03:23:06', '2026-10-23 03:23:06'),
-	(4, 25, '2026-04-01', 25, 'manual', '2026-10-23 03:23:06', '2026-10-23 03:23:06'),
-	(5, 25, '2026-05-01', 27, 'manual', '2026-10-23 03:23:06', '2026-10-23 03:23:06'),
-	(6, 25, '2026-06-01', 24, 'manual', '2026-10-23 03:23:06', '2026-10-23 03:23:06'),
-	(7, 25, '2026-07-01', 30, 'manual', '2026-10-23 03:23:06', '2026-10-23 03:23:06'),
-	(8, 25, '2026-08-01', 33, 'manual', '2026-10-23 03:23:06', '2026-10-23 03:23:06'),
-	(9, 25, '2026-09-01', 35, 'manual', '2026-10-23 03:23:06', '2026-10-23 03:23:06'),
-	(10, 25, '2025-01-01', 12, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
-	(11, 25, '2025-02-01', 32, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
-	(12, 25, '2025-03-01', 22, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
-	(13, 25, '2025-04-01', 11, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
-	(14, 25, '2025-05-01', 12, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
-	(15, 25, '2025-06-01', 3, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
-	(16, 25, '2025-07-01', 33, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
-	(17, 25, '2025-08-01', 112, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
-	(18, 25, '2025-09-01', 33, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
-	(19, 25, '2025-10-01', 32, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
-	(20, 25, '2025-11-01', 21, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
-	(21, 25, '2025-12-01', 21, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47');
+-- Dumping data for table ggg_inventory.past_sales: ~55 rows (approximately)
+INSERT INTO `past_sales` (`id`, `product_id`, `period_type`, `period_date`, `units_sold`, `source`, `created_at`, `updated_at`) VALUES
+	(10, 25, 'month', '2025-01-01', 12, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
+	(11, 25, 'month', '2025-02-01', 32, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
+	(12, 25, 'month', '2025-03-01', 22, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
+	(13, 25, 'month', '2025-04-01', 11, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
+	(14, 25, 'month', '2025-05-01', 12, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
+	(15, 25, 'month', '2025-06-01', 3, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
+	(16, 25, 'month', '2025-07-01', 33, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
+	(17, 25, 'month', '2025-08-01', 112, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
+	(18, 25, 'month', '2025-09-01', 33, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
+	(19, 25, 'month', '2025-10-01', 32, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
+	(20, 25, 'month', '2025-11-01', 21, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
+	(21, 25, 'month', '2025-12-01', 21, 'manual', '2026-10-23 03:24:47', '2026-10-23 03:24:47'),
+	(22, 25, 'week', '2026-09-07', 13, 'manual', '2026-10-26 20:43:49', '2026-10-26 20:43:49'),
+	(23, 25, 'week', '2026-09-14', 23, 'manual', '2026-10-26 20:43:49', '2026-10-26 20:43:49'),
+	(24, 25, 'week', '2026-09-21', 33, 'manual', '2026-10-26 20:43:49', '2026-10-26 20:43:49'),
+	(29, 25, 'week', '2026-08-31', 14, 'manual', '2026-10-26 23:44:53', '2026-10-26 23:44:53'),
+	(30, 25, 'week', '2026-01-05', 22, 'manual', '2026-10-26 23:45:58', '2026-10-26 23:45:58'),
+	(31, 25, 'week', '2026-01-12', 12, 'manual', '2026-10-26 23:45:58', '2026-10-26 23:45:58'),
+	(32, 25, 'week', '2026-01-19', 33, 'manual', '2026-10-26 23:45:58', '2026-10-26 23:45:58'),
+	(33, 25, 'week', '2026-01-26', 44, 'manual', '2026-10-26 23:45:58', '2026-10-26 23:45:58'),
+	(34, 25, 'week', '2026-02-02', 33, 'manual', '2026-10-26 23:46:10', '2026-10-26 23:46:10'),
+	(35, 25, 'week', '2026-02-09', 12, 'manual', '2026-10-26 23:46:10', '2026-10-26 23:46:10'),
+	(36, 25, 'week', '2026-02-16', 5, 'manual', '2026-10-26 23:46:10', '2026-10-26 23:46:10'),
+	(37, 25, 'week', '2026-02-23', 3, 'manual', '2026-10-26 23:46:10', '2026-10-26 23:46:10'),
+	(38, 25, 'week', '2026-03-02', 22, 'manual', '2026-10-26 23:46:36', '2026-10-26 23:46:36'),
+	(39, 25, 'week', '2026-03-09', 1, 'manual', '2026-10-26 23:46:36', '2026-10-26 23:46:36'),
+	(40, 25, 'week', '2026-03-16', 3, 'manual', '2026-10-26 23:46:36', '2026-10-26 23:46:36'),
+	(41, 25, 'week', '2026-03-23', 3, 'manual', '2026-10-26 23:46:36', '2026-10-26 23:46:36'),
+	(42, 25, 'week', '2026-03-30', 2, 'manual', '2026-10-26 23:46:36', '2026-10-26 23:46:36'),
+	(43, 25, 'week', '2026-04-06', 33, 'manual', '2026-10-26 23:46:49', '2026-10-26 23:46:49'),
+	(44, 25, 'week', '2026-04-13', 2, 'manual', '2026-10-26 23:46:49', '2026-10-26 23:46:49'),
+	(45, 25, 'week', '2026-04-20', 1, 'manual', '2026-10-26 23:46:49', '2026-10-26 23:46:49'),
+	(46, 25, 'week', '2026-04-27', 0, 'manual', '2026-10-26 23:46:49', '2026-10-26 23:46:49'),
+	(47, 25, 'week', '2026-05-04', 4, 'manual', '2026-10-26 23:47:00', '2026-10-26 23:47:00'),
+	(48, 25, 'week', '2026-05-11', 2, 'manual', '2026-10-26 23:47:00', '2026-10-26 23:47:00'),
+	(49, 25, 'week', '2026-05-18', 1, 'manual', '2026-10-26 23:47:00', '2026-10-26 23:47:00'),
+	(50, 25, 'week', '2026-05-25', 2, 'manual', '2026-10-26 23:47:00', '2026-10-26 23:47:00'),
+	(51, 25, 'week', '2026-06-01', 3, 'manual', '2026-10-26 23:47:11', '2026-10-26 23:47:11'),
+	(52, 25, 'week', '2026-06-08', 22, 'manual', '2026-10-26 23:47:11', '2026-10-26 23:47:11'),
+	(53, 25, 'week', '2026-06-15', 33, 'manual', '2026-10-26 23:47:11', '2026-10-26 23:47:11'),
+	(54, 25, 'week', '2026-06-22', 12, 'manual', '2026-10-26 23:47:11', '2026-10-26 23:47:11'),
+	(55, 25, 'week', '2026-06-29', 32, 'manual', '2026-10-26 23:47:11', '2026-10-26 23:47:11'),
+	(56, 25, 'week', '2026-07-06', 10, 'manual', '2026-10-26 23:47:20', '2026-10-26 23:47:20'),
+	(57, 25, 'week', '2026-07-13', 22, 'manual', '2026-10-26 23:47:20', '2026-10-26 23:47:20'),
+	(58, 25, 'week', '2026-07-20', 11, 'manual', '2026-10-26 23:47:20', '2026-10-26 23:47:20'),
+	(59, 25, 'week', '2026-07-27', 23, 'manual', '2026-10-26 23:47:20', '2026-10-26 23:47:20'),
+	(60, 25, 'week', '2026-08-03', 32, 'manual', '2026-10-26 23:47:30', '2026-10-26 23:47:30'),
+	(61, 25, 'week', '2026-08-10', 11, 'manual', '2026-10-26 23:47:30', '2026-10-26 23:47:30'),
+	(62, 25, 'week', '2026-08-17', 22, 'manual', '2026-10-26 23:47:30', '2026-10-26 23:47:30'),
+	(63, 25, 'week', '2026-08-24', 3, 'manual', '2026-10-26 23:47:30', '2026-10-26 23:47:30'),
+	(64, 25, 'week', '2025-12-29', 22, 'manual', '2026-10-26 23:49:35', '2026-10-26 23:49:35'),
+	(65, 25, 'week', '2026-09-28', 12, 'manual', '2026-10-26 23:51:27', '2026-10-26 23:51:27'),
+	(66, 25, 'week', '2026-10-05', 12, 'manual', '2026-10-26 23:52:10', '2026-10-26 23:52:10'),
+	(67, 25, 'week', '2026-10-12', 33, 'manual', '2026-10-26 23:52:10', '2026-10-26 23:52:10'),
+	(68, 25, 'week', '2026-10-19', 1, 'manual', '2026-10-26 23:52:10', '2026-10-26 23:52:10');
 
 -- Dumping structure for table ggg_inventory.products
 CREATE TABLE IF NOT EXISTS `products` (
@@ -497,37 +594,41 @@ CREATE TABLE IF NOT EXISTS `products` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `deleted_by_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `products_code_unique` (`code`),
   KEY `products_supplier_id_foreign` (`supplier_id`),
   KEY `products_name_index` (`name`),
   KEY `products_category_index` (`category`),
+  KEY `products_deleted_by_foreign` (`deleted_by`),
+  CONSTRAINT `products_deleted_by_foreign` FOREIGN KEY (`deleted_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `products_supplier_id_foreign` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dumping data for table ggg_inventory.products: ~21 rows (approximately)
-INSERT INTO `products` (`id`, `code`, `name`, `category`, `brand`, `model`, `unit_measure`, `variants`, `image`, `supplier_id`, `stock_on_hand`, `unit_cost`, `created_at`, `updated_at`, `deleted_at`) VALUES
-	(13, 'PRD-5720', 'Iphone 11', 'Phone', 'Apple', 'Iphone 11 Pro Max', 'Units', NULL, NULL, 14, 0, NULL, '2026-10-03 11:13:13', '2026-10-21 02:55:39', '2026-10-21 02:55:39'),
-	(14, 'PRD-7647', 'Poco X6 Pro', 'Phone', 'Poco', 'X6 PRO', 'Units', NULL, NULL, 15, 0, NULL, '2026-10-03 15:53:47', '2026-10-21 02:55:45', '2026-10-21 02:55:45'),
-	(15, 'PRD-6089', 'Aula', 'Keyboard', 'Aula', 'F75', 'Boxes', NULL, NULL, NULL, 0, NULL, '2026-10-03 16:19:46', '2026-10-21 03:00:14', '2026-10-21 03:00:14'),
-	(16, 'PRD-3852', 'Kanata RGB Gaming Mouse', 'Peripherals', 'Kanata', 'KN-14', 'Units', NULL, NULL, NULL, 0, NULL, '2026-10-04 16:40:21', '2026-10-21 02:55:49', '2026-10-21 02:55:49'),
-	(24, 'PRD-1314', 'CherryMobile', 'Phone', 'Cherry', 'S6000', 'Boxes', NULL, NULL, NULL, 0, NULL, '2026-10-05 13:47:54', '2026-10-21 02:55:36', '2026-10-21 02:55:36'),
-	(25, 'PRD-4158', 'Poco X6 Pro', 'Phone', 'Poco', 'X6 PRO', 'Units', '["Black"]', 'https://down-ph.img.susercontent.com/file/ph-11134207-820l7-mrd141r0eznka6', 15, 0, NULL, '2026-10-21 03:02:00', '2026-10-24 03:16:03', NULL),
-	(26, 'PRD-9284', 'Iphone 11', 'Phone', 'apple', 'IP11Pro', 'Units', '["White"]', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS-WDmnL8beU-iNZENpJQJ4532nb_qfVKBpBYPBvDSoYg&s=10', 14, 0, NULL, '2026-10-22 04:37:59', '2026-10-24 21:38:30', NULL),
-	(27, 'PRD-7113', 'Honor X3', 'Phone', 'Honor Inc.', 'X3', 'Units', '["Orange"]', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR_Jphk3ZaFyIOxEbi69xBauuNB2W62yTQXuExDuWY06g&s=10', 19, 30, NULL, '2026-10-23 21:05:34', '2026-10-25 01:45:10', NULL),
-	(28, 'PRD-5704', 'Aula Keyboard', 'Keyboard', 'Aula', 'S98', 'Units', '["Pink", "Gray", "Gray/Black"]', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTO6myb1EEi0O9dI3GNt0icRoXe4y9z1x8n_MQRn77kWg&s=10', 20, 0, NULL, '2026-10-23 21:07:28', '2026-10-23 21:26:22', NULL),
-	(29, 'PRD-7214', 'Kanata RGB Gaming Mouse', 'Peripherals', 'Kanata', 'X6 Wired', 'Units', '["Black"]', NULL, 21, 15, NULL, '2026-10-23 21:14:58', '2026-10-23 21:16:49', NULL),
-	(30, 'PRD-4722', 'HP Laptop', 'Gadget', 'HP', 'Ryzen 5 2400g', 'Units', '["Silver"]', NULL, 22, 10, NULL, '2026-10-23 21:16:04', '2026-10-23 21:16:24', NULL),
-	(31, 'PRD-TECH-0001', 'AeroBook Pro 14 Laptop', 'Computers', 'AeroTech', 'ABP-14', 'Units', NULL, NULL, NULL, 7, NULL, '2026-10-23 21:32:20', '2026-10-23 21:35:16', NULL),
-	(32, 'PRD-TECH-0002', 'NovaCore Wireless Mouse', 'Computer Accessories', 'NovaCore', 'NC-MW-2', 'Units', NULL, NULL, NULL, 18, NULL, '2026-10-23 21:32:20', '2026-10-23 21:35:16', NULL),
-	(33, 'PRD-TECH-0003', 'VoltEdge Mechanical Keyboard', 'Computer Accessories', 'VoltEdge', 'VE-MK-87', 'Units', NULL, NULL, NULL, 12, NULL, '2026-10-23 21:32:20', '2026-10-23 21:35:16', NULL),
-	(34, 'PRD-TECH-0004', 'PixelWave 27-Inch Monitor', 'Displays', 'PixelWave', 'PW-27Q', 'Units', NULL, NULL, NULL, 0, NULL, '2026-10-23 21:32:20', '2026-10-24 19:52:38', NULL),
-	(35, 'PRD-TECH-0005', 'LinkForge Wi-Fi 6 Router', 'Networking', 'LinkForge', 'LF-RX6', 'Units', NULL, NULL, NULL, 22, NULL, '2026-10-23 21:32:20', '2026-10-23 21:35:16', NULL),
-	(36, 'PRD-TECH-0006', 'SonicPulse Noise-Canceling Headphones', 'Audio', 'SonicPulse', 'SP-ANC500', 'Units', NULL, NULL, NULL, 15, NULL, '2026-10-23 21:32:21', '2026-10-23 21:35:16', NULL),
-	(37, 'PRD-TECH-0007', 'CoreVault 1TB Portable SSD', 'Storage', 'CoreVault', 'CV-SSD1T', 'Units', NULL, NULL, NULL, 9, NULL, '2026-10-23 21:32:21', '2026-10-23 21:35:16', NULL),
-	(38, 'PRD-TECH-0008', 'Streamline 1080p Webcam', 'Computer Accessories', 'Streamline', 'SL-CAM1080', 'Units', NULL, NULL, NULL, 3, NULL, '2026-10-23 21:32:21', '2026-10-23 21:35:16', NULL),
-	(39, 'PRD-TECH-0009', 'ArcLight USB-C Docking Station', 'Computer Accessories', 'ArcLight', 'AL-DOCK8', 'Units', NULL, NULL, NULL, 0, NULL, '2026-10-23 21:32:21', '2026-10-24 20:05:44', NULL),
-	(40, 'PRD-TECH-0010', 'TitanPlay Wireless Game Controller', 'Gaming', 'TitanPlay', 'TP-WC2', 'Units', NULL, NULL, NULL, 0, NULL, '2026-10-23 21:32:21', '2026-10-24 02:14:02', NULL);
+INSERT INTO `products` (`id`, `code`, `name`, `category`, `brand`, `model`, `unit_measure`, `variants`, `image`, `supplier_id`, `stock_on_hand`, `unit_cost`, `created_at`, `updated_at`, `deleted_at`, `deleted_by`, `deleted_by_name`) VALUES
+	(13, 'PRD-5720', 'Iphone 11', 'Phone', 'Apple', 'Iphone 11 Pro Max', 'Units', NULL, NULL, 14, 0, NULL, '2026-10-03 11:13:13', '2026-10-21 02:55:39', '2026-10-21 02:55:39', NULL, NULL),
+	(14, 'PRD-7647', 'Poco X6 Pro', 'Phone', 'Poco', 'X6 PRO', 'Units', NULL, NULL, 15, 0, NULL, '2026-10-03 15:53:47', '2026-10-21 02:55:45', '2026-10-21 02:55:45', NULL, NULL),
+	(15, 'PRD-6089', 'Aula', 'Keyboard', 'Aula', 'F75', 'Boxes', NULL, NULL, NULL, 0, NULL, '2026-10-03 16:19:46', '2026-10-21 03:00:14', '2026-10-21 03:00:14', NULL, NULL),
+	(16, 'PRD-3852', 'Kanata RGB Gaming Mouse', 'Peripherals', 'Kanata', 'KN-14', 'Units', NULL, NULL, NULL, 0, NULL, '2026-10-04 16:40:21', '2026-10-21 02:55:49', '2026-10-21 02:55:49', NULL, NULL),
+	(24, 'PRD-1314', 'CherryMobile', 'Phone', 'Cherry', 'S6000', 'Boxes', NULL, NULL, NULL, 0, NULL, '2026-10-05 13:47:54', '2026-10-21 02:55:36', '2026-10-21 02:55:36', NULL, NULL),
+	(25, 'PRD-4158', 'Poco X6 Pro', 'Phone', 'Poco', 'X6 PRO', 'Units', '["Black"]', 'https://down-ph.img.susercontent.com/file/ph-11134207-820l7-mrd141r0eznka6', 15, 0, NULL, '2026-10-21 03:02:00', '2026-10-24 03:16:03', NULL, NULL, NULL),
+	(26, 'PRD-9284', 'Iphone 11', 'Phone', 'apple', 'IP11Pro', 'Units', '["White"]', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS-WDmnL8beU-iNZENpJQJ4532nb_qfVKBpBYPBvDSoYg&s=10', 14, 0, NULL, '2026-10-22 04:37:59', '2026-10-24 21:38:30', NULL, NULL, NULL),
+	(27, 'PRD-7113', 'Honor X3', 'Phone', 'Honor Inc.', 'X3', 'Units', '["Orange"]', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR_Jphk3ZaFyIOxEbi69xBauuNB2W62yTQXuExDuWY06g&s=10', 19, 66, NULL, '2026-10-23 21:05:34', '2026-10-27 01:31:50', NULL, NULL, NULL),
+	(28, 'PRD-5704', 'Aula Keyboard', 'Keyboard', 'Aula', 'S98', 'Units', '["Pink", "Gray", "Gray/Black"]', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTO6myb1EEi0O9dI3GNt0icRoXe4y9z1x8n_MQRn77kWg&s=10', 20, 0, NULL, '2026-10-23 21:07:28', '2026-10-23 21:26:22', NULL, NULL, NULL),
+	(29, 'PRD-7214', 'Kanata RGB Gaming Mouse', 'Peripherals', 'Kanata', 'X6 Wired', 'Units', '["Black"]', NULL, 21, 15, NULL, '2026-10-23 21:14:58', '2026-10-23 21:16:49', NULL, NULL, NULL),
+	(30, 'PRD-4722', 'HP Laptop', 'Gadget', 'HP', 'Ryzen 5 2400g', 'Units', '["Silver"]', NULL, 22, 10, NULL, '2026-10-23 21:16:04', '2026-10-23 21:16:24', NULL, NULL, NULL),
+	(31, 'PRD-TECH-0001', 'AeroBook Pro 14 Laptop', 'Computers', 'AeroTech', 'ABP-14', 'Units', NULL, NULL, NULL, 7, NULL, '2026-10-23 21:32:20', '2026-10-23 21:35:16', NULL, NULL, NULL),
+	(32, 'PRD-TECH-0002', 'NovaCore Wireless Mouse', 'Computer Accessories', 'NovaCore', 'NC-MW-2', 'Units', NULL, NULL, NULL, 18, NULL, '2026-10-23 21:32:20', '2026-10-23 21:35:16', NULL, NULL, NULL),
+	(33, 'PRD-TECH-0003', 'VoltEdge Mechanical Keyboard', 'Computer Accessories', 'VoltEdge', 'VE-MK-87', 'Units', NULL, NULL, NULL, 12, NULL, '2026-10-23 21:32:20', '2026-10-23 21:35:16', NULL, NULL, NULL),
+	(34, 'PRD-TECH-0004', 'PixelWave 27-Inch Monitor', 'Displays', 'PixelWave', 'PW-27Q', 'Units', NULL, NULL, NULL, 0, NULL, '2026-10-23 21:32:20', '2026-10-24 19:52:38', NULL, NULL, NULL),
+	(35, 'PRD-TECH-0005', 'LinkForge Wi-Fi 6 Router', 'Networking', 'LinkForge', 'LF-RX6', 'Units', NULL, NULL, NULL, 22, NULL, '2026-10-23 21:32:20', '2026-10-23 21:35:16', NULL, NULL, NULL),
+	(36, 'PRD-TECH-0006', 'SonicPulse Noise-Canceling Headphones', 'Audio', 'SonicPulse', 'SP-ANC500', 'Units', NULL, NULL, NULL, 15, NULL, '2026-10-23 21:32:21', '2026-10-23 21:35:16', NULL, NULL, NULL),
+	(37, 'PRD-TECH-0007', 'CoreVault 1TB Portable SSD', 'Storage', 'CoreVault', 'CV-SSD1T', 'Units', NULL, NULL, NULL, 9, NULL, '2026-10-23 21:32:21', '2026-10-23 21:35:16', NULL, NULL, NULL),
+	(38, 'PRD-TECH-0008', 'Streamline 1080p Webcam', 'Computer Accessories', 'Streamline', 'SL-CAM1080', 'Units', NULL, NULL, NULL, 3, NULL, '2026-10-23 21:32:21', '2026-10-23 21:35:16', NULL, NULL, NULL),
+	(39, 'PRD-TECH-0009', 'ArcLight USB-C Docking Station', 'Computer Accessories', 'ArcLight', 'AL-DOCK8', 'Units', NULL, NULL, NULL, 45, NULL, '2026-10-23 21:32:21', '2026-10-26 19:48:37', NULL, NULL, NULL),
+	(40, 'PRD-TECH-0010', 'TitanPlay Wireless Game Controller', 'Gaming', 'TitanPlay', 'TP-WC2', 'Units', NULL, NULL, NULL, 0, NULL, '2026-10-23 21:32:21', '2026-10-24 02:14:02', NULL, NULL, NULL);
 
 -- Dumping structure for table ggg_inventory.restock_requests
 CREATE TABLE IF NOT EXISTS `restock_requests` (
@@ -607,13 +708,13 @@ CREATE TABLE IF NOT EXISTS `sales_history` (
   KEY `sales_history_period_date_index` (`period_date`),
   KEY `sales_history_product_id_index` (`product_id`),
   CONSTRAINT `sales_history_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table ggg_inventory.sales_history: ~7 rows (approximately)
+-- Dumping data for table ggg_inventory.sales_history: ~4 rows (approximately)
 INSERT INTO `sales_history` (`id`, `product_id`, `period_date`, `period_type`, `units_sold`, `created_at`, `updated_at`) VALUES
 	(94, 28, '2026-10-01', 'month', 3, '2026-10-23 21:10:38', '2026-10-23 21:26:22'),
 	(97, 34, '2026-10-01', 'month', 4, '2026-10-24 19:52:38', '2026-10-24 19:52:38'),
-	(98, 39, '2026-10-01', 'month', 45, '2026-10-24 20:05:44', '2026-10-24 20:05:44');
+	(100, 27, '2026-10-01', 'month', 2, '2026-10-26 17:54:56', '2026-10-26 17:55:08');
 
 -- Dumping structure for table ggg_inventory.sales_seasonal_adjustments
 CREATE TABLE IF NOT EXISTS `sales_seasonal_adjustments` (
@@ -672,8 +773,7 @@ CREATE TABLE IF NOT EXISTS `sessions` (
 
 -- Dumping data for table ggg_inventory.sessions: ~1 rows (approximately)
 INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES
-	('brivmA0gk22aNW19B9ucAavMcC6A3ARIzL1II7rT', NULL, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36', 'eyJfdG9rZW4iOiJtbUhNbFRScEpFc2RWMW81QVZwcnBqNWJyaVRWbVl2S3o2YmZKdk1FIiwiX2ZsYXNoIjp7Im9sZCI6W10sIm5ldyI6W119fQ==', 1792915176),
-	('tWC5UPGXRtCcponnhnl2BeOVwEkqbeCf168xa9Du', 3, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36', 'eyJfdG9rZW4iOiJ2Rk5iVzdzWVFqMzBaZ3FoS1NOZ3J5Tmo1aDJqWDB1OGhjTFVVTFB5IiwiX2ZsYXNoIjp7Im9sZCI6W10sIm5ldyI6W119LCJsb2dpbl93ZWJfNTliYTM2YWRkYzJiMmY5NDAxNTgwZjAxNGM3ZjU4ZWE0ZTMwOTg5ZCI6MywiX3ByZXZpb3VzIjp7InVybCI6Imh0dHA6XC9cLzEyNy4wLjAuMTo4MDAwXC9hcGlcL3Jlc3RvY2stcmVxdWVzdHMiLCJyb3V0ZSI6bnVsbH19', 1792922134);
+	('WbooMYZPX19rAPK9NakKiaQu9I9QUOgFkEs9ouzy', 3, '127.0.0.1', 'Mozilla/5.0 (Linux; Android 16; Pixel 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36', 'eyJfdG9rZW4iOiJUZ3hLQkIyUVRpVnBwUFo1MFFVMjRvczZoUDY5dEw3YTE2MTB0a0hUIiwiX3ByZXZpb3VzIjp7InVybCI6Imh0dHA6XC9cLzEyNy4wLjAuMTo4MDAwXC9hcGlcL3Jlc3RvY2stcmVxdWVzdHMiLCJyb3V0ZSI6bnVsbH0sIl9mbGFzaCI6eyJvbGQiOltdLCJuZXciOltdfSwibG9naW5fd2ViXzU5YmEzNmFkZGMyYjJmOTQwMTU4MGYwMTRjN2Y1OGVhNGUzMDk4OWQiOjN9', 1793094229);
 
 -- Dumping structure for table ggg_inventory.stock_movements
 CREATE TABLE IF NOT EXISTS `stock_movements` (
@@ -692,27 +792,36 @@ CREATE TABLE IF NOT EXISTS `stock_movements` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   `is_adjustment` tinyint(1) NOT NULL DEFAULT '0',
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `deleted_by_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `deleted_with_product` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `stock_movements_product_id_index` (`product_id`),
   KEY `stock_movements_movement_date_index` (`movement_date`),
+  KEY `stock_movements_deleted_by_foreign` (`deleted_by`),
+  KEY `stock_movements_deleted_at_index` (`deleted_at`),
+  CONSTRAINT `stock_movements_deleted_by_foreign` FOREIGN KEY (`deleted_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `stock_movements_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=68 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=70 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table ggg_inventory.stock_movements: ~14 rows (approximately)
-INSERT INTO `stock_movements` (`id`, `product_id`, `product_name`, `product_category`, `variant_name`, `movement_type`, `qty`, `unit_price`, `remaining_stock`, `notes`, `recorded_by`, `movement_date`, `created_at`, `updated_at`, `is_adjustment`) VALUES
-	(42, 28, 'Aula Keyboard', 'Keyboard', 'Gray', 'out', 3, 99.00, 0, 'Opening stock', 'Super Admin User', '2026-10-24', '2026-10-23 21:08:02', '2026-10-23 21:26:22', 0),
-	(45, 30, 'HP Laptop', 'Gadget', 'Silver', 'in', 10, 599.00, 10, 'New', 'Super Admin User', '2026-10-24', '2026-10-23 21:16:24', '2026-10-23 21:16:24', 0),
-	(46, 29, 'Kanata RGB Gaming Mouse', 'Peripherals', 'Black', 'in', 15, 50.00, 15, 'New', 'Super Admin User', '2026-10-24', '2026-10-23 21:16:49', '2026-10-23 21:16:49', 0),
-	(47, 31, 'AeroBook Pro 14 Laptop', 'Computers', NULL, 'in', 7, NULL, 7, 'Opening stock', NULL, '2026-10-24', '2026-10-23 21:35:16', '2026-10-23 21:35:16', 0),
-	(48, 32, 'NovaCore Wireless Mouse', 'Computer Accessories', NULL, 'in', 18, NULL, 18, 'Opening stock', NULL, '2026-10-24', '2026-10-23 21:35:16', '2026-10-23 21:35:16', 0),
-	(49, 33, 'VoltEdge Mechanical Keyboard', 'Computer Accessories', NULL, 'in', 12, NULL, 12, 'Opening stock', NULL, '2026-10-24', '2026-10-23 21:35:16', '2026-10-23 21:35:16', 0),
-	(50, 34, 'PixelWave 27-Inch Monitor', 'Displays', NULL, 'out', 4, NULL, 0, 'Opening stock', 'Super Admin User', '2026-10-24', '2026-10-23 21:35:16', '2026-10-24 19:52:38', 0),
-	(51, 35, 'LinkForge Wi-Fi 6 Router', 'Networking', NULL, 'in', 22, NULL, 22, 'Opening stock', NULL, '2026-10-24', '2026-10-23 21:35:16', '2026-10-23 21:35:16', 0),
-	(52, 36, 'SonicPulse Noise-Canceling Headphones', 'Audio', NULL, 'in', 15, NULL, 15, 'Opening stock', NULL, '2026-10-24', '2026-10-23 21:35:16', '2026-10-23 21:35:16', 0),
-	(53, 37, 'CoreVault 1TB Portable SSD', 'Storage', NULL, 'in', 9, NULL, 9, 'Opening stock', NULL, '2026-10-24', '2026-10-23 21:35:16', '2026-10-23 21:35:16', 0),
-	(54, 38, 'Streamline 1080p Webcam', 'Computer Accessories', NULL, 'in', 3, NULL, 3, 'Opening stock', NULL, '2026-10-24', '2026-10-23 21:35:16', '2026-10-23 21:35:16', 0),
-	(55, 39, 'ArcLight USB-C Docking Station', 'Computer Accessories', NULL, 'out', 45, NULL, 0, 'Opening stock', 'Super Admin User', '2026-10-24', '2026-10-23 21:35:16', '2026-10-24 20:05:44', 0),
-	(66, 27, 'Honor X3', 'Phone', 'Orange', 'in', 30, 299.00, 30, 'Opening stock', 'Super Admin User', '2026-10-25', '2026-10-25 01:37:30', '2026-10-25 01:44:44', 0);
+-- Dumping data for table ggg_inventory.stock_movements: ~15 rows (approximately)
+INSERT INTO `stock_movements` (`id`, `product_id`, `product_name`, `product_category`, `variant_name`, `movement_type`, `qty`, `unit_price`, `remaining_stock`, `notes`, `recorded_by`, `movement_date`, `created_at`, `updated_at`, `is_adjustment`, `deleted_at`, `deleted_by`, `deleted_by_name`, `deleted_with_product`) VALUES
+	(42, 28, 'Aula Keyboard', 'Keyboard', 'Gray', 'out', 3, 99.00, 0, 'Opening stock', 'Super Admin User', '2026-10-24', '2026-10-23 21:08:02', '2026-10-23 21:26:22', 0, NULL, NULL, NULL, 0),
+	(45, 30, 'HP Laptop', 'Gadget', 'Silver', 'in', 10, 599.00, 10, 'New', 'Super Admin User', '2026-10-24', '2026-10-23 21:16:24', '2026-10-23 21:16:24', 0, NULL, NULL, NULL, 0),
+	(46, 29, 'Kanata RGB Gaming Mouse', 'Peripherals', 'Black', 'in', 15, 50.00, 15, 'New', 'Super Admin User', '2026-10-24', '2026-10-23 21:16:49', '2026-10-23 21:16:49', 0, NULL, NULL, NULL, 0),
+	(47, 31, 'AeroBook Pro 14 Laptop', 'Computers', NULL, 'in', 7, 119.00, 7, 'Opening stock', 'Super Admin User', '2026-10-24', '2026-10-23 21:35:16', '2026-10-25 02:17:41', 0, NULL, NULL, NULL, 0),
+	(48, 32, 'NovaCore Wireless Mouse', 'Computer Accessories', NULL, 'in', 18, 239.00, 18, 'Opening stock', 'Super Admin User', '2026-10-24', '2026-10-23 21:35:16', '2026-10-25 02:18:33', 0, NULL, NULL, NULL, 0),
+	(49, 33, 'VoltEdge Mechanical Keyboard', 'Computer Accessories', NULL, 'in', 12, 399.00, 12, 'Opening stock', 'Super Admin User', '2026-10-24', '2026-10-23 21:35:16', '2026-10-25 02:18:02', 0, NULL, NULL, NULL, 0),
+	(50, 34, 'PixelWave 27-Inch Monitor', 'Displays', NULL, 'out', 4, 79.00, 0, 'Opening stock', 'Super Admin User', '2026-10-24', '2026-10-23 21:35:16', '2026-10-25 02:17:06', 0, NULL, NULL, NULL, 0),
+	(51, 35, 'LinkForge Wi-Fi 6 Router', 'Networking', NULL, 'in', 22, 199.00, 22, 'Opening stock', 'Super Admin User', '2026-10-24', '2026-10-23 21:35:16', '2026-10-25 02:18:45', 0, NULL, NULL, NULL, 0),
+	(52, 36, 'SonicPulse Noise-Canceling Headphones', 'Audio', NULL, 'in', 15, 799.00, 15, 'Opening stock', 'Super Admin User', '2026-10-24', '2026-10-23 21:35:16', '2026-10-25 02:18:22', 0, NULL, NULL, NULL, 0),
+	(53, 37, 'CoreVault 1TB Portable SSD', 'Storage', NULL, 'in', 9, 99.00, 9, 'Opening stock', 'Super Admin User', '2026-10-24', '2026-10-23 21:35:16', '2026-10-25 02:17:51', 0, NULL, NULL, NULL, 0),
+	(54, 38, 'Streamline 1080p Webcam', 'Computer Accessories', NULL, 'in', 3, 199.00, 3, 'Opening stock', 'Super Admin User', '2026-10-24', '2026-10-23 21:35:16', '2026-10-25 02:17:19', 0, NULL, NULL, NULL, 0),
+	(55, 39, 'ArcLight USB-C Docking Station', 'Computer Accessories', NULL, 'out', 45, 59.00, 0, 'Opening stock', 'Super Admin User', '2026-10-24', '2026-10-23 21:35:16', '2026-10-26 19:48:37', 0, '2026-10-26 19:48:37', 3, 'Super Admin User', 0),
+	(66, 27, 'Honor X3', 'Phone', 'Orange', 'in', 30, 299.00, 30, 'Opening stock', 'Super Admin User', '2026-10-25', '2026-10-25 01:37:30', '2026-10-25 01:44:44', 0, NULL, NULL, NULL, 0),
+	(68, 27, 'Honor X3', 'Phone', 'Orange', 'out', 2, 299.00, 28, NULL, 'Super Admin User', '2026-10-27', '2026-10-26 17:54:55', '2026-10-26 17:55:08', 0, NULL, NULL, NULL, 0),
+	(69, 27, 'Honor X3', 'Phone', 'Orange', 'in', 38, 299.00, 66, NULL, 'Super Admin User', '2026-10-27', '2026-10-26 19:38:51', '2026-10-27 01:31:50', 0, NULL, NULL, NULL, 0);
 
 -- Dumping structure for table ggg_inventory.suppliers
 CREATE TABLE IF NOT EXISTS `suppliers` (
