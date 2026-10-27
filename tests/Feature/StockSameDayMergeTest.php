@@ -112,6 +112,111 @@ class StockSameDayMergeTest extends TestCase
         $this->assertSame(2, $product->fresh()->stock_on_hand);
     }
 
+    public function test_row_quick_adjustments_keep_the_source_entry_and_product_total_in_sync(): void
+    {
+        $product = $this->product();
+        $first = $this->move(['qty' => 15, 'date' => '2026-10-24'])->assertCreated()->json();
+        $second = $this->move(['qty' => 7, 'date' => '2026-10-25'])->assertCreated()->json();
+
+        $deduction = $this->move([
+            'type' => 'Stock Out',
+            'qty' => 1,
+            'date' => now(config('app.business_timezone', 'Asia/Manila'))->toDateString(),
+            'sourceMovementId' => $second['id'],
+            'mergeSameDay' => false,
+        ])->assertCreated()->json();
+
+        $this->assertNotSame($second['id'], $deduction['id']);
+        $this->assertSame(15, $this->movement($first['id'])->qty);
+        $this->assertSame(7, $this->movement($second['id'])->qty);
+        $this->assertSame('out', $this->movement($deduction['id'])->movement_type);
+        $this->assertSame(21, $product->fresh()->stock_on_hand);
+        $activity = ActivityLog::where('action', 'stock.out')->latest('id')->firstOrFail();
+        $this->assertSame($second['id'], $activity->meta['sourceMovementId']);
+        $this->getJson('/api/stock-movements')
+            ->assertOk()
+            ->assertJsonPath('0.totalQty', 21);
+        $this->getJson('/api/products')
+            ->assertOk()
+            ->assertJsonPath('0.stock', 21);
+
+        $addition = $this->move([
+            'type' => 'Stock In',
+            'qty' => 2,
+            'date' => now(config('app.business_timezone', 'Asia/Manila'))->toDateString(),
+            'sourceMovementId' => $second['id'],
+            'mergeSameDay' => false,
+        ])->assertCreated()->json();
+
+        $this->assertNotSame($second['id'], $addition['id']);
+        $this->assertSame(7, $this->movement($second['id'])->qty);
+        $this->assertSame(23, $product->fresh()->stock_on_hand);
+    }
+
+    public function test_quick_adjustment_rejects_a_source_movement_from_another_product_or_variant(): void
+    {
+        $product = Product::create([
+            'code' => 'PRD-MRG',
+            'name' => 'Poco X6 Pro',
+            'stock_on_hand' => 0,
+            'variants' => ['Black', 'White'],
+        ]);
+        $source = $this->move(['qty' => 10, 'variantName' => 'Black'])->assertCreated()->json();
+
+        $this->move([
+            'type' => 'Stock Out',
+            'qty' => 1,
+            'mergeSameDay' => false,
+            'variantName' => 'Black',
+        ])->assertUnprocessable()->assertJsonValidationErrors('sourceMovementId');
+
+        $this->move([
+            'type' => 'Stock Out',
+            'qty' => 1,
+            'sourceMovementId' => $source['id'],
+            'mergeSameDay' => false,
+            'variantName' => 'White',
+        ])->assertUnprocessable()->assertJsonValidationErrors('sourceMovementId');
+
+        $this->assertSame(10, $product->fresh()->stock_on_hand);
+        $this->assertSame(1, StockMovement::count());
+
+        $this->move([
+            'type' => 'Stock Out',
+            'qty' => 1,
+            'sourceMovementId' => $source['id'],
+            'mergeSameDay' => false,
+            'variantName' => 'Black',
+        ])->assertCreated()->assertJsonPath('variantName', 'Black');
+
+        $this->assertSame(9, $product->fresh()->stock_on_hand);
+    }
+
+    public function test_quick_adjustment_does_not_merge_into_another_same_day_row(): void
+    {
+        $product = $this->product();
+        $this->move(['qty' => 15, 'date' => '2026-10-24'])->assertCreated();
+        $source = $this->move(['qty' => 7, 'date' => '2026-10-25'])->assertCreated()->json();
+        $existingSale = $this->move([
+            'type' => 'Stock Out',
+            'qty' => 2,
+            'date' => now(config('app.business_timezone', 'Asia/Manila'))->toDateString(),
+        ])->assertCreated()->json();
+
+        $quickSale = $this->move([
+            'type' => 'Stock Out',
+            'qty' => 1,
+            'date' => now(config('app.business_timezone', 'Asia/Manila'))->toDateString(),
+            'sourceMovementId' => $source['id'],
+            'mergeSameDay' => false,
+        ])->assertCreated()->assertJsonMissing(['merged' => true])->json();
+
+        $this->assertNotSame($existingSale['id'], $quickSale['id']);
+        $this->assertSame(2, $this->movement($existingSale['id'])->qty);
+        $this->assertSame(1, $this->movement($quickSale['id'])->qty);
+        $this->assertSame(19, $product->fresh()->stock_on_hand);
+    }
+
     public function test_activity_log_shows_the_amount_added_not_the_new_total(): void
     {
         $this->product();
@@ -122,6 +227,11 @@ class StockSameDayMergeTest extends TestCase
         $this->assertSame(10, $log->meta['change']);
         $this->assertStringContainsString('+10', $log->description);
         $this->assertStringContainsString('now +30', $log->description);
+    }
+
+    private function movement(int $id): StockMovement
+    {
+        return StockMovement::findOrFail($id);
     }
 
     public function test_deleting_the_merged_entry_removes_the_whole_day_total(): void

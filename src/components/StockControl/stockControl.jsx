@@ -391,7 +391,7 @@ function StockControl({
   // Shown after a new entry was added to an existing same-day entry.
   const [mergeNotice, setMergeNotice] = useState('');
   const [safetyAlert, setSafetyAlert] = useState(null);
-  // Products whose − / + button is saving right now (stops double clicks).
+  // Movement rows whose − / + adjustment is saving right now.
   const [quickBusy, setQuickBusy] = useState(new Set());
   const [safetyOrdering, setSafetyOrdering] = useState(false);
   const orderFromSafetyAlert = async () => {
@@ -1115,11 +1115,10 @@ function StockControl({
 
   /* ===== QUICK − / + / ✓ (QTY column) =====
      − and + only change a draft amount for that row (nothing is saved yet),
-     so they can be pressed many times. ✓ saves the draft as ONE entry dated
-     today for the row's product and variant: a positive draft is a Stock In,
-     a negative draft is a Stock Out (sale). Same-day entries are merged by
-     the server. Stock can never go below 0, and the safety-stock
-     confirmation still appears before a deduction that reaches it. */
+     so they can be pressed many times. ✓ creates a distinct ledger movement
+     for the selected row's product and variant. The source movement ID is
+     checked by the backend, and quick adjustments never merge into another
+     same-day row. Stock remains a product-wide balance. */
   // Draft amount per row id, e.g. { 12: +3, 15: -2 }. Not saved until ✓.
   const [pendingQty, setPendingQty] = useState({});
   const pendingFor = (rowId) => pendingQty[rowId] || 0;
@@ -1162,7 +1161,7 @@ function StockControl({
   const applyPending = async (row, { confirmed = false } = {}) => {
     const product = productById.get(row.productId);
     const amount = pendingFor(row.id);
-    if (!product || amount === 0 || quickBusy.has(row.productId)) return;
+    if (!product || amount === 0 || quickBusy.has(row.id)) return;
 
     const before = Number(product.stock);
     if (!Number.isInteger(before) || before < 0) {
@@ -1191,7 +1190,7 @@ function StockControl({
     // this product and type, then this row's price, then 0.
     const unitPrice = lastPriceFor(product.id, type) ?? (row.unitPrice != null ? Number(row.unitPrice) : 0);
 
-    setQuickBusy((prev) => new Set(prev).add(product.id));
+    setQuickBusy((prev) => new Set(prev).add(row.id));
     try {
       const response = await apiFetch('/api/stock-movements', {
         method: 'POST',
@@ -1199,6 +1198,8 @@ function StockControl({
         body: JSON.stringify({
           productId: product.id,
           productName: product.name,
+          sourceMovementId: row.id,
+          mergeSameDay: false,
           variantName: row.variantName || null,
           type,
           qty: Math.abs(amount),
@@ -1226,7 +1227,7 @@ function StockControl({
     } finally {
       setQuickBusy((prev) => {
         const next = new Set(prev);
-        next.delete(product.id);
+        next.delete(row.id);
         return next;
       });
     }
@@ -1511,7 +1512,7 @@ function StockControl({
                     {canAddStock && !stock.productDeleted ? (() => {
                       const pending = pendingFor(id);
                       const onHand = Number(product?.stock);
-                      const busy = quickBusy.has(stock.productId);
+                      const busy = quickBusy.has(id);
                       const newTotal = onHand + pending;
                       const pendingText = `${pending > 0 ? '+' : '−'}${Math.abs(pending)}`;
                       return (

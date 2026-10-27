@@ -67,11 +67,13 @@ class ProductPersistenceTest extends TestCase
             ->assertJsonMissing(['id' => $movement['id']]);
         $topMoving = collect($this->getJson('/api/reports')->assertOk()->json('topMoving.rows'));
         $this->assertFalse($topMoving->contains(fn ($row) => ($row['product'] ?? null) === 'Aula'));
-        // ... and listed in the Trash Bin with its 2 entries.
-        $this->getJson('/api/trash')
+        // ... and listed in the unified Trash Bin with both entries.
+        $trashRecords = $this->getJson('/api/trash')
             ->assertOk()
-            ->assertJsonPath('products.0.id', $product['id'])
-            ->assertJsonPath('products.0.entries', 2);
+            ->assertJsonPath('pagination.total', 3)
+            ->json('records');
+        $this->assertSame(1, collect($trashRecords)->where('kind', 'product')->where('id', $product['id'])->count());
+        $this->assertSame(2, collect($trashRecords)->where('kind', 'entry')->count());
         $this->assertDatabaseHas('activity_logs', [
             'action' => 'product.delete',
         ]);

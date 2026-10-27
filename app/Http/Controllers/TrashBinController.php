@@ -8,6 +8,11 @@ use App\Models\StockMovement;
 use App\Services\ProductPhotoService;
 use App\Services\StockMovementService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Trash Bin — deleted products and stock entries.
@@ -28,41 +33,117 @@ class TrashBinController extends Controller
     {
     }
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $products = Product::onlyTrashed()
-            ->withoutPhoto()
-            ->addSelect('products.deleted_by_name')
-            ->orderByDesc('deleted_at')
-            ->get();
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:200'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+        $search = mb_strtolower(trim($filters['search'] ?? ''));
+        $perPage = (int) ($filters['per_page'] ?? 50);
 
-        // How many entries went to the Trash Bin together with each product.
-        $entriesWithProduct = StockMovement::onlyTrashed()
-            ->where('deleted_with_product', true)
-            ->whereIn('product_id', $products->pluck('id'))
-            ->selectRaw('product_id, COUNT(*) as total')
-            ->groupBy('product_id')
-            ->pluck('total', 'product_id');
+        $products = DB::table('products')
+            ->whereNotNull('products.deleted_at')
+            ->selectRaw(
+                "'product' as kind, 'Product' as type, products.code as record_id,
+                products.deleted_at as deleted_at, products.deleted_by_name as deleted_by,
+                products.name as product_name, products.code as product_identifier,
+                products.category as category, products.brand as brand,
+                NULL as variant_name, NULL as movement_type, NULL as movement_label,
+                0 as is_adjustment, products.stock_on_hand as qty, products.unit_cost as unit_price,
+                products.deleted_at as movement_date, NULL as recorded_by, NULL as notes,
+                1 as product_in_trash, 0 as with_product, 0 as product_missing"
+            );
 
-        $movements = StockMovement::onlyTrashed()
-            ->with('product:id,code,name,category,deleted_at')
+        $entries = DB::table('stock_movements')
+            ->leftJoin('products', 'products.id', '=', 'stock_movements.product_id')
+            ->whereNotNull('stock_movements.deleted_at')
+            ->selectRaw(
+                "'entry' as kind, 'Stock Entry' as type, stock_movements.id as record_id,
+                stock_movements.deleted_at as deleted_at, stock_movements.deleted_by_name as deleted_by,
+                COALESCE(products.name, stock_movements.product_name) as product_name,
+                products.code as product_identifier,
+                COALESCE(products.category, stock_movements.product_category) as category,
+                NULL as brand, stock_movements.variant_name as variant_name,
+                stock_movements.movement_type as movement_type,
+                CASE WHEN stock_movements.is_adjustment = 1 THEN 'Adjustment'
+                     WHEN stock_movements.movement_type = 'in' THEN 'Stock In'
+                     ELSE 'Stock Out' END as movement_label,
+                stock_movements.is_adjustment as is_adjustment, stock_movements.qty as qty,
+                stock_movements.unit_price as unit_price, stock_movements.movement_date as movement_date,
+                stock_movements.recorded_by as recorded_by, stock_movements.notes as notes,
+                CASE WHEN products.deleted_at IS NOT NULL THEN 1 ELSE 0 END as product_in_trash,
+                stock_movements.deleted_with_product as with_product,
+                CASE WHEN products.id IS NULL THEN 1 ELSE 0 END as product_missing"
+            );
+
+        $records = $products->unionAll($entries);
+        $query = DB::query()->fromSub($records, 'trash_records');
+        if ($search !== '') {
+            $like = '%'.$search.'%';
+            $query->where(function ($filtered) use ($like): void {
+                foreach ([
+                    'type', 'record_id', 'deleted_at', 'deleted_by', 'product_name', 'product_identifier',
+                    'category', 'brand', 'variant_name', 'movement_type', 'movement_label',
+                    'qty', 'unit_price', 'movement_date', 'recorded_by', 'notes',
+                ] as $column) {
+                    $filtered->orWhereRaw("LOWER(COALESCE(CAST({$column} AS CHAR), '')) LIKE ?", [$like]);
+                }
+            });
+        }
+
+        $total = (clone $query)->count();
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $page = min((int) ($filters['page'] ?? 1), $lastPage);
+        $rows = $query
             ->orderByDesc('deleted_at')
-            ->orderByDesc('id')
-            ->limit(1000)
+            ->orderBy('kind')
+            ->orderByDesc('record_id')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
             ->get();
 
         return response()->json([
-            'products' => $products->map(fn (Product $product) => [
-                'id' => $product->code,
-                'name' => $product->name,
-                'category' => $product->category,
-                'brand' => $product->brand,
-                'stock' => (int) $product->stock_on_hand,
-                'entries' => (int) ($entriesWithProduct[$product->id] ?? 0),
-                'deletedAt' => $product->deleted_at?->toIso8601String(),
-                'deletedBy' => $product->deleted_by_name,
-            ])->values(),
-            'movements' => $movements->map(fn (StockMovement $movement) => $this->formatMovement($movement))->values(),
+            'records' => $rows->map(function ($row): array {
+                $isProduct = $row->kind === 'product';
+                $deletedAt = Carbon::parse($row->deleted_at);
+                $movementLabel = $row->movement_label;
+                $change = $row->movement_type === 'in' ? (int) $row->qty : -(int) $row->qty;
+
+                return [
+                    'kind' => $row->kind,
+                    'id' => $row->record_id,
+                    'type' => $row->type,
+                    'date' => $deletedAt->toDateString(),
+                    'productName' => $row->product_name,
+                    'productId' => $row->product_identifier,
+                    'category' => $row->category,
+                    'variantName' => $row->variant_name,
+                    'details' => $isProduct ? [
+                        'brand' => $row->brand,
+                        'stockOnHand' => (int) $row->qty,
+                    ] : [
+                        'movementType' => $movementLabel,
+                        'quantity' => $change,
+                        'unitPrice' => $row->unit_price !== null ? (float) $row->unit_price : null,
+                        'movementDate' => $row->movement_date,
+                        'recordedBy' => $row->recorded_by,
+                        'notes' => $row->notes,
+                    ],
+                    'deletedBy' => $row->deleted_by,
+                    'deletedAt' => $deletedAt->toIso8601String(),
+                    'productInTrash' => (bool) $row->product_in_trash,
+                    'productMissing' => (bool) $row->product_missing,
+                    'withProduct' => (bool) $row->with_product,
+                ];
+            })->values(),
+            'pagination' => [
+                'page' => $page,
+                'perPage' => $perPage,
+                'lastPage' => $lastPage,
+                'total' => $total,
+            ],
         ])->header('Cache-Control', 'no-store');
     }
 
@@ -91,21 +172,22 @@ class TrashBinController extends Controller
         return response()->json(['restored' => true, 'restoredEntries' => $entries]);
     }
 
-    public function forceDeleteProduct(string $code): JsonResponse
+    public function forceDeleteProduct(Request $request, string $code): JsonResponse
     {
+        $this->confirmPassword($request);
         $product = Product::onlyTrashed()->where('code', $code)->firstOrFail();
         $image = $product->image;
         $entries = $this->stockMovements->forceDeleteProduct($product);
         // Remove a stored photo file too (links and old in-database photos need nothing).
         app(ProductPhotoService::class)->deleteIfStored($image);
 
-        ActivityLog::record('trash.purge', "Permanently deleted product — {$product->name}", 'boxes', [
+        ActivityLog::record('trash.purge', "Permanently deleted product — {$product->name}; retained {$entries} historical stock entries", 'boxes', [
             'productId' => $product->code,
             'product' => $product->name,
-            'deletedEntries' => $entries,
+            'retainedEntries' => $entries,
         ]);
 
-        return response()->json(['deleted' => true, 'deletedEntries' => $entries]);
+        return response()->json(['deleted' => true, 'retainedEntries' => $entries]);
     }
 
     public function restoreMovement(int $id): JsonResponse
@@ -129,8 +211,9 @@ class TrashBinController extends Controller
         return response()->json(['restored' => true, 'movement' => $this->formatMovement($movement)]);
     }
 
-    public function forceDeleteMovement(int $id): JsonResponse
+    public function forceDeleteMovement(Request $request, int $id): JsonResponse
     {
+        $this->confirmPassword($request);
         $movement = $this->stockMovements->forceDelete($id);
         $movement->loadMissing('product');
 
@@ -164,6 +247,19 @@ class TrashBinController extends Controller
             'deletedAt' => $movement->deleted_at?->toIso8601String(),
             'deletedBy' => $movement->deleted_by_name,
         ];
+    }
+
+    private function confirmPassword(Request $request): void
+    {
+        $data = $request->validate([
+            'current_password' => ['required', 'string'],
+        ]);
+
+        if (! Hash::check($data['current_password'], $request->user()->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => 'Your current password is incorrect.',
+            ]);
+        }
     }
 
     private function typeLabel(StockMovement $movement): string

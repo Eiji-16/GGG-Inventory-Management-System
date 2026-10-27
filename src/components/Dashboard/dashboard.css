@@ -1004,14 +1004,19 @@
 /*==========DESKTOP LAYOUT==========*/
 .salesAnalytics-card {
     grid-column: 1 / span 5;
-    grid-row: 1 / span 2;
+    grid-row: 2;
     min-height: 13.5rem;
 }
 
 .catalogStatus-card {
-    grid-column: 6 / span 2;
+    grid-column: 1 / -1;
     grid-row: 1;
     min-height: 6.5rem;
+}
+
+.db-kpi-row .catalogStatus-card {
+    grid-column: auto;
+    grid-row: auto;
 }
 
 .totalRevenue-card {
@@ -1056,12 +1061,6 @@
     min-height: 12rem;
 }
 
-.totalStaff-card {
-    grid-column: 7 / span 1;
-    grid-row: 4;
-    min-height: 12rem;
-}
-
 .parent-without-user-accounts {
     grid-template-columns: repeat(6, minmax(0, 1fr));
     overflow-x: hidden;
@@ -1071,10 +1070,13 @@
     grid-column: 1 / span 4;
 }
 
-.parent-without-user-accounts .catalogStatus-card,
 .parent-without-user-accounts .totalRevenue-card,
 .parent-without-user-accounts .totalOrder-card {
-    grid-column: 5 / span 2;
+grid-column: 5 / span 2;
+}
+
+.parent-without-user-accounts .catalogStatus-card {
+grid-column: 1 / -1;
 }
 
 .parent-without-user-accounts .totalRevenue-card {
@@ -1113,105 +1115,99 @@
 
     .salesAnalytics-card {
         grid-column: 1 / span 4;
-        grid-row: 1;
+        grid-row: 2;
         min-height: 12rem;
     }
 
     .catalogStatus-card {
-        grid-column: 1 / span 2;
-        grid-row: 2;
+        grid-column: 1 / span 4;
+        grid-row: 1;
         min-height: 7.5rem;
     }
 
     .totalRevenue-card {
-        grid-column: 3 / span 2;
-        grid-row: 2;
+        grid-column: 1 / span 2;
+        grid-row: 3;
         min-height: 7.5rem;
     }
 
     .regionalBreakdown-card {
         grid-column: 1 / span 2;
-        grid-row: 3;
+        grid-row: 4;
         min-height: 11.5rem;
     }
 
     .eoqActivity-card {
         grid-column: 3 / span 2;
-        grid-row: 3;
+        grid-row: 4;
         min-height: 10rem;
     }
 
     .totalOrder-card {
         grid-column: 1 / span 2;
-        grid-row: 4;
+        grid-row: 5;
         min-height: 8rem;
     }
 
     .totalCustomer-card {
-        grid-column: 3 / span 1;
-        grid-row: 4;
-        min-height: 8rem;
-    }
-
-    .totalStaff-card {
-        grid-column: 4 / span 1;
-        grid-row: 4;
+        grid-column: 3 / span 2;
+        grid-row: 5;
         min-height: 8rem;
     }
 
     .parent-without-user-accounts .catalogStatus-card {
-        grid-column: 1 / span 2;
-        grid-row: 2;
+        grid-column: 1 / span 4;
+        grid-row: 1;
     }
 
     .parent-without-user-accounts .totalRevenue-card {
         grid-column: 3 / span 2;
-        grid-row: 2;
+        grid-row: 3;
         min-height: 10rem;
     }
 
     .parent-without-user-accounts .regionalBreakdown-card {
         grid-column: 1 / span 2;
-        grid-row: 3;
+        grid-row: 4;
     }
 
     .parent-without-user-accounts .eoqActivity-card {
         grid-column: 3 / span 2;
-        grid-row: 3;
+        grid-row: 4;
         min-height: 10rem;
     }
 
     .parent-without-user-accounts .totalOrder-card {
         grid-column: 1 / span 2;
-        grid-row: 4;
+        grid-row: 5;
     }
 
     .parent-without-user-accounts .totalCustomer-card {
         grid-column: 3 / span 2;
-        grid-row: 4;
+        grid-row: 5;
     }
 
     .parent-without-user-accounts .productSales-card {
         grid-column: 1 / span 2;
-        grid-row: 5;
+        grid-row: 6;
         min-height: 12rem;
     }
 
     .parent-without-user-accounts .lowStockalerts-card {
         grid-column: 3 / span 2;
-        grid-row: 5;
+        grid-row: 6;
         min-height: 12rem;
     }
 
     .productSales-card {
         grid-column: 1 / span 2;
-        grid-row: 5;
+        grid-row: 6;
         min-height: 12rem;
     }
 
     .lowStockalerts-card {
         grid-column: 3 / span 2;
-        grid-row: 5;
+        grid-row: 6;
         min-height: 12rem;
     }
 }
@@ -1244,11 +1240,14 @@
 
     .catalogStatus-card,
     .totalOrder-card,
-    .totalCustomer-card,
-    .totalStaff-card {
+    .totalCustomer-card {
         grid-column: span 1;
         grid-row: auto;
         min-height: 7.5rem;
+    }
+
+    .catalogStatus-card {
+        grid-column: 1 / span 2;
     }
 
     .totalRevenue-card {
@@ -1257,7 +1256,6 @@
         min-height: 9rem;
     }
 
-    .parent-without-user-accounts .catalogStatus-card,
     .parent-without-user-accounts .totalRevenue-card,
     .parent-without-user-accounts .totalOrder-card,
     .parent-without-user-accounts .totalCustomer-card {
@@ -1296,7 +1294,6 @@
         grid-row: auto;
     }
 
-    .parent-without-user-accounts .catalogStatus-card,
     .parent-without-user-accounts .totalOrder-card,
     .parent-without-user-accounts .totalCustomer-card {
         grid-column: span 1;
@@ -1304,6 +1301,10 @@
         min-height: 7.5rem;
     }
 
+    .parent-without-user-accounts .catalogStatus-card {
+        grid-column: 1 / span 2;
+        grid-row: auto;
+    }
     .parent-without-user-accounts .totalRevenue-card {
         min-height: 9rem;
     }
@@ -1362,7 +1363,6 @@
     .totalRevenue-card,
     .totalOrder-card,
     .totalCustomer-card,
-    .totalStaff-card,
     .regionalBreakdown-card,
     .eoqActivity-card,
     .productSales-card,
@@ -1378,8 +1378,7 @@
     .totalOrder-card { min-height: 7.5rem; }
     .productSales-card,
     .lowStockalerts-card,
-    .totalCustomer-card,
-    .totalStaff-card { min-height: 10.5rem; }
+    .totalCustomer-card { min-height: 10.5rem; }
 }
 
 /*==========EMPTY CARD==========*/
@@ -1606,18 +1605,13 @@
     .db-coverage-content { gap: 12px; }
 }
 
-/*==========AFTER REMOVING "PRODUCTS WITH SALES"==========
-   That card (totalCustomer-card) used a grid spot; these rules let the
-   neighbouring cards fill the space so no empty hole is left. */
-/* Super Admin desktop: Stock Alerts in cols 4-5, Reorder List card in cols 6-7
-   (same width as the Stock Movements card above it). */
-.lowStockalerts-card { grid-column: 4 / span 2; }
-.totalStaff-card { grid-column: 6 / span 2; }
+/*==========DASHBOARD BOTTOM ROW==========*/
+/* Stock Alerts fills the space left by the removed duplicate reorder card. */
+.lowStockalerts-card { grid-column: 4 / span 4; }
 .parent-without-user-accounts .productSales-card { grid-column: 1 / span 3; }
 .parent-without-user-accounts .lowStockalerts-card { grid-column: 4 / span 3; }
 
 @media (max-width: 1024px) {
-    .totalStaff-card { grid-column: 3 / span 2; }
     .parent-without-user-accounts .totalOrder-card { grid-column: 1 / span 4; }
     .lowStockalerts-card,
     .parent-without-user-accounts .lowStockalerts-card { grid-column: 3 / span 2; }
@@ -1625,7 +1619,6 @@
 }
 
 @media (max-width: 640px) {
-    .totalStaff-card { grid-column: 1 / -1; }
     .lowStockalerts-card,
     .parent-without-user-accounts .productSales-card,
     .parent-without-user-accounts .lowStockalerts-card { grid-column: 1 / span 2; }
@@ -1633,7 +1626,6 @@
 
 @media (max-width: 400px) {
     .lowStockalerts-card,
-    .totalStaff-card,
     .parent-without-user-accounts .productSales-card,
     .parent-without-user-accounts .lowStockalerts-card { grid-column: 1; }
 }
@@ -1679,74 +1671,42 @@
     border-left: 3px solid transparent;
 }
 
-/*==========REORDER LIST CARD: ring + chips==========*/
-.db-reorder-kpi {
-    display: flex;
-    flex: 1;
-    align-items: center;
-    gap: 14px;
-}
-.db-reorder-ring {
-    width: 92px;
-    height: 92px;
-    flex-shrink: 0;
-}
-.db-reorder-ring circle { transition: stroke-dasharray 0.6s ease; }
-.db-reorder-ring-value {
-    fill: var(--text-primary);
-    font-size: 20px;
-    font-weight: 800;
-}
-.db-reorder-ring-label {
-    fill: var(--text-muted);
-    font-size: 8.5px;
-    font-weight: 600;
-}
-.db-reorder-chips {
-    display: grid;
-    gap: 6px;
-}
-.db-reorder-chip {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 6px;
-    padding: 5px 10px;
-    color: var(--text-primary);
-    font-size: 15px;
-    font-weight: 800;
-    background: var(--overlay-soft);
-    border-radius: 8px;
-}
-.db-reorder-chip small {
-    color: var(--text-muted);
-    font-size: 10.5px;
-    font-weight: 600;
-}
-.db-reorder-chip i {
-    width: 8px;
-    height: 8px;
-    align-self: center;
-    border-radius: 50%;
-}
-.db-reorder-chip.is-out i { background: var(--accent-low); }
-.db-reorder-chip.is-low i { background: var(--accent-med); }
-.db-reorder-ok {
-    color: var(--accent-high);
-    font-size: 12px;
-    font-weight: 700;
-}
-
 /*==========INVENTORY BY CATEGORY — rose pie==========*/
 .db-rose-svg { overflow: visible; }
 .db-rose-slice {
     stroke: var(--bg-card);
     stroke-width: 1.6;
     stroke-linejoin: round;
-    transition: opacity 0.15s ease, transform 0.2s ease;
+    opacity: 1;
+    transition: opacity 0.18s ease, transform 0.2s ease, filter 0.18s ease, stroke-width 0.18s ease;
     transform-origin: 60px 60px;
 }
-.db-rose-svg:hover .db-rose-slice { opacity: 0.55; }
-.db-rose-svg .db-rose-slice:hover { opacity: 1; transform: scale(1.04); }
+.db-rose-slice.is-dimmed { opacity: 0.48; }
+.db-rose-slice.is-active {
+    opacity: 1;
+    stroke: var(--text-primary);
+    stroke-width: 2.4;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+    transform: scale(1.04);
+}
+.db-category-legend-item {
+    cursor: default;
+    transition: color 0.18s ease, opacity 0.18s ease, font-weight 0.18s ease;
+}
+.db-category-legend-item.is-dimmed { opacity: 0.55; }
+.db-category-legend-item.is-active {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+.db-category-legend-item i {
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+.db-category-legend-item.is-dimmed i { opacity: 0.58; }
+.db-category-legend-item.is-active i {
+    transform: scale(1.2);
+    filter: brightness(1.15);
+    box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3px var(--category-color);
+}
 .db-rose-tag { pointer-events: none; }
 .db-rose-tag rect {
     fill: var(--bg-card);

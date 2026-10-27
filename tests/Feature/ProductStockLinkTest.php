@@ -45,7 +45,7 @@ class ProductStockLinkTest extends TestCase
         $this->deleteJson("/api/products/{$this->code}")->assertOk();   // allowed even with stock (screen warns first)
 
         $this->assertSame([], $this->getJson('/api/stock-movements')->json());
-        $row = $this->getJson('/api/trash')->json('movements.0');
+        $row = collect($this->getJson('/api/trash')->json('records'))->firstWhere('kind', 'entry');
         $this->assertSame('Link Shirt', $row['productName']);
         $this->assertTrue($row['withProduct']);
         $this->assertTrue($row['productInTrash']);

@@ -15,6 +15,24 @@ class StockMovementService
     {
         return DB::transaction(function () use ($data) {
             $product = $this->findProduct($data);
+            if (isset($data['sourceMovementId'])) {
+                $sourceMovement = StockMovement::query()
+                    ->lockForUpdate()
+                    ->find($data['sourceMovementId']);
+                $requestedVariant = mb_strtolower(trim((string) ($data['variantName'] ?? '')));
+                $sourceVariant = mb_strtolower(trim((string) $sourceMovement?->variant_name));
+
+                if (
+                    ! $sourceMovement
+                    || $sourceMovement->product_id !== $product->id
+                    || $sourceVariant !== $requestedVariant
+                ) {
+                    throw ValidationException::withMessages([
+                        'sourceMovementId' => 'The selected stock movement no longer matches this product and variant. Refresh the stock list and try again.',
+                    ]);
+                }
+            }
+
             $currentStock = (int) $product->stock_on_hand;
             // No date sent: use the shop's today (Philippines), not the server's UTC date.
             $date = $data['date'] ?? now(config('app.business_timezone', 'Asia/Manila'))->toDateString();
@@ -32,7 +50,9 @@ class StockMovementService
             // variant and unit price) is added to that entry instead of creating
             // a second row. Corrections (Adjustment) set a counted total, so
             // they never merge.
-            $sameDayEntry = $isAdjustment ? null : $this->findSameDayEntry($product, $type, $date, $data);
+            $sameDayEntry = $isAdjustment || ($data['mergeSameDay'] ?? true) === false
+                ? null
+                : $this->findSameDayEntry($product, $type, $date, $data);
             if ($sameDayEntry) {
                 $previousQty = (int) $sameDayEntry->qty;
                 $sameDayEntry->qty = $previousQty + $qty;
@@ -206,7 +226,15 @@ class StockMovementService
     {
         return DB::transaction(function () use ($movementId) {
             $movement = StockMovement::onlyTrashed()->lockForUpdate()->findOrFail($movementId);
-            $product = Product::withTrashed()->lockForUpdate()->findOrFail($movement->product_id);
+            $product = $movement->product_id === null
+                ? null
+                : Product::withTrashed()->lockForUpdate()->find($movement->product_id);
+
+            if ($product === null) {
+                throw ValidationException::withMessages([
+                    'product' => "{$movement->product_name} no longer exists. This historical stock entry cannot be restored.",
+                ]);
+            }
 
             if ($product->trashed()) {
                 throw ValidationException::withMessages([
@@ -298,9 +326,9 @@ class StockMovementService
     }
 
     /**
-     * Erase a product from the Trash Bin for good, with every stock entry it
-     * still has (active or trashed) and the records that belong only to it
-     * (safety stock policy, saved sales, past sales, restock requests).
+     * Erase a product and its product-only records. Historical stock entries
+     * and sales records are preserved with a null product reference by their
+     * database foreign keys.
      */
     public function forceDeleteProduct(Product $trashedProduct): int
     {
@@ -308,9 +336,6 @@ class StockMovementService
             $product = Product::onlyTrashed()->lockForUpdate()->findOrFail($trashedProduct->id);
 
             $entryCount = StockMovement::withTrashed()->where('product_id', $product->id)->count();
-            StockMovement::withTrashed()->where('product_id', $product->id)->forceDelete();
-            // The other related tables are removed by the database itself
-            // (their product_id is set to "cascade on delete").
             $product->forceDelete();
 
             return $entryCount;

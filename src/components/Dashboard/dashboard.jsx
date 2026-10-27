@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Package, Boxes, TriangleAlert, ArrowLeftRight, UsersRound } from 'lucide-react';
+import { Package, Boxes, TriangleAlert, ArrowLeftRight } from 'lucide-react';
 import './dashboard.css';
 import { statusPointsFor } from '../../data/safetyStock';
 
@@ -27,7 +27,7 @@ const categoryColors = {
   peripherals: '#F4C65B',
 };
 const fallbackCategoryColors = ['#A78BFA', '#FB7185', '#38BDF8', '#F97316', '#2DD4BF'];
-/* Order Soon and Stock Alerts show this many full rows, then a "View all" link
+/* Reorder List and Stock Alerts show this many full rows, then a "View all" link
    (instead of cutting a row in half at the bottom of the card). */
 const LIST_LIMIT = 3;
 
@@ -41,15 +41,6 @@ const KPI_CARDS = [
   { key: 'lowStockItems', label: 'Reorder List', Icon: TriangleAlert, accent: 'low' },
   { key: 'stockMovementsToday', label: 'Stock Movements Today', Icon: ArrowLeftRight, accent: 'movement' },
 ];
-
-/* Super Admin: "User Accounts" takes the Reorder List spot in the top row,
-   and the Reorder List moves down to the card where User Accounts was.
-   Admin and Staff (no User Accounts card) keep the Reorder List up top. */
-const kpiCardsFor = (isSuperAdmin) => (isSuperAdmin
-  ? KPI_CARDS.map((card) => (card.key === 'lowStockItems'
-    ? { key: 'userCount', label: 'User Accounts', Icon: UsersRound, accent: 'users' }
-    : card))
-  : KPI_CARDS);
 
 function scalePoints(values, width, height, padX = 6, padTop = 10, padBottom = 8, bounds = null) {
   if (!values.length) return [];
@@ -205,6 +196,7 @@ const defaultFetchSummary = () => fetch('/api/dashboard/summary', { headers: { A
 
 function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = true, fetchSummary = defaultFetchSummary, dataRevision = 0 }) {
   const [range, setRange] = useState(12);
+  const [activeCategory, setActiveCategory] = useState(null);
   const [hoveredSalesMonth, setHoveredSalesMonth] = useState(null);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -425,14 +417,18 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
       <main className="dashboard-content-view">
         <div className="dashboard-scroll-container">
           <div className="db-kpi-row db-kpi-skeleton" aria-hidden="true">
-            {kpiCardsFor(isSuperAdmin).map(({ key, label, Icon }) => (
-              <div className="db-kpi-card" key={key}>
-                <span className="db-kpi-icon"><Icon size={17} /></span>
-                <span className="db-kpi-copy">
-                  <span className="db-kpi-label">{label}</span>
-                  <span className="db-skel-line db-kpi-value-placeholder" />
-                </span>
-              </div>
+            {KPI_CARDS.map(({ key, label, Icon }) => (
+              key === 'lowStockItems' ? (
+                <div className="catalogStatus-card card db-skel-card" key={key}><div className="db-skel-line db-skel-title" /><div className="db-skel-fill" /></div>
+              ) : (
+                <div className="db-kpi-card" key={key}>
+                  <span className="db-kpi-icon"><Icon size={17} /></span>
+                  <span className="db-kpi-copy">
+                    <span className="db-kpi-label">{label}</span>
+                    <span className="db-skel-line db-kpi-value-placeholder" />
+                  </span>
+                </div>
+              )
             ))}
           </div>
           <div className={`parent${isSuperAdmin ? '' : ' parent-without-user-accounts'} db-skeleton`} aria-busy="true" aria-label="Loading dashboard">
@@ -441,7 +437,6 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
               <div className="db-skel-line db-skel-sub" />
               <div className="db-skel-chart" />
             </div>
-            <div className="catalogStatus-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-fill" /></div>
             <div className="totalRevenue-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-line db-skel-big" /></div>
             <div className="regionalBreakdown-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-fill" /></div>
             <div className="eoqActivity-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-fill" /></div>
@@ -451,9 +446,6 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
               <div className="db-skel-line db-skel-title" />
               <div className="db-skel-row" /><div className="db-skel-row" /><div className="db-skel-row" />
             </div>
-            {isSuperAdmin && (
-              <div className="totalStaff-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-line db-skel-big" /></div>
-            )}
           </div>
           <p className="db-skel-note" role="status">Loading live dashboard data…</p>
         </div>
@@ -477,7 +469,6 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
     totalStockUnits: derived.totalStock,
     lowStockItems: derived.alerts.length,
     stockMovementsToday: derived.movementsToday,
-    userCount: summary.userCount,
   };
   const heroValues = derived.monthly.map((month) => month.units);
   const heroPeak = Math.max(0, ...heroValues);
@@ -494,11 +485,6 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
   const heroTicks = [1, 2 / 3, 1 / 3, 0].map((share) => ({ value: Math.round(heroTop * share), y: 138 - share * 122 }));
   const monthsWithSales = derived.monthly.filter((month) => month.units > 0).length;
   const heroAverage = monthsWithSales ? Math.round(derived.unitsSold / derived.monthly.length) : 0;
-  // Reorder ring: share of tracked products that need reordering, split out / low.
-  const reorderTotal = derived.outOfStock.length + derived.lowStock.length;
-  const ringCircumference = 2 * Math.PI * 34;
-  const outShare = derived.totalProducts ? derived.outOfStock.length / derived.totalProducts : 0;
-  const lowShare = derived.totalProducts ? derived.lowStock.length / derived.totalProducts : 0;
   const supplierGauge = Arc({ cx: 60, cy: 60, radius: 46, start: 180, end: 180 + (derived.supplierCoverage / 100) * 180 });
 
   return (
@@ -506,16 +492,35 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
       <div className="dashboard-scroll-container">
         {error && <p role="alert">{error} Showing the last data loaded.</p>}
         <section className="db-kpi-row" aria-label="Inventory summary">
-          {kpiCardsFor(isSuperAdmin).map(({ key, label, Icon, accent }, index) => (
-            <article className={`db-kpi-card db-kpi-${accent} db-tone db-tone-${KPI_TONES[index % KPI_TONES.length]}`} key={key}>
-              <span className="db-kpi-icon" aria-hidden="true"><Icon size={17} strokeWidth={1.8} /></span>
-              <span className="db-kpi-copy">
-                <span className="db-kpi-label">{label}</span>
-                <span className="db-kpi-value">
-                  {kpiValues[key] == null ? '—' : fmt(kpiValues[key])}
+          {KPI_CARDS.map(({ key, label, Icon, accent }, index) => (
+            key === 'lowStockItems' ? (
+              <div className="catalogStatus-card card db-tone db-tone-mist" key={key}>
+                <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Catalog Status</span></div><button className="db-open-arrow-btn" onClick={() => go('Product-Supplier')} aria-label="Open products" type="button"><OpenArrow /></button></div>
+                {derived.products.length > 0 ? <>
+                  <div className="db-catalog-total">{fmt(derived.products.length)} <span>SKUs</span></div>
+                  <div className="db-stack-bar">
+                    <span className="db-stack-seg" style={{ width: `${(derived.inStock / derived.products.length) * 100}%`, background: 'var(--accent-high)' }} />
+                    <span className="db-stack-seg" style={{ width: `${(derived.lowStock.length / derived.products.length) * 100}%`, background: 'var(--accent-med)' }} />
+                    <span className="db-stack-seg" style={{ width: `${(derived.outOfStock.length / derived.products.length) * 100}%`, background: 'var(--accent-low)' }} />
+                  </div>
+                  <div className="db-legend">
+                    <span className="db-legend-item"><i style={{ background: 'var(--accent-high)' }} />In stock {fmt(derived.inStock)}</span>
+                    <span className="db-legend-item"><i style={{ background: 'var(--accent-med)' }} />Low {fmt(derived.lowStock.length)}</span>
+                    <span className="db-legend-item"><i style={{ background: 'var(--accent-low)' }} />Out {fmt(derived.outOfStock.length)}</span>
+                  </div>
+                </> : <EmptyChart message="No products registered yet" />}
+              </div>
+            ) : (
+              <article className={`db-kpi-card db-kpi-${accent} db-tone db-tone-${KPI_TONES[index % KPI_TONES.length]}`} key={key}>
+                <span className="db-kpi-icon" aria-hidden="true"><Icon size={17} strokeWidth={1.8} /></span>
+                <span className="db-kpi-copy">
+                  <span className="db-kpi-label">{label}</span>
+                  <span className="db-kpi-value">
+                    {kpiValues[key] == null ? '—' : fmt(kpiValues[key])}
+                  </span>
                 </span>
-              </span>
-            </article>
+              </article>
+            )
           ))}
         </section>
         <div className={`parent${isSuperAdmin ? '' : ' parent-without-user-accounts'}`}>
@@ -607,23 +612,6 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             </div>
           </div>
 
-          <div className="catalogStatus-card card db-tone db-tone-mist">
-            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Catalog Status</span></div><button className="db-open-arrow-btn" onClick={() => go('Product-Supplier')} aria-label="Open products" type="button"><OpenArrow /></button></div>
-            {derived.products.length > 0 ? <>
-              <div className="db-catalog-total">{fmt(derived.products.length)} <span>SKUs</span></div>
-              <div className="db-stack-bar">
-                <span className="db-stack-seg" style={{ width: `${(derived.inStock / derived.products.length) * 100}%`, background: 'var(--accent-high)' }} />
-                <span className="db-stack-seg" style={{ width: `${(derived.lowStock.length / derived.products.length) * 100}%`, background: 'var(--accent-med)' }} />
-                <span className="db-stack-seg" style={{ width: `${(derived.outOfStock.length / derived.products.length) * 100}%`, background: 'var(--accent-low)' }} />
-              </div>
-              <div className="db-legend">
-                <span className="db-legend-item"><i style={{ background: 'var(--accent-high)' }} />In stock {fmt(derived.inStock)}</span>
-                <span className="db-legend-item"><i style={{ background: 'var(--accent-med)' }} />Low {fmt(derived.lowStock.length)}</span>
-                <span className="db-legend-item"><i style={{ background: 'var(--accent-low)' }} />Out {fmt(derived.outOfStock.length)}</span>
-              </div>
-            </> : <EmptyChart message="No products registered yet" />}
-          </div>
-
           <div className="totalRevenue-card card db-tone db-tone-ink">
             <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Total Units Sold</span><span className="db-card-sub">Selected {range} months</span></div></div>
             <div className="db-stat-value">{derived.hasSalesData ? fmt(derived.unitsSold) : '—'}</div>
@@ -637,7 +625,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
           <div className="regionalBreakdown-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
-                <span className="db-card-title">Order Soon</span>
+                <span className="db-card-title">Reorder List</span>
                 <span className="db-card-sub">
                   Based on next month’s forecast
                   {(summary.reorderSuggestions || []).length ? ` · ${fmt(summary.reorderSuggestions.length)} product${summary.reorderSuggestions.length === 1 ? '' : 's'}` : ''}
@@ -718,10 +706,16 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                 </div>
                 <div className="db-category-metrics">
                   {derived.products.length ? (
-                    <div className="db-donut-row">
+                    <div className="db-donut-row" onMouseLeave={() => setActiveCategory(null)}>
                       <svg className="db-donut-svg db-rose-svg" viewBox="-4 -4 128 128" aria-label="Inventory by category">
                         {derived.donut.map((segment) => (
-                          <path key={segment.name} className="db-rose-slice" d={segment.path} fill={segment.color}>
+                          <path
+                            key={segment.name}
+                            className={`db-rose-slice${activeCategory === segment.name ? ' is-active' : ''}${activeCategory && activeCategory !== segment.name ? ' is-dimmed' : ''}`}
+                            d={segment.path}
+                            fill={segment.color}
+                            onMouseEnter={() => setActiveCategory(segment.name)}
+                          >
                             <title>{`${segment.name}: ${fmt(segment.count)} (${segment.pctLabel})`}</title>
                           </path>
                         ))}
@@ -736,7 +730,13 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                         <strong className="db-donut-total">{fmt(derived.products.length)} products</strong>
                         <div className="db-legend db-legend-col">
                           {derived.categories.map((category) => (
-                            <span key={category.name} className="db-legend-item" title={`${category.name}: ${fmt(category.count)}`}>
+                            <span
+                              key={category.name}
+                              className={`db-legend-item db-category-legend-item${activeCategory === category.name ? ' is-active' : ''}${activeCategory && activeCategory !== category.name ? ' is-dimmed' : ''}`}
+                              style={{ '--category-color': category.color }}
+                              title={`${category.name}: ${fmt(category.count)}`}
+                              onMouseEnter={() => setActiveCategory(category.name)}
+                            >
                               <i style={{ background: category.color }} />
                               <span className="db-legend-name">{category.name}</span>
                               <span className="db-legend-count">{fmt(category.count)}</span>
@@ -820,47 +820,6 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             </div>
           </div>
 
-          {/* "Products with Sales" card removed (not needed); the cards beside it widen to fill its space. */}
-          {isSuperAdmin && (
-            /* Reorder List card (Super Admin): sits where User Accounts used to be;
-               User Accounts is now in the top row. */
-            <div className="totalStaff-card card db-tone db-tone-peach">
-              <div className="db-card-head">
-                <div className="db-card-titles">
-                  <span className="db-card-title">Reorder List</span>
-                  <span className="db-card-sub">Products at or below their low point</span>
-                </div>
-                <button className="db-open-arrow-btn" onClick={() => go('Reorder-Alerts')} aria-label="Open Reorder List" type="button">
-                  <OpenArrow />
-                </button>
-              </div>
-              <div className="db-reorder-kpi">
-                <svg className="db-reorder-ring" viewBox="0 0 84 84" role="img"
-                  aria-label={`${fmt(reorderTotal)} of ${fmt(derived.totalProducts)} products need reordering`}>
-                  <circle cx="42" cy="42" r="34" fill="none" stroke="var(--static-bg-color)" strokeWidth="9" />
-                  {outShare > 0 && (
-                    <circle cx="42" cy="42" r="34" fill="none" stroke="var(--accent-low)" strokeWidth="9"
-                      strokeDasharray={`${outShare * ringCircumference} ${ringCircumference}`} transform="rotate(-90 42 42)" />
-                  )}
-                  {lowShare > 0 && (
-                    <circle cx="42" cy="42" r="34" fill="none" stroke="var(--accent-med)" strokeWidth="9"
-                      strokeDasharray={`${lowShare * ringCircumference} ${ringCircumference}`}
-                      strokeDashoffset={-outShare * ringCircumference} transform="rotate(-90 42 42)" />
-                  )}
-                  <text x="42" y="42" textAnchor="middle" className="db-reorder-ring-value">{fmt(reorderTotal)}</text>
-                  <text x="42" y="54" textAnchor="middle" className="db-reorder-ring-label">of {fmt(derived.totalProducts)}</text>
-                </svg>
-                {reorderTotal ? (
-                  <div className="db-reorder-chips">
-                    <span className="db-reorder-chip is-out"><i />{fmt(derived.outOfStock.length)} <small>Out</small></span>
-                    <span className="db-reorder-chip is-low"><i />{fmt(derived.lowStock.length)} <small>Low</small></span>
-                  </div>
-                ) : (
-                  <span className="db-reorder-ok">All stocked</span>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </main>

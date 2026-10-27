@@ -1,47 +1,5 @@
 /* ===== TRASH BIN =====
-   Table, buttons and popups come from stockControl.css (sc-*); only the
-   tabs and small text live here. */
-
-.tb-tabs {
-    display: flex;
-    gap: 6px;
-    padding: 5px;
-    margin-bottom: 4px;
-}
-
-.tb-tab {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0.4rem 0.8rem;
-    font-size: 12px;
-    font-weight: 600;
-    font-family: inherit;
-    color: var(--text-muted);
-    background: transparent;
-    border: 1px solid var(--border-strong);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-}
-
-.tb-tab:hover { color: var(--text-primary); }
-
-.tb-tab.is-active {
-    color: var(--text-primary);
-    border-color: var(--accent, #E8C547);
-    box-shadow: 0 0 0 3px var(--accent-ring);
-}
-
-.tb-count {
-    min-width: 1.4em;
-    padding: 0 6px;
-    font-size: 10px;
-    line-height: 1.6;
-    text-align: center;
-    border-radius: 999px;
-    background: var(--dropdown-menu-hover);
-}
+   Table, buttons and popups come from stockControl.css (sc-*). */
 
 .tb-hint {
     margin: 0 5px 10px;
@@ -52,6 +10,100 @@
 .tb-muted {
     color: var(--text-muted);
     font-size: 0.85em;
+}
+
+.tb-type {
+    display: inline-flex;
+    padding: 3px 8px;
+    color: var(--text-primary);
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--dropdown-menu-hover);
+}
+
+.tb-type-product {
+    color: var(--accent-high);
+}
+
+.tb-type-entry {
+    color: var(--accent);
+}
+
+.tb-details {
+    min-width: 240px;
+    max-width: 420px;
+    text-align: left !important;
+}
+
+.tb-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 4px 2px;
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.tb-pagination > div {
+    display: flex;
+    gap: 6px;
+}
+
+.tb-pagination button {
+    padding: 6px 10px;
+    color: var(--text-primary);
+    font: inherit;
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.tb-pagination button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.tb-purge-modal {
+    border-color: color-mix(in srgb, var(--accent-low) 65%, var(--border-strong));
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--accent-low) 22%, transparent);
+}
+
+.tb-password-field {
+    display: grid;
+    gap: 6px;
+    margin: 0 0 16px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-align: left;
+}
+
+.tb-password-field input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 10px;
+    color: var(--text-primary);
+    font: inherit;
+    background: var(--static-bg-color, var(--bg-card));
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+}
+
+.tb-password-field input:focus {
+    outline: 2px solid var(--accent-ring);
+    border-color: var(--accent);
+}
+
+.tb-confirm-error {
+    margin: -4px 0 14px !important;
+    color: var(--accent-low) !important;
+    font-size: 11px !important;
+    text-align: left;
 }
 
 .tb-page .sc-table-action-btn:disabled {

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, RotateCcw, Trash2, AlertTriangle, Package, X } from 'lucide-react';
 
@@ -24,12 +24,6 @@ const formatWhen = (iso) => {
     : date.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
 };
 
-const movementLabel = (type) => {
-  if (type === 'Adjustment') return 'Correction';
-  if (type === 'Stock Out') return 'Sold';
-  return 'Added';
-};
-
 const firstError = (result, fallback) => (
   result?.errors ? Object.values(result.errors).flat()[0] : result?.message
 ) || fallback;
@@ -42,54 +36,70 @@ function TrashBin({
   canPurge = false,
 }) {
   const { formatCurrency } = useCurrency();
-  const [tab, setTab] = useState('products'); // 'products' | 'entries'
-  const [products, setProducts] = useState([]);
-  const [movements, setMovements] = useState([]);
+  const [records, setRecords] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, perPage: 50, lastPage: 1, total: 0 });
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [query, setQuery] = useState('');
   const [busyKey, setBusyKey] = useState(null);   // item being restored / deleted
-  const [confirm, setConfirm] = useState(null);   // { kind: 'product' | 'entry', item }
+  const [confirm, setConfirm] = useState(null);   // { action: 'restore' | 'purge', kind, item }
+  const [currentPassword, setCurrentPassword] = useState('');
+  const requestRef = useRef(0);
 
-  const load = async () => {
+  const load = async (requestedPage = page, requestedQuery = query) => {
+    const requestId = requestRef.current + 1;
+    requestRef.current = requestId;
+    setLoading(true);
     try {
-      const response = await fetch('/api/trash', { cache: 'no-store', headers: { Accept: 'application/json' } });
+      const params = new URLSearchParams({
+        page: String(requestedPage),
+        per_page: String(pagination.perPage),
+        search: requestedQuery.trim(),
+      });
+      const response = await fetch(`/api/trash?${params}`, { cache: 'no-store', headers: { Accept: 'application/json' } });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(firstError(result, `Could not load the Trash Bin (${response.status}).`));
-      setProducts(Array.isArray(result.products) ? result.products : []);
-      setMovements(Array.isArray(result.movements) ? result.movements : []);
-      setError('');
+      if (requestId === requestRef.current) {
+        setRecords(Array.isArray(result.records) ? result.records : []);
+        setPagination(result.pagination || { page: requestedPage, perPage: 50, lastPage: 1, total: 0 });
+        setPage(result.pagination?.page || requestedPage);
+        setError('');
+      }
     } catch (loadError) {
-      setError(loadError.message || 'Could not load the Trash Bin.');
+      if (requestId === requestRef.current) setError(loadError.message || 'Could not load the Trash Bin.');
     } finally {
-      setLoading(false);
+      if (requestId === requestRef.current) setLoading(false);
     }
   };
 
-  // Load when the page is opened, and again whenever something was deleted elsewhere.
-  useEffect(() => { if (isActive) load(); }, [isActive, refreshKey]);
+  // Search and pagination are applied by the shared Trash Bin endpoint.
+  useEffect(() => {
+    if (!isActive) return undefined;
+    const timeout = window.setTimeout(() => load(page, query), 200);
+    return () => window.clearTimeout(timeout);
+  }, [isActive, refreshKey, page, query]);
 
-  const q = query.trim().toLowerCase();
-  const visibleProducts = useMemo(() => products.filter((p) => !q
-    || [p.id, p.name, p.category, p.brand, p.deletedBy].some((f) => String(f || '').toLowerCase().includes(q))), [products, q]);
-  const visibleMovements = useMemo(() => movements.filter((m) => !q
-    || [m.productName, m.category, m.variantName, m.notes, m.recordedBy, m.deletedBy, m.date, movementLabel(m.type)]
-      .some((f) => String(f || '').toLowerCase().includes(q))), [movements, q]);
-
-  const run = async (key, url, method, successText) => {
+  const run = async (key, url, method, successText, body = null) => {
     setBusyKey(key);
     try {
-      const response = await apiFetch(url, { method, headers: { Accept: 'application/json' } });
+      const response = await apiFetch(url, {
+        method,
+        headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}) },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(firstError(result, `That didn't work (${response.status}).`));
       setError('');
       setNotice(successText(result));
-      await load();
+      await load(page, query);
       onRestored?.();   // other pages (Stock Control, Products, Dashboard) reload their numbers
+      return true;
     } catch (actionError) {
       setNotice('');
       setError(actionError.message || "That didn't work.");
+      return false;
     } finally {
       setBusyKey(null);
     }
@@ -99,72 +109,94 @@ function TrashBin({
     `p-${product.id}`,
     `/api/trash/products/${encodeURIComponent(product.id)}/restore`,
     'POST',
-    (result) => `${product.name} was restored${result.restoredEntries ? ` with ${result.restoredEntries} stock entr${result.restoredEntries === 1 ? 'y' : 'ies'}` : ''}.`,
+    (result) => `${product.productName} was restored${result.restoredEntries ? ` with ${result.restoredEntries} stock entr${result.restoredEntries === 1 ? 'y' : 'ies'}` : ''}.`,
   );
 
   const restoreEntry = (entry) => run(
     `m-${entry.id}`,
     `/api/trash/stock-movements/${entry.id}/restore`,
     'POST',
-    () => `${movementLabel(entry.type)} ${entry.change >= 0 ? '+' : '−'}${Math.abs(entry.change)} for ${entry.productName} was restored and its stock updated.`,
+    () => `${entry.details.movementType} ${entry.details.quantity >= 0 ? '+' : '−'}${Math.abs(entry.details.quantity)} for ${entry.productName} was restored and its stock updated.`,
   );
 
   const confirmPurge = async () => {
     if (!confirm) return;
     const { kind, item } = confirm;
-    setConfirm(null);
+    let succeeded;
     if (kind === 'product') {
-      await run(`p-${item.id}`, `/api/trash/products/${encodeURIComponent(item.id)}`, 'DELETE',
-        () => `${item.name} was permanently deleted.`);
+      succeeded = await run(`p-${item.id}`, `/api/trash/products/${encodeURIComponent(item.id)}`, 'DELETE',
+        () => `${item.productName} was permanently deleted.`,
+        { current_password: currentPassword });
     } else {
-      await run(`m-${item.id}`, `/api/trash/stock-movements/${item.id}`, 'DELETE',
-        () => `The ${movementLabel(item.type).toLowerCase()} entry for ${item.productName} was permanently deleted.`);
+      succeeded = await run(`m-${item.id}`, `/api/trash/stock-movements/${item.id}`, 'DELETE',
+        () => `The ${item.details.movementType.toLowerCase()} entry for ${item.productName} was permanently deleted.`,
+        { current_password: currentPassword });
+    }
+    if (succeeded) {
+      setConfirm(null);
+      setCurrentPassword('');
+    } else {
+      setCurrentPassword('');
     }
   };
 
-  const deletedCell = (item) => (
-    <>
-      <td className="sc-td-nowrap" data-label="Deleted by">{item.deletedBy || '—'}</td>
-      <td className="sc-td-nowrap" data-label="Deleted on">{formatWhen(item.deletedAt)}</td>
-    </>
-  );
+  const recordKey = (item) => `${item.kind === 'product' ? 'p' : 'm'}-${item.id}`;
+  const restoreRecord = (item) => item.kind === 'product' ? restoreProduct(item) : restoreEntry(item);
+  const closeConfirmation = () => {
+    if (busyKey) return;
+    setConfirm(null);
+    setCurrentPassword('');
+  };
+  const confirmRestore = async () => {
+    if (!confirm) return;
+    await restoreRecord(confirm.item);
+    setConfirm(null);
+  };
+  const detailsText = (item) => {
+    if (item.kind === 'product') {
+      return [
+        item.category ? `Category: ${item.category}` : null,
+        item.details.brand ? `Brand: ${item.details.brand}` : null,
+        `Stock on hand: ${item.details.stockOnHand}`,
+      ].filter(Boolean).join(' · ');
+    }
+
+    return [
+      item.details.movementType,
+      `Qty ${item.details.quantity >= 0 ? '+' : '−'}${Math.abs(item.details.quantity)}`,
+      item.details.unitPrice != null ? `Price ${formatCurrency(item.details.unitPrice)}` : null,
+      `Recorded by: ${item.details.recordedBy || '—'}`,
+      `Recorded: ${item.details.movementDate || '—'}`,
+      item.details.notes || null,
+    ].filter(Boolean).join(' · ');
+  };
 
   return (
     <div className="sc-table-parent tb-page">
-      <div className="tb-tabs" role="tablist" aria-label="Trash Bin sections">
-        <button type="button" role="tab" aria-selected={tab === 'products'} className={`tb-tab${tab === 'products' ? ' is-active' : ''}`} onClick={() => setTab('products')}>
-          Products <span className="tb-count">{products.length}</span>
-        </button>
-        <button type="button" role="tab" aria-selected={tab === 'entries'} className={`tb-tab${tab === 'entries' ? ' is-active' : ''}`} onClick={() => setTab('entries')}>
-          Stock entries <span className="tb-count">{movements.length}</span>
-        </button>
-      </div>
-
       <div className="sc-navigation-bar">
         <div className="sc-search-wrapper">
-          {/* Preset searches: categories of the deleted items on the open tab. */}
           <SearchSuggestions
             query={query}
-            suggestions={(tab === 'products' ? products : movements).map((item) => item.category)}
-            onPick={setQuery}
+            suggestions={records.map((item) => item.category)}
+            onPick={(value) => { setPage(1); setQuery(value); }}
             label="Categories"
           >
             <div className="sc-search-box">
               <Search size={13} className="sc-search-icon" />
-              <input type="search" placeholder="Search the Trash Bin…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search the Trash Bin" />
+              <input type="search" placeholder="Search the Trash Bin…" value={query} onChange={(e) => { setPage(1); setQuery(e.target.value); }} aria-label="Search the Trash Bin" />
             </div>
           </SearchSuggestions>
         </div>
       </div>
 
       <p className="tb-hint">
-        Deleted items stay here until someone restores them or deletes them permanently. Items here are left out of stock totals, reports and forecasts.
+        {pagination.total} deleted {pagination.total === 1 ? 'record' : 'records'}. Items here are left out of active stock totals, reports and forecasts.
       </p>
 
       {error && (
         <div className="sc-error-banner" role="alert">
           <span>{error}</span>
-          <button type="button" onClick={load}>Retry</button>
+          <button type="button" onClick={() => load(page, query)}>Retry</button>
         </div>
       )}
       {notice && (
@@ -175,149 +207,148 @@ function TrashBin({
       )}
 
       <div className="sc-table-scroll">
-        {tab === 'products' ? (
-          <table className="sc-table m-folders">
-            <thead>
-              <tr>
-                <th className="sc-th-left">Product</th>
-                <th>Category</th>
-                <th className="sc-th-quantity">QTY</th>
-                <th title="Stock entries that went to the Trash Bin with this product">Entries</th>
-                <th>Deleted by</th>
-                <th>Deleted on</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={7} className="sc-empty-state">Loading the Trash Bin…</td></tr>
-              ) : visibleProducts.length === 0 ? (
-                <tr><td colSpan={7} className="sc-empty-state">{products.length ? 'No deleted products match your search.' : 'No deleted products.'}</td></tr>
-              ) : visibleProducts.map((product) => {
-                const busy = busyKey === `p-${product.id}`;
-                return (
-                  <tr key={product.id}>
-                    <td className="sc-td-left m-title" data-label="Product">
-                      <span className="sc-name-cell">
-                        <span className="sc-thumb sc-thumb-empty" aria-hidden="true"><Package size={12} /></span>
-                        <span>{product.name} <small className="tb-muted">{product.id}</small></span>
+        <table className="sc-table m-folders tb-unified-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th className="sc-th-left">Product</th>
+              <th>SKU / Product ID</th>
+              <th>Variant</th>
+              <th className="sc-th-left">Details</th>
+              <th>Deleted By</th>
+              <th>Deleted On</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={9} className="sc-empty-state">Loading the Trash Bin…</td></tr>
+            ) : records.length === 0 ? (
+              <tr><td colSpan={9} className="sc-empty-state">{query ? 'No trashed records match your search.' : 'The Trash Bin is empty.'}</td></tr>
+            ) : records.map((item) => {
+              const busy = busyKey === recordKey(item);
+              const cannotRestoreEntry = item.kind === 'entry' && (item.productInTrash || item.productMissing);
+              return (
+                <tr key={recordKey(item)}>
+                  <td className="sc-td-nowrap" data-label="Date">{item.date}</td>
+                  <td data-label="Type"><span className={`tb-type tb-type-${item.kind}`}>{item.type}</span></td>
+                  <td className="sc-td-left m-title" data-label="Product">
+                    <span className="sc-name-cell">
+                      {item.kind === 'product' && <span className="sc-thumb sc-thumb-empty" aria-hidden="true"><Package size={12} /></span>}
+                      <span>
+                        {item.productName}
+                        {item.kind === 'entry' && item.productInTrash && <small className="sc-deleted-tag" title="Restore the product first to bring this stock entry back."> (product in Trash Bin)</small>}
+                        {item.kind === 'entry' && item.productMissing && <small className="sc-deleted-tag"> (product permanently deleted)</small>}
                       </span>
-                    </td>
-                    <td data-label="Category">{product.category || '—'}</td>
-                    <td className="sc-td-strong" data-label="QTY">{product.stock}</td>
-                    <td data-label="Entries">{product.entries}</td>
-                    {deletedCell(product)}
-                    <td className="sc-td-actions" data-label="Actions">
-                      <div className="sc-action-cell-container">
-                        {canRestore && (
-                          <button type="button" className="sc-table-action-btn sc-history-btn" onClick={() => restoreProduct(product)} disabled={busy}
-                            title="Restore this product and the stock entries deleted with it" aria-label={`Restore ${product.name}`}>
-                            <RotateCcw size={14} />
-                          </button>
-                        )}
-                        {canPurge && (
-                          <button type="button" className="sc-table-action-btn sc-delete-btn" onClick={() => setConfirm({ kind: 'product', item: product })} disabled={busy}
-                            title="Delete permanently" aria-label={`Permanently delete ${product.name}`}>
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                        {!canRestore && !canPurge && '—'}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        ) : (
-          <table className="sc-table m-folders">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th className="sc-th-left">Product</th>
-                <th>Variant</th>
-                <th>Type</th>
-                <th className="sc-th-quantity">QTY</th>
-                <th className="sc-th-quantity">Price</th>
-                <th>Recorded by</th>
-                <th>Deleted by</th>
-                <th>Deleted on</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={10} className="sc-empty-state">Loading the Trash Bin…</td></tr>
-              ) : visibleMovements.length === 0 ? (
-                <tr><td colSpan={10} className="sc-empty-state">{movements.length ? 'No deleted entries match your search.' : 'No deleted stock entries.'}</td></tr>
-              ) : visibleMovements.map((entry) => {
-                const busy = busyKey === `m-${entry.id}`;
-                const changeText = `${entry.change >= 0 ? '+' : '−'}${Math.abs(entry.change)}`;
-                return (
-                  <tr key={entry.id}>
-                    <td className="sc-td-nowrap" data-label="Date">{entry.date}</td>
-                    <td className="sc-td-left m-title" data-label="Product" title={entry.notes || ''}>
-                      {entry.productName}
-                      {entry.productInTrash && <small className="sc-deleted-tag" title="This product is in the Trash Bin too. Restore the product to bring this entry back."> (product in Trash Bin)</small>}
-                    </td>
-                    <td data-label="Variant">{entry.variantName || '—'}</td>
-                    <td className="m-peek" data-label="Type">
-                      <span className={`sc-type-pill sc-type-${(entry.type || '').replace(/\s+/g, '').toLowerCase()}`}>{movementLabel(entry.type)}</span>
-                    </td>
-                    <td className={`sc-td-strong ${entry.change >= 0 ? 'sc-in' : 'sc-out'}`} data-label="QTY">{changeText}</td>
-                    <td className="sc-td-nowrap" data-label="Price">{entry.unitPrice != null ? formatCurrency(entry.unitPrice) : '—'}</td>
-                    <td data-label="Recorded by">{entry.recordedBy || '—'}</td>
-                    {deletedCell(entry)}
-                    <td className="sc-td-actions" data-label="Actions">
-                      <div className="sc-action-cell-container">
-                        {canRestore && (
-                          <button type="button" className="sc-table-action-btn sc-history-btn" onClick={() => restoreEntry(entry)}
-                            disabled={busy || entry.productInTrash}
-                            title={entry.productInTrash ? 'Restore the product first (Products tab)' : `Restore — puts ${changeText} back into the stock`}
-                            aria-label={`Restore ${entry.productName} entry`}>
-                            <RotateCcw size={14} />
-                          </button>
-                        )}
-                        {canPurge && (
-                          <button type="button" className="sc-table-action-btn sc-delete-btn" onClick={() => setConfirm({ kind: 'entry', item: entry })} disabled={busy}
-                            title="Delete permanently" aria-label={`Permanently delete ${entry.productName} entry`}>
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                        {!canRestore && !canPurge && '—'}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
+                    </span>
+                  </td>
+                  <td className="sc-td-nowrap" data-label="SKU / Product ID">{item.productId || '—'}</td>
+                  <td data-label="Variant">{item.variantName || '—'}</td>
+                  <td className="sc-td-left tb-details" data-label="Details" title={item.kind === 'entry' ? item.details.notes || '' : ''}>{detailsText(item)}</td>
+                  <td className="sc-td-nowrap" data-label="Deleted By">{item.deletedBy || '—'}</td>
+                  <td className="sc-td-nowrap" data-label="Deleted On">{formatWhen(item.deletedAt)}</td>
+                  <td className="sc-td-actions" data-label="Actions">
+                    <div className="sc-action-cell-container">
+                      {canRestore && (
+                        <button
+                          type="button"
+                          className="sc-table-action-btn sc-history-btn"
+                          onClick={() => { setError(''); setConfirm({ action: 'restore', kind: item.kind, item }); }}
+                          disabled={busy || cannotRestoreEntry}
+                          title={item.kind === 'product'
+                            ? 'Restore this product and the stock entries deleted with it'
+                            : cannotRestoreEntry
+                              ? (item.productInTrash ? 'Restore the product first' : 'The product no longer exists')
+                              : 'Restore this stock entry and update stock'}
+                          aria-label={`Restore ${item.kind === 'product' ? item.productName : `${item.productName} stock entry`}`}
+                        >
+                          <RotateCcw size={14} />
+                        </button>
+                      )}
+                      {canPurge && (
+                        <button type="button" className="sc-table-action-btn sc-delete-btn" onClick={() => { setError(''); setCurrentPassword(''); setConfirm({ action: 'purge', kind: item.kind, item }); }} disabled={busy}
+                          title="Delete permanently" aria-label={`Permanently delete ${item.type}: ${item.productName}`}>
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                      {!canRestore && !canPurge && '—'}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
+      {pagination.lastPage > 1 && (
+        <div className="tb-pagination" aria-label="Trash Bin pages">
+          <span>Page {pagination.page} of {pagination.lastPage}</span>
+          <div>
+            <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={loading || pagination.page <= 1}>Previous</button>
+            <button type="button" onClick={() => setPage((current) => Math.min(pagination.lastPage, current + 1))} disabled={loading || pagination.page >= pagination.lastPage}>Next</button>
+          </div>
+        </div>
+      )}
+
       {confirm && createPortal(
-        <div className="sc-modal-overlay sc-confirm-overlay" onClick={() => setConfirm(null)}>
-          <div className="sc-modal sc-confirm-modal" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true" aria-labelledby="tb-confirm-title" aria-describedby="tb-confirm-text">
-            <span className="sc-confirm-icon is-out" aria-hidden="true"><AlertTriangle size={22} /></span>
-            <h3 id="tb-confirm-title">Delete permanently?</h3>
+        <div className="sc-modal-overlay sc-confirm-overlay" onClick={closeConfirmation}>
+          <div className={`sc-modal sc-confirm-modal${confirm.action === 'purge' ? ' tb-purge-modal' : ''}`} onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true" aria-labelledby="tb-confirm-title" aria-describedby="tb-confirm-text">
+            <span className={`sc-confirm-icon ${confirm.action === 'purge' ? 'is-out' : 'is-safe'}`} aria-hidden="true">
+              {confirm.action === 'purge' ? <AlertTriangle size={22} /> : <RotateCcw size={22} />}
+            </span>
+            <h3 id="tb-confirm-title">{confirm.action === 'purge' ? 'Delete permanently?' : 'Restore this record?'}</h3>
             <p id="tb-confirm-text">
-              {confirm.kind === 'product' ? (
+              {confirm.action === 'restore' ? (
                 <>
-                  <strong>{confirm.item.name}</strong> will be erased for good, together with all of its stock entries, safety stock setting, past sales and restock requests.
+                  Restore <strong>{confirm.item.productName}</strong>
+                  {confirm.kind === 'entry' ? (
+                    <> — {confirm.item.details.movementType}, quantity {confirm.item.details.quantity >= 0 ? '+' : '−'}{Math.abs(confirm.item.details.quantity)}.</>
+                  ) : (
+                    <> and the stock entries deleted with it.</>
+                  )}
+                  {confirm.kind === 'entry' && confirm.item.productInTrash && ' The product must be restored first.'}
+                </>
+              ) : confirm.kind === 'product' ? (
+                <>
+                  <strong>{confirm.item.productName}</strong> and its product-specific settings and restock requests will be erased for good. Historical stock entries and sales are retained as audit records, but can no longer be restored or used by active product features.
                 </>
               ) : (
                 <>
                   This stock entry will be erased for good. The stock total does not change (it was already taken out when the entry was deleted).
                   <span className="sc-confirm-detail">
-                    {confirm.item.productName} · {movementLabel(confirm.item.type)} <strong>{confirm.item.change >= 0 ? '+' : '−'}{Math.abs(confirm.item.change)}</strong> · {confirm.item.date}
+                    {confirm.item.productName} · {confirm.item.details.movementType} <strong>{confirm.item.details.quantity >= 0 ? '+' : '−'}{Math.abs(confirm.item.details.quantity)}</strong> · {confirm.item.date}
                   </span>
                 </>
               )}
-              <span className="sc-confirm-detail">This can’t be undone.</span>
+              {confirm.action === 'purge' && <span className="sc-confirm-detail">This can’t be undone. Enter your current password to confirm.</span>}
             </p>
+            {confirm.action === 'purge' && (
+              <label className="tb-password-field">
+                Current password
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  aria-label="Current password to confirm permanent deletion"
+                  required
+                />
+              </label>
+            )}
+            {error && <p className="tb-confirm-error" role="alert">{error}</p>}
             <div className="sc-modal-actions">
-              <button type="button" className="sc-modal-cancel-btn" onClick={() => setConfirm(null)} autoFocus>Cancel</button>
-              <button type="button" className="sc-modal-save-btn sc-confirm-danger-btn" onClick={confirmPurge}>Delete permanently</button>
+              <button type="button" className="sc-modal-cancel-btn" onClick={closeConfirmation} disabled={Boolean(busyKey)} autoFocus>Cancel</button>
+              {confirm.action === 'restore' ? (
+                <button type="button" className="sc-modal-save-btn" onClick={confirmRestore} disabled={Boolean(busyKey)}>
+                  Restore
+                </button>
+              ) : (
+                <button type="button" className="sc-modal-save-btn sc-confirm-danger-btn" onClick={confirmPurge} disabled={!currentPassword || Boolean(busyKey)}>
+                  Delete permanently
+                </button>
+              )}
             </div>
           </div>
         </div>,

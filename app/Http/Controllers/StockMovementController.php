@@ -74,7 +74,11 @@ class StockMovementController extends Controller
         if ($movement->movement_type === 'in' && ! $movement->is_adjustment) {
             \App\Models\RestockRequest::closeForProduct($movement->product_id, $request->user()?->id);
         }
-        $this->recordMovementActivity($movement->mergedFromQty !== null ? 'merge' : 'add', $movement);
+        $this->recordMovementActivity(
+            $movement->mergedFromQty !== null ? 'merge' : 'add',
+            $movement,
+            sourceMovementId: isset($data['sourceMovementId']) ? (int) $data['sourceMovementId'] : null
+        );
         $this->recordSafetyCrossing($movement, $stockBefore);
 
         $body = $this->format($movement);
@@ -252,7 +256,12 @@ class StockMovementController extends Controller
         return $user ? ($user->name ?: $user->email) : null;
     }
 
-    private function recordMovementActivity(string $event, StockMovement $movement, ?array $before = null): void
+    private function recordMovementActivity(
+        string $event,
+        StockMovement $movement,
+        ?array $before = null,
+        ?int $sourceMovementId = null
+    ): void
     {
         $snapshot = $this->activitySnapshot($movement->loadMissing('product'));
         if ($event === 'merge') {
@@ -288,6 +297,7 @@ class StockMovementController extends Controller
             'previousChange' => $before['change'] ?? null,
             'previousType' => $before['type'] ?? null,
             'previousProductId' => $before['productId'] ?? null,
+            'sourceMovementId' => $sourceMovementId,
         ]);
     }
 
@@ -315,6 +325,8 @@ class StockMovementController extends Controller
         $rules = [
             'productId'   => ['required_without:productName', 'nullable', 'string', Rule::exists('products', 'code')->whereNull('deleted_at')],
             'productName' => ['required_without:productId', 'nullable', 'string'],
+            'sourceMovementId' => ['required_if:mergeSameDay,false', 'nullable', 'integer', 'min:1'],
+            'mergeSameDay' => ['sometimes', 'boolean'],
             'type'        => ['required', 'in:Stock In,Stock Out,Adjustment,in,out'],
             'qty'         => ['required_unless:type,Adjustment', 'nullable', 'integer', 'min:1'],
             'countedStock'=> ['required_if:type,Adjustment', 'nullable', 'integer', 'min:0'],

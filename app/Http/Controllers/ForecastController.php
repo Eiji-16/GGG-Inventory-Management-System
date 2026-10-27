@@ -27,7 +27,7 @@ class ForecastController extends Controller
             'periodType' => ['sometimes', 'in:week,month,year'],
         ]);
 
-        $product = Product::withTrashed()->where('code', $data['product'])->firstOrFail();
+        $product = Product::where('code', $data['product'])->firstOrFail();
 
         return response()->json($this->forecaster->history($product, $data['periodType'] ?? 'month'));
     }
