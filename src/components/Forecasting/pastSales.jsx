@@ -509,7 +509,7 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
                       ? `Total of the weekly entries for ${title}. Weeks that cross into another month are split by days.`
                       : `${weeks.weeksEntered} of the ${weeks.weeksNeeded} weeks of ${title} have weekly entries — enter all of them to use the weekly total.`}
                   >
-                    {auto ? `Auto from weeks`
+                    {auto ? `Weekly total used`
                       : mismatch ? `⚠ Weeks total ${weeks.unitsSold.toLocaleString()}`
                       : weeks.complete ? 'Matches weeks ✓'
                       : `Weeks: ${weeks.weeksEntered} of ${weeks.weeksNeeded} entered`}
@@ -532,7 +532,7 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
       </div>
       <p className="ps-muted hint-text">Leave a {unitWord} blank if there is no record. Clearing a saved {unitWord} and saving removes it.{isWeekly
         ? ' Weekly entries are used by the weekly forecast. Once every week of a month is entered, its total is also used for that month (if it has no monthly entry).'
-        : ' A blank month whose weeks are all entered uses the weekly total automatically; a typed monthly number always takes priority.'}</p>
+        : ' A blank month whose weeks are all entered uses the total of its weeks; a typed monthly number always takes priority.'}</p>
     </section>
   );
 }

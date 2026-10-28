@@ -191,7 +191,7 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
             <div className="ra-receive-grid">
               <div className="ra-receive-field">
                 <label htmlFor="ra-receive-qty">Quantity received</label>
-                <input id="ra-receive-qty" type="number" min="1" step="1" inputMode="numeric" value={form.qty} onChange={update('qty')} autoFocus required />
+                <input id="ra-receive-qty" type="number" min="1" max="9999" step="1" inputMode="numeric" value={form.qty} onChange={update('qty')} autoFocus required />
                 <small>
                   {preset !== 'custom'
                     ? `${presets.find((option) => option.key === preset)?.hint || ''}. Change it if a different amount arrived.`

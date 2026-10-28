@@ -2233,3 +2233,29 @@ body {
         margin: 0;
     }
 }
+
+/*==========PAGE AREA FILLS THE WINDOW (desktop)==========
+   The page area used a fixed height (93% of the window minus 4rem), which
+   left an unused strip at the bottom of every page. Now the frame is exactly
+   one window tall and the page area takes all the height left under the top
+   bar. Phones/tablets (820px and below) keep their own scrolling layout. */
+@media (min-width: 821px) {
+    .dashboard-container-parent {
+        box-sizing: border-box;
+        height: 100vh;
+        height: 100dvh;
+        min-height: 0;
+        padding-bottom: 0.4rem;   /* thinner frame under the page */
+    }
+    .main-wrapper {
+        box-sizing: border-box;
+        min-height: 0;
+        height: 100%;
+        padding-bottom: 0;
+    }
+    .main-content-window {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: auto;
+    }
+}

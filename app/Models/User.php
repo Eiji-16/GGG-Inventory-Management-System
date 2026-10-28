@@ -28,6 +28,9 @@ class User extends Authenticatable
 
     public const ROLES = [self::ROLE_SUPER_ADMIN, self::ROLE_ADMIN, self::ROLE_STAFF];
 
+    /** Appearance themes a user can pick (same list as src/theme.js). */
+    public const THEMES = ['soft-white', 'lavender', 'citrus', 'graphite', 'midnight-blue', 'emerald', 'magenta', 'ember'];
+
     public const STATUS_ACTIVE = 'active';
     public const STATUS_INACTIVE = 'inactive';
 

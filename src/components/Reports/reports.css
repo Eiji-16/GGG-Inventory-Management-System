@@ -471,3 +471,541 @@
     100% { box-shadow: 0 0 0 0 transparent; }
 }
 @media (prefers-reduced-motion: reduce) { .r-live-dot { animation: none; } }
+
+/*==========OVERALL REPORT (the whole Reports page, no tabs)==========*/
+.r-overall { padding-top: 10px; }
+/* "Export full report" buttons: bottom left, under the left chart. */
+.r-overall-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+}
+.r-overall-toolbar .r-modal-error { margin: 0; }
+.r-overall-left { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+/* Summary cards: two rows of four. min-width: 0 + wrapping keeps a big number
+   (e.g. a large inventory value) inside its card instead of overlapping. */
+.r-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.r-kpi-grid .r-kpi-card { min-width: 0; padding: 0.8rem 1rem; }
+.r-kpi-grid .r-kpi-card .r-kpi-label { margin-bottom: 4px; }
+.r-kpi-card .r-kpi-value {
+    font-size: clamp(18px, 1.7vw, 24px);
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+    font-variant-numeric: tabular-nums;
+}
+.r-kpi-card .r-kpi-label,
+.r-kpi-card .r-kpi-sub { overflow-wrap: anywhere; }
+
+/* Anything that opens a report when clicked. */
+.r-clickable { cursor: pointer; transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease; }
+.r-clickable:hover {
+    border-color: var(--accent, #E8C547);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent, #E8C547) 35%, transparent);
+}
+.r-clickable:focus-visible { outline: 2px solid var(--accent, #E8C547); outline-offset: 2px; }
+.r-kpi-card.r-clickable:hover { transform: translateY(-1px); }
+.r-open-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted, #888);
+    white-space: nowrap;
+}
+.r-clickable:hover .r-open-hint { color: var(--accent, #E8C547); }
+.r-chart-head-right { display: inline-flex; align-items: center; gap: 10px; }
+
+.r-overall-charts {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+}
+.r-overall-fs { grid-template-columns: 1fr; gap: 10px; }
+.r-overall-chart { margin-bottom: 0; padding: 0.9rem 1rem; }
+.r-overall-chart .r-chart-card-head { margin-bottom: 0.6rem; }
+.r-overall .r-fs-list { gap: 7px; }
+.r-export-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/*==========REPORT POP-UP==========*/
+.r-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    background: rgba(3, 8, 20, 0.62);
+    backdrop-filter: blur(4px);
+    animation: r-fade-in 0.15s ease;
+}
+.r-modal {
+    display: flex;
+    flex-direction: column;
+    width: min(96vw, 72rem);
+    max-height: min(88vh, 52rem);
+    overflow: hidden;
+    color: var(--text-primary, #111);
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--border-color, rgba(0,0,0,0.15));
+    border-radius: 10px;
+    box-shadow: 0 1.75rem 4rem rgba(0, 0, 0, 0.45);
+    font-size: 13px;
+    animation: r-slide-up 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.r-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.1rem 0.85rem;
+    border-bottom: 0.5px solid var(--border-color, rgba(0,0,0,0.15));
+}
+.r-modal-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex-shrink: 0; }
+.r-modal-close {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    color: var(--text-muted, #888);
+    background: transparent;
+    border: 0.5px solid var(--border-strong, #888);
+    border-radius: 8px;
+    cursor: pointer;
+}
+.r-modal-close:hover { color: var(--text-primary, #111); background: var(--overlay-soft); }
+.r-modal-error { color: var(--accent-low, #e5484d) !important; font-size: 11.5px; }
+.r-modal-body { flex: 1; min-height: 0; overflow: auto; padding: 0 0.5rem; }
+.r-modal-body .r-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--bg-card, #fff);
+}
+.r-modal-footer {
+    padding: 0.6rem 1.1rem;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-muted, #888);
+    border-top: 0.5px solid var(--border-color, rgba(0,0,0,0.15));
+}
+@keyframes r-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes r-slide-up {
+    from { opacity: 0; transform: translateY(12px) scale(0.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .r-modal, .r-modal-overlay { animation: none; }
+    .r-kpi-card.r-clickable:hover { transform: none; }
+}
+
+@media (max-width: 1100px) {
+    .r-overall-charts { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+    .r-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+    .r-overall-toolbar { justify-content: stretch; }
+    .r-overall-toolbar .r-modal-error { flex-basis: 100%; }
+    .r-overall-toolbar .r-export-btn { flex: 1 1 auto; justify-content: center; }
+    .r-modal-header { flex-direction: column; }
+    .r-modal { max-height: 92vh; }
+}
+
+/*==========REPORTS FIT THE SCREEN, BOTH COLUMNS END ON ONE LINE==========
+   The charts area gets its height from useFillToBottom (it reaches the
+   bottom of the page). Left: the Stock In vs Out chart grows to fill, with
+   the export buttons under it. Right: Fast-Moving and Slow-Moving share the
+   height equally. So both columns end at exactly the same line. */
+.r-overall { padding-top: 6px; }
+.r-kpi-grid { gap: 8px; margin-bottom: 8px; }
+.r-kpi-grid .r-kpi-card { padding: 0.6rem 0.9rem; }
+.r-kpi-grid .r-kpi-card .r-kpi-label { margin-bottom: 2px; font-size: 10px; }
+.r-kpi-grid .r-kpi-card .r-kpi-value { font-size: clamp(17px, 1.5vw, 22px); }
+.r-kpi-grid .r-kpi-card .r-kpi-sub { margin-top: 1px; font-size: 10.5px; }
+
+.r-overall-charts { gap: 8px; align-items: stretch; }
+.r-overall-left { gap: 8px; min-height: 0; }
+.r-overall-left .r-overall-chart {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.r-overall-left .r-mini-chart,
+.r-overall-left .r-line-chart,
+.r-overall-left .r-chart-placeholder {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 110px;
+}
+.r-overall-left .r-chart-legend { margin: 6px 0 0; }
+.r-overall-fs {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 8px;
+    min-height: 0;
+}
+.r-overall-fs .r-overall-chart {
+    min-height: 0;
+    overflow: auto;
+    scrollbar-width: none;
+}
+.r-overall-fs .r-overall-chart::-webkit-scrollbar { display: none; }
+.r-overall-chart { padding: 0.75rem 0.95rem; }
+.r-overall-chart .r-chart-card-head { margin-bottom: 0.45rem; }
+.r-overall .r-fs-list { gap: 6px; }
+.r-overall-toolbar .r-export-btn { padding: 0.35rem 0.75rem; font-size: 11px; }
+
+/* One column (narrower screens): normal heights, the page scrolls. */
+@media (max-width: 1100px) {
+    .r-overall-charts { height: auto !important; max-height: none !important; }
+    .r-overall-fs { grid-template-rows: none; }
+    .r-overall-left .r-mini-chart,
+    .r-overall-left .r-line-chart,
+    .r-overall-left .r-chart-placeholder { height: 200px; flex: none; }
+}
+/* Bars grow with the chart's height (instead of a fixed 220px). */
+.r-overall-left .r-mini-col { height: auto; align-self: stretch; }
+.r-overall-left .r-mini-bars { height: auto; flex: 1 1 auto; min-height: 0; }
+
+/*==========REPORT CARDS: same design details as the Dashboard KPI cards==========
+   Each card has its own accent colour (--kpi-accent): a coloured icon chip, a
+   thin accent line along the top, a soft glow in the corner, a light tinted
+   background and a ↗ arrow. Hover lifts the card and brightens the accent.
+   Colours come from the active theme, so every theme still matches. */
+.r-kpi-tile {
+    --kpi-accent: var(--accent);
+    --kpi-soft: color-mix(in srgb, var(--kpi-accent) 14%, transparent);
+    --kpi-line: color-mix(in srgb, var(--kpi-accent) 30%, transparent);
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--bg-card, #fff);
+    background: linear-gradient(150deg, color-mix(in srgb, var(--kpi-accent) 9%, var(--bg-card, #fff)) 0%, var(--bg-card, #fff) 58%);
+    border-radius: 12px;
+}
+.r-kpi-tile::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--kpi-accent), transparent 85%);
+    opacity: 0.55;
+    transition: opacity 0.24s ease;
+}
+.r-kpi-tile::after {
+    content: '';
+    position: absolute;
+    top: -46px;
+    right: -46px;
+    z-index: -1;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--kpi-soft) 0%, transparent 70%);
+    transition: transform 0.4s ease;
+    pointer-events: none;
+}
+.r-kpi-tile--gold   { --kpi-accent: var(--accent); }
+.r-kpi-tile--blue   { --kpi-accent: var(--info-color, #60A5FA); }
+.r-kpi-tile--violet { --kpi-accent: #A78BFA; }
+.r-kpi-tile--good   { --kpi-accent: var(--accent-high); }
+.r-kpi-tile--warn   { --kpi-accent: var(--accent-med); }
+.r-kpi-tile--bad    { --kpi-accent: var(--accent-low); }
+
+.r-kpi-tile-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.r-kpi-tile-head .r-kpi-label {
+    margin: 0 !important;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.r-kpi-tile-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    color: var(--kpi-accent);
+    background: var(--kpi-soft);
+    border: 1px solid var(--kpi-line);
+    border-radius: 8px;
+    transition: transform 0.24s ease;
+}
+.r-kpi-tile-go {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    margin-left: auto;
+    color: var(--text-muted, #888);
+    opacity: 0.45;
+    transition: opacity 0.24s ease, transform 0.24s ease, color 0.24s ease;
+}
+.r-kpi-tile.r-clickable:hover {
+    border-color: var(--kpi-line);
+    box-shadow: var(--shadow-hover, 0 8px 22px rgba(0, 0, 0, 0.3)), 0 0 0 1px color-mix(in srgb, var(--kpi-accent) 12%, transparent);
+    transform: translateY(-2px);
+}
+.r-kpi-tile:hover::before { opacity: 1; }
+.r-kpi-tile:hover::after { transform: scale(1.25); }
+.r-kpi-tile:hover .r-kpi-tile-icon { transform: translateY(-1px) scale(1.06); }
+.r-kpi-tile:hover .r-kpi-tile-go { opacity: 1; color: var(--kpi-accent); transform: translate(2px, -2px); }
+.r-kpi-tile.r-clickable:focus-visible { outline: 2px solid var(--kpi-accent); }
+
+/*==========EXPORT FULL REPORT: two wide buttons filling the space==========*/
+.r-overall-toolbar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.r-overall-toolbar .r-modal-error { grid-column: 1 / -1; }
+.r-export-tile {
+    --kpi-accent: var(--accent);
+    --kpi-soft: color-mix(in srgb, var(--kpi-accent) 14%, transparent);
+    --kpi-line: color-mix(in srgb, var(--kpi-accent) 30%, transparent);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 0.6rem 0.85rem;
+    color: var(--text-primary, #111);
+    font: inherit;
+    text-align: left;
+    background: linear-gradient(150deg, color-mix(in srgb, var(--kpi-accent) 10%, var(--bg-card, #fff)) 0%, var(--bg-card, #fff) 65%);
+    border: 1px solid var(--border-color, rgba(0,0,0,0.15));
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.r-export-tile::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--kpi-accent), transparent 85%);
+    opacity: 0.55;
+}
+.r-export-tile--pdf   { --kpi-accent: var(--accent-low); }
+.r-export-tile--excel { --kpi-accent: var(--accent-high); }
+.r-export-tile-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    color: var(--kpi-accent);
+    background: var(--kpi-soft);
+    border: 1px solid var(--kpi-line);
+    border-radius: 9px;
+}
+.r-export-tile-text { display: grid; gap: 1px; min-width: 0; }
+.r-export-tile-text strong { font-size: 12.5px; font-weight: 700; }
+.r-export-tile-text small {
+    overflow: hidden;
+    font-size: 10.5px;
+    color: var(--text-muted, #888);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.r-export-tile-go {
+    flex: 0 0 auto;
+    margin-left: auto;
+    color: var(--text-muted, #888);
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+.r-export-tile:hover:not(:disabled) {
+    border-color: var(--kpi-line);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--kpi-accent) 15%, transparent);
+    transform: translateY(-1px);
+}
+.r-export-tile:hover:not(:disabled) .r-export-tile-go { color: var(--kpi-accent); transform: translateY(1px); }
+.r-export-tile:focus-visible { outline: 2px solid var(--kpi-accent); outline-offset: 2px; }
+.r-export-tile:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 640px) {
+    .r-overall-toolbar { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .r-kpi-tile, .r-kpi-tile::after, .r-kpi-tile-icon, .r-kpi-tile-go, .r-export-tile { transition: none; }
+    .r-kpi-tile.r-clickable:hover, .r-export-tile:hover:not(:disabled) { transform: none; }
+}
+
+/* Needs Reorder card: amber bar for "Low", wider value column for "3 / 10". */
+.r-fs-warn { background: var(--accent-med); }
+.r-reorder-row { grid-template-columns: minmax(0, 9rem) 1fr 4.2rem; }
+.r-reorder-value { white-space: nowrap; }
+.r-overall-fs.is-single { grid-template-rows: 1fr; }
+
+/*==========REPORTS LAYOUT (one grid, every card opens a different report)==========
+     1  2  3  4        1 Products        2 Inventory Value  3 Units Sold  4 Forecast
+     5  6  7  7        5 Order Quantity  6 Aging Stock      7 Stock Health (wide)
+    10 10  8  8        10 Stock In vs Out chart (big)       8 Fast-Moving
+    10 10  9  9                                             9 Needs Reorder
+    11 12  9  9        11 / 12 Export full report (PDF / Excel)
+   The grid reaches the bottom of the page (useFillToBottom); the two middle
+   rows share the height left after the card rows. */
+.r-bento {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: auto auto minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-areas:
+        "k1 k2 k3 k4"
+        "k5 k6 hl hl"
+        "mv mv fa fa"
+        "mv mv re re"
+        "pd xl re re";
+    gap: 8px;
+}
+.r-bento-k1 { grid-area: k1; }
+.r-bento-k2 { grid-area: k2; }
+.r-bento-k3 { grid-area: k3; }
+.r-bento-k4 { grid-area: k4; }
+.r-bento-k5 { grid-area: k5; }
+.r-bento-k6 { grid-area: k6; }
+.r-bento-health   { grid-area: hl; }
+.r-bento-movement { grid-area: mv; }
+.r-bento-fast     { grid-area: fa; }
+.r-bento-reorder  { grid-area: re; }
+.r-bento .r-overall-toolbar { display: contents; }
+.r-bento .r-export-tile--pdf   { grid-area: pd; }
+.r-bento .r-export-tile--excel { grid-area: xl; }
+.r-bento .r-overall-toolbar .r-modal-error { grid-column: 1 / -1; }
+
+/* Each spot's card fills its spot. */
+.r-bento-health,
+.r-bento-movement,
+.r-bento-fast,
+.r-bento-reorder { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.r-bento-health > *,
+.r-bento-movement > *,
+.r-bento-fast > *,
+.r-bento-reorder > * { flex: 1 1 auto; min-height: 0; }
+.r-bento-fast .r-overall-chart,
+.r-bento-reorder .r-overall-chart { overflow: auto; scrollbar-width: none; }
+.r-bento-fast .r-overall-chart::-webkit-scrollbar,
+.r-bento-reorder .r-overall-chart::-webkit-scrollbar { display: none; }
+
+/* Big chart grows with its spot. */
+.r-bento-movement .r-overall-chart { display: flex; flex-direction: column; }
+.r-bento-movement .r-mini-chart,
+.r-bento-movement .r-line-chart,
+.r-bento-movement .r-chart-placeholder { flex: 1 1 auto; height: auto; min-height: 110px; }
+.r-bento-movement .r-mini-col { height: auto; align-self: stretch; }
+.r-bento-movement .r-mini-bars { height: auto; flex: 1 1 auto; min-height: 0; }
+.r-bento-movement .r-chart-legend { margin: 6px 0 0; }
+
+/* Wide Stock Health card: % on the left, bar + legend beside it. */
+.r-health-tile { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto auto; column-gap: 16px; row-gap: 4px; }
+.r-health-tile .r-kpi-tile-head { grid-column: 1 / -1; }
+.r-health-main { grid-row: 2 / 4; align-self: center; }
+.r-health-bar {
+    align-self: end;
+    display: flex;
+    gap: 2px;
+    height: 8px;
+    overflow: hidden;
+    background: var(--overlay-soft, rgba(255, 255, 255, 0.06));
+    border-radius: 999px;
+}
+.r-health-seg { height: 100%; border-radius: 999px; flex-basis: 0; transition: flex-grow 0.5s ease; }
+.r-health-seg.is-good, .r-health-legend i.is-good { background: var(--accent-high); }
+.r-health-seg.is-warn, .r-health-legend i.is-warn { background: var(--accent-med); }
+.r-health-seg.is-crit, .r-health-legend i.is-crit { background: color-mix(in srgb, var(--accent-low) 70%, var(--accent-med)); }
+.r-health-seg.is-bad,  .r-health-legend i.is-bad  { background: var(--accent-low); }
+.r-health-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    font-size: 10.5px;
+    color: var(--text-muted, #888);
+}
+.r-health-legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.r-health-legend i { width: 7px; height: 7px; border-radius: 2px; }
+.r-health-legend strong { color: var(--text-primary, #111); }
+
+/* Export buttons as grid spots: fill their spot. */
+.r-bento .r-export-tile { min-height: 0; }
+
+/* Long lists (Stock Health product names) wrap in the pop-up. */
+.r-modal-body .r-table td:last-child { white-space: normal; min-width: 180px; }
+
+/* Some reports hidden by Role Access: cards just flow in order. */
+.r-bento.is-partial {
+    grid-template-areas: none;
+    grid-template-rows: none;
+    height: auto !important;
+    max-height: none !important;
+}
+.r-bento.is-partial > *,
+.r-bento.is-partial .r-export-tile { grid-area: auto; }
+.r-bento.is-partial .r-bento-health,
+.r-bento.is-partial .r-bento-movement,
+.r-bento.is-partial .r-bento-fast,
+.r-bento.is-partial .r-bento-reorder { grid-column: span 2; }
+.r-bento.is-partial .r-bento-movement .r-mini-chart { height: 200px; flex: none; }
+
+/* Narrower screens: two columns, normal heights, the page scrolls. */
+@media (max-width: 1100px) {
+    .r-bento {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-rows: none;
+        grid-template-areas:
+            "k1 k2" "k3 k4" "k5 k6" "hl hl" "mv mv" "fa fa" "re re" "pd xl";
+        height: auto !important;
+        max-height: none !important;
+    }
+    .r-bento-movement .r-mini-chart,
+    .r-bento-movement .r-line-chart,
+    .r-bento-movement .r-chart-placeholder { height: 200px; flex: none; }
+}
+@media (max-width: 640px) {
+    .r-bento { grid-template-columns: 1fr; grid-template-areas: none; }
+    .r-bento > *, .r-bento .r-export-tile { grid-area: auto !important; grid-column: auto !important; }
+    .r-health-tile { grid-template-columns: 1fr; }
+    .r-health-main { grid-row: auto; }
+}
+/* Compact cards inside the layout (same as before). */
+.r-bento .r-kpi-card { min-width: 0; padding: 0.6rem 0.9rem; }
+.r-bento .r-kpi-card .r-kpi-label { margin-bottom: 0; font-size: 10px; }
+.r-bento .r-kpi-card .r-kpi-value { font-size: clamp(17px, 1.5vw, 22px); }
+.r-bento .r-kpi-card .r-kpi-sub { margin-top: 1px; font-size: 10.5px; }
+.r-bento .r-overall-chart { margin-bottom: 0; }
+
+/* Lists inside a report pop-up (e.g. Stock Health product names) as chips. */
+.r-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    min-width: 240px;
+    max-width: 560px;
+}
+.r-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary, #111);
+    white-space: nowrap;
+    background: var(--overlay-soft, rgba(255, 255, 255, 0.06));
+    border: 1px solid var(--border-color, rgba(0,0,0,0.15));
+    border-radius: 999px;
+}

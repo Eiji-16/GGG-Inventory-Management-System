@@ -1090,9 +1090,9 @@ export default function DemandForecastDesign({
                           <td colSpan={5} className="fx-empty">
                             {productId ? (
                               <>
-                                No completed {periodPlural} of sales yet. Sales appear here automatically from Stock Out transactions in Stock Control
+                                No completed {periodPlural} of sales yet. Sales come from the Stock Out transactions recorded in Stock Control
                                 {canEditPastSales && (
-                                  <>, or add her earlier sales in{' '}
+                                  <>, or add earlier sales in{' '}
                                     <button type="button" className="fx-inline-link" onClick={() => setView('past')}>Past Sales</button>
                                   </>
                                 )}.

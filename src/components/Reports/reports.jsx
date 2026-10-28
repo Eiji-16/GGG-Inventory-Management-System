@@ -1,22 +1,25 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { Download, FileText, Search, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import {
+  Download, FileText, X, ChevronRight, ArrowUpRight, Package, Wallet,
+  ShoppingBag, TrendingUp, Calculator, Hourglass, FileSpreadsheet, ShieldCheck,
+} from 'lucide-react';
 import './reports.css';
 import exportReportWorkbook, { printReportPdf } from '../../utils/exportReportWorkbook';
 import { useCurrency } from '../../CurrencyContext';
+import useFillToBottom from '../../utils/fillToBottom';
 
-/* ===== REPORT TABS ===== */
-const TABS = [
-  'Stock Summary',
-  'Stock Movement',
-  'Top Moving Products',
-  'Fast & Slow Moving',
-  'Demand Forecast Summary',
-  'Economic Order Quantity Calculator Summary',
-  'Inventory Aging Report',
-  'Reorder Point Report',
-];
+/* ===== REPORTS & ANALYTICS: ONE OVERALL REPORT =====
+   One page, no tabs. It shows the overall picture of the system's data:
+     - 8 summary cards (two rows of four), and
+     - 2 charts: weekly Stock In vs Stock Out, and fast vs slow moving products.
+   Every card and chart can be clicked: it opens that specific report in a
+   pop-up with all of its rows and its own Export PDF / Export Excel.
+   "Export full report" puts every report into one file.
+   Role Access (Settings) still decides which reports a role can see: the
+   server leaves hidden ones out of /api/reports, so their cards don't show. */
 
-/* Status/urgency/confidence → badge class. */
+/* Status/urgency/confidence → badge colour. */
 const BADGE = {
   'In Stock': 'r-badge-good', Healthy: 'r-badge-good', High: 'r-badge-good',
   'Low Stock': 'r-badge-bad', Critical: 'r-badge-bad', Low: 'r-badge-warn',
@@ -28,265 +31,14 @@ const Badge = ({ label }) => (
   <span className={`r-badge ${BADGE[label] || 'r-badge-warn'}`}><span className="r-dot" />{label}</span>
 );
 
-/* ===== READ THE CURRENTLY RENDERED REPORT (shared by Excel and PDF export) ===== */
-const readPanel = (btn) => {
-  const panel = btn.closest('.r-panel-header')?.parentElement;
-  const table = panel?.querySelector('.r-table');
-  if (!table) return null;
-  const headers = Array.from(table.querySelectorAll('thead th'), (cell) => cell.innerText.trim());
-  const rows = Array.from(table.querySelectorAll('tbody tr'))
-    .map((tr) => Array.from(tr.querySelectorAll('td'), (cell) => cell.innerText.trim().replace(/\s*\n+\s*/g, ' — ')))
-    .filter((row) => row.length === headers.length);
-  const summary = [{ label: 'Records', value: rows.length }];
-  Array.from(panel.querySelectorAll('.r-kpi-card')).forEach((card) => {
-    const label = card.querySelector('.r-kpi-label')?.innerText.trim();
-    const value = card.querySelector('.r-kpi-value')?.innerText.trim();
-    if (label && value) summary.push({ label, value });
-  });
-  return { headers, rows, summary };
-};
-
-const REPORT_SCOPE = 'The exported table reflects the current report tab and its active filters.';
-
-/* ===== EXPORT FORMATTED WORKBOOK ===== */
-const exportPanelWorkbook = async (btn, title, subtitle) => {
-  const panel = readPanel(btn);
-  if (!panel) return;
-  const { headers, rows, summary } = panel;
-  await exportReportWorkbook({
-    title,
-    subtitle,
-    fileName: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
-    sections: [{ title: 'Report details', headers, rows }],
-    summary: summary.slice(0, Math.max(1, Math.min(4, headers.length))),
-    scope: REPORT_SCOPE,
-    note: rows.length ? '' : 'No report rows were available at the time of export.',
-    columnWidths: Array.from({ length: headers.length }, () => 22),
-  });
-};
-
-/* ===== EXPORT PRINT-READY PDF (opens the browser's Save as PDF dialog) ===== */
-const exportPanelPdf = (btn, title, subtitle) => {
-  const panel = readPanel(btn);
-  if (!panel) return;
-  const { headers, rows, summary } = panel;
-  const opened = printReportPdf({
-    title,
-    subtitle,
-    summary: summary.slice(0, 5),
-    sections: [{ title: 'Report details', headers, rows }],
-    scope: REPORT_SCOPE,
-    note: rows.length ? '' : 'No report rows were available at the time of export.',
-  });
-  if (!opened) throw new Error('Allow pop-ups for this site to export the PDF.');
-};
-
-const PanelHeader = ({ title, subtitle }) => (
-  <PanelHeaderContent title={title} subtitle={subtitle} />
-);
-
-/* Role Access: whether this account may export reports (Settings). */
-const ReportExportContext = createContext(true);
-
-function PanelHeaderContent({ title, subtitle }) {
-  const canExport = useContext(ReportExportContext);
-  const [exportError, setExportError] = useState('');
-
-  const handleExport = async (event) => {
-    setExportError('');
-    try {
-      await exportPanelWorkbook(event.currentTarget, title, subtitle);
-    } catch (error) {
-      console.error(`Could not export ${title}:`, error);
-      setExportError('Export failed. Please try again.');
-    }
-  };
-
-  const handlePdf = (event) => {
-    setExportError('');
-    try {
-      exportPanelPdf(event.currentTarget, title, subtitle);
-    } catch (error) {
-      console.error(`Could not export ${title} as PDF:`, error);
-      setExportError(error.message || 'PDF export failed. Please try again.');
-    }
-  };
-
-  return (
-    <div className="r-panel-header">
-      <div className="r-panel-title">
-        <h2>{title}</h2>
-        <p>{subtitle}</p>
-        {exportError && <p role="alert">{exportError}</p>}
-      </div>
-      {canExport && (
-      <div className="r-export-actions">
-        <button className="r-export-btn" type="button" onClick={handlePdf}>
-          <FileText size={13} /> Export PDF
-        </button>
-        <button className="r-export-btn" type="button" onClick={handleExport}>
-          <Download size={13} /> Export Excel
-        </button>
-      </div>
-      )}
-    </div>
-  );
-}
-
 /* Shared empty/loading row. */
 const EmptyRow = ({ cols, text }) => (
   <tr><td colSpan={cols} style={{ textAlign: 'center', padding: '18px', color: 'var(--text-muted, #888)' }}>{text}</td></tr>
 );
 
-function StockSummaryTab({ data, loading }) {
-  const { formatCurrency } = useCurrency();
-  const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('');
-  const kpis = data?.kpis || {};
-  const rows = data?.rows || [];
+const sumBy = (rows, key) => rows.reduce((total, row) => total + (Number(row[key]) || 0), 0);
 
-  const categories = useMemo(
-    () => [...new Set(rows.map((r) => r.category).filter((c) => c && c !== '—'))],
-    [rows]
-  );
-  const filtered = rows.filter((r) =>
-    (!category || r.category === category) &&
-    (!query || r.product.toLowerCase().includes(query.toLowerCase()))
-  );
-
-  return (
-    <div>
-      <PanelHeader title="Stock Summary" subtitle="Overview of current inventory levels across all products" />
-
-      <div className="r-filters-bar">
-        <div className="r-filter-field">
-          <label>Category</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">All categories</option>
-            {categories.map((c) => <option key={c}>{c}</option>)}
-          </select>
-        </div>
-        <div className="r-filter-field" style={{ flex: 1, minWidth: 200 }}>
-          <label>Search</label>
-          <div style={{ position: 'relative' }}>
-            <Search size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted, #888)' }} />
-            <input type="text" placeholder="Search product…" value={query} onChange={(e) => setQuery(e.target.value)} style={{ paddingLeft: 28, width: '100%' }} />
-          </div>
-        </div>
-      </div>
-
-      <div className="r-kpi-row">
-        <div className="r-kpi-card">
-          <div className="r-kpi-label">Total Stock</div>
-          <div className="r-kpi-value">{Number(kpis.totalStock || 0).toLocaleString()}</div>
-          <div className="r-kpi-sub">units across {kpis.productCount || 0} products</div>
-        </div>
-        <div className="r-kpi-card">
-          <div className="r-kpi-label">Low Stock Items</div>
-          <div className="r-kpi-value">{kpis.lowStock || 0}</div>
-          <div className="r-kpi-sub">at or below reorder point{kpis.criticalStock ? ` (${kpis.criticalStock} critical)` : ''}</div>
-        </div>
-        <div className="r-kpi-card">
-          <div className="r-kpi-label">Out of Stock</div>
-          <div className="r-kpi-value">{kpis.outOfStock || 0}</div>
-          <div className="r-kpi-sub">products depleted</div>
-        </div>
-        <div className="r-kpi-card">
-          <div className="r-kpi-label">Inventory Value</div>
-          <div className="r-kpi-value">{formatCurrency(kpis.inventoryValue)}</div>
-          <div className="r-kpi-sub">
-            at latest Stock In price
-            {kpis.unpricedProducts ? ` · ${kpis.unpricedProducts} in-stock product${kpis.unpricedProducts === 1 ? '' : 's'} without a price` : ''}
-          </div>
-        </div>
-      </div>
-
-      <div className="r-table-card">
-        <table className="r-table">
-          <thead>
-            <tr><th>Product</th><th>Category</th><th>Stock</th><th>Unit Cost</th><th>Value</th><th>Status</th></tr>
-          </thead>
-          <tbody>
-            {loading ? <EmptyRow cols={6} text="Loading…" />
-              : filtered.length === 0 ? <EmptyRow cols={6} text="No products found." />
-              : filtered.map((r) => (
-                <tr key={r.productId || r.product}>
-                  <td>{r.product}</td><td>{r.category}</td><td>{r.stock}</td>
-                  <td>{r.unitCost != null ? formatCurrency(r.unitCost) : '—'}</td>
-                  <td>{r.value != null ? formatCurrency(r.value) : '—'}</td>
-                  <td><Badge label={r.status} /></td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function StockMovementTab({ data, loading }) {
-  const [chartType, setChartType] = useState('bar');
-  const rows = data?.rows || [];
-  const maxVal = Math.max(1, ...rows.map((r) => Math.max(r.in, r.out)));
-
-  return (
-    <div>
-      <PanelHeader title="Stock Movement" subtitle="Units in and out per week (last 8 weeks, Monday start). Corrections are not included." />
-
-      <div className="r-chart-card">
-        <div className="r-chart-card-head">
-          <h3>Movement over time</h3>
-          <div className="r-toggle-group">
-            <button className={chartType === 'bar' ? 'active' : ''} onClick={() => setChartType('bar')}>Bar</button>
-            <button className={chartType === 'line' ? 'active' : ''} onClick={() => setChartType('line')}>Line</button>
-          </div>
-        </div>
-        {rows.length === 0 ? (
-          <div className="r-chart-placeholder">{loading ? 'Loading…' : 'No movement data yet.'}</div>
-        ) : chartType === 'line' ? (
-          <MovementLineChart rows={rows} maxVal={maxVal} />
-        ) : (
-          <div className="r-mini-chart">
-            {rows.map((r, i) => (
-              <div className="r-mini-col" key={i} title={`Week of ${r.period}: +${r.in} in / −${r.out} out`}>
-                <div className="r-mini-bars">
-                  <span className="r-mini-bar r-mini-in" style={{ height: `${(r.in / maxVal) * 100}%` }} />
-                  <span className="r-mini-bar r-mini-out" style={{ height: `${(r.out / maxVal) * 100}%` }} />
-                </div>
-                <span className="r-mini-label">{r.period}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="r-chart-legend">
-        <span><i className="r-legend-swatch r-mini-in" /> Stock In</span>
-        <span><i className="r-legend-swatch r-mini-out" /> Stock Out</span>
-      </div>
-
-      <div className="r-table-card">
-        <table className="r-table">
-          <thead>
-            <tr><th>Week of</th><th>Stock In</th><th>Stock Out</th><th>Net Change</th></tr>
-          </thead>
-          <tbody>
-            {loading ? <EmptyRow cols={4} text="Loading…" />
-              : rows.length === 0 ? <EmptyRow cols={4} text="No movements recorded yet." />
-              : rows.map((r, i) => (
-                <tr key={i}>
-                  <td>{r.period}</td><td>{r.in}</td><td>{r.out}</td>
-                  <td className={r.net >= 0 ? 'r-trend-up' : 'r-trend-down'}>{r.net >= 0 ? '+' : ''}{r.net}</td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-/* Line view of the weekly Stock In / Stock Out (the Bar/Line toggle). */
+/* ===== CHART: weekly Stock In vs Stock Out (Bar / Line) ===== */
 function MovementLineChart({ rows, maxVal }) {
   const width = 600;
   const height = 200;
@@ -313,40 +65,70 @@ function MovementLineChart({ rows, maxVal }) {
   );
 }
 
-function TopMovingProductsTab({ data, loading }) {
-  const { formatCurrency } = useCurrency();
-  const rows = data?.rows || [];
+/* A card or chart that opens its report when clicked (or Enter / Space). */
+const clickableProps = (onOpen, label) => (onOpen ? {
+  role: 'button',
+  tabIndex: 0,
+  'aria-label': `Open ${label}`,
+  onClick: onOpen,
+  onKeyDown: (event) => {
+    if (event.target !== event.currentTarget) return;
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(); }
+  },
+} : {});
+
+const OpenHint = () => (
+  <span className="r-open-hint" aria-hidden="true">View report <ChevronRight size={12} /></span>
+);
+
+function MovementChartCard({ rows, loading, onOpen }) {
+  const [chartType, setChartType] = useState('bar');
+  const maxVal = Math.max(1, ...rows.map((r) => Math.max(r.in, r.out)));
+  // The Bar / Line switch changes the chart only; it doesn't open the report.
+  const pick = (type) => (event) => { event.stopPropagation(); setChartType(type); };
   return (
-    <div>
-      <PanelHeader title="Top Moving Products" subtitle="Ranked by units sold (Stock Out). Sales Value uses the selling price recorded on each sale." />
-      <div className="r-table-card">
-        <table className="r-table">
-          <thead>
-            <tr><th>Rank</th><th>Product</th><th>Units Sold</th><th>Sales Value</th></tr>
-          </thead>
-          <tbody>
-            {loading ? <EmptyRow cols={4} text="Loading…" />
-              : rows.length === 0 ? <EmptyRow cols={4} text="No sales/stock-out recorded yet." />
-              : rows.map((r) => (
-                <tr key={r.rank}>
-                  <td>{r.rank}</td>
-                  <td>{r.product}{r.deleted ? ' (deleted)' : ''}</td>
-                  <td>{r.unitsSold}</td><td>{formatCurrency(r.value)}</td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+    <div className="r-chart-card r-overall-chart r-clickable" {...clickableProps(onOpen, 'Stock Movement report')}>
+      <div className="r-chart-card-head">
+        <h3>Stock In vs Stock Out — last {rows.length || 8} weeks</h3>
+        <div className="r-chart-head-right">
+          <div className="r-toggle-group">
+            <button type="button" className={chartType === 'bar' ? 'active' : ''} onClick={pick('bar')}>Bar</button>
+            <button type="button" className={chartType === 'line' ? 'active' : ''} onClick={pick('line')}>Line</button>
+          </div>
+          {onOpen && <OpenHint />}
+        </div>
+      </div>
+      {rows.length === 0 ? (
+        <div className="r-chart-placeholder">{loading ? 'Loading…' : 'No movement data yet.'}</div>
+      ) : chartType === 'line' ? (
+        <MovementLineChart rows={rows} maxVal={maxVal} />
+      ) : (
+        <div className="r-mini-chart">
+          {rows.map((r, i) => (
+            <div className="r-mini-col" key={r.weekStart || i} title={`Week of ${r.period}: +${r.in} in / −${r.out} out`}>
+              <div className="r-mini-bars">
+                <span className="r-mini-bar r-mini-in" style={{ height: `${(r.in / maxVal) * 100}%` }} />
+                <span className="r-mini-bar r-mini-out" style={{ height: `${(r.out / maxVal) * 100}%` }} />
+              </div>
+              <span className="r-mini-label">{r.period}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="r-chart-legend">
+        <span><i className="r-legend-swatch r-mini-in" /> Stock In</span>
+        <span><i className="r-legend-swatch r-mini-out" /> Stock Out</span>
       </div>
     </div>
   );
 }
 
-/* ===== FAST & SLOW MOVING PRODUCTS + SALES TREND ===== */
-function MovementBars({ title, items, tone, emptyText }) {
+/* ===== CHART: fast vs slow moving products (horizontal bars) ===== */
+function MovementBars({ title, items, tone, emptyText, onOpen }) {
   const max = Math.max(1, ...items.map((item) => item.unitsSold));
   return (
-    <div className="r-chart-card r-fs-card">
-      <div className="r-chart-card-head"><h3>{title}</h3></div>
+    <div className="r-chart-card r-fs-card r-overall-chart r-clickable" {...clickableProps(onOpen, 'Fast & Slow Moving Products report')}>
+      <div className="r-chart-card-head"><h3>{title}</h3>{onOpen && <OpenHint />}</div>
       {items.length === 0 ? (
         <div className="r-fs-empty">{emptyText}</div>
       ) : (
@@ -366,282 +148,392 @@ function MovementBars({ title, items, tone, emptyText }) {
   );
 }
 
-function FastSlowMovingTab({ data, loading }) {
-  const fast = data?.fast || [];
-  const slow = data?.slow || [];
-  const rows = data?.rows || [];
-  const trend = data?.trend || [];
-  const windowDays = data?.windowDays || 90;
-  const trendMax = Math.max(1, ...trend.map((t) => t.units));
-
+/* ===== CHART: products that need reordering (most urgent first) =====
+   Each bar = current stock compared with the reorder point (full bar = at the
+   reorder point). Colour follows the urgency: red = out of stock / critical,
+   amber = low. Opens the Reorder Point Report. */
+const URGENCY_ORDER = { 'Out of Stock': 0, Critical: 1, Low: 2 };
+function ReorderBars({ rows, emptyText, onOpen }) {
+  const items = [...rows]
+    .sort((a, b) => (URGENCY_ORDER[a.urgency] ?? 3) - (URGENCY_ORDER[b.urgency] ?? 3)
+      || (Number(a.currentStock) / Math.max(1, Number(a.reorderPoint))) - (Number(b.currentStock) / Math.max(1, Number(b.reorderPoint))))
+    .slice(0, 5);
   return (
-    <div>
-      <PanelHeader
-        title="Fast & Slow Moving Products"
-        subtitle={`Units sold (stock out) in the last ${windowDays} days, with the weekly sales trend`}
-      />
-
-      <div className="r-fs-grid">
-        <MovementBars
-          title="Fast-Moving Products"
-          items={fast}
-          tone="fast"
-          emptyText={loading ? 'Loading…' : 'No sales recorded in this period.'}
-        />
-        <MovementBars
-          title="Slow-Moving Products"
-          items={slow}
-          tone="slow"
-          emptyText={loading ? 'Loading…' : 'No in-stock products to compare.'}
-        />
+    <div className="r-chart-card r-fs-card r-overall-chart r-clickable" {...clickableProps(onOpen, 'Reorder Point Report')}>
+      <div className="r-chart-card-head">
+        <h3>Needs Reorder{rows.length ? ` (${rows.length})` : ''}</h3>
+        {onOpen && <OpenHint />}
       </div>
-
-      <div className="r-chart-card">
-        <div className="r-chart-card-head"><h3>Sales Trend — last {trend.length || 8} weeks</h3></div>
-        {trend.length === 0 ? (
-          <div className="r-chart-placeholder">{loading ? 'Loading…' : 'No sales data yet.'}</div>
-        ) : (
-          <div className="r-mini-chart" role="img" aria-label="Weekly units sold bar chart">
-            {trend.map((t) => (
-              <div className="r-mini-col" key={t.period} title={`Week of ${t.period}: ${t.units} units sold`}>
-                <span className="r-fs-trend-value">{t.units}</span>
-                <div className="r-mini-bars">
-                  <span className="r-mini-bar r-fs-trend-bar" style={{ height: `${(t.units / trendMax) * 100}%` }} />
-                </div>
-                <span className="r-mini-label">{t.period}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="r-table-card">
-        <table className="r-table">
-          <thead>
-            <tr><th>Movement</th><th>Rank</th><th>Product</th><th>Category</th><th>Units Sold ({windowDays} days)</th><th>Current Stock</th></tr>
-          </thead>
-          <tbody>
-            {loading ? <EmptyRow cols={6} text="Loading…" />
-              : rows.length === 0 ? <EmptyRow cols={6} text="No products to rank yet." />
-              : rows.map((r) => (
-                <tr key={`${r.movement}-${r.productId || r.product}`}>
-                  <td><Badge label={r.movement} /></td>
-                  <td>{r.rank}</td><td>{r.product}</td><td>{r.category}</td><td>{r.unitsSold}</td><td>{r.stock}</td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
+      {items.length === 0 ? (
+        <div className="r-fs-empty">{emptyText}</div>
+      ) : (
+        <ul className="r-fs-list">
+          {items.map((item) => {
+            const point = Math.max(1, Number(item.reorderPoint) || 0);
+            const stock = Math.max(0, Number(item.currentStock) || 0);
+            const tone = item.urgency === 'Low' ? 'warn' : 'slow';
+            return (
+              <li key={item.productId || item.product} className="r-fs-row r-reorder-row" title={`${item.product}: ${stock} in stock, reorder point ${item.reorderPoint} (${item.urgency})`}>
+                <span className="r-fs-name">{item.product}</span>
+                <span className="r-fs-track">
+                  <span className={`r-fs-bar r-fs-${tone}`} style={{ width: `${Math.max(2, Math.min(100, (stock / point) * 100))}%` }} />
+                </span>
+                <span className="r-fs-value r-reorder-value">{stock} / {item.reorderPoint}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
 
-function DemandForecastSummaryTab({ data, loading }) {
-  const rows = data?.rows || [];
-  return (
-    <div>
-      <PanelHeader title="Demand Forecast Summary" subtitle="Next month's forecast — the same as the Forecasting page (3-month weighted moving average plus any active seasonal event)" />
-      <div className="r-table-card">
-        <table className="r-table">
-          <thead>
-            <tr><th>Product</th><th>Current Stock</th><th>Forecasted Demand</th><th>Suggested Reorder</th><th>Confidence</th></tr>
-          </thead>
-          <tbody>
-            {loading ? <EmptyRow cols={5} text="Loading…" />
-              : rows.length === 0 ? <EmptyRow cols={5} text="No completed month of sales yet — record Stock Out in Stock Control or add Past Sales in Forecasting." />
-              : rows.map((r, i) => (
-                <tr key={i}>
-                  <td>{r.product}</td><td>{r.currentStock}</td>
-                  <td title={r.adjustmentPct ? `${r.baseForecast} before the ${r.adjustmentPct > 0 ? '+' : ''}${r.adjustmentPct}% seasonal adjustment` : 'No seasonal adjustment'}>
-                    {r.forecastedDemand}
-                    {r.adjustmentPct ? <span className="r-detail-muted"> ({r.adjustmentPct > 0 ? '+' : ''}{r.adjustmentPct}%)</span> : null}
-                  </td>
-                  <td>{r.suggestedReorder}</td><td><Badge label={r.confidence} /></td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+/* ===== SECTIONS (the same rows go on screen and into the export) ===== */
+function buildSections(report, formatCurrency) {
+  const sections = [];
+  const add = (key, title, note, headers, rows, emptyText) => sections.push({ key, title, note, headers, rows, emptyText });
+
+  if (report?.stockSummary) {
+    add('stockSummary', 'Stock Summary', 'Current stock level, value and status of every product. Value uses the latest Stock In price.',
+      ['Product', 'Category', 'Stock', 'Unit Cost', 'Value', 'Status'],
+      (report.stockSummary.rows || []).map((r) => [
+        r.product, r.category, r.stock,
+        r.unitCost != null ? formatCurrency(r.unitCost) : '—',
+        r.value != null ? formatCurrency(r.value) : '—',
+        r.status,
+      ]), 'No products found.');
+  }
+  if (report?.stockMovement) {
+    add('stockMovement', 'Stock Movement', 'Units in and out per week (last 8 weeks, Monday start). Corrections are not included.',
+      ['Week of', 'Stock In', 'Stock Out', 'Net Change'],
+      (report.stockMovement.rows || []).map((r) => [r.period, r.in, r.out, `${r.net >= 0 ? '+' : ''}${r.net}`]),
+      'No movements recorded yet.');
+  }
+  if (report?.topMoving) {
+    add('topMoving', 'Top Moving Products', 'Ranked by units sold (Stock Out). Sales Value uses the selling price recorded on each sale.',
+      ['Rank', 'Product', 'Units Sold', 'Sales Value'],
+      (report.topMoving.rows || []).map((r) => [r.rank, `${r.product}${r.deleted ? ' (deleted)' : ''}`, r.unitsSold, formatCurrency(r.value)]),
+      'No sales recorded yet.');
+  }
+  if (report?.fastSlowMoving) {
+    const days = report.fastSlowMoving.windowDays || 90;
+    add('fastSlowMoving', 'Fast & Slow Moving Products', `Units sold (Stock Out) in the last ${days} days.`,
+      ['Movement', 'Rank', 'Product', 'Category', `Units Sold (${days} days)`, 'Current Stock'],
+      (report.fastSlowMoving.rows || []).map((r) => [r.movement, r.rank, r.product, r.category, r.unitsSold, r.stock]),
+      'No products to rank yet.');
+  }
+  if (report?.demandForecast) {
+    add('demandForecast', 'Demand Forecast Summary', "Next month's forecast: 3-month Weighted Moving Average plus any active seasonal event.",
+      ['Product', 'Current Stock', 'Forecasted Demand', 'Suggested Reorder', 'Confidence'],
+      (report.demandForecast.rows || []).map((r) => [
+        r.product, r.currentStock,
+        `${r.forecastedDemand}${r.adjustmentPct ? ` (${r.adjustmentPct > 0 ? '+' : ''}${r.adjustmentPct}%)` : ''}`,
+        r.suggestedReorder, r.confidence,
+      ]), 'No completed month of sales yet — record Stock Out in Stock Control or add Past Sales in Forecasting.');
+  }
+  if (report?.autoCalculator) {
+    add('autoCalculator', 'Economic Order Quantity Calculator Summary', 'Every Economic Order Quantity calculation logged to date.',
+      ['Product', 'Product ID', 'Formula', 'Demand Source', 'Annual Demand', 'Result', 'Computed By', 'Date Computed'],
+      (report.autoCalculator.rows || []).map((r) => [
+        r.product || '—', r.productId || '—',
+        r.formula === 'EOQ' ? 'Economic Order Quantity' : r.formula,
+        r.demandSource === 'forecast' ? 'Forecast' : 'Historical',
+        r.annualDemand != null ? `${Number(r.annualDemand).toLocaleString('en-PH')} units/year` : '—',
+        r.result != null
+          ? `${r.formula === 'EOQ'
+            ? (r.recommendedOrderQuantity ?? Math.round(Number(r.result))).toLocaleString('en-PH')
+            : r.result} ${r.unit || ''}`.trim()
+          : '—',
+        r.by || '—', r.date,
+      ]), 'No calculations logged yet — use the Economic Order Quantity Calculator.');
+  }
+  if (report?.inventoryAging) {
+    add('inventoryAging', 'Inventory Aging Report', 'Days since the latest Stock In (estimated from the creation date if there is none). Over 60 days = Aging, over 120 = Slow Mover.',
+      ['Product', 'Days in Stock', 'Stock Level', 'Status'],
+      (report.inventoryAging.rows || []).map((r) => [
+        r.product,
+        r.daysInStock == null ? '—' : `${r.daysInStock}${r.ageEstimated ? ' (est.)' : ''}`,
+        r.stock, r.status,
+      ]), 'No stock on hand to age.');
+  }
+  if (report?.reorderPoint) {
+    add('reorderPoint', 'Reorder Point Report', 'Products at or below their reorder point (safety stock + daily sales × lead time).',
+      ['Product', 'Current Stock', 'Reorder Point (Low at)', 'Critical at', 'Urgency'],
+      (report.reorderPoint.rows || []).map((r) => [
+        r.product, r.currentStock, `${r.reorderPoint}${r.mode === 'manual' ? ' (manual)' : ''}`, r.criticalPoint ?? '—', r.urgency,
+      ]), 'All products are above their reorder point.');
+  }
+  /* Two extra views made from the Stock Summary rows, so every card on the
+     page opens a different report. */
+  if (report?.stockSummary) {
+    const rows = report.stockSummary.rows || [];
+
+    // Products by Category: one row per category.
+    const byCategory = new Map();
+    rows.forEach((r) => {
+      const key = r.category && r.category !== '—' ? r.category : 'No category';
+      const entry = byCategory.get(key) || { products: 0, units: 0, value: 0, unpriced: 0, attention: 0 };
+      entry.products += 1;
+      entry.units += Number(r.stock) || 0;
+      if (r.value != null) entry.value += Number(r.value) || 0; else if (Number(r.stock) > 0) entry.unpriced += 1;
+      if (r.status !== 'In Stock') entry.attention += 1;
+      byCategory.set(key, entry);
+    });
+    add('categoryBreakdown', 'Products by Category', 'How many products, units and how much stock value each category holds.',
+      ['Category', 'Products', 'Units in Stock', 'Inventory Value', 'Low / Critical / Out'],
+      [...byCategory.entries()]
+        .sort((a, b) => b[1].products - a[1].products || a[0].localeCompare(b[0]))
+        .map(([category, e]) => [
+          category, e.products, e.units.toLocaleString(),
+          `${formatCurrency(e.value)}${e.unpriced ? ` (${e.unpriced} without a price)` : ''}`,
+          e.attention,
+        ]),
+      'No products found.');
+
+    // Stock Health: products grouped by stock status.
+    const order = ['Out of Stock', 'Critical', 'Low Stock', 'In Stock'];
+    const total = rows.length || 1;
+    add('stockHealth', 'Stock Health', 'Products grouped by stock status: how many are in stock, low, critical or out of stock.',
+      ['Status', 'Products', 'Share of Products', 'Units in Stock', 'Products in this Status'],
+      order
+        .map((status) => [status, rows.filter((r) => r.status === status)])
+        .filter(([, list]) => list.length > 0)
+        .map(([status, list]) => [
+          status, list.length, `${Math.round((list.length / total) * 100)}%`,
+          sumBy(list, 'stock').toLocaleString(),
+          list.map((r) => r.product),   // shown as chips in the pop-up
+        ]),
+      'No products found.');
+  }
+  return sections;
 }
 
-function AutoCalculatorSummaryTab({ data, loading }) {
-  const rows = data?.rows || [];
-  const PERIOD_WORD = { week: 'Weekly', month: 'Monthly', year: 'Yearly' };
-  const periodLabel = (forecast) => {
-    const date = new Date(`${forecast.forecastPeriod}T00:00:00`);
-    if (Number.isNaN(date.getTime())) return forecast.forecastPeriod || '';
-    if (forecast.periodType === 'year') return String(date.getFullYear());
-    if (forecast.periodType === 'week') {
-      return `Week of ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-    }
-    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  };
-  const units = (value) => Number(value).toLocaleString('en-PH', { maximumFractionDigits: 1 });
-  const demandDetails = (r) => {
-    const forecast = r.forecast;
-    if (!forecast) {
-      return <span className="r-detail-muted">Annual demand from sales history or entered manually</span>;
-    }
-    const unit = forecast.periodType || 'month';
-    const pct = Number(forecast.adjustmentPct) || 0;
-    const seasonal = forecast.seasonalEnabled && pct !== 0;
-    return (
-      <span className="r-detail">
-        <span className="r-detail-main">
-          {seasonal
-            ? <>{units(forecast.baseForecast)} → <strong>{units(forecast.adjustedForecast)}</strong> units/{unit}</>
-            : <><strong>{units(forecast.adjustedForecast ?? forecast.baseForecast)}</strong> units/{unit}</>}
-        </span>
-        <span className="r-detail-sub">
-          {PERIOD_WORD[unit] || 'Monthly'} weighted moving average forecast · {periodLabel(forecast)}
-          {seasonal
-            ? ` · ${pct > 0 ? '+' : ''}${pct}% ${forecast.seasonalEvent || 'seasonal adjustment'}`
-            : ' · no seasonal adjustment'}
-        </span>
+/* ===== SUMMARY CARDS (two rows of four; each opens a report) ===== */
+function buildCards(report, formatCurrency) {
+  const cards = [];
+  const kpis = report?.stockSummary?.kpis;
+  if (kpis) {
+    const rows = report.stockSummary.rows || [];
+    const categories = new Set(rows.map((r) => (r.category && r.category !== '—' ? r.category : 'No category'))).size;
+    cards.push({ key: 'products', report: 'categoryBreakdown', Icon: Package, tone: 'gold', label: 'Products', value: Number(kpis.productCount || 0).toLocaleString(), sub: `${categories} categor${categories === 1 ? 'y' : 'ies'} · ${Number(kpis.totalStock || 0).toLocaleString()} units` });
+    cards.push({
+      key: 'value',
+      report: 'stockSummary',
+      Icon: Wallet,
+      tone: 'good',
+      label: 'Inventory Value',
+      value: formatCurrency(kpis.inventoryValue),
+      sub: `at latest Stock In price${kpis.unpricedProducts ? ` · ${kpis.unpricedProducts} without a price` : ''}`,
+    });
+  }
+  if (report?.topMoving) {
+    const rows = report.topMoving.rows || [];
+    cards.push({ key: 'sold', report: 'topMoving', Icon: ShoppingBag, tone: 'violet', label: 'Units Sold', value: sumBy(rows, 'unitsSold').toLocaleString(), sub: `${rows.length} product${rows.length === 1 ? '' : 's'} sold` });
+  }
+  if (report?.demandForecast) {
+    const rows = report.demandForecast.rows || [];
+    cards.push({ key: 'forecast', report: 'demandForecast', Icon: TrendingUp, tone: 'blue', label: 'Forecast Next Month', value: Math.round(sumBy(rows, 'forecastedDemand')).toLocaleString(), sub: `units across ${rows.length} product${rows.length === 1 ? '' : 's'}` });
+  }
+  if (report?.autoCalculator) {
+    const rows = report.autoCalculator.rows || [];
+    cards.push({ key: 'eoq', report: 'autoCalculator', Icon: Calculator, tone: 'violet', label: 'Order Quantity Calculations', value: rows.length.toLocaleString(), sub: 'Economic Order Quantity results logged' });
+  }
+  if (report?.inventoryAging) {
+    const rows = report.inventoryAging.rows || [];
+    const aging = rows.filter((r) => r.status === 'Aging' || r.status === 'Slow Mover').length;
+    cards.push({ key: 'aging', report: 'inventoryAging', Icon: Hourglass, tone: 'warn', label: 'Aging Stock', value: aging.toLocaleString(), sub: `of ${rows.length} product${rows.length === 1 ? '' : 's'} in stock (over 60 days)` });
+  }
+  return cards;
+}
+
+/* ===== WIDE CARD: Stock Health (segmented bar like the Dashboard) ===== */
+function StockHealthTile({ rows, loading, onOpen }) {
+  const count = (status) => rows.filter((r) => r.status === status).length;
+  const parts = [
+    { key: 'good', label: 'In stock', value: count('In Stock') },
+    { key: 'warn', label: 'Low', value: count('Low Stock') },
+    { key: 'crit', label: 'Critical', value: count('Critical') },
+    { key: 'bad', label: 'Out', value: count('Out of Stock') },
+  ];
+  const total = rows.length;
+  const healthy = total ? Math.round((parts[0].value / total) * 100) : 0;
+  return (
+    <div className="r-kpi-card r-kpi-tile r-kpi-tile--good r-clickable r-health-tile" {...clickableProps(onOpen, 'Stock Health report')}>
+      <span className="r-kpi-tile-head">
+        <span className="r-kpi-tile-icon" aria-hidden="true"><ShieldCheck size={15} strokeWidth={1.9} /></span>
+        <span className="r-kpi-label">Stock Health</span>
+        <span className="r-kpi-tile-go" aria-hidden="true"><ArrowUpRight size={14} strokeWidth={2.2} /></span>
       </span>
-    );
+      <div className="r-health-main">
+        <div className="r-kpi-value">{loading ? '…' : `${healthy}%`}</div>
+        <div className="r-kpi-sub">of {total} product{total === 1 ? '' : 's'} in stock</div>
+      </div>
+      <div className="r-health-bar" aria-hidden="true">
+        {parts.filter((p) => p.value > 0).map((p) => (
+          <span key={p.key} className={`r-health-seg is-${p.key}`} style={{ flexGrow: p.value }} />
+        ))}
+      </div>
+      <div className="r-health-legend">
+        {parts.map((p) => (
+          <span key={p.key}><i className={`is-${p.key}`} />{p.label} <strong>{p.value}</strong></span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ===== EXPORT HELPERS (one report, or all of them) ===== */
+const toExportSection = (section) => ({
+  title: section.title,
+  headers: section.headers,
+  rows: section.rows.map((row) => row.map((cell) => (
+    cell == null ? '' : Array.isArray(cell) ? cell.join(', ') : cell
+  ))),
+});
+
+async function exportExcel({ title, subtitle, fileName, sections, summary, scope }) {
+  const exportSections = sections.map(toExportSection);
+  await exportReportWorkbook({
+    title,
+    subtitle,
+    fileName,
+    sections: exportSections,
+    summary,
+    scope,
+    note: exportSections.every((s) => s.rows.length === 0) ? 'No report rows were available at the time of export.' : '',
+    columnWidths: Array.from({ length: Math.max(1, ...exportSections.map((s) => s.headers.length)) }, () => 24),
+  });
+}
+
+function exportPdf({ title, subtitle, sections, summary, scope }) {
+  const exportSections = sections.map(toExportSection);
+  const opened = printReportPdf({
+    title,
+    subtitle,
+    summary,
+    sections: exportSections,
+    scope,
+    note: exportSections.every((s) => s.rows.length === 0) ? 'No report rows were available at the time of export.' : '',
+  });
+  if (!opened) throw new Error('Allow pop-ups for this site to export the PDF.');
+}
+
+const fileNameOf = (title) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+/* ===== POP-UP: one report with all of its rows and its own export ===== */
+function ReportModal({ section, canExport, onClose }) {
+  const [exportError, setExportError] = useState('');
+
+  useEffect(() => {
+    const onKey = (event) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const options = {
+    title: section.title,
+    subtitle: section.note,
+    fileName: fileNameOf(section.title),
+    sections: [section],
+    summary: [{ label: 'Records', value: section.rows.length }],
+    scope: 'All rows of this report as of the time of export.',
   };
-  return (
-    <div>
-      <PanelHeader title="Economic Order Quantity Calculator Summary" subtitle="Every Economic Order Quantity calculation logged to date" />
-      <div className="r-table-card">
-        <table className="r-table">
-          <thead>
-            <tr><th>Product</th><th>Product ID</th><th>Formula</th><th>Demand Source</th><th>Annual Demand</th><th>Demand Details</th><th>Result</th><th>Computed By</th><th>Date Computed</th></tr>
-          </thead>
-          <tbody>
-            {loading ? <EmptyRow cols={9} text="Loading…" />
-              : rows.length === 0 ? <EmptyRow cols={9} text="No calculations logged yet — use the Economic Order Quantity Calculator." />
-              : rows.map((r, i) => (
-                <tr key={i}>
-                  <td>{r.product || '—'}</td>
-                  <td>{r.productId || '—'}</td>
-                  <td>{r.formula === 'EOQ' ? 'Economic Order Quantity' : r.formula}</td>
-                  <td>{r.demandSource === 'forecast' ? 'Forecast' : 'Historical'}</td>
-                  <td>{r.annualDemand != null ? `${Number(r.annualDemand).toLocaleString('en-PH')} units/year` : '—'}</td>
-                  <td>{demandDetails(r)}</td>
-                  <td>{r.result != null
-                    ? `${r.formula === 'EOQ'
-                      ? (r.recommendedOrderQuantity ?? Math.round(Number(r.result))).toLocaleString('en-PH')
-                      : r.result} ${r.unit || ''}`.trim()
-                    : '—'}</td>
-                  <td>{r.by || '—'}</td>
-                  <td>{r.date}</td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
+  const handleExcel = async () => {
+    setExportError('');
+    try { await exportExcel(options); } catch (error) {
+      console.error(`Could not export ${section.title}:`, error);
+      setExportError('Export failed. Please try again.');
+    }
+  };
+  const handlePdf = () => {
+    setExportError('');
+    try { exportPdf(options); } catch (error) {
+      console.error(`Could not export ${section.title} as PDF:`, error);
+      setExportError(error.message || 'PDF export failed. Please try again.');
+    }
+  };
 
-function InventoryAgingReportTab({ data, loading }) {
-  const rows = data?.rows || [];
-  return (
-    <div>
-      <PanelHeader title="Inventory Aging Report" subtitle="Days since the latest Stock In (corrections not counted); estimated from the product's creation date if it has no Stock In. Over 60 days = Aging, over 120 = Slow Mover." />
-      <div className="r-table-card">
-        <table className="r-table">
-          <thead>
-            <tr><th>Product</th><th>Days in Stock</th><th>Stock Level</th><th>Status</th></tr>
-          </thead>
-          <tbody>
-            {loading ? <EmptyRow cols={4} text="Loading…" />
-              : rows.length === 0 ? <EmptyRow cols={4} text="No stock on hand to age." />
-              : rows.map((r) => (
-                <tr key={r.productId || r.product}>
-                  <td>{r.product}</td>
-                  <td title={r.ageEstimated ? 'Estimated from the product creation date' : 'Based on the latest stock-in date'}>
-                    {r.daysInStock ?? '—'}{r.ageEstimated && r.daysInStock !== null ? ' (est.)' : ''}
-                  </td>
-                  <td>{r.stock}</td>
-                  <td><Badge label={r.status} /></td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function ReorderPointReportTab({ data, loading }) {
-  const rows = data?.rows || [];
-  return (
-    <div>
-      <PanelHeader title="Reorder Point Report" subtitle="Products currently at or below their reorder point" />
-      <div className="r-table-card">
-        <table className="r-table">
-          <thead>
-            <tr><th>Product</th><th>Current Stock</th><th>Reorder Point (Low at)</th><th>Critical at</th><th>Urgency</th></tr>
-          </thead>
-          <tbody>
-            {loading ? <EmptyRow cols={5} text="Loading…" />
-              : rows.length === 0 ? <EmptyRow cols={5} text="All products are above their reorder point." />
-              : rows.map((r) => (
-                <tr key={r.productId || r.product}>
-                  <td>{r.product}</td><td>{r.currentStock}</td>
-                  <td>{r.reorderPoint}{r.mode === 'manual' ? ' (manual)' : ''}</td>
-                  <td>{r.criticalPoint ?? '—'}</td>
-                  <td><Badge label={r.urgency} /></td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-        <div className="r-supplier-note">
-          Automatic: reorder point = safety stock + daily sales × lead time, and Critical at safety stock.
-          Manual: the Low and Critical points the Super Admin set in Settings → Safety Stock Policy.
-          Products with no policy yet use Low at 10 and Critical at 5.
+  return createPortal(
+    <div className="r-modal-overlay" onClick={onClose}>
+      <div
+        className="r-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="r-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="r-modal-header">
+          <div className="r-panel-title">
+            <h2 id="r-modal-title">{section.title}</h2>
+            <p>{section.note}</p>
+            {exportError && <p role="alert" className="r-modal-error">{exportError}</p>}
+          </div>
+          <div className="r-modal-actions">
+            {canExport && (
+              <>
+                <button className="r-export-btn" type="button" onClick={handlePdf}>
+                  <FileText size={13} /> Export PDF
+                </button>
+                <button className="r-export-btn" type="button" onClick={handleExcel}>
+                  <Download size={13} /> Export Excel
+                </button>
+              </>
+            )}
+            <button type="button" className="r-modal-close" onClick={onClose} aria-label="Close" autoFocus>
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+        <div className="r-modal-body">
+          <table className="r-table">
+            <thead>
+              <tr>{section.headers.map((header) => <th key={header}>{header}</th>)}</tr>
+            </thead>
+            <tbody>
+              {section.rows.length === 0 ? <EmptyRow cols={section.headers.length} text={section.emptyText} />
+                : section.rows.map((row, rowIndex) => (
+                  <tr key={rowIndex}>
+                    {row.map((cell, cellIndex) => (
+                      <td key={cellIndex}>
+                        {Array.isArray(cell) ? (
+                          <span className="r-chip-list">
+                            {cell.map((item) => <span className="r-chip" key={item}>{item}</span>)}
+                          </span>
+                        ) : BADGE[cell] ? <Badge label={cell} /> : cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="r-modal-footer">
+          {section.rows.length.toLocaleString()} {section.rows.length === 1 ? 'row' : 'rows'}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
-
-/* ===== TAB VIEWS ===== */
-const TAB_RENDER = [
-  (p) => <StockSummaryTab {...p} data={p.report?.stockSummary} />,
-  (p) => <StockMovementTab {...p} data={p.report?.stockMovement} />,
-  (p) => <TopMovingProductsTab {...p} data={p.report?.topMoving} />,
-  (p) => <FastSlowMovingTab {...p} data={p.report?.fastSlowMoving} />,
-  (p) => <DemandForecastSummaryTab {...p} data={p.report?.demandForecast} />,
-  (p) => <AutoCalculatorSummaryTab {...p} data={p.report?.autoCalculator} />,
-  (p) => <InventoryAgingReportTab {...p} data={p.report?.inventoryAging} />,
-  (p) => <ReorderPointReportTab {...p} data={p.report?.reorderPoint} />,
-];
-
-/* Role Access box for each tab, in the same order as TABS. */
-const TAB_PERMISSION = [
-  'stock_summary',
-  'stock_movement',
-  'top_moving',
-  'fast_slow',
-  'demand_forecast',
-  'order_quantity',
-  'inventory_aging',
-  'reorder_point',
-];
 
 /* refreshKey changes whenever stock or products change elsewhere; isActive is
    true while the Reports page is on screen. The page stays mounted in the
-   background, so it reloads on either — otherwise it showed old numbers until
-   the whole page was refreshed. */
+   background, so it reloads on either (the main page checks for changes every
+   few seconds). canTab(key) = Role Access for each report; canExport = may
+   export. */
 export default function ReportsAnalyticsDesign({ safetyStock, refreshKey = 0, isActive = true, canTab = () => true, canExport = true }) {
-  const [activeTab, setActiveTab] = useState(0);
-  /* Only the tabs this role may see (Settings → Role Access). The server
-     also leaves the hidden tabs' data out of /api/reports. */
-  const allowedTabs = TABS.map((_, i) => i).filter((i) => canTab(TAB_PERMISSION[i]));
-  const allowedKey = allowedTabs.join(',');
-  useEffect(() => {
-    if (allowedTabs.length > 0 && !allowedTabs.includes(activeTab)) setActiveTab(allowedTabs[0]);
-  }, [allowedKey, activeTab]); // allowedKey stands in for allowedTabs (a new array each render)
+  const { formatCurrency } = useCurrency();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [reloadCount, setReloadCount] = useState(0);
+  const [exportError, setExportError] = useState('');
+  const [openKey, setOpenKey] = useState(null);   // which report's pop-up is open
+  // The charts area stretches to the bottom of the page, so the left and right
+  // columns end at the same line and nothing is cut off.
+  const fillChartsToBottom = useFillToBottom();
+
+  const anySectionAllowed = ['stock_summary', 'stock_movement', 'top_moving', 'fast_slow', 'demand_forecast', 'order_quantity', 'inventory_aging', 'reorder_point']
+    .some((key) => canTab(key));
 
   useEffect(() => {
     if (!isActive) return undefined;
@@ -654,51 +546,144 @@ export default function ReportsAnalyticsDesign({ safetyStock, refreshKey = 0, is
       .catch((e) => { if (active) setError(e.message || 'Could not load reports.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [safetyStock, refreshKey, isActive, reloadCount]);
+  }, [safetyStock, refreshKey, isActive]);
 
-  /* ===== AUTOMATIC REFRESH =====
-     The main page checks every 5 seconds whether anyone changed data and then
-     raises refreshKey, which reloads the reports above. */
+  const sections = useMemo(() => buildSections(report, formatCurrency), [report, formatCurrency]);
+  const cards = useMemo(() => buildCards(report, formatCurrency), [report, formatCurrency]);
+  const sectionByKey = useMemo(() => new Map(sections.map((section) => [section.key, section])), [sections]);
+  const openSection = openKey ? sectionByKey.get(openKey) : null;
+  const opener = (key) => (sectionByKey.has(key) ? () => setOpenKey(key) : null);
 
-  const updatedAt = report?.generatedAt
-    ? new Date(report.generatedAt).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })
-    : null;
+  const firstLoad = loading && !report;   // keep old numbers on screen while refreshing
 
-  const shownTab = allowedTabs.includes(activeTab) ? activeTab : (allowedTabs[0] ?? 0);
-  const renderTab = TAB_RENDER[shownTab];
+  /* Export full report: every report, all rows, one file. */
+  const fullOptions = {
+    title: 'Overall Inventory Report',
+    subtitle: 'All system data in one report: stock, movements, sales, forecasts, order quantities, aging and reorder needs',
+    fileName: 'overall-inventory-report',
+    sections,
+    summary: cards.slice(0, 6).map(({ label, value }) => ({ label, value })),
+    scope: 'Every report you have access to, with all of its rows, as of the time of export.',
+  };
+  const handleFullExcel = async () => {
+    setExportError('');
+    try { await exportExcel(fullOptions); } catch (exportFailure) {
+      console.error('Could not export the overall report:', exportFailure);
+      setExportError('Export failed. Please try again.');
+    }
+  };
+  const handleFullPdf = () => {
+    setExportError('');
+    try { exportPdf(fullOptions); } catch (exportFailure) {
+      console.error('Could not export the overall report as PDF:', exportFailure);
+      setExportError(exportFailure.message || 'PDF export failed. Please try again.');
+    }
+  };
+
+  /* "Export full report" buttons: bottom left, under the Stock In vs Out chart. */
+  const fullExport = canExport ? (
+    <div className="r-overall-toolbar">
+      <button className="r-export-tile r-export-tile--pdf" type="button" onClick={handleFullPdf} disabled={firstLoad} title="Every report in one PDF">
+        <span className="r-export-tile-icon" aria-hidden="true"><FileText size={16} strokeWidth={1.9} /></span>
+        <span className="r-export-tile-text">
+          <strong>Export full report</strong>
+          <small>PDF · every report, ready to print</small>
+        </span>
+        <Download size={15} className="r-export-tile-go" aria-hidden="true" />
+      </button>
+      <button className="r-export-tile r-export-tile--excel" type="button" onClick={handleFullExcel} disabled={firstLoad} title="Every report in one Excel file">
+        <span className="r-export-tile-icon" aria-hidden="true"><FileSpreadsheet size={16} strokeWidth={1.9} /></span>
+        <span className="r-export-tile-text">
+          <strong>Export full report</strong>
+          <small>Excel · every report in one file</small>
+        </span>
+        <Download size={15} className="r-export-tile-go" aria-hidden="true" />
+      </button>
+      {exportError && <p role="alert" className="r-modal-error">{exportError}</p>}
+    </div>
+  ) : null;
+
+  const movementRows = report?.stockMovement?.rows || [];
+  // Every part is there (no report hidden by Role Access): use the full layout.
+  const complete = cards.length === 6 && Boolean(report?.stockSummary && report?.stockMovement
+    && report?.fastSlowMoving && report?.reorderPoint);
+  const fastSlow = report?.fastSlowMoving;
+
+  if (!anySectionAllowed) {
+    return (
+      <div className="r-root r-overall">
+        <p className="r-supplier-note" role="status">No reports are turned on for your role. Ask the Super Admin to turn them on in Settings → Role Access.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="r-root">
-      <div className="r-tabbar">
-        {TABS.map((label, i) => (allowedTabs.includes(i) && (
-          <button
-            key={label}
-            className={`r-tab ${shownTab === i ? 'active' : ''}`}
-            onClick={() => setActiveTab(i)}
-          >
-            {label}
-          </button>
-        )))}
-        <button
-          type="button"
-          className="r-refresh-btn"
-          onClick={() => setReloadCount((n) => n + 1)}
-          disabled={loading}
-          title={`Updates automatically when data changes${updatedAt ? ` · last updated ${updatedAt}` : ''}. Click to reload now.`}
-        >
-          {!loading && <span className="r-live-dot" aria-hidden="true" />}
-          <RefreshCw size={12} className={loading ? 'r-spin' : ''} />
-          {loading ? 'Updating…' : updatedAt ? `Live · updated ${updatedAt}` : 'Refresh'}
-        </button>
-      </div>
+    <div className="r-root r-overall">
+      {error ? (
+        <p className="r-supplier-note" role="alert">{error}</p>
+      ) : (
+        <>
+          {/* ===== ONE LAYOUT, EVERY CARD OPENS A DIFFERENT REPORT =====
+               Row 1: four small cards. Row 2: two small cards + wide Stock
+               Health card. Below: big Stock In vs Out chart on the left
+               (export buttons under it), Fast-Moving and Needs Reorder on the
+               right. If Role Access hides some reports, the cards that are
+               left simply flow in order. */}
+          <div className={`r-bento${complete ? '' : ' is-partial'}`} ref={fillChartsToBottom}>
+            {cards.map((card, index) => (
+              <div
+                key={card.key}
+                className={`r-kpi-card r-kpi-tile r-kpi-tile--${card.tone} r-clickable r-bento-k${index + 1}`}
+                title={`Click to open the ${sectionByKey.get(card.report)?.title || 'report'}`}
+                {...clickableProps(opener(card.report), sectionByKey.get(card.report)?.title || card.label)}
+              >
+                <span className="r-kpi-tile-head">
+                  <span className="r-kpi-tile-icon" aria-hidden="true"><card.Icon size={15} strokeWidth={1.9} /></span>
+                  <span className="r-kpi-label">{card.label}</span>
+                  <span className="r-kpi-tile-go" aria-hidden="true"><ArrowUpRight size={14} strokeWidth={2.2} /></span>
+                </span>
+                <div className="r-kpi-value">{firstLoad ? '…' : card.value}</div>
+                <div className="r-kpi-sub">{card.sub}</div>
+              </div>
+            ))}
+            {report?.stockSummary && (
+              <div className="r-bento-health">
+                <StockHealthTile rows={report.stockSummary.rows || []} loading={firstLoad} onOpen={opener('stockHealth')} />
+              </div>
+            )}
+            {report?.stockMovement && (
+              <div className="r-bento-movement">
+                <MovementChartCard rows={movementRows} loading={firstLoad} onOpen={opener('stockMovement')} />
+              </div>
+            )}
+            {fastSlow && (
+              <div className="r-bento-fast">
+                <MovementBars
+                  title={`Fast-Moving (last ${fastSlow.windowDays || 90} days)`}
+                  items={fastSlow.fast || []}
+                  tone="fast"
+                  emptyText={firstLoad ? 'Loading…' : 'No sales recorded in this period.'}
+                  onOpen={opener('fastSlowMoving')}
+                />
+              </div>
+            )}
+            {report?.reorderPoint && (
+              <div className="r-bento-reorder">
+                <ReorderBars
+                  rows={report.reorderPoint.rows || []}
+                  emptyText={firstLoad ? 'Loading…' : 'All products are above their reorder point.'}
+                  onOpen={opener('reorderPoint')}
+                />
+              </div>
+            )}
+            {fullExport}
+          </div>
+        </>
+      )}
 
-      <ReportExportContext.Provider value={canExport}>
-      {allowedTabs.length === 0
-        ? <p className="r-supplier-note" role="status" style={{ margin: 16 }}>No report tabs are turned on for your role. Ask the Super Admin to turn them on in Settings → Role Access.</p>
-        : error
-        ? <p className="r-supplier-note" role="alert" style={{ margin: 16 }}>{error}</p>
-        : renderTab({ report, loading: loading && !report /* keep old numbers on screen while refreshing */ })}
-      </ReportExportContext.Provider>
+      {openSection && (
+        <ReportModal section={openSection} canExport={canExport} onClose={() => setOpenKey(null)} />
+      )}
     </div>
   );
 }

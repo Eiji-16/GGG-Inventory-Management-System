@@ -328,7 +328,8 @@ class StockMovementController extends Controller
             'sourceMovementId' => ['required_if:mergeSameDay,false', 'nullable', 'integer', 'min:1'],
             'mergeSameDay' => ['sometimes', 'boolean'],
             'type'        => ['required', 'in:Stock In,Stock Out,Adjustment,in,out'],
-            'qty'         => ['required_unless:type,Adjustment', 'nullable', 'integer', 'min:1'],
+            // At most 4 digits (9,999); the screen asks to confirm 1,000 or more.
+            'qty'         => ['required_unless:type,Adjustment', 'nullable', 'integer', 'min:1', 'max:9999'],
             'countedStock'=> ['required_if:type,Adjustment', 'nullable', 'integer', 'min:0'],
             'variantName' => ['nullable', 'string', 'max:255'],
             // Required for Stock In / Stock Out (0 is allowed); a count correction has no price.
@@ -341,6 +342,7 @@ class StockMovementController extends Controller
 
         return $request->validate($rules, [
             'date.before_or_equal' => 'The date cannot be in the future.',
+            'qty.max' => 'The quantity can have at most 4 digits (up to 9,999).',
         ] + self::PRICE_MESSAGES);
     }
 

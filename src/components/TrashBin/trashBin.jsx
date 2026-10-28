@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import useFillToBottom from '../../utils/fillToBottom';
 import {
   AlertTriangle, CalendarDays, Package, RotateCcw, Search, Trash2, Truck, X, ArrowLeftRight,
 } from 'lucide-react';
@@ -63,6 +64,8 @@ function TrashBin({
   canPurge = false,
 }) {
   const { formatCurrency } = useCurrency();
+  // The table stretches to the bottom of the page (no empty space under it).
+  const fillTableToBottom = useFillToBottom(4, { shrink: true });   // full page fills the box; a short last page shrinks
   const [records, setRecords] = useState([]);
   const [counts, setCounts] = useState({ all: 0, product: 0, entry: 0, supplier: 0, event: 0 });
   const [deleters, setDeleters] = useState([]);
@@ -265,25 +268,23 @@ function TrashBin({
 
   return (
     <div className="sc-table-parent tb-page">
-      {/* ===== TABS ===== */}
-      <div className="tb-tabs" role="tablist" aria-label="What to show">
-        {KINDS.map(({ key, label, Icon }) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={kind === key}
-            className={kind === key ? 'is-active' : ''}
-            onClick={() => setKind(key)}
-          >
-            <Icon size={13} aria-hidden="true" /> {label}
-            <span className="tb-tab-count">{counts[key] ?? 0}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* ===== TOOLBAR ===== */}
+      {/* ===== ONE TOOLBAR ROW: tabs, then search bar, filter and button ===== */}
       <div className="tb-toolbar">
+        <div className="tb-tabs" role="tablist" aria-label="What to show">
+          {KINDS.map(({ key, label, Icon }) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={kind === key}
+              className={kind === key ? 'is-active' : ''}
+              onClick={() => setKind(key)}
+            >
+              <Icon size={13} aria-hidden="true" /> {label}
+              <span className="tb-tab-count">{counts[key] ?? 0}</span>
+            </button>
+          ))}
+        </div>
         <div className="sc-search-box tb-search">
           <Search size={13} className="sc-search-icon" />
           <input type="search" placeholder="Search the Trash Bin…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search the Trash Bin" />
@@ -345,7 +346,7 @@ function TrashBin({
       )}
 
       {/* ===== TABLE ===== */}
-      <div className="sc-table-scroll">
+      <div className="sc-table-scroll" ref={fillTableToBottom}>
         <table className="sc-table m-folders tb-unified-table">
           <thead>
             <tr>

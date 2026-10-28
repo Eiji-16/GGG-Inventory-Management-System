@@ -260,6 +260,21 @@ export default function ReorderAlerts({
             <p>Products that have reached their reorder point (safety stock + demand during lead time) and need restocking.</p>
           </div>
           <div className="ra-tools">
+            {/* Filter buttons first, then the search bar (one toolbar row). */}
+            <div className="ra-filter" role="tablist" aria-label="Filter by status">
+              {[['all', 'All'], ['out', 'Out of stock'], ['low', 'Low stock']].map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="tab"
+                  aria-selected={statusFilter === value}
+                  className={statusFilter === value ? 'is-active' : ''}
+                  onClick={() => setStatusFilter(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             {/* Preset searches: the categories of the products in this list. */}
             <SearchSuggestions
               query={query}
@@ -278,20 +293,6 @@ export default function ReorderAlerts({
                 />
               </div>
             </SearchSuggestions>
-            <div className="ra-filter" role="tablist" aria-label="Filter by status">
-              {[['all', 'All'], ['out', 'Out of stock'], ['low', 'Low stock']].map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="tab"
-                  aria-selected={statusFilter === value}
-                  className={statusFilter === value ? 'is-active' : ''}
-                  onClick={() => setStatusFilter(value)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
             {canComputeEoq && (
               <button
                 type="button"

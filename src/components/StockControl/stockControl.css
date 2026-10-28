@@ -775,12 +775,8 @@
 .sc-th-check, .sc-td-check { width: 36px; }
 
 /*==========CHECKBOX==========*/
-.sc-table input[type="checkbox"] {
-    width: 14px;
-    height: 14px;
-    cursor: pointer;
-    accent-color: var(--background-icon-active-color, #E8C547);
-}
+/* Look and size come from the shared table checkbox style in
+   src/styles/index.css, so every checkbox is exactly the same size. */
 
 /*==========EMPTY STATE==========*/
 .sc-empty-state {
@@ -2088,6 +2084,46 @@
     cursor: not-allowed;
 }
 
+/* Round ‹ › page buttons, centred — same look as the Products page. */
+.sc-pager:has(.sc-pager-arrow) {
+    justify-content: center;
+    gap: 10px;
+    padding: 6px 0 0;
+}
+/* Desktop: no extra padding under the table section (the table reaches the
+   bottom of the page). */
+@media (min-width: 901px) {
+    .sc-table-parent { padding-bottom: 0; }
+}
+.sc-pager-label {
+    min-width: 80px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+    white-space: nowrap;
+    user-select: none;
+}
+.sc-pager-arrow {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+.sc-pager-arrow:hover:not(:disabled) {
+    background: var(--static-bg-color);
+    border-color: var(--border-strong);
+}
+.sc-pager-arrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sc-pager-arrow:disabled { opacity: 0.35; cursor: default; }
+
 
 /*==========TOOLBAR BUTTONS ON SMALL SCREENS==========
    Labels never wrap onto two lines; on very small phones the Add / Update /
@@ -2171,9 +2207,10 @@
 .sc-view-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /*==========QTY: typeable number between − and +==========*/
-.sc-qty-typed { flex-wrap: wrap; justify-content: center; }
+/* − [count] + ✓ always stay on one line (they used to wrap at 100% zoom). */
+.sc-qty-typed { flex-wrap: nowrap; justify-content: center; gap: 0.3rem; }
 .sc-qty-input {
-    width: 3.2rem;
+    width: 2.9rem;
     height: 1.5rem;
     padding: 0 0.25rem;
     font: inherit;
@@ -2191,16 +2228,20 @@
 .sc-qty-input.sc-in { border-color: var(--accent-high); }
 .sc-qty-input.sc-out { border-color: #ff4d4d; }
 .sc-qty-input.is-count { border-color: var(--accent); }
-.sc-qty-hint { flex-basis: 100%; text-align: center; font-size: 10px; font-weight: 700; }
 
 /*==========HISTORY TAB (read-only)==========*/
 @media (min-width: 901px) {
     .sc-history-table th.sc-th-left,
     .sc-history-table tbody td.sc-td-left { text-align: left; }
 }
+/* Tabs now sit inside the toolbar row (before the search bar). */
+.sc-navigation-bar { align-items: center; }
+.sc-navigation-bar .sc-view-tabs { margin: 0; flex-shrink: 0; }
 @media (max-width: 640px) {
     .sc-view-tabs { display: flex; }
     .sc-view-tabs button { flex: 1; justify-content: center; }
+    /* Phones: tabs take their own full-width line at the top of the toolbar. */
+    .sc-navigation-bar .sc-view-tabs { flex: 1 1 100%; }
 }
 
 /*==========SCROLL INSIDE THE TABLE BOX (Stock + History, also Trash Bin)==========
@@ -2214,3 +2255,25 @@
         overscroll-behavior: contain;
     }
 }
+
+/*==========TABLES AT 100% ZOOM: keep every row on one line==========
+   On a normal laptop screen at 100% zoom the Stock table is narrower, so
+   cells wrapped (− count + on one line and ✓ on the next, "Super Admin" /
+   "User" on two lines), making rows twice as tall. Cells now stay on one
+   line, and spacing/text get slightly tighter on narrower screens. */
+.sc-table td.sc-td-nowrap { white-space: nowrap; }
+@media (min-width: 901px) and (max-width: 1500px) {
+    .sc-table { font-size: 12px; }
+    .sc-table tbody td { padding: 8px 7px; }
+    .sc-table thead th { padding-left: 7px; padding-right: 7px; }
+    .sc-qty-btn { width: 1.4rem; height: 1.4rem; }
+}
+
+/*==========HIDDEN SCROLLBARS ON TABLE BOXES==========
+   The tables still scroll (mouse wheel, trackpad, Shift + wheel sideways);
+   only the scrollbar itself is hidden, like the main page area. */
+.sc-table-parent .sc-table-scroll {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none;
+}
+.sc-table-parent .sc-table-scroll::-webkit-scrollbar { width: 0 !important; height: 0 !important; display: none !important; }

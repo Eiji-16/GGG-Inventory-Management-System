@@ -1313,34 +1313,48 @@
     min-width: 0;
 }
 
+/* Products | Suppliers tabs: compact, FIRST in the toolbar row (before the
+   search bar) — same look as the Stock | History tabs in Stock Control. */
 .ps-section-tabs {
-    display: grid;
-    /* One column per visible tab, so a lone "Products" tab (Suppliers turned
-       off in Role Access) fills the whole bar instead of half of it. */
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(0, 1fr);
+    display: inline-flex;
+    flex-shrink: 0;
     gap: 4px;
     padding: 4px;
     background: var(--static-bg-color);
     border: 1px solid var(--border-color);
-    border-radius: 9px;
+    border-radius: 10px;
 }
 
 .ps-section-tabs button {
-    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
     color: var(--text-muted);
     font: inherit;
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 700;
     background: transparent;
     border: 0;
-    border-radius: 6px;
+    border-radius: 7px;
     cursor: pointer;
 }
 
+.ps-section-tabs button:hover { color: var(--text-primary); }
+
 .ps-section-tabs button.is-active {
-    color: var(--icon-active-color);
-    background: var(--background-icon-active-color);
+    color: var(--btn-fill-text, var(--icon-active-color));
+    background: var(--btn-fill-bg, var(--background-icon-active-color));
+}
+
+.ps-section-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.ps-navigation-bar { align-items: center; }
+
+@media (max-width: 640px) {
+    /* Phones: tabs take their own full-width line at the top of the toolbar. */
+    .ps-navigation-bar .ps-section-tabs { display: flex; flex: 1 1 100%; }
+    .ps-navigation-bar .ps-section-tabs button { flex: 1; justify-content: center; }
 }
 
 .ps-supplier-table {
@@ -1507,3 +1521,32 @@
         width: 100%;
     }
 }
+
+/*==========FIT TO SCREEN (Products and Suppliers tables)==========
+   The table box gets its height from useFillToBottom (it reaches the bottom of
+   the page), so long lists scroll inside the box and the page doesn't.
+   Column titles stay visible (they are already sticky). Phones keep cards. */
+@media (min-width: 901px) {
+    .ps-table-scroll {
+        overflow: auto;
+        overscroll-behavior: contain;
+    }
+}
+
+/* Hidden scrollbar on the table box (it still scrolls with the mouse wheel /
+   trackpad), same as the Stock Control table. */
+.ps-table-parent .ps-table-scroll {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none;
+}
+.ps-table-parent .ps-table-scroll::-webkit-scrollbar { width: 0 !important; height: 0 !important; display: none !important; }
+
+/* Desktop: tighter space under the table and its page buttons. */
+@media (min-width: 901px) {
+    .ps-table-parent { padding-bottom: 0; }
+    .ps-pagination { padding: 6px 0 0; }
+}
+
+/* Product details: Variants row spans the full width; chips can use it all. */
+.ps-detail-grid .ps-detail-item-full { grid-column: 1 / -1; }
+.ps-detail-variants { max-width: none; margin-top: 2px; }

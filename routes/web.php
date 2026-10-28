@@ -26,6 +26,8 @@ Route::middleware('auth')->group(function () {
     Route::match(['put', 'patch'], '/profile', [ProfileController::class, 'update']);
     Route::post('/profile/password', [ProfileController::class, 'changePassword']);
     Route::get('/profile/activity', [ProfileController::class, 'activity']);
+    // Your own Appearance theme (saved per account, see ThemePreferenceController).
+    Route::put('/profile/theme', [\App\Http\Controllers\ThemePreferenceController::class, 'update']);
     // Your own profile photo (separate from the system logo).
     Route::get('/profile/avatar', [ProfileController::class, 'avatar']);
     Route::post('/profile/avatar', [ProfileController::class, 'storeAvatar']);

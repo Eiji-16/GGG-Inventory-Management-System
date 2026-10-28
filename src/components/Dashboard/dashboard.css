@@ -1636,7 +1636,7 @@ grid-column: 1 / -1;
 
 
 /*==========SALES HISTORY: y-axis labels==========*/
-.salesAnalytics-card .db-hero-plot { padding-left: 34px; }
+.salesAnalytics-card .db-hero-plot { --plot-pad: 34px; padding-left: var(--plot-pad); }
 .db-hero-yaxis {
     position: absolute;
     inset: 0 auto 0 0;
@@ -2194,3 +2194,23 @@ grid-column: 1 / -1;
     .db-kpi-tile:hover .db-kpi-tile-icon,
     .db-kpi-tile:hover .db-kpi-tile-go { transform: none; }
 }
+
+/*==========BIG NUMBERS STAY INSIDE THEIR CARD==========
+   Large values (e.g. 2,000,047 units or a long currency amount) used to run
+   past the card edge and overlap the next card. The number now shrinks a
+   little on narrower screens and wraps instead of overflowing. */
+.db-kpi-tile { min-width: 0; }
+.db-kpi-tile-value {
+    flex-wrap: wrap;
+    row-gap: 2px;
+    font-size: clamp(19px, 1.8vw, 26px);
+    overflow-wrap: anywhere;
+}
+.db-kpi-tile-value small { white-space: nowrap; }
+.db-kpi-value { overflow-wrap: anywhere; }
+.db-kpi-tile-foot { overflow-wrap: anywhere; }
+.db-kpi-legend > span:not(.db-kpi-pulse) { white-space: normal; }
+
+/* Stock Health: Critical gets its own colour (same as Reports & Analytics). */
+.db-kpi-bar-seg.is-crit, .db-kpi-legend i.is-crit { background: color-mix(in srgb, var(--accent-low) 70%, var(--accent-med)); }
+.db-kpi-legend { gap: 4px 8px; }

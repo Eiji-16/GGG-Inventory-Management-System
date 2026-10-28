@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import useFillToBottom from '../../utils/fillToBottom';
+import useRowsThatFit from '../../utils/fitRows';
 import { createPortal } from 'react-dom';
 import {
   Plus,
@@ -20,6 +22,8 @@ import {
   ClipboardList,
   ArrowUpDown,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Package } from 'lucide-react';
 
 import './stockControl.css';
@@ -39,6 +43,32 @@ import {
   safetyReachedFor,
   STATUS_LABEL,
 } from '../../data/safetyStock'; /* ===== SAFETY STOCK ===== */
+
+/* ===== QUANTITY LIMITS =====
+   A quantity can have at most 4 digits (9,999). A quantity of UNUSUAL_QTY or
+   more is allowed, but the user must confirm it first (catches typing mistakes
+   such as an extra zero). Change these two numbers to adjust the rules. */
+const MAX_QTY = 9999;
+const UNUSUAL_QTY = 1000;
+const UNUSUAL_QTY_MESSAGE = 'An unusual value has been detected. Are you sure you want to enter this quantity?';
+/* Keeps only digits, at most 4 of them (so 5+ digit numbers can't be typed). */
+const limitQtyDigits = (value) => String(value ?? '').replace(/\D/g, '').slice(0, 4);
+
+/* ===== PAGE BUTTONS under the Stock / History tables =====
+   Same look as the Products page: ‹ Page 1 of 3 ›, centred. */
+function TablePager({ label, page, pageCount, onPage }) {
+  return (
+    <nav className="sc-pager" aria-label={label}>
+      <button type="button" className="sc-pager-arrow" onClick={() => onPage(page - 1)} disabled={page <= 1} aria-label="Previous page" title="Previous page">
+        <ChevronLeft size={15} aria-hidden="true" />
+      </button>
+      <span className="sc-pager-label" aria-live="polite">Page {page} of {pageCount}</span>
+      <button type="button" className="sc-pager-arrow" onClick={() => onPage(page + 1)} disabled={page >= pageCount} aria-label="Next page" title="Next page">
+        <ChevronRight size={15} aria-hidden="true" />
+      </button>
+    </nav>
+  );
+}
 
 /* ===== EMPTY FORM ===== */
 const emptyForm = {
@@ -398,6 +428,33 @@ function StockControl({
     }, currentOnHand, projectedRemaining, safetyStock)
     : null;
   const [confirmSale, setConfirmSale] = useState(null);
+  // Stock and History tables stretch to the bottom of the page (no empty space under them).
+  const fillTableToBottom = useFillToBottom(4, { shrink: true });   // full page fills the box; a short last page shrinks
+  // The table box (Stock or History, whichever is open). Its rows-per-page is
+  // worked out from its height, so a full page fills the box exactly.
+  const [tableBox, setTableBox] = useState(null);
+  const tableBoxRef = React.useCallback((element) => {
+    fillTableToBottom(element);
+    setTableBox(element);
+  }, [fillTableToBottom]);
+  // "Unusual value" confirmation: { qty, retry } while the question is open.
+  const [confirmUnusual, setConfirmUnusual] = useState(null);
+  // Quantities the user already confirmed, e.g. "form:1500" or "row-12:2000",
+  // so the same number is not asked about twice in a row.
+  const approvedUnusualRef = useRef(new Set());
+  /* True (and opens the question) when qty is unusual and not yet confirmed. */
+  const askIfUnusual = (where, qty, retry) => {
+    if (qty < UNUSUAL_QTY || approvedUnusualRef.current.has(`${where}:${qty}`)) return false;
+    setConfirmUnusual({ where, qty, retry });
+    return true;
+  };
+  const approveUnusual = () => {
+    if (!confirmUnusual) return;
+    approvedUnusualRef.current.add(`${confirmUnusual.where}:${confirmUnusual.qty}`);
+    const { retry } = confirmUnusual;
+    setConfirmUnusual(null);
+    retry();
+  };
   // In-app confirmation for deletes (replaces the browser's window.confirm).
   // { kind: 'entry', stock, changeText } or { kind: 'clear', productId, productName }
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -558,7 +615,12 @@ function StockControl({
     String(b.row.date).localeCompare(String(a.row.date)) || Number(b.id) - Number(a.id)
   )), [visibleRows]);
 
-  const PAGE_SIZE = 50;
+  // Rows per page = as many as fit in the table box (phones: 20 cards).
+  const PAGE_SIZE = useRowsThatFit(tableBox, {
+    min: 3,
+    fallback: 20,
+    deps: [view, stockLoading, tableRows.length > 0, historyRows.length > 0],
+  });
   const pageCount = Math.max(1, Math.ceil(tableRows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
   const pageRows = tableRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -824,6 +886,7 @@ function StockControl({
     setFormData({ ...emptyForm, date: todayLocal(), qty: '1', recordedBy: currentUserName });
     setEditId(null);
     setOpeningStock('');
+    approvedUnusualRef.current.clear();
     setIsModalOpen(true);
   };
 
@@ -847,6 +910,11 @@ function StockControl({
       setStockError('Enter an opening stock of 1 or more.');
       return;
     }
+    if (value > MAX_QTY) {
+      setStockError(`The quantity can have at most 4 digits (up to ${MAX_QTY.toLocaleString()}).`);
+      return;
+    }
+    if (askIfUnusual('opening', value, () => handleSaveOpeningStock())) return;
     setOpeningSaving(true);
     try {
       const response = await apiFetch('/api/stock-movements', {
@@ -1035,7 +1103,8 @@ function StockControl({
   };
 
   const handleFormChange = (e) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    const value = name === 'qty' ? limitQtyDigits(e.target.value) : e.target.value;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -1043,7 +1112,7 @@ function StockControl({
   const adjustQuantity = (amount) => {
     setFormData((prev) => {
       const current = Number.isInteger(Number(prev.qty)) ? Number(prev.qty) : 1;
-      return { ...prev, qty: String(Math.max(1, current + amount)) };
+      return { ...prev, qty: String(Math.min(MAX_QTY, Math.max(1, current + amount))) };
     });
   };
 
@@ -1100,6 +1169,11 @@ function StockControl({
       setStockError('Enter a quantity of 1 or more.');
       return;
     }
+    if (amount > MAX_QTY) {
+      setStockError(`The quantity can have at most 4 digits (up to ${MAX_QTY.toLocaleString()}).`);
+      return;
+    }
+    if (askIfUnusual('form', amount, () => handleSave(null, { confirmed }))) return;
 
     if (currentOnHand === null || currentOnHand < 0) {
       setStockError('The selected product does not have a valid current stock balance. Refresh stock data and try again.');
@@ -1110,6 +1184,17 @@ function StockControl({
     if (isStockOut && currentOnHand - amount < 0) {
       setStockError(`Only ${currentOnHand} on hand — a Stock Out of ${amount} would make the total negative.`);
       return;
+    }
+    // Same product listed once per variant: the variant's own count must not
+    // go below zero either (the product total alone let one variant go negative).
+    if (isStockOut && String(formData.variantName || '').trim() !== '') {
+      const variantOnHand = variantData.stockByKey.get(
+        variantKeyOf({ productId: formData.productId, productName: formData.productName, variantName: formData.variantName })
+      ) ?? 0;
+      if (variantOnHand - amount < 0) {
+        setStockError(`Only ${Math.max(0, variantOnHand)} of ${formData.productName} (${formData.variantName}) on hand — a Stock Out of ${amount} would make this variant negative.`);
+        return;
+      }
     }
 
     // Safety-stock confirmation: the sale is allowed, but only after the user
@@ -1213,7 +1298,7 @@ function StockControl({
   };
   const typeCount = (row, raw) => {
     const text = String(raw).replace(/\s+/g, '');
-    if (!/^\d{0,6}$/.test(text)) return;
+    if (!/^\d{0,4}$/.test(text)) return;   // at most 4 digits (9,999)
     setPendingQty((prev) => { const next = { ...prev }; delete next[row.id]; return next; });
     setTypedQty((prev) => ({ ...prev, [row.id]: text }));
   };
@@ -1229,6 +1314,7 @@ function StockControl({
     const counted = typedCountFor(row.id);
     const variantOnHand = variantStockOf(row);
     if (!product || counted === null || counted === variantOnHand || quickBusy.has(row.id)) return;
+    if (askIfUnusual(`row-${row.id}`, counted, () => applyCount(row))) return;
     const before = Number(product.stock);
     // The server's correction rule sets the PRODUCT total to the counted
     // number, so send the total changed by this variant's difference.
@@ -1413,18 +1499,18 @@ function StockControl({
   return (
     <div className="sc-table-parent">
 
-      {/* ===== TABS: Stock (manage inventory) | History (change log) ===== */}
-      <div className="sc-view-tabs" role="tablist" aria-label="Stock Control view">
-        <button type="button" role="tab" aria-selected={view === 'stock'} className={view === 'stock' ? 'is-active' : ''} onClick={() => setView('stock')}>
-          <Package size={13} aria-hidden="true" /> Stock
-        </button>
-        <button type="button" role="tab" aria-selected={view === 'history'} className={view === 'history' ? 'is-active' : ''} onClick={() => setView('history')}>
-          <History size={13} aria-hidden="true" /> History
-        </button>
-      </div>
-
-      {/* ===== SEARCH BAR ===== */}
+      {/* ===== ONE TOOLBAR ROW: tabs, then search bar, then buttons ===== */}
       <div className="sc-navigation-bar">
+        {/* Tabs: Stock (manage inventory) | History (change log) */}
+        <div className="sc-view-tabs" role="tablist" aria-label="Stock Control view">
+          <button type="button" role="tab" aria-selected={view === 'stock'} className={view === 'stock' ? 'is-active' : ''} onClick={() => setView('stock')}>
+            <Package size={13} aria-hidden="true" /> Stock
+          </button>
+          <button type="button" role="tab" aria-selected={view === 'history'} className={view === 'history' ? 'is-active' : ''} onClick={() => setView('history')}>
+            <History size={13} aria-hidden="true" /> History
+          </button>
+        </div>
+
         <div className="sc-search-wrapper">
           {/* Preset searches: the categories your products already use. */}
           <SearchSuggestions
@@ -1583,7 +1669,7 @@ function StockControl({
         onToggleAll={toggleSelectAll}
         onClear={() => setSelectedIds(new Set())}
       />
-      <div className="sc-table-scroll">
+      <div className="sc-table-scroll" ref={tableBoxRef}>
         <table className="sc-table m-folders">
           <thead>
             <tr>
@@ -1729,13 +1815,6 @@ function StockControl({
                           >
                             {busy ? '…' : <Check size={12} strokeWidth={3} />}
                           </button>
-                          {hasChange && (
-                            <small className={`sc-qty-hint ${(isTyping ? countChange : pending) > 0 ? 'sc-in' : 'sc-out'}`}>
-                              {isTyping
-                                ? `Correction ${countChange > 0 ? '+' : '−'}${Math.abs(countChange)}`
-                                : `${pending > 0 ? 'Stock In' : 'Stock Out'} ${pendingText}`}
-                            </small>
-                          )}
                         </span>
                       );
                     })() : (
@@ -1762,7 +1841,7 @@ function StockControl({
                     ) : '—'}
                   </td>
                   <td className="sc-td-left sc-td-muted" data-label="Notes" title={stock.notes}>{stock.notes || '—'}</td>
-                  <td data-label="Recorded by">{stock.recordedBy || '—'}</td>
+                  <td className="sc-td-nowrap" data-label="Recorded by">{stock.recordedBy || '—'}</td>
                   <td className="sc-td-actions" data-label="Actions">
                     <div className="sc-action-cell-container">
                       {/* Economic Order Quantity Calculator: follows the calculator box in Role Access */}
@@ -1837,23 +1916,19 @@ function StockControl({
           </tbody>
         </table>
       </div>
-      {!stockLoading && tableRows.length > PAGE_SIZE && (
-        <nav className="sc-pager" aria-label="Stock movement pages">
-          <span>
-            Showing {((currentPage - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(currentPage * PAGE_SIZE, tableRows.length).toLocaleString()} of {tableRows.length.toLocaleString()}
-          </span>
-          <span className="sc-pager-buttons">
-            <button type="button" className="sc-add-btn" onClick={() => setPage(currentPage - 1)} disabled={currentPage <= 1}>Previous</button>
-            <span aria-live="polite">Page {currentPage} of {pageCount}</span>
-            <button type="button" className="sc-add-btn" onClick={() => setPage(currentPage + 1)} disabled={currentPage >= pageCount}>Next</button>
-          </span>
-        </nav>
+      {!stockLoading && tableRows.length > 0 && (
+        <TablePager
+          label="Stock movement pages"
+          page={currentPage}
+          pageCount={pageCount}
+          onPage={setPage}
+        />
       )}
       </>)}
 
       {/* ===== HISTORY TAB: read-only log of stock changes ===== */}
       {view === 'history' && (<>
-      <div className="sc-table-scroll">
+      <div className="sc-table-scroll" ref={tableBoxRef}>
         <table className="sc-table sc-history-table m-folders">
           <thead>
             <tr>
@@ -1901,17 +1976,13 @@ function StockControl({
           </tbody>
         </table>
       </div>
-      {!stockLoading && historyRows.length > PAGE_SIZE && (
-        <nav className="sc-pager" aria-label="Stock history pages">
-          <span>
-            Showing {((currentHistoryPage - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(currentHistoryPage * PAGE_SIZE, historyRows.length).toLocaleString()} of {historyRows.length.toLocaleString()}
-          </span>
-          <span className="sc-pager-buttons">
-            <button type="button" className="sc-add-btn" onClick={() => setHistoryPage(currentHistoryPage - 1)} disabled={currentHistoryPage <= 1}>Previous</button>
-            <span aria-live="polite">Page {currentHistoryPage} of {historyPageCount}</span>
-            <button type="button" className="sc-add-btn" onClick={() => setHistoryPage(currentHistoryPage + 1)} disabled={currentHistoryPage >= historyPageCount}>Next</button>
-          </span>
-        </nav>
+      {!stockLoading && historyRows.length > 0 && (
+        <TablePager
+          label="Stock history pages"
+          page={currentHistoryPage}
+          pageCount={historyPageCount}
+          onPage={setHistoryPage}
+        />
       )}
       </>)}
 
@@ -1972,7 +2043,7 @@ function StockControl({
                         value={formData.recordedBy}
                         readOnly
                         aria-readonly="true"
-                        title="Filled in automatically from the signed-in account"
+                        title="Taken from the signed-in account"
                         placeholder="Signed-in user"
                       />
                     </div>
@@ -2037,7 +2108,7 @@ function StockControl({
                         name="category"
                         value={formData.category}
                         onChange={handleFormChange}
-                        placeholder="Auto-filled from the selected product"
+                        placeholder="Taken from the selected product"
                         readOnly
                       />
                     </div>
@@ -2054,7 +2125,8 @@ function StockControl({
                             min="1"
                             step="1"
                             value={openingStock}
-                            onChange={(e) => setOpeningStock(e.target.value)}
+                            max={MAX_QTY}
+                            onChange={(e) => setOpeningStock(limitQtyDigits(e.target.value))}
                             placeholder="0"
                             required
                           />
@@ -2099,7 +2171,7 @@ function StockControl({
                               className="sc-stepper-value"
                               aria-describedby="sc-qty-hint"
                               min="1"
-                              max={isOut && currentOnHand !== null ? currentOnHand : undefined}
+                              max={isOut && currentOnHand !== null ? Math.min(currentOnHand, MAX_QTY) : MAX_QTY}
                               step="1"
                               value={formData.qty}
                               onChange={handleFormChange}
@@ -2381,6 +2453,37 @@ function StockControl({
                 ? applyPending(confirmSale.quick.row, { confirmed: true })
                 : handleSave(null, { confirmed: true }))}>
                 Proceed with sale
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {confirmUnusual && createPortal(
+        <div className="sc-modal-overlay sc-confirm-overlay" onClick={() => setConfirmUnusual(null)}>
+          <div
+            className="sc-modal sc-confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="sc-unusual-title"
+            aria-describedby="sc-unusual-text"
+          >
+            <span className="sc-confirm-icon is-critical" aria-hidden="true"><AlertTriangle size={22} /></span>
+            <h3 id="sc-unusual-title">Please check the quantity</h3>
+            <p id="sc-unusual-text">
+              {UNUSUAL_QTY_MESSAGE}
+              <span className="sc-confirm-detail">
+                Quantity entered: <strong>{confirmUnusual.qty.toLocaleString()}</strong>
+              </span>
+            </p>
+            <div className="sc-modal-actions">
+              <button type="button" className="sc-modal-cancel-btn" onClick={() => setConfirmUnusual(null)} autoFocus>
+                No, change it
+              </button>
+              <button type="button" className="sc-modal-save-btn" onClick={approveUnusual}>
+                Yes, enter it
               </button>
             </div>
           </div>

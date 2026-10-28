@@ -8,7 +8,8 @@ import '../styles/motion.css'; /* subtle shared animations (hover, fades, pop-up
 import { startSlidingTabs } from '../utils/slidingTabs';
 import { startMobileFolders } from '../utils/mobileFolders';
 import { startLoadingBar } from '../utils/loadingBar';
-import { readSavedTheme, saveTheme } from '../theme';
+import { DEFAULT_THEME, normalizeTheme, readSavedTheme, readUserTheme, saveTheme, saveUserTheme } from '../theme';
+import apiFetch from '../apiFetch';
 import { CurrencyProvider } from '../CurrencyContext';
 import { applyShowFieldHints, readShowFieldHints } from '../fieldHints';
 
@@ -19,6 +20,10 @@ startSlidingTabs();
 // Phones: list cards open/close on tap (see utils/mobileFolders.js).
 startMobileFolders();
 startLoadingBar();   // thin top bar whenever the system waits for the server
+
+// Each account has its own theme: the one saved on the account first, then
+// this browser's copy for that same account, else the default theme.
+const themeOf = (account) => normalizeTheme(account?.theme) || readUserTheme(account?.id) || DEFAULT_THEME;
 
 function App() {
     const [authStatus, setAuthStatus] = useState('checking');
@@ -49,6 +54,7 @@ function App() {
 
                 const data = await response.json();
                 setUser(data.user);
+                setTheme(themeOf(data.user));
                 setAuthStatus('authenticated');
             } catch (requestError) {
                 console.error('Could not verify login session:', requestError);
@@ -59,6 +65,26 @@ function App() {
 
         checkSession();
     }, [retryKey]);
+
+    // Settings → Appearance: show the new theme now, then save it on THIS
+    // account only, so other users keep their own theme.
+    function handleThemeChange(nextTheme) {
+        setTheme(nextTheme);
+        saveUserTheme(user?.id, nextTheme);   // this account's copy in this browser
+        setUser((current) => (current ? { ...current, theme: nextTheme } : current));
+        apiFetch('/profile/theme', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ theme: nextTheme }),
+        })
+            .then(async (response) => {
+                if (!response.ok) {
+                    const body = await response.json().catch(() => ({}));
+                    throw new Error(body.message || `Save failed (${response.status}).`);
+                }
+            })
+            .catch((saveError) => console.error('Could not save your theme:', saveError));
+    }
 
     function handleRetry() {
         setError('');
@@ -129,6 +155,7 @@ function App() {
                 <Login
                     onLogin={(authenticatedUser) => {
                         setUser(authenticatedUser);
+                        setTheme(themeOf(authenticatedUser));
                         setError('');
                         setAuthStatus('authenticated');
                     }}
@@ -142,7 +169,7 @@ function App() {
                             user={user}
                             onLogout={handleLogout}
                             theme={theme}
-                            onThemeChange={setTheme}
+                            onThemeChange={handleThemeChange}
                         />
                     </CurrencyProvider>
                 </>

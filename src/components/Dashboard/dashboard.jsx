@@ -285,6 +285,18 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
     const outOfStock = tracked.filter((product) => product.quantity <= 0);
     const lowStock = tracked.filter((product) => product.quantity > 0 && product.quantity <= product.threshold);
     const inStock = stock.length - outOfStock.length - lowStock.length;
+    /* Stock Health card: the SAME rule as Reports & Analytics (and the server):
+       every product counts, 0 units = Out, at/below safety stock = Critical,
+       at/below the reorder point = Low, otherwise In stock. (It used to count
+       products with no stock entries yet as "in stock", so the two pages
+       showed different numbers.) */
+    const health = stock.reduce((counts, product) => {
+      if (product.quantity <= 0) counts.out += 1;
+      else if (product.quantity <= product.criticalAt) counts.critical += 1;
+      else if (product.quantity <= product.threshold) counts.low += 1;
+      else counts.in += 1;
+      return counts;
+    }, { in: 0, low: 0, critical: 0, out: 0 });
     const categories = Object.entries(stock.reduce((totals, product) => {
       const category = product.category || 'Uncategorized';
       totals[category] = (totals[category] || 0) + 1;
@@ -377,6 +389,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
       inStock,
       lowStock,
       outOfStock,
+      health,
       categories: topCategories,
       donut,
       monthly,
@@ -477,7 +490,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
       stockOut,
       netChange: stockIn - stockOut,
       hasEntriesThisMonth: stockIn + stockOut > 0,
-      healthyPct: total ? Math.round((derived.inStock / total) * 100) : null,
+      healthyPct: total ? Math.round((derived.health.in / total) * 100) : null,
       attention: derived.lowStock.length + derived.outOfStock.length,
       soldThisMonth: current?.units || 0,
       soldLastMonth: previous?.units || 0,
@@ -490,7 +503,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
     };
   })();
   // Stock Health colour: green when all fine, amber when only low, red when anything is out.
-  const healthTone = derived.outOfStock.length ? 'bad' : (derived.lowStock.length ? 'warn' : 'good');
+  const healthTone = derived.health.out || derived.health.critical ? 'bad' : (derived.health.low ? 'warn' : 'good');
   const NetIcon = kpi.netChange > 0 ? TrendingUp : (kpi.netChange < 0 ? TrendingDown : Minus);
   const netClass = kpi.netChange > 0 ? 'is-up' : (kpi.netChange < 0 ? 'is-down' : 'is-flat');
   const heroValues = derived.monthly.map((month) => month.units);
@@ -571,17 +584,18 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             {kpi.total ? (
               <>
                 <span className="db-kpi-bar" aria-hidden="true">
-                  {[['is-good', derived.inStock], ['is-warn', derived.lowStock.length], ['is-bad', derived.outOfStock.length]]
+                  {[['is-good', derived.health.in], ['is-warn', derived.health.low], ['is-crit', derived.health.critical], ['is-bad', derived.health.out]]
                     .filter(([, count]) => count > 0)
                     .map(([level, count]) => (
                       <span key={level} className={`db-kpi-bar-seg ${level}`} style={{ width: `${(count / kpi.total) * 100}%` }} />
                     ))}
                 </span>
                 <span className="db-kpi-legend">
-                  <span><i className="is-good" />{fmt(derived.inStock)} in stock</span>
-                  <span><i className="is-warn" />{fmt(derived.lowStock.length)} low</span>
-                  <span><i className="is-bad" />{fmt(derived.outOfStock.length)} out</span>
-                  {kpi.attention > 0 && <span className="db-kpi-pulse" aria-hidden="true" />}
+                  <span><i className="is-good" />{fmt(derived.health.in)} in stock</span>
+                  <span><i className="is-warn" />{fmt(derived.health.low)} low</span>
+                  <span><i className="is-crit" />{fmt(derived.health.critical)} critical</span>
+                  <span><i className="is-bad" />{fmt(derived.health.out)} out</span>
+                  {derived.health.low + derived.health.critical + derived.health.out > 0 && <span className="db-kpi-pulse" aria-hidden="true" />}
                 </span>
               </>
             ) : <span className="db-kpi-note">No products to check yet</span>}
@@ -671,7 +685,9 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                       <span
                         className="db-trend-dot"
                         style={{
-                          left: `${(heroPoints[hoveredSalesMonth][0] / 520) * 100}%`,
+                          // Same place as the point on the line: the line is drawn after
+                          // the y-axis labels (--plot-pad), so add that offset.
+                          left: `calc(var(--plot-pad, 0px) + (100% - var(--plot-pad, 0px)) * ${heroPoints[hoveredSalesMonth][0] / 520})`,
                           top: `${(heroPoints[hoveredSalesMonth][1] / 150) * 100}%`,
                         }}
                         aria-hidden="true"
@@ -679,7 +695,9 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                       <div
                         className={`db-hero-tooltip db-trend-tag${heroPoints[hoveredSalesMonth][0] > 390 ? ' db-hero-tooltip-left' : ''}`}
                         style={{
-                          left: `${(heroPoints[hoveredSalesMonth][0] / 520) * 100}%`,
+                          // Same place as the point on the line: the line is drawn after
+                          // the y-axis labels (--plot-pad), so add that offset.
+                          left: `calc(var(--plot-pad, 0px) + (100% - var(--plot-pad, 0px)) * ${heroPoints[hoveredSalesMonth][0] / 520})`,
                           top: `${(heroPoints[hoveredSalesMonth][1] / 150) * 100}%`,
                         }}
                         role="status"

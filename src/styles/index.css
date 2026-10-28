@@ -258,3 +258,67 @@ html[data-field-hints="hidden"] :is(
         justify-items: start !important;
     }
 }
+
+/*==========TABLE CHECKBOXES: one size everywhere==========
+   The browser's own checkbox is redrawn slightly bigger or smaller depending
+   on where its row lands on the screen (most visible when the browser zoom is
+   not 100%), so ticks in the same column looked different sizes. These are
+   drawn by the page instead: a fixed 15px box with no outside margin, so
+   every row and the "select all" box in the header match exactly. */
+table input[type="checkbox"],
+.m-select-all input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+    flex: none;
+    display: inline-block;
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    padding: 0;
+    vertical-align: middle;
+    border: 1.5px solid var(--border-strong, #8A8F98);
+    border-radius: 4px;
+    background-color: transparent;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 11px 11px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+table input[type="checkbox"]:hover,
+.m-select-all input[type="checkbox"]:hover {
+    border-color: var(--background-icon-active-color, #E8C547);
+}
+table input[type="checkbox"]:checked,
+.m-select-all input[type="checkbox"]:checked {
+    border-color: var(--background-icon-active-color, #E8C547);
+    background-color: var(--background-icon-active-color, #E8C547);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-6.5' fill='none' stroke='%230B1426' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+table input[type="checkbox"]:focus-visible,
+.m-select-all input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--accent, #E8C547);
+    outline-offset: 2px;
+}
+table input[type="checkbox"]:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+/* Phones keep the bigger, easier-to-tap 18px tick boxes. */
+@media (max-width: 900px) {
+    .m-select-all input[type="checkbox"],
+    table.m-folders td.m-keep input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        background-size: 13px 13px;
+    }
+}
+
+/*==========TABLE ROWS STRETCH TO FILL THEIR BOX==========
+   Set by src/utils/fitRows.js: rows get a few pixels taller so a full page
+   of rows reaches the bottom of the table box (no empty band under the last
+   row). Message rows ("Loading…", "No rows") keep their own height. */
+[data-fit-rows] tbody tr:not(:has(td[colspan])):not(.ps-skeleton-row) {
+    height: var(--fit-row-height, auto);
+}

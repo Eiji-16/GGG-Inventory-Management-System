@@ -4,6 +4,7 @@ import { AlertTriangle, Edit, Plus, Search, Trash2, Truck, X } from 'lucide-reac
 import apiFetch from '../../apiFetch';
 import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
 import MobileSelectBar from '../MobileSelectBar/MobileSelectBar';
+import useFillToBottom from '../../utils/fillToBottom';
 
 const EMPTY_SUPPLIER = { id: null, name: '', contact: '', leadTimeDays: '' };
 
@@ -12,7 +13,10 @@ const EMPTY_SUPPLIER = { id: null, name: '', contact: '', leadTimeDays: '' };
    lead time in days. Lead time also feeds the reorder point when a product has
    no lead time of its own in the safety stock policy. */
 /* canManage comes from Role Access ("Add, edit and delete suppliers"). */
-export default function SupplierRecords({ onSuppliersChange, canManage = true, dataRevision = 0 }) {
+export default function SupplierRecords({ onSuppliersChange, canManage = true, dataRevision = 0, sectionTabs = null }) {
+  // The suppliers table is as tall as its rows and stops at the bottom of the
+  // page (then scrolls inside), so the page itself doesn't scroll.
+  const fillTableToBottom = useFillToBottom(4, { shrink: true });
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -161,6 +165,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
   return (
     <div className="ps-table-parent">
       <div className="ps-navigation-bar">
+        {sectionTabs /* Products | Suppliers tabs, before the search bar */}
         <div className="ps-search-wrapper">
           {/* Preset searches: the names of your suppliers. */}
           <SearchSuggestions
@@ -211,7 +216,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
         onToggleAll={toggleSelectAll}
         onClear={() => setSelectedIds(new Set())}
       />
-      <div className="ps-table-scroll">
+      <div className="ps-table-scroll" ref={fillTableToBottom}>
         <table className="ps-table ps-supplier-table m-folders">
           <thead>
             <tr>

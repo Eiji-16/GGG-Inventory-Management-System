@@ -177,7 +177,7 @@ export default function SystemData() {
           </div>
 
           <p className="s-roles-note">
-            Before any import or reset, the server automatically keeps a safety copy of the current data
+            Before any import or reset, the server keeps a safety copy of the current data
             (the newest 5, in <code>storage/app/private/system-backups</code>).
           </p>
         </div>

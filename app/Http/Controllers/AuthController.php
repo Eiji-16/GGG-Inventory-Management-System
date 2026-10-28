@@ -191,6 +191,8 @@ class AuthController extends Controller
             // Sidebar picture chosen by the Super Admin (null = default icon).
             'logoUrl' => \App\Models\AppSetting::logoUrl(),
             'isSuperAdmin' => $this->isSuperAdmin($user),
+            // This account's own Appearance theme (null = default theme).
+            'theme' => $user->theme,
             // Role Access: which features this account may use (Settings).
             'permissions' => \App\Services\RoleAccessService::effectiveFor($user),
         ];

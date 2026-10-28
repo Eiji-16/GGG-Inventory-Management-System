@@ -34,3 +34,28 @@ export function saveTheme(theme) {
     console.error('Could not save the appearance preference:', error);
   }
 }
+
+/* ===== PER-ACCOUNT THEME (backup copy in this browser) =====
+   The theme is saved on the account (server). A copy is also kept in this
+   browser under the account's own key, so each user still gets their own
+   theme even if the server copy is missing (for example before running
+   "php artisan migrate"). One user's choice never changes another user's. */
+const userThemeKey = (userId) => `${THEME_STORAGE_KEY}:user:${userId}`;
+
+export function readUserTheme(userId) {
+  if (userId === undefined || userId === null) return null;
+  try {
+    return normalizeTheme(window.localStorage.getItem(userThemeKey(userId)));
+  } catch (error) {
+    return null;
+  }
+}
+
+export function saveUserTheme(userId, theme) {
+  if (userId === undefined || userId === null) return;
+  try {
+    window.localStorage.setItem(userThemeKey(userId), theme);
+  } catch (error) {
+    console.error('Could not save the appearance preference:', error);
+  }
+}

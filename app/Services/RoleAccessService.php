@@ -88,14 +88,14 @@ class RoleAccessService
 
         // Reports
         'reports.view'                => ['code' => 'tv', 'group' => 'Reports', 'label' => 'Open Reports'],
-        'reports.tab.stock_summary'   => ['code' => 't1', 'group' => 'Reports', 'label' => 'Stock Summary tab', 'parent' => 'reports.view'],
-        'reports.tab.stock_movement'  => ['code' => 't2', 'group' => 'Reports', 'label' => 'Stock Movement tab', 'parent' => 'reports.view'],
-        'reports.tab.top_moving'      => ['code' => 't3', 'group' => 'Reports', 'label' => 'Top Moving Products tab', 'parent' => 'reports.view'],
-        'reports.tab.fast_slow'       => ['code' => 't4', 'group' => 'Reports', 'label' => 'Fast & Slow Moving tab', 'parent' => 'reports.view'],
-        'reports.tab.demand_forecast' => ['code' => 't5', 'group' => 'Reports', 'label' => 'Demand Forecast Summary tab', 'parent' => 'reports.view'],
-        'reports.tab.order_quantity'  => ['code' => 't6', 'group' => 'Reports', 'label' => 'Order Quantity Calculator Summary tab', 'parent' => 'reports.view'],
-        'reports.tab.inventory_aging' => ['code' => 't7', 'group' => 'Reports', 'label' => 'Inventory Aging Report tab', 'parent' => 'reports.view'],
-        'reports.tab.reorder_point'   => ['code' => 't8', 'group' => 'Reports', 'label' => 'Reorder Point Report tab', 'parent' => 'reports.view'],
+        'reports.tab.stock_summary'   => ['code' => 't1', 'group' => 'Reports', 'label' => 'Stock Summary section', 'parent' => 'reports.view'],
+        'reports.tab.stock_movement'  => ['code' => 't2', 'group' => 'Reports', 'label' => 'Stock Movement section', 'parent' => 'reports.view'],
+        'reports.tab.top_moving'      => ['code' => 't3', 'group' => 'Reports', 'label' => 'Top Moving Products section', 'parent' => 'reports.view'],
+        'reports.tab.fast_slow'       => ['code' => 't4', 'group' => 'Reports', 'label' => 'Fast & Slow Moving section', 'parent' => 'reports.view'],
+        'reports.tab.demand_forecast' => ['code' => 't5', 'group' => 'Reports', 'label' => 'Demand Forecast Summary section', 'parent' => 'reports.view'],
+        'reports.tab.order_quantity'  => ['code' => 't6', 'group' => 'Reports', 'label' => 'Order Quantity Calculator Summary section', 'parent' => 'reports.view'],
+        'reports.tab.inventory_aging' => ['code' => 't7', 'group' => 'Reports', 'label' => 'Inventory Aging Report section', 'parent' => 'reports.view'],
+        'reports.tab.reorder_point'   => ['code' => 't8', 'group' => 'Reports', 'label' => 'Reorder Point Report section', 'parent' => 'reports.view'],
         'reports.export'              => ['code' => 'tx', 'group' => 'Reports', 'label' => 'Export PDF / Excel', 'parent' => 'reports.view'],
 
         // Trash Bin (deleted products and stock entries)

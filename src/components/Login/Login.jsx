@@ -13,7 +13,7 @@ import ResetPass from './ResetPass/resetPass';
 const FEATURES = [
     { Icon: Boxes, title: 'Stock Control', text: 'Every Stock In, Stock Out and correction, by user and date.' },
     { Icon: LineChart, title: 'Sales Forecasting', text: 'Weighted Moving Average forecast with seasonal adjustments.' },
-    { Icon: PackageCheck, title: 'Smart Reordering', text: 'Reorder points and Economic Order Quantity for every product.' },
+    { Icon: PackageCheck, title: 'Reorder Planning', text: 'Reorder points and Economic Order Quantity for every product.' },
 ];
 
 function Login({ onLogin }) {

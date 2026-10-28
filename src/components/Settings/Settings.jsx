@@ -407,14 +407,14 @@ function Settings({
               </div>
               <div className="s-band-legend" aria-label="How stock status is decided">
                 <span title="Above the Low point"><i className="is-healthy" />Healthy</span>
-                <span title="At or below the reorder point (Auto) — time to order"><i className="is-low" />Low</span>
-                <span title="At or below safety stock (Auto)"><i className="is-critical" />Critical</span>
+                <span title="At or below the reorder point (Formula) — time to order"><i className="is-low" />Low</span>
+                <span title="At or below safety stock (Formula)"><i className="is-critical" />Critical</span>
               </div>
               <span className="s-policy-count">{visibleRows.length} of {rows.length} products</span>
             </div>
             <p className="s-policy-hint">
               Reorder point updates as you type. Leave lead time blank to use the supplier’s.
-              <strong> Auto</strong>: Low at the reorder point, Critical at safety stock. <strong>Manual</strong>: set your own.
+              <strong> Formula</strong>: Low at the reorder point, Critical at safety stock. <strong>Manual</strong>: set your own.
             </p>
 
             {/* Scrollable list (header row stays visible) */}
@@ -466,7 +466,7 @@ function Settings({
 
                     <div className="s-policy-status">
                       <div className="s-mode-toggle" role="radiogroup" aria-label={`Status points for ${row.productName}`}>
-                        {[['auto', 'Auto'], ['manual', 'Manual']].map(([mode, label]) => (
+                        {[['auto', 'Formula'], ['manual', 'Manual']].map(([mode, label]) => (
                           <button
                             key={mode}
                             type="button"

@@ -152,9 +152,12 @@
 }
 .tb-tabs button.is-active .tb-tab-count { background: rgba(0, 0, 0, 0.14); }
 
-.tb-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin: 0 5px 8px; }
-.tb-search { flex: 1 1 240px; max-width: 360px; }
-.tb-filter { display: grid; gap: 3px; font-size: 10px; font-weight: 700; color: var(--text-muted); }
+.tb-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 5px 8px; }
+/* Tabs sit first in the toolbar row, so they lose their own bottom gap. */
+.tb-toolbar .tb-tabs { margin: 0; flex-shrink: 0; }
+.tb-search { flex: 1 1 200px; max-width: 320px; }
+/* "Deleted by" label sits beside its dropdown so the row stays one line. */
+.tb-filter { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
 .tb-filter select {
     height: 1.9rem;
     padding: 0 8px;

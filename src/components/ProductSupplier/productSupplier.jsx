@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, Edit, Trash2, X, Package, Info, Download, AlertTriangle, Upload, Image as ImageIcon, ArrowUpDown } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, X, Package, Info, Download, AlertTriangle, Upload, Image as ImageIcon, ArrowUpDown, Truck } from 'lucide-react';
 
 import './productSupplier.css';
 import SupplierRecords from './supplierRecords';
@@ -8,6 +8,8 @@ import MobileSelectBar from '../MobileSelectBar/MobileSelectBar';
 import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
+import useFillToBottom from '../../utils/fillToBottom';
+import useRowsThatFit from '../../utils/fitRows';
 
 
 
@@ -194,7 +196,6 @@ function ProductSupplier({
   canManageSuppliers = true,
   dataRevision = 0,
 }) {
-  const PAGE_SIZE = 10;
   const [productsFromDatabase, setProductsFromDatabase] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState('');
@@ -306,6 +307,16 @@ function ProductSupplier({
   }, [query]);
 
   const total = filteredProducts.length;
+  /* ===== FIT TO SCREEN =====
+     The products table stretches to the bottom of the page and shows as many
+     rows per page as fit, so the page itself doesn't scroll. */
+  const fillTableToBottom = useFillToBottom(4, { shrink: true });   // full page fills the box; a short last page shrinks
+  const [tableBox, setTableBox] = useState(null);
+  const tableRef = useCallback((element) => {
+    fillTableToBottom(element);
+    setTableBox(element);
+  }, [fillTableToBottom]);
+  const PAGE_SIZE = useRowsThatFit(tableBox, { min: 3, fallback: 10, deps: [productsLoading, total > 0] });
   const safeCursor = total === 0 ? 0 : Math.min(cursor, total - 1);
   /* ===== PAGE START ===== */
   const pageCursor = Math.floor(safeCursor / PAGE_SIZE) * PAGE_SIZE;
@@ -317,8 +328,6 @@ function ProductSupplier({
   const pageLabel = total === 0
     ? 'No items'
     : `Page ${currentPage} of ${totalPages}`;
-
-  const tableRef = useRef(null);
 
   /* ===== RESET SCROLL ===== */
   useEffect(() => {
@@ -633,20 +642,26 @@ function ProductSupplier({
     }
   };
 /* ===== PRODUCT DATA END ===== */
+  /* Products | Suppliers tabs. They sit FIRST in the toolbar row (before the
+     search bar) of whichever list is open, so tabs, search and buttons share
+     one row. */
+  const sectionTabs = (
+    <div className="ps-section-tabs" role="tablist" aria-label="Management sections">
+      <button type="button" role="tab" aria-selected={section === 'products'} className={section === 'products' ? 'is-active' : ''} onClick={() => setSection('products')}>
+        <Package size={13} aria-hidden="true" /> Products
+      </button>
+      {canViewSuppliers && (
+      <button type="button" role="tab" aria-selected={section === 'suppliers'} className={section === 'suppliers' ? 'is-active' : ''} onClick={() => setSection('suppliers')}>
+        <Truck size={13} aria-hidden="true" /> Suppliers
+      </button>
+      )}
+    </div>
+  );
   return (
     <div className="ps-section-root">
-      <div className="ps-section-tabs" role="tablist" aria-label="Management sections">
-        <button type="button" role="tab" aria-selected={section === 'products'} className={section === 'products' ? 'is-active' : ''} onClick={() => setSection('products')}>
-          Products
-        </button>
-        {canViewSuppliers && (
-        <button type="button" role="tab" aria-selected={section === 'suppliers'} className={section === 'suppliers' ? 'is-active' : ''} onClick={() => setSection('suppliers')}>
-          Suppliers
-        </button>
-        )}
-      </div>
       {section === 'suppliers' && canViewSuppliers ? (
         <SupplierRecords
+          sectionTabs={sectionTabs}
           canManage={canManageSuppliers}
           dataRevision={dataRevision}
           onSuppliersChange={() => {
@@ -663,8 +678,9 @@ function ProductSupplier({
           <button type="button" className="ps-page-message-close" onClick={() => setPageMessage('')} aria-label="Dismiss message">×</button>
         </p>
       )}
-      {/* ===== SEARCH BAR ===== */}
+      {/* ===== ONE TOOLBAR ROW: tabs, then search bar, then buttons ===== */}
       <div className="ps-navigation-bar">
+        {sectionTabs}
         <div className="ps-search-wrapper">
           {/* Preset searches: the categories your products already use. */}
           <SearchSuggestions
@@ -924,7 +940,7 @@ function ProductSupplier({
       </div>
 
       {/* ===== PAGE BAR ===== */}
-      {total > PAGE_SIZE && (
+      {total > 0 && (
         <div className="ps-pagination">
           <button
             className="ps-page-pill"
@@ -1001,6 +1017,20 @@ function ProductSupplier({
                     <span className="ps-detail-hint">{field.hint}</span>
                   </div>
                 ))}
+                {/* Variants (e.g. colours), shown as chips like in the table. */}
+                <div className="ps-detail-item ps-detail-item-full">
+                  <span className="ps-detail-label">Variants</span>
+                  {(detailProduct.variants || []).length > 0 ? (
+                    <span className="ps-variant-list ps-detail-variants">
+                      {detailProduct.variants.map((variant) => (
+                        <span className="ps-variant-chip" key={variant}>{variant}</span>
+                      ))}
+                    </span>
+                  ) : (
+                    <span className="ps-detail-value">—</span>
+                  )}
+                  <span className="ps-detail-hint">Versions of this product, such as colours or sizes</span>
+                </div>
               </div>
 
               <p className="ps-field-note ps-detail-note">
