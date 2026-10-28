@@ -38,7 +38,7 @@ class SupplierController extends Controller
             'contact' => ['nullable', 'string', 'max:255'],
             'company' => ['nullable', 'string', 'max:255'],
             'leadTimeDays' => ['nullable', 'integer', 'min:0', 'max:365'],
-        ]);
+        ], ['name.unique' => 'A supplier with this name already exists (it may be in the Trash Bin — restore it from there).']);
 
         $supplier = Supplier::create([
             'name'    => $data['name'],
@@ -59,7 +59,7 @@ class SupplierController extends Controller
             'contact' => ['nullable', 'string', 'max:255'],
             'company' => ['nullable', 'string', 'max:255'],
             'leadTimeDays' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:365'],
-        ]);
+        ], ['name.unique' => 'A supplier with this name already exists (it may be in the Trash Bin — restore it from there).']);
 
         // A field LEFT OUT keeps its value; a contact SENT EMPTY is cleared.
         // An empty company falls back to the supplier's name (same as when adding).
@@ -89,8 +89,14 @@ class SupplierController extends Controller
     {
         $name = $supplier->name;
         $linked = $supplier->products()->count();
+        // Moved to the Trash Bin: its products keep the link, so restoring
+        // the supplier brings everything back as it was.
+        $supplier->forceFill([
+            'deleted_by' => request()->user()?->id,
+            'deleted_by_name' => request()->user()?->name,
+        ])->save();
         $supplier->delete();
-        ActivityLog::record('supplier.delete', "Deleted supplier — {$name}", 'users', ['supplier' => $name, 'linkedProducts' => $linked]);
+        ActivityLog::record('supplier.delete', "Moved supplier to the Trash Bin — {$name}", 'users', ['supplier' => $name, 'linkedProducts' => $linked]);
 
         return response()->json(['deleted' => true]);
     }

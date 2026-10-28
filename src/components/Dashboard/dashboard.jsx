@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Package, Boxes, TriangleAlert, ArrowLeftRight } from 'lucide-react';
+import { Package, Boxes, ShieldCheck, ShoppingBag, TrendingUp, TrendingDown, Minus, ArrowUpRight } from 'lucide-react';
 import './dashboard.css';
 import { statusPointsFor } from '../../data/safetyStock';
 
@@ -31,16 +31,33 @@ const fallbackCategoryColors = ['#A78BFA', '#FB7185', '#38BDF8', '#F97316', '#2D
    (instead of cutting a row in half at the bottom of the card). */
 const LIST_LIMIT = 3;
 
-/* Background colours of the four KPI cards (left to right) and the four
-   status cards: ink (near-black), flame (orange-red), mist (light grey), peach. */
-const KPI_TONES = ['ink', 'flame', 'mist', 'peach'];
-
-const KPI_CARDS = [
-  { key: 'totalProducts', label: 'Total Products', Icon: Package, accent: 'products' },
-  { key: 'totalStockUnits', label: 'Total Stock Units', Icon: Boxes, accent: 'stock' },
-  { key: 'lowStockItems', label: 'Reorder List', Icon: TriangleAlert, accent: 'low' },
-  { key: 'stockMovementsToday', label: 'Stock Movements Today', Icon: ArrowLeftRight, accent: 'movement' },
+/* Top KPI row: four cards, each answering a different question.
+   tone = the card's accent colour (see .db-kpi-tile--<tone> in dashboard.css). */
+const KPI_SKELETON = [
+  { key: 'products', label: 'Products', Icon: Package, tone: 'gold' },
+  { key: 'stock', label: 'Stock on Hand', Icon: Boxes, tone: 'blue' },
+  { key: 'health', label: 'Stock Health', Icon: ShieldCheck, tone: 'good' },
+  { key: 'sold', label: 'Units Sold This Month', Icon: ShoppingBag, tone: 'violet' },
 ];
+
+/* One KPI card. It is a button because every card opens the related page. */
+function KpiTile({ tone, Icon, label, value, unit, onClick, openLabel, children }) {
+  return (
+    <button type="button" className={`db-kpi-tile db-kpi-tile--${tone}`} onClick={onClick} title={openLabel}>
+      <span className="db-kpi-tile-head">
+        <span className="db-kpi-tile-icon" aria-hidden="true"><Icon size={16} strokeWidth={1.9} /></span>
+        <span className="db-kpi-tile-label">{label}</span>
+        <span className="db-kpi-tile-go" aria-hidden="true"><ArrowUpRight size={14} strokeWidth={2.2} /></span>
+      </span>
+      <span className="db-kpi-tile-value">
+        {value}
+        {unit && <small>{unit}</small>}
+      </span>
+      <span className="db-kpi-tile-foot">{children}</span>
+      <span className="db-sr-only">{openLabel}</span>
+    </button>
+  );
+}
 
 function scalePoints(values, width, height, padX = 6, padTop = 10, padBottom = 8, bounds = null) {
   if (!values.length) return [];
@@ -126,35 +143,6 @@ function Sparkline({ values, stroke, gid }) {
       </defs>
       <path d={area} fill={`url(#${gid})`} />
       <path d={line} fill="none" stroke={stroke} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-/* Smooth gold area chart with month dots — used by the Total Units Sold card
-   (this was the Sales History look before the trend-line redesign). */
-function SmoothArea({ values, gid }) {
-  if (values.length < 2 || values.every((value) => value === 0)) {
-    return <EmptyChart message="No chart data yet" />;
-  }
-  const width = 240;
-  const height = 90;
-  const top = niceCeil(Math.max(...values));
-  const points = scalePoints(values, width, height, 6, 8, 6, { min: 0, max: top });
-  const line = smoothLine(points);
-  const area = `${line} L ${points[points.length - 1][0]},${height - 6} L ${points[0][0]},${height - 6} Z`;
-  return (
-    <svg className="db-smooth-area" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.38" />
-          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill={`url(#${gid})`} />
-      <path d={line} fill="none" stroke="var(--accent)" strokeWidth="2.2" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
-      {points.map(([x, y], index) => (
-        <circle key={index} cx={x} cy={y} r="2.6" fill="var(--accent)" stroke="var(--bg-card)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-      ))}
     </svg>
   );
 }
@@ -417,35 +405,28 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
       <main className="dashboard-content-view">
         <div className="dashboard-scroll-container">
           <div className="db-kpi-row db-kpi-skeleton" aria-hidden="true">
-            {KPI_CARDS.map(({ key, label, Icon }) => (
-              key === 'lowStockItems' ? (
-                <div className="catalogStatus-card card db-skel-card" key={key}><div className="db-skel-line db-skel-title" /><div className="db-skel-fill" /></div>
-              ) : (
-                <div className="db-kpi-card" key={key}>
-                  <span className="db-kpi-icon"><Icon size={17} /></span>
-                  <span className="db-kpi-copy">
-                    <span className="db-kpi-label">{label}</span>
-                    <span className="db-skel-line db-kpi-value-placeholder" />
-                  </span>
-                </div>
-              )
+            {KPI_SKELETON.map(({ key, label, Icon, tone }) => (
+              <div className={`db-kpi-tile db-kpi-tile--${tone} is-skeleton`} key={key}>
+                <span className="db-kpi-tile-head">
+                  <span className="db-kpi-tile-icon"><Icon size={16} strokeWidth={1.9} /></span>
+                  <span className="db-kpi-tile-label">{label}</span>
+                </span>
+                <span className="db-skel-line db-kpi-tile-skel-value" />
+                <span className="db-skel-line db-kpi-tile-skel-foot" />
+              </div>
             ))}
           </div>
-          <div className={`parent${isSuperAdmin ? '' : ' parent-without-user-accounts'} db-skeleton`} aria-busy="true" aria-label="Loading dashboard">
+          <div className={`parent db-grid${isSuperAdmin ? '' : ' parent-without-user-accounts'} db-skeleton`} aria-busy="true" aria-label="Loading dashboard">
             <div className="salesAnalytics-card card db-skel-card">
               <div className="db-skel-line db-skel-title" />
               <div className="db-skel-line db-skel-sub" />
               <div className="db-skel-chart" />
             </div>
-            <div className="totalRevenue-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-line db-skel-big" /></div>
+            <div className="coverage-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-fill" /></div>
+            <div className="category-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-fill" /></div>
             <div className="regionalBreakdown-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-fill" /></div>
-            <div className="eoqActivity-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-fill" /></div>
             <div className="totalOrder-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-fill" /></div>
             <div className="productSales-card card db-skel-card"><div className="db-skel-line db-skel-title" /><div className="db-skel-fill" /></div>
-            <div className="lowStockalerts-card card db-skel-card">
-              <div className="db-skel-line db-skel-title" />
-              <div className="db-skel-row" /><div className="db-skel-row" /><div className="db-skel-row" />
-            </div>
           </div>
           <p className="db-skel-note" role="status">Loading live dashboard data…</p>
         </div>
@@ -464,12 +445,54 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
   }
   if (!derived) return null;
 
-  const kpiValues = {
-    totalProducts: derived.totalProducts,
-    totalStockUnits: derived.totalStock,
-    lowStockItems: derived.alerts.length,
-    stockMovementsToday: derived.movementsToday,
-  };
+  /* ===== Top KPI numbers =====
+     Everything comes from the same summary data the rest of the page uses —
+     nothing new is calculated on the server and nothing is estimated. */
+  const kpi = (() => {
+    const current = derived.monthly[derived.monthly.length - 1];
+    const previous = derived.monthly[derived.monthly.length - 2];
+    const monthKey = current?.key || '';
+    // Stock entries this month: Stock In adds, Stock Out removes; a
+    // Correction is saved as an In or Out of the difference, so it counts too.
+    let stockIn = 0;
+    let stockOut = 0;
+    (summary.stockMovements || []).forEach((movement) => {
+      if (String(movement.date || '').slice(0, 7) !== monthKey) return;
+      const qty = Number(movement.qty) || 0;
+      if (movement.type === 'in') stockIn += qty;
+      else stockOut += qty;
+    });
+    const total = derived.products.length;
+    const now = new Date();
+    const monthName = (key) => {
+      const [y, m] = String(key).split('-').map(Number);
+      return new Date(y, m - 1, 1).toLocaleDateString('en', { month: 'long' });
+    };
+    return {
+      total,
+      categoryCount: new Set(derived.products.map((product) => (product.category || 'Uncategorized').trim().toLowerCase())).size,
+      trackedCount: derived.products.filter((product) => product.inStockControl).length,
+      productsWithStock: derived.products.filter((product) => product.quantity > 0).length,
+      stockIn,
+      stockOut,
+      netChange: stockIn - stockOut,
+      hasEntriesThisMonth: stockIn + stockOut > 0,
+      healthyPct: total ? Math.round((derived.inStock / total) * 100) : null,
+      attention: derived.lowStock.length + derived.outOfStock.length,
+      soldThisMonth: current?.units || 0,
+      soldLastMonth: previous?.units || 0,
+      lastMonthName: previous ? monthName(previous.key) : '',
+      thisMonthName: current ? monthName(current.key) : '',
+      // Share of last month's total reached so far (only when last month had sales).
+      shareOfLastMonth: previous?.units ? Math.round(((current?.units || 0) / previous.units) * 100) : null,
+      dayOfMonth: now.getDate(),
+      daysInMonth: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
+    };
+  })();
+  // Stock Health colour: green when all fine, amber when only low, red when anything is out.
+  const healthTone = derived.outOfStock.length ? 'bad' : (derived.lowStock.length ? 'warn' : 'good');
+  const NetIcon = kpi.netChange > 0 ? TrendingUp : (kpi.netChange < 0 ? TrendingDown : Minus);
+  const netClass = kpi.netChange > 0 ? 'is-up' : (kpi.netChange < 0 ? 'is-down' : 'is-flat');
   const heroValues = derived.monthly.map((month) => month.units);
   const heroPeak = Math.max(0, ...heroValues);
   // Zero-based axis: the height of each point is its real share of the axis top.
@@ -492,38 +515,103 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
       <div className="dashboard-scroll-container">
         {error && <p role="alert">{error} Showing the last data loaded.</p>}
         <section className="db-kpi-row" aria-label="Inventory summary">
-          {KPI_CARDS.map(({ key, label, Icon, accent }, index) => (
-            key === 'lowStockItems' ? (
-              <div className="catalogStatus-card card db-tone db-tone-mist" key={key}>
-                <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Catalog Status</span></div><button className="db-open-arrow-btn" onClick={() => go('Product-Supplier')} aria-label="Open products" type="button"><OpenArrow /></button></div>
-                {derived.products.length > 0 ? <>
-                  <div className="db-catalog-total">{fmt(derived.products.length)} <span>SKUs</span></div>
-                  <div className="db-stack-bar">
-                    <span className="db-stack-seg" style={{ width: `${(derived.inStock / derived.products.length) * 100}%`, background: 'var(--accent-high)' }} />
-                    <span className="db-stack-seg" style={{ width: `${(derived.lowStock.length / derived.products.length) * 100}%`, background: 'var(--accent-med)' }} />
-                    <span className="db-stack-seg" style={{ width: `${(derived.outOfStock.length / derived.products.length) * 100}%`, background: 'var(--accent-low)' }} />
-                  </div>
-                  <div className="db-legend">
-                    <span className="db-legend-item"><i style={{ background: 'var(--accent-high)' }} />In stock {fmt(derived.inStock)}</span>
-                    <span className="db-legend-item"><i style={{ background: 'var(--accent-med)' }} />Low {fmt(derived.lowStock.length)}</span>
-                    <span className="db-legend-item"><i style={{ background: 'var(--accent-low)' }} />Out {fmt(derived.outOfStock.length)}</span>
-                  </div>
-                </> : <EmptyChart message="No products registered yet" />}
-              </div>
-            ) : (
-              <article className={`db-kpi-card db-kpi-${accent} db-tone db-tone-${KPI_TONES[index % KPI_TONES.length]}`} key={key}>
-                <span className="db-kpi-icon" aria-hidden="true"><Icon size={17} strokeWidth={1.8} /></span>
-                <span className="db-kpi-copy">
-                  <span className="db-kpi-label">{label}</span>
-                  <span className="db-kpi-value">
-                    {kpiValues[key] == null ? '—' : fmt(kpiValues[key])}
-                  </span>
+          {/* 1. Products — the size of the catalogue */}
+          <KpiTile
+            tone="gold"
+            Icon={Package}
+            label="Products"
+            value={fmt(kpi.total)}
+            unit={kpi.total === 1 ? 'product' : 'products'}
+            onClick={() => go('Product-Supplier')}
+            openLabel="Open Product & Supplier"
+          >
+            {kpi.total ? (
+              <>
+                <span className="db-kpi-pill">{fmt(kpi.categoryCount)} {kpi.categoryCount === 1 ? 'category' : 'categories'}</span>
+                <span className="db-kpi-note">{fmt(kpi.trackedCount)} tracked in Stock Control</span>
+              </>
+            ) : <span className="db-kpi-note">No products added yet</span>}
+          </KpiTile>
+
+          {/* 2. Stock on Hand — total units now, and how much it changed this month */}
+          <KpiTile
+            tone="blue"
+            Icon={Boxes}
+            label="Stock on Hand"
+            value={fmt(derived.totalStock)}
+            unit="units"
+            onClick={() => go('Stock')}
+            openLabel="Open Stock Control"
+          >
+            {kpi.hasEntriesThisMonth ? (
+              <>
+                <span className={`db-kpi-trend ${netClass}`}>
+                  <NetIcon size={12} strokeWidth={2.4} aria-hidden="true" />
+                  {kpi.netChange > 0 ? '+' : kpi.netChange < 0 ? '−' : ''}{fmt(Math.abs(kpi.netChange))} this month
                 </span>
-              </article>
-            )
-          ))}
+                <span className="db-kpi-note">In {fmt(kpi.stockIn)} · Out {fmt(kpi.stockOut)}</span>
+              </>
+            ) : (
+              <span className="db-kpi-note">
+                {fmt(kpi.productsWithStock)} of {fmt(kpi.total)} products have stock · no entries in {kpi.thisMonthName} yet
+              </span>
+            )}
+          </KpiTile>
+
+          {/* 3. Stock Health — share of products that are not low or out of stock */}
+          <KpiTile
+            tone={healthTone}
+            Icon={ShieldCheck}
+            label="Stock Health"
+            value={kpi.healthyPct == null ? '—' : `${kpi.healthyPct}%`}
+            unit={kpi.healthyPct == null ? '' : 'in stock'}
+            onClick={() => go('Reorder-Alerts')}
+            openLabel="Open Reorder List"
+          >
+            {kpi.total ? (
+              <>
+                <span className="db-kpi-bar" aria-hidden="true">
+                  {[['is-good', derived.inStock], ['is-warn', derived.lowStock.length], ['is-bad', derived.outOfStock.length]]
+                    .filter(([, count]) => count > 0)
+                    .map(([level, count]) => (
+                      <span key={level} className={`db-kpi-bar-seg ${level}`} style={{ width: `${(count / kpi.total) * 100}%` }} />
+                    ))}
+                </span>
+                <span className="db-kpi-legend">
+                  <span><i className="is-good" />{fmt(derived.inStock)} in stock</span>
+                  <span><i className="is-warn" />{fmt(derived.lowStock.length)} low</span>
+                  <span><i className="is-bad" />{fmt(derived.outOfStock.length)} out</span>
+                  {kpi.attention > 0 && <span className="db-kpi-pulse" aria-hidden="true" />}
+                </span>
+              </>
+            ) : <span className="db-kpi-note">No products to check yet</span>}
+          </KpiTile>
+
+          {/* 4. Units Sold This Month — compared with last month's full total */}
+          <KpiTile
+            tone="violet"
+            Icon={ShoppingBag}
+            label="Units Sold This Month"
+            value={fmt(kpi.soldThisMonth)}
+            unit="units"
+            onClick={() => go('Forecasting')}
+            openLabel="Open Forecasting"
+          >
+            {kpi.shareOfLastMonth != null ? (
+              <>
+                <span className="db-kpi-progress" aria-hidden="true">
+                  <span style={{ width: `${Math.min(100, kpi.shareOfLastMonth)}%` }} />
+                </span>
+                <span className="db-kpi-note">
+                  <strong>{fmt(kpi.shareOfLastMonth)}%</strong> of {kpi.lastMonthName}’s {fmt(kpi.soldLastMonth)} · day {kpi.dayOfMonth} of {kpi.daysInMonth}
+                </span>
+              </>
+            ) : (
+              <span className="db-kpi-note">No sales recorded in {kpi.lastMonthName} to compare · day {kpi.dayOfMonth} of {kpi.daysInMonth}</span>
+            )}
+          </KpiTile>
         </section>
-        <div className={`parent${isSuperAdmin ? '' : ' parent-without-user-accounts'}`}>
+        <div className={`parent db-grid${isSuperAdmin ? '' : ' parent-without-user-accounts'}`}>
           <div className="salesAnalytics-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
@@ -612,13 +700,6 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             </div>
           </div>
 
-          <div className="totalRevenue-card card db-tone db-tone-ink">
-            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Total Units Sold</span><span className="db-card-sub">Selected {range} months</span></div></div>
-            <div className="db-stat-value">{derived.hasSalesData ? fmt(derived.unitsSold) : '—'}</div>
-            {derived.hasSalesData && <span className="db-chip">≈ {fmt(heroAverage)} / month</span>}
-            <div className="db-spark-wrap"><SmoothArea values={derived.hasSalesData ? heroValues : []} gid="dbUnitsArea" /></div>
-          </div>
-
           {/* ===== REORDER SUGGESTIONS (demand-linked) =====
               Server-computed from next month's forecast, current stock, safety
               stock and lead time. Recommendations only — nothing is order. */}
@@ -675,78 +756,82 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             )}
           </div>
 
-          <div className="eoqActivity-card card">
+          {/* Supplier Coverage and Inventory by Category: two separate cards
+              in the right column beside Sales History. */}
+          <div className="coverage-card card">
             <button className="db-open-arrow-btn db-coverage-open-btn" onClick={() => go('Product-Supplier')} aria-label="Open suppliers" type="button"><OpenArrow /></button>
-            <div className="db-coverage-content">
-              <div className="db-coverage-section">
-                <div className="db-card-titles">
-                  <span className="db-card-title">Supplier Coverage</span>
-                  <span className="db-card-sub">Products linked to a supplier</span>
-                </div>
-                <div className="db-coverage-metrics">
-                  <div className="db-gauge-row db-coverage-row">
-                    <svg className="db-gauge-svg db-coverage-svg" viewBox="0 0 120 74" aria-label={`${derived.supplierCoverage}% supplier coverage`}>
-                      <path d={Arc({ cx: 60, cy: 60, radius: 46, start: 180, end: 360 })} fill="none" stroke="var(--static-bg-color)" strokeWidth="12" strokeLinecap="round" />
-                      <path d={supplierGauge} fill="none" stroke="var(--accent-high)" strokeWidth="12" strokeLinecap="round" />
-                      <text x="60" y="52" className="db-gauge-value db-coverage-value" textAnchor="middle">{derived.supplierCoverage}%</text>
-                      <text x="60" y="66" className="db-gauge-label db-coverage-label" textAnchor="middle">covered</text>
-                    </svg>
-                    <div className="db-gauge-stats db-coverage-stats">
-                      <div className="db-metric"><span className="db-metric-label">Suppliers</span><span className="db-metric-value">{fmt(summary.supplierCount)}</span></div>
-                      <div className="db-metric"><span className="db-metric-label">Unassigned</span><span className="db-metric-value">{fmt(derived.unassignedProducts)}</span></div>
-                    </div>
-                  </div>
-                  {derived.products.length === 0 && <span className="db-coverage-empty">No products assigned yet</span>}
-                </div>
+            <div className="db-coverage-section">
+              <div className="db-card-titles">
+                <span className="db-card-title">Supplier Coverage</span>
+                <span className="db-card-sub">Products linked to a supplier</span>
               </div>
-              <div className="db-category-section">
-                <div className="db-card-titles">
-                  <span className="db-card-title">Inventory by Category</span>
-                  <span className="db-card-sub">Products in each category</span>
+              <div className="db-coverage-metrics">
+                <div className="db-gauge-row db-coverage-row">
+                  <svg className="db-gauge-svg db-coverage-svg" viewBox="0 0 120 74" aria-label={`${derived.supplierCoverage}% supplier coverage`}>
+                    <path d={Arc({ cx: 60, cy: 60, radius: 46, start: 180, end: 360 })} fill="none" stroke="var(--static-bg-color)" strokeWidth="12" strokeLinecap="round" />
+                    <path d={supplierGauge} fill="none" stroke="var(--accent-high)" strokeWidth="12" strokeLinecap="round" />
+                    <text x="60" y="52" className="db-gauge-value db-coverage-value" textAnchor="middle">{derived.supplierCoverage}%</text>
+                    <text x="60" y="66" className="db-gauge-label db-coverage-label" textAnchor="middle">covered</text>
+                  </svg>
+                  <div className="db-gauge-stats db-coverage-stats">
+                    <div className="db-metric"><span className="db-metric-label">Suppliers</span><span className="db-metric-value">{fmt(summary.supplierCount)}</span></div>
+                    <div className="db-metric"><span className="db-metric-label">Unassigned</span><span className="db-metric-value">{fmt(derived.unassignedProducts)}</span></div>
+                  </div>
                 </div>
-                <div className="db-category-metrics">
-                  {derived.products.length ? (
-                    <div className="db-donut-row" onMouseLeave={() => setActiveCategory(null)}>
-                      <svg className="db-donut-svg db-rose-svg" viewBox="-4 -4 128 128" aria-label="Inventory by category">
-                        {derived.donut.map((segment) => (
-                          <path
-                            key={segment.name}
-                            className={`db-rose-slice${activeCategory === segment.name ? ' is-active' : ''}${activeCategory && activeCategory !== segment.name ? ' is-dimmed' : ''}`}
-                            d={segment.path}
-                            fill={segment.color}
-                            onMouseEnter={() => setActiveCategory(segment.name)}
+                {derived.products.length === 0 && <span className="db-coverage-empty">No products assigned yet</span>}
+              </div>
+            </div>
+          </div>
+
+          <div className="category-card card">
+            <button className="db-open-arrow-btn db-coverage-open-btn" onClick={() => go('Product-Supplier')} aria-label="Open products" type="button"><OpenArrow /></button>
+            <div className="db-category-section">
+              <div className="db-card-titles">
+                <span className="db-card-title">Inventory by Category</span>
+                <span className="db-card-sub">Products in each category</span>
+              </div>
+              <div className="db-category-metrics">
+                {derived.products.length ? (
+                  <div className="db-donut-row" onMouseLeave={() => setActiveCategory(null)}>
+                    <svg className="db-donut-svg db-rose-svg" viewBox="-4 -4 128 128" aria-label="Inventory by category">
+                      {derived.donut.map((segment) => (
+                        <path
+                          key={segment.name}
+                          className={`db-rose-slice${activeCategory === segment.name ? ' is-active' : ''}${activeCategory && activeCategory !== segment.name ? ' is-dimmed' : ''}`}
+                          d={segment.path}
+                          fill={segment.color}
+                          onMouseEnter={() => setActiveCategory(segment.name)}
+                        >
+                          <title>{`${segment.name}: ${fmt(segment.count)} (${segment.pctLabel})`}</title>
+                        </path>
+                      ))}
+                      {derived.donut.filter((segment) => segment.pct >= 0.06).map((segment) => (
+                        <g key={`${segment.name}-tag`} className="db-rose-tag" transform={`translate(${segment.labelX} ${segment.labelY})`}>
+                          <rect x="-13" y="-7" width="26" height="14" rx="7" />
+                          <text x="0" y="0.4" textAnchor="middle" dominantBaseline="middle">{segment.pctLabel}</text>
+                        </g>
+                      ))}
+                    </svg>
+                    <div className="db-donut-details">
+                      <strong className="db-donut-total">{fmt(derived.products.length)} products</strong>
+                      <div className="db-legend db-legend-col">
+                        {derived.categories.map((category) => (
+                          <span
+                            key={category.name}
+                            className={`db-legend-item db-category-legend-item${activeCategory === category.name ? ' is-active' : ''}${activeCategory && activeCategory !== category.name ? ' is-dimmed' : ''}`}
+                            style={{ '--category-color': category.color }}
+                            title={`${category.name}: ${fmt(category.count)}`}
+                            onMouseEnter={() => setActiveCategory(category.name)}
                           >
-                            <title>{`${segment.name}: ${fmt(segment.count)} (${segment.pctLabel})`}</title>
-                          </path>
+                            <i style={{ background: category.color }} />
+                            <span className="db-legend-name">{category.name}</span>
+                            <span className="db-legend-count">{fmt(category.count)}</span>
+                          </span>
                         ))}
-                        {derived.donut.filter((segment) => segment.pct >= 0.06).map((segment) => (
-                          <g key={`${segment.name}-tag`} className="db-rose-tag" transform={`translate(${segment.labelX} ${segment.labelY})`}>
-                            <rect x="-13" y="-7" width="26" height="14" rx="7" />
-                            <text x="0" y="0.4" textAnchor="middle" dominantBaseline="middle">{segment.pctLabel}</text>
-                          </g>
-                        ))}
-                      </svg>
-                      <div className="db-donut-details">
-                        <strong className="db-donut-total">{fmt(derived.products.length)} products</strong>
-                        <div className="db-legend db-legend-col">
-                          {derived.categories.map((category) => (
-                            <span
-                              key={category.name}
-                              className={`db-legend-item db-category-legend-item${activeCategory === category.name ? ' is-active' : ''}${activeCategory && activeCategory !== category.name ? ' is-dimmed' : ''}`}
-                              style={{ '--category-color': category.color }}
-                              title={`${category.name}: ${fmt(category.count)}`}
-                              onMouseEnter={() => setActiveCategory(category.name)}
-                            >
-                              <i style={{ background: category.color }} />
-                              <span className="db-legend-name">{category.name}</span>
-                              <span className="db-legend-count">{fmt(category.count)}</span>
-                            </span>
-                          ))}
-                        </div>
                       </div>
                     </div>
-                  ) : <EmptyChart message="No products to group yet" />}
-                </div>
+                  </div>
+                ) : <EmptyChart message="No products to group yet" />}
               </div>
             </div>
           </div>
@@ -791,34 +876,6 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             ) : <EmptyChart message="No sales recorded in this period" />}
           </div>
 
-          <div className="lowStockalerts-card card">
-            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Stock Alerts</span><span className="db-card-sub">{derived.outOfStock.length + derived.lowStock.length} products at or below reorder level</span></div><button className="db-open-arrow-btn" onClick={() => go('Stock')} aria-label="Open Stock Control" type="button"><OpenArrow /></button></div>
-            <div className="db-stack-bar db-stack-bar-sm">
-              {(derived.outOfStock.length + derived.lowStock.length) > 0 && <>
-                <span className="db-stack-seg" style={{ width: `${(derived.outOfStock.length / (derived.outOfStock.length + derived.lowStock.length)) * 100}%`, background: 'var(--accent-low)' }} />
-                <span className="db-stack-seg" style={{ width: `${(derived.lowStock.length / (derived.outOfStock.length + derived.lowStock.length)) * 100}%`, background: 'var(--accent-med)' }} />
-              </>}
-            </div>
-            <div className="db-alert-list">
-              {derived.alerts.length ? derived.alerts.slice(0, LIST_LIMIT).map((product) => (
-                <button
-                  key={product.id}
-                  type="button"
-                  className={`db-alert-row db-alert-${product.level} db-alert-clickable`}
-                  onClick={() => go('Stock', { highlightProductId: product.id })}
-                  title={`View ${product.name} in Stock Control`}
-                >
-                  <span className="db-alert-dot" /><span className="db-alert-name">{product.name}</span>
-                  <span className="db-alert-qty">{product.level === 'out' ? 'Out of stock' : `${fmt(product.quantity)} left${product.level === 'critical' ? ' · below safety' : ''}`}</span>
-                </button>
-              )) : <span className="db-card-sub">No products need attention.</span>}
-              {derived.alerts.length > LIST_LIMIT && (
-                <button type="button" className="db-list-more" onClick={() => go('Stock')}>
-                  View all {fmt(derived.alerts.length)} in Stock Control →
-                </button>
-              )}
-            </div>
-          </div>
 
         </div>
       </div>

@@ -346,7 +346,9 @@ class SalesForecastTest extends TestCase
             ->assertJsonPath('status', 'Paused');
 
         $this->deleteJson('/api/seasonal-events/'.$created['id'])->assertOk();
-        $this->assertDatabaseCount('seasonal_events', 0);
+        // Deleting moves it to the Trash Bin (soft delete); it no longer counts.
+        $this->assertSame(0, \App\Models\SeasonalEvent::count());
+        $this->assertSame(1, \App\Models\SeasonalEvent::onlyTrashed()->count());
     }
 
     public function test_seasonal_event_validation(): void

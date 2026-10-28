@@ -1,13 +1,27 @@
 import './index.css';
+import './login.css';
 import { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import {
+    ArrowRight, Boxes, Eye, EyeOff, LineChart, Lock, Mail, PackageCheck, ShieldCheck, TriangleAlert,
+} from 'lucide-react';
 import ResetPass from './ResetPass/resetPass';
+
+/* ===== LOGIN =====
+   Same sign-in as before (POST /auth/login, then onLogin(user)); only the
+   page design changed. Left: the system's name and what it does. Right: the
+   sign-in form. On phones the left panel shrinks to a short banner. */
+const FEATURES = [
+    { Icon: Boxes, title: 'Stock Control', text: 'Every Stock In, Stock Out and correction, by user and date.' },
+    { Icon: LineChart, title: 'Sales Forecasting', text: 'Weighted Moving Average forecast with seasonal adjustments.' },
+    { Icon: PackageCheck, title: 'Smart Reordering', text: 'Reorder points and Economic Order Quantity for every product.' },
+];
 
 function Login({ onLogin }) {
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showPasswordReset, setShowPasswordReset] = useState(false);
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+    const [capsLockOn, setCapsLockOn] = useState(false);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -49,85 +63,131 @@ function Login({ onLogin }) {
             onLogin(data.user);
         } catch (requestError) {
             console.error('Login request failed:', requestError);
-            setError('Hindi makakonekta sa server. Pakisubukan ulit.');
+            setError('Can’t reach the server. Check that Laragon is running, then try again.');
         } finally {
             setIsSubmitting(false);
         }
     }
 
+    const watchCapsLock = (event) => {
+        if (typeof event.getModifierState === 'function') setCapsLockOn(event.getModifierState('CapsLock'));
+    };
+
     return (
-        <div className = "Login-page-wrapper">
-            <div className="Login-box">
-                <div className="Design-side">
-            
-                    <div className="Design-overlay">
-                        
+        <div className="lg-page">
+            <div className="lg-shell">
+                {/* ===== BRAND PANEL ===== */}
+                <aside className="lg-brand" aria-label="About the system">
+                    <div className="lg-brand-grid" aria-hidden="true" />
+                    <div className="lg-brand-glow" aria-hidden="true" />
+
+                    <div className="lg-brand-top">
+                        <span className="lg-mark" aria-hidden="true"><Boxes size={20} strokeWidth={2} /></span>
+                        <span className="lg-brand-name">
+                            <strong>Global Growth Guide</strong>
+                            <small>Inventory Management System</small>
+                        </span>
                     </div>
-                </div>
 
-                <div className="Login-side">
-                    <div className="WelcomeText">
-                        <h2><b>Welcome back</b></h2>
-                        <p>Sign in to your account to continue.</p>
+                    <div className="lg-brand-copy">
+                        <h1>Know your stock.<br /><span>Order before you run out.</span></h1>
+                        <p>One place for products, stock, sales forecasts and reorder suggestions.</p>
                     </div>
 
-                    <form className="Login-form" onSubmit={handleSubmit}>
-                        <div className="input-group">
-                            <label htmlFor="email">Email</label>
-                            <div className="input-icon">
-                                <i className="fa-solid fa-user"></i>
-                                <input
-                                    id="email"
-                                    type="email"
-                                    className="input-field"
-                                    name="email"
-                                    placeholder="Enter your email"
-                                    autoComplete="username"
-                                    required
-                                />
+                    <ul className="lg-features">
+                        {FEATURES.map(({ Icon, title, text }) => (
+                            <li key={title}>
+                                <span className="lg-feature-icon" aria-hidden="true"><Icon size={15} /></span>
+                                <span>
+                                    <strong>{title}</strong>
+                                    <small>{text}</small>
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+
+                    <p className="lg-brand-foot">© {new Date().getFullYear()} Global Growth Guide</p>
+                </aside>
+
+                {/* ===== SIGN-IN FORM ===== */}
+                <main className="lg-form-side">
+                    <div className="lg-form-wrap">
+                        <header className="lg-heading">
+                            <span className="lg-eyebrow"><ShieldCheck size={12} aria-hidden="true" /> Secure sign-in</span>
+                            <h2>Welcome back</h2>
+                            <p>Sign in with your work email to continue.</p>
+                        </header>
+
+                        <form className="lg-form" onSubmit={handleSubmit} noValidate={false}>
+                            <div className="lg-field">
+                                <label htmlFor="email">Email</label>
+                                <div className="lg-input">
+                                    <Mail size={16} aria-hidden="true" className="lg-input-icon" />
+                                    <input
+                                        id="email"
+                                        type="email"
+                                        name="email"
+                                        placeholder="name@company.com"
+                                        autoComplete="username"
+                                        autoFocus
+                                        required
+                                    />
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="input-group">
-                            <label htmlFor="password">Password</label>
-                            <div className="input-icon">
-                                <i className="fa-solid fa-lock"></i>
-                                <input
-                                    id="password"
-                                    type={isPasswordVisible ? 'text' : 'password'}
-                                    className="input-field"
-                                    name="password"
-                                    placeholder="Enter your password"
-                                    autoComplete="current-password"
-                                    required
-                                />
-                                <button
-                                    type="button"
-                                    className="Password-visibility-toggle"
-                                    onClick={() => setIsPasswordVisible((visible) => !visible)}
-                                    aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
-                                    aria-pressed={isPasswordVisible}
-                                >
-                                    {isPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
-                                </button>
+                            <div className="lg-field">
+                                <div className="lg-label-row">
+                                    <label htmlFor="password">Password</label>
+                                    <button type="button" className="lg-link" onClick={() => setShowPasswordReset(true)}>
+                                        Forgot password?
+                                    </button>
+                                </div>
+                                <div className="lg-input">
+                                    <Lock size={16} aria-hidden="true" className="lg-input-icon" />
+                                    <input
+                                        id="password"
+                                        type={isPasswordVisible ? 'text' : 'password'}
+                                        name="password"
+                                        placeholder="Enter your password"
+                                        autoComplete="current-password"
+                                        onKeyUp={watchCapsLock}
+                                        onKeyDown={watchCapsLock}
+                                        onBlur={() => setCapsLockOn(false)}
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        className="lg-eye"
+                                        onClick={() => setIsPasswordVisible((visible) => !visible)}
+                                        aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
+                                        aria-pressed={isPasswordVisible}
+                                    >
+                                        {isPasswordVisible ? <EyeOff size={17} /> : <Eye size={17} />}
+                                    </button>
+                                </div>
+                                {capsLockOn && (
+                                    <small className="lg-caps" role="status"><TriangleAlert size={12} aria-hidden="true" /> Caps Lock is on</small>
+                                )}
                             </div>
-                        </div>
 
-                        {error && <p className="Login-error" role="alert">{error}</p>}
+                            {error && (
+                                <p className="lg-error" role="alert"><TriangleAlert size={14} aria-hidden="true" /> {error}</p>
+                            )}
 
-                        <button
-                            type="button"
-                            className="ForgetPassword"
-                            onClick={() => setShowPasswordReset(true)}
-                        >
-                            Forgot your password?
-                        </button>
+                            <button type="submit" className="lg-submit" disabled={isSubmitting}>
+                                {isSubmitting ? (
+                                    <><span className="lg-spinner" aria-hidden="true" /> Signing in…</>
+                                ) : (
+                                    <>Sign in <ArrowRight size={16} aria-hidden="true" className="lg-submit-arrow" /></>
+                                )}
+                            </button>
+                        </form>
 
-                        <button type="submit" className="Login-button" disabled={isSubmitting}>
-                            <b><span>{isSubmitting ? 'Signing in...' : 'Login'}</span></b>
-                        </button>
-                    </form>
-                </div>
+                        <p className="lg-help">
+                            No account yet? Ask your Super Admin to create one in <b>Staffs</b>.
+                        </p>
+                    </div>
+                </main>
             </div>
             {showPasswordReset && (
                 <ResetPass onBack={() => setShowPasswordReset(false)} />
@@ -135,7 +195,5 @@ function Login({ onLogin }) {
         </div>
     );
 }
-
-
 
 export default Login;

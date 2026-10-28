@@ -317,7 +317,7 @@ class ProductController extends Controller
             return null;
         }
 
-        return (int) (Supplier::where('name', $name)->value('id') ?? 0);
+        return (int) (Supplier::withTrashed()->where('name', $name)->value('id') ?? 0);
     }
 
     private function resolveSupplier(array $data): ?Supplier
@@ -325,6 +325,17 @@ class ProductController extends Controller
         $name = $data['supplierName'] ?? null;
         if (! $name) {
             return null;
+        }
+
+        // Typing the name of a supplier that is in the Trash Bin brings it
+        // back instead of failing on the duplicate name.
+        $trashed = Supplier::onlyTrashed()->where('name', $name)->first();
+        if ($trashed) {
+            $trashed->restore();
+            $trashed->forceFill(['deleted_by' => null, 'deleted_by_name' => null])->save();
+            \App\Models\ActivityLog::record('trash.restore', "Restored supplier from the Trash Bin (used on a product) — {$name}", 'users', ['supplier' => $name]);
+
+            return $trashed;
         }
 
         return Supplier::firstOrCreate(

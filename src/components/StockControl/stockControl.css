@@ -2140,3 +2140,65 @@
         box-shadow: none;
     }
 }
+
+/*==========TABS: Stock | History==========*/
+.sc-view-tabs {
+    display: inline-flex;
+    gap: 4px;
+    padding: 4px;
+    margin: 0 0 8px;
+    background: var(--static-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+.sc-view-tabs button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: transparent;
+    border: 0;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+.sc-view-tabs button:hover { color: var(--text-primary); }
+.sc-view-tabs button.is-active { color: var(--btn-fill-text, #0B1426); background: var(--btn-fill-bg, var(--accent)); }
+.sc-view-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/*==========QTY: typeable number between − and +==========*/
+.sc-qty-typed { flex-wrap: wrap; justify-content: center; }
+.sc-qty-input {
+    width: 3.2rem;
+    height: 1.5rem;
+    padding: 0 0.25rem;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    color: var(--text-primary);
+    background: var(--input-bg, var(--static-bg-color));
+    border: 1px solid var(--border-strong);
+    border-radius: 0.4rem;
+    font-variant-numeric: tabular-nums;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.sc-qty-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring, rgba(232, 197, 71, 0.14)); }
+.sc-qty-input.sc-in { border-color: var(--accent-high); }
+.sc-qty-input.sc-out { border-color: #ff4d4d; }
+.sc-qty-input.is-count { border-color: var(--accent); }
+.sc-qty-hint { flex-basis: 100%; text-align: center; font-size: 10px; font-weight: 700; }
+
+/*==========HISTORY TAB (read-only)==========*/
+@media (min-width: 901px) {
+    .sc-history-table th.sc-th-left,
+    .sc-history-table tbody td.sc-td-left { text-align: left; }
+}
+@media (max-width: 640px) {
+    .sc-view-tabs { display: flex; }
+    .sc-view-tabs button { flex: 1; justify-content: center; }
+}

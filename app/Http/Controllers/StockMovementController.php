@@ -395,6 +395,8 @@ class StockMovementController extends Controller
             'totalQty'       => $movement->product?->stock_on_hand ?? $movement->remaining_stock,
             'notes'          => $movement->notes,
             'recordedBy'     => $movement->recorded_by,
+            // When it was recorded (date + time) — Stock Control → History.
+            'createdAt'      => $movement->created_at?->toIso8601String(),
         ];
     }
 }

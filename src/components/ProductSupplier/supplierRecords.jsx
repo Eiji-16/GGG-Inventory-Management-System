@@ -357,9 +357,9 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
                   ? <>You’re about to delete <strong>{confirmTarget.name}</strong>. </>
                   : <>You’re about to delete the selected suppliers. </>}
                 {linkedProductCount(confirmTarget.ids) > 0 && (
-                  <>{linkedProductCount(confirmTarget.ids)} linked product{linkedProductCount(confirmTarget.ids) !== 1 ? 's' : ''} will be kept but will no longer have a supplier. </>
+                  <>{linkedProductCount(confirmTarget.ids)} linked product{linkedProductCount(confirmTarget.ids) !== 1 ? 's' : ''} will show no supplier until it is restored. </>
                 )}
-                This can’t be undone.
+                It moves to the Trash Bin, where it can be restored.
               </p>
               {deleteError && <p className="ps-export-error" role="alert">{deleteError}</p>}
             </div>

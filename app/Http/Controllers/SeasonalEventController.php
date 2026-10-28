@@ -82,8 +82,12 @@ class SeasonalEventController extends Controller
     public function destroy(SeasonalEvent $seasonalEvent): JsonResponse
     {
         $name = $seasonalEvent->name;
-        $seasonalEvent->delete();
-        ActivityLog::record('seasonal.delete', "Deleted seasonal event — {$name}", 'calendar', ['event' => $name]);
+        $seasonalEvent->forceFill([
+            'deleted_by' => request()->user()?->id,
+            'deleted_by_name' => request()->user()?->name,
+        ])->save();
+        $seasonalEvent->delete();   // to the Trash Bin; forecasts ignore it until restored
+        ActivityLog::record('seasonal.delete', "Moved seasonal event to the Trash Bin — {$name}", 'calendar', ['event' => $name]);
 
         return response()->json(['deleted' => true]);
     }

@@ -1342,7 +1342,7 @@ export default function DemandForecastDesign({
                   </div>
                 </header>
                 <div className="f-event-modal-body">
-                  <p className="f-reset-description">Forecasts will no longer include this event’s {formatSigned(deleteTarget.adjustmentPct, 0)}% adjustment.</p>
+                  <p className="f-reset-description">Forecasts will no longer include this event’s {formatSigned(deleteTarget.adjustmentPct, 0)}% adjustment. It moves to the Trash Bin, where it can be restored.</p>
                   <footer className="f-event-modal-footer">
                     <button type="button" className="f-btn f-btn-ghost f-btn-sm" onClick={() => setDeleteTarget(null)} disabled={deletingEvent}>Cancel</button>
                     <button type="button" className="f-btn f-btn-sm f-reset-confirm" onClick={deleteEvent} disabled={deletingEvent}>

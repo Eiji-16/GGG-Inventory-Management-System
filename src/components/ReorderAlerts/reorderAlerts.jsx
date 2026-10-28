@@ -6,6 +6,7 @@ import './reorderAlerts.css';
 import { reorderPointFor, safetyPointFor, statusPointsFor, SAFETY_STOCK_DEFAULTS } from '../../data/safetyStock';
 import { buildForecastHandoff } from '../../utils/forecastHandoff';
 import BulkOrder from './bulkOrder';
+import ReceiveDelivery from './ReceiveDelivery';
 import MobileSelectBar from '../MobileSelectBar/MobileSelectBar';
 import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
 
@@ -22,7 +23,9 @@ export default function ReorderAlerts({
   canComputeEoq = true,
   canNotify = false,
   canManageRequests = false,
+  canReceive = false,
   onRequestsChanged,
+  onStockChanged,
 }) {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +36,9 @@ export default function ReorderAlerts({
   // Bulk order: products ticked in the table, and the open Bulk Order window.
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkItems, setBulkItems] = useState(null);
+  // "Mark as received": the product whose delivery is being recorded.
+  const [receiveItem, setReceiveItem] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   /* ===== RESTOCK REQUESTS (Staff "Notify") ===== */
   const [requests, setRequests] = useState([]);          // open requests
@@ -124,7 +130,21 @@ export default function ReorderAlerts({
       .catch((loadError) => { if (active) setError(loadError.message || 'Could not load products.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [catalogRevision]);
+  }, [catalogRevision, reloadKey]);
+
+  /* A delivery was recorded as a Stock In: show a message, reload the list
+     (the product drops off once it is above its low-stock level) and tell
+     the rest of the app that stock changed. */
+  const handleReceived = ({ id, name, qty, merged }) => {
+    setReceiveItem(null);
+    setNotice(merged
+      ? `Received ${qty} × ${name}. It was added to today's Stock In entry in Stock Control.`
+      : `Received ${qty} × ${name}. A Stock In was recorded in Stock Control.`);
+    setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+    // The app-wide refresh also reloads this list; reload here only when
+    // this page is used on its own.
+    if (onStockChanged) onStockChanged(); else setReloadKey((key) => key + 1);
+  };
 
   // Only products that already have a stock entry ("tracked") can be alerts —
   // the same rule as the Dashboard card, the bell and the sidebar badge.
@@ -182,6 +202,14 @@ export default function ReorderAlerts({
     return next;
   });
   const columnCount = canComputeEoq ? 8 : 7;
+  /* Bulk order is for 2 or more products; one product uses "Order Now". */
+  const BULK_MIN = 2;
+  const canBulk = selectedAlerts.length >= BULK_MIN;
+  const bulkHint = selectedAlerts.length === 0
+    ? `Tick at least ${BULK_MIN} products in the table first`
+    : selectedAlerts.length < BULK_MIN
+      ? 'Bulk order needs at least 2 products — for one product, use “Order Now” on its row'
+      : 'Work out the order quantity for every ticked product';
 
   /* Order Now sends the product's forecast demand (WMA + seasonal, per month
      × 12) to the EOQ Calculator. If no forecast is possible yet, it falls back
@@ -267,10 +295,10 @@ export default function ReorderAlerts({
             {canComputeEoq && (
               <button
                 type="button"
-                className={`ra-order-btn is-urgent ra-bulk-btn${selectedAlerts.length ? ' is-ready' : ''}`}
-                onClick={() => setBulkItems(selectedAlerts)}
-                disabled={selectedAlerts.length === 0}
-                title={selectedAlerts.length ? 'Work out the order quantity for every ticked product' : 'Tick products in the table first'}
+                className={`ra-order-btn is-urgent ra-bulk-btn${canBulk ? ' is-ready' : ''}`}
+                onClick={() => { if (canBulk) setBulkItems(selectedAlerts); }}
+                disabled={!canBulk}
+                title={bulkHint}
               >
                 <ShoppingCart size={13} aria-hidden="true" className="ra-bulk-cart" /> Bulk order
                 {/* key = count, so the number "pops" each time a product is ticked */}
@@ -284,6 +312,11 @@ export default function ReorderAlerts({
           </div>
         </div>
 
+        {canComputeEoq && selectedAlerts.length === 1 && (
+          <p className="ra-bulk-hint" role="status">
+            1 product ticked. Bulk order needs at least {BULK_MIN} — tick another product, or use “Order Now” on its row.
+          </p>
+        )}
         {error && <p className="ra-error" role="alert">{error}</p>}
         {notice && (
           <p className="ra-notice" role="status">
@@ -374,6 +407,11 @@ export default function ReorderAlerts({
                           <Calculator size={13} aria-hidden="true" /> {orderingId === item.id ? 'Loading forecast…' : 'Order Now'}
                         </button>
                       )}
+                      {canReceive && (
+                        <button type="button" className="ra-order-btn ra-receive-btn" onClick={() => setReceiveItem(item)} title="The delivery arrived: record it as a Stock In">
+                          <PackageCheck size={13} aria-hidden="true" /> Received
+                        </button>
+                      )}
                       {canManageRequests && requestByProduct[item.id] && (
                         <button type="button" className="ra-order-btn" onClick={() => markDone(requestByProduct[item.id])} title="Close this restock request">
                           <Check size={13} aria-hidden="true" /> Mark done
@@ -386,7 +424,7 @@ export default function ReorderAlerts({
                           <BellRing size={13} aria-hidden="true" /> Notify
                         </button>
                       ))}
-                      {!canComputeEoq && !canNotify && !canManageRequests && <span className="ra-muted">—</span>}
+                      {!canComputeEoq && !canNotify && !canManageRequests && !canReceive && <span className="ra-muted">—</span>}
                     </span>
                   </td>
                 </tr>
@@ -418,6 +456,13 @@ export default function ReorderAlerts({
           </div>,
           document.body,
         )}
+        {receiveItem && (
+          <ReceiveDelivery
+            item={receiveItem}
+            onClose={() => setReceiveItem(null)}
+            onReceived={handleReceived}
+          />
+        )}
         {bulkItems && (
           <BulkOrder
             items={bulkItems}
@@ -425,7 +470,8 @@ export default function ReorderAlerts({
             onSaved={() => setSelectedIds(new Set())}
           />
         )}
-        <p className="ra-help">Tick several products and press “Bulk order” to work out all their order quantities at once (same method as “Order Now”, for each product).</p>
+        <p className="ra-help">Ordering happens outside the system. When a delivery arrives, press “Received”: it records a Stock In with the Economic Order Quantity and the last unit price filled in (both can be changed), and the product leaves this list once its stock is above the low-stock level.</p>
+        <p className="ra-help">Tick 2 or more products and press “Bulk order” to work out all their order quantities at once (same method as “Order Now”, for each product).</p>
         <p className="ra-help">“Order Now” opens the Economic Order Quantity Calculator with this product’s forecast annual demand (next month’s weighted moving average forecast, seasonal adjustment included, × 12). If there isn’t enough sales history to forecast yet, it uses the last 12 months of actual sales instead.</p>
       </div>
     </div>

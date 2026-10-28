@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\Product;
+use App\Models\SeasonalEvent;
 use App\Models\StockMovement;
+use App\Models\Supplier;
 use App\Services\ProductPhotoService;
 use App\Services\StockMovementService;
 use Illuminate\Http\JsonResponse;
@@ -15,7 +17,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Trash Bin — deleted products and stock entries.
+ * Trash Bin — deleted products, stock entries, suppliers and seasonal events.
  *
  * Deleting never erases anything right away: it moves the item here
  * (soft delete) with who deleted it and when. From here an allowed user
@@ -26,6 +28,12 @@ use Illuminate\Validation\ValidationException;
  * DELETE /api/trash/products/{code}                  permanently delete a product
  * POST   /api/trash/stock-movements/{id}/restore     restore one stock entry
  * DELETE /api/trash/stock-movements/{id}             permanently delete one stock entry
+ * POST   /api/trash/suppliers/{id}/restore           restore a supplier
+ * DELETE /api/trash/suppliers/{id}                   permanently delete a supplier
+ * POST   /api/trash/seasonal-events/{id}/restore     restore a seasonal event
+ * DELETE /api/trash/seasonal-events/{id}             permanently delete a seasonal event
+ * POST   /api/trash/bulk                             restore / delete several at once
+ * DELETE /api/trash                                  empty the whole Trash Bin (password)
  */
 class TrashBinController extends Controller
 {
@@ -33,111 +41,55 @@ class TrashBinController extends Controller
     {
     }
 
+    /** The kinds of things that can be in the Trash Bin (tab order on screen). */
+    public const KINDS = ['product', 'entry', 'supplier', 'event'];
+
     public function index(Request $request): JsonResponse
     {
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:200'],
+            'kind' => ['nullable', 'string', 'in:all,'.implode(',', self::KINDS)],
+            'deleted_by' => ['nullable', 'string', 'max:255'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
         $search = mb_strtolower(trim($filters['search'] ?? ''));
+        $kind = $filters['kind'] ?? 'all';
+        $deletedBy = $filters['deleted_by'] ?? null;
         $perPage = (int) ($filters['per_page'] ?? 50);
 
-        $products = DB::table('products')
-            ->whereNotNull('products.deleted_at')
-            ->selectRaw(
-                "'product' as kind, 'Product' as type, products.code as record_id,
-                products.deleted_at as deleted_at, products.deleted_by_name as deleted_by,
-                products.name as product_name, products.code as product_identifier,
-                products.category as category, products.brand as brand,
-                NULL as variant_name, NULL as movement_type, NULL as movement_label,
-                0 as is_adjustment, products.stock_on_hand as qty, products.unit_cost as unit_price,
-                products.deleted_at as movement_date, NULL as recorded_by, NULL as notes,
-                1 as product_in_trash, 0 as with_product, 0 as product_missing"
-            );
+        $all = $this->allRecords();
 
-        $entries = DB::table('stock_movements')
-            ->leftJoin('products', 'products.id', '=', 'stock_movements.product_id')
-            ->whereNotNull('stock_movements.deleted_at')
-            ->selectRaw(
-                "'entry' as kind, 'Stock Entry' as type, stock_movements.id as record_id,
-                stock_movements.deleted_at as deleted_at, stock_movements.deleted_by_name as deleted_by,
-                COALESCE(products.name, stock_movements.product_name) as product_name,
-                products.code as product_identifier,
-                COALESCE(products.category, stock_movements.product_category) as category,
-                NULL as brand, stock_movements.variant_name as variant_name,
-                stock_movements.movement_type as movement_type,
-                CASE WHEN stock_movements.is_adjustment = 1 THEN 'Adjustment'
-                     WHEN stock_movements.movement_type = 'in' THEN 'Stock In'
-                     ELSE 'Stock Out' END as movement_label,
-                stock_movements.is_adjustment as is_adjustment, stock_movements.qty as qty,
-                stock_movements.unit_price as unit_price, stock_movements.movement_date as movement_date,
-                stock_movements.recorded_by as recorded_by, stock_movements.notes as notes,
-                CASE WHEN products.deleted_at IS NOT NULL THEN 1 ELSE 0 END as product_in_trash,
-                stock_movements.deleted_with_product as with_product,
-                CASE WHEN products.id IS NULL THEN 1 ELSE 0 END as product_missing"
-            );
-
-        $records = $products->unionAll($entries);
-        $query = DB::query()->fromSub($records, 'trash_records');
-        if ($search !== '') {
-            $like = '%'.$search.'%';
-            $query->where(function ($filtered) use ($like): void {
-                foreach ([
-                    'type', 'record_id', 'deleted_at', 'deleted_by', 'product_name', 'product_identifier',
-                    'category', 'brand', 'variant_name', 'movement_type', 'movement_label',
-                    'qty', 'unit_price', 'movement_date', 'recorded_by', 'notes',
-                ] as $column) {
-                    $filtered->orWhereRaw("LOWER(COALESCE(CAST({$column} AS CHAR), '')) LIKE ?", [$like]);
-                }
-            });
+        // Counts per tab and the people who deleted things (for the filters),
+        // worked out before the tab/search filters so the tabs show totals.
+        $counts = array_fill_keys(self::KINDS, 0);
+        foreach ($all as $record) {
+            $counts[$record['kind']]++;
         }
+        $deleters = $all->pluck('deletedBy')->filter()->unique()->sort()->values();
 
-        $total = (clone $query)->count();
+        $filtered = $all
+            ->when($kind !== 'all', fn ($records) => $records->where('kind', $kind))
+            ->when($deletedBy, fn ($records) => $records->where('deletedBy', $deletedBy))
+            ->when($search !== '', fn ($records) => $records->filter(
+                fn (array $record) => str_contains($record['_search'], $search)
+            ))
+            ->sortByDesc(fn (array $record) => $record['deletedAt'].'|'.str_pad((string) $record['id'], 12, '0', STR_PAD_LEFT))
+            ->values();
+
+        $total = $filtered->count();
         $lastPage = max(1, (int) ceil($total / $perPage));
         $page = min((int) ($filters['page'] ?? 1), $lastPage);
-        $rows = $query
-            ->orderByDesc('deleted_at')
-            ->orderBy('kind')
-            ->orderByDesc('record_id')
-            ->offset(($page - 1) * $perPage)
-            ->limit($perPage)
-            ->get();
 
         return response()->json([
-            'records' => $rows->map(function ($row): array {
-                $isProduct = $row->kind === 'product';
-                $deletedAt = Carbon::parse($row->deleted_at);
-                $movementLabel = $row->movement_label;
-                $change = $row->movement_type === 'in' ? (int) $row->qty : -(int) $row->qty;
+            'records' => $filtered->slice(($page - 1) * $perPage, $perPage)
+                ->map(function (array $record): array {
+                    unset($record['_search']);
 
-                return [
-                    'kind' => $row->kind,
-                    'id' => $row->record_id,
-                    'type' => $row->type,
-                    'date' => $deletedAt->toDateString(),
-                    'productName' => $row->product_name,
-                    'productId' => $row->product_identifier,
-                    'category' => $row->category,
-                    'variantName' => $row->variant_name,
-                    'details' => $isProduct ? [
-                        'brand' => $row->brand,
-                        'stockOnHand' => (int) $row->qty,
-                    ] : [
-                        'movementType' => $movementLabel,
-                        'quantity' => $change,
-                        'unitPrice' => $row->unit_price !== null ? (float) $row->unit_price : null,
-                        'movementDate' => $row->movement_date,
-                        'recordedBy' => $row->recorded_by,
-                        'notes' => $row->notes,
-                    ],
-                    'deletedBy' => $row->deleted_by,
-                    'deletedAt' => $deletedAt->toIso8601String(),
-                    'productInTrash' => (bool) $row->product_in_trash,
-                    'productMissing' => (bool) $row->product_missing,
-                    'withProduct' => (bool) $row->with_product,
-                ];
-            })->values(),
+                    return $record;
+                })->values(),
+            'counts' => $counts + ['all' => array_sum($counts)],
+            'deleters' => $deleters,
             'pagination' => [
                 'page' => $page,
                 'perPage' => $perPage,
@@ -145,6 +97,271 @@ class TrashBinController extends Controller
                 'total' => $total,
             ],
         ])->header('Cache-Control', 'no-store');
+    }
+
+    /** Everything in the Trash Bin, as one list of plain records. */
+    private function allRecords(): \Illuminate\Support\Collection
+    {
+        $records = collect();
+        $now = now();
+        $base = function (string $kind, string $type, $id, $deletedAt, ?string $deletedBy, string $name) use ($now): array {
+            $at = Carbon::parse($deletedAt);
+
+            return [
+                'kind' => $kind,
+                'id' => $id,
+                'type' => $type,
+                'date' => $at->toDateString(),
+                'productName' => $name,
+                'deletedBy' => $deletedBy,
+                'deletedAt' => $at->toIso8601String(),
+                'daysInTrash' => (int) $at->copy()->startOfDay()->diffInDays($now->copy()->startOfDay()),
+            ];
+        };
+
+        Product::onlyTrashed()->withoutPhoto()->with(['supplier' => fn ($q) => $q->withTrashed()])->get()
+            ->each(function (Product $product) use ($records, $base): void {
+                $records->push($base('product', 'Product', $product->code, $product->deleted_at, $product->deleted_by_name, $product->name) + [
+                    'productId' => $product->code,
+                    'category' => $product->category,
+                    'variantName' => null,
+                    'details' => [
+                        'brand' => $product->brand,
+                        'stockOnHand' => (int) $product->stock_on_hand,
+                        'supplier' => $product->supplier?->name,
+                        'supplierInTrash' => (bool) $product->supplier?->trashed(),
+                    ],
+                    'productInTrash' => true,
+                    'productMissing' => false,
+                    'withProduct' => false,
+                    '_search' => mb_strtolower(implode(' ', ['product', $product->name, $product->code, $product->category, $product->brand, $product->deleted_by_name])),
+                ]);
+            });
+
+        StockMovement::onlyTrashed()->with(['product' => fn ($q) => $q->withTrashed()->withoutPhoto()])->get()
+            ->each(function (StockMovement $movement) use ($records, $base): void {
+                $label = $this->typeLabel($movement);
+                $name = $movement->product?->name ?? $movement->product_name;
+                $records->push($base('entry', 'Stock Entry', $movement->id, $movement->deleted_at, $movement->deleted_by_name, (string) $name) + [
+                    'productId' => $movement->product?->code,
+                    'category' => $movement->product?->category ?? $movement->product_category,
+                    'variantName' => $movement->variant_name,
+                    'details' => [
+                        'movementType' => $label,
+                        'quantity' => $this->change($movement),
+                        'unitPrice' => $movement->unit_price !== null ? (float) $movement->unit_price : null,
+                        'movementDate' => $movement->movement_date?->toDateString(),
+                        'recordedBy' => $movement->recorded_by,
+                        'notes' => $movement->notes,
+                    ],
+                    'productInTrash' => (bool) $movement->product?->trashed(),
+                    'productMissing' => $movement->product === null,
+                    'withProduct' => (bool) $movement->deleted_with_product,
+                    '_search' => mb_strtolower(implode(' ', ['stock entry', $name, $movement->product?->code, $label, $movement->movement_type, $movement->qty, $movement->movement_date?->toDateString(), $movement->recorded_by, $movement->notes, $movement->deleted_by_name, $movement->variant_name])),
+                ]);
+            });
+
+        Supplier::onlyTrashed()->withCount(['products' => fn ($q) => $q->withTrashed()])->get()
+            ->each(function (Supplier $supplier) use ($records, $base): void {
+                $records->push($base('supplier', 'Supplier', $supplier->id, $supplier->deleted_at, $supplier->deleted_by_name, $supplier->name) + [
+                    'productId' => null,
+                    'category' => null,
+                    'variantName' => null,
+                    'details' => [
+                        'company' => $supplier->company,
+                        'contact' => $supplier->contact,
+                        'leadTimeDays' => $supplier->lead_time_days,
+                        'linkedProducts' => (int) $supplier->products_count,
+                    ],
+                    'productInTrash' => false,
+                    'productMissing' => false,
+                    'withProduct' => false,
+                    '_search' => mb_strtolower(implode(' ', ['supplier', $supplier->name, $supplier->company, $supplier->contact, $supplier->deleted_by_name])),
+                ]);
+            });
+
+        SeasonalEvent::onlyTrashed()->get()
+            ->each(function (SeasonalEvent $event) use ($records, $base): void {
+                $records->push($base('event', 'Seasonal Event', $event->id, $event->deleted_at, $event->deleted_by_name, $event->name) + [
+                    'productId' => null,
+                    'category' => null,
+                    'variantName' => null,
+                    'details' => [
+                        'startDate' => $event->start_date?->toDateString(),
+                        'endDate' => $event->end_date?->toDateString(),
+                        'adjustmentPct' => (float) $event->adjustment_pct,
+                        'scope' => $event->scope,
+                    ],
+                    'productInTrash' => false,
+                    'productMissing' => false,
+                    'withProduct' => false,
+                    '_search' => mb_strtolower(implode(' ', ['seasonal event', $event->name, $event->start_date?->toDateString(), $event->end_date?->toDateString(), $event->deleted_by_name])),
+                ]);
+            });
+
+        return $records;
+    }
+
+    /* ===== Suppliers ===== */
+
+    public function restoreSupplier(int $id): JsonResponse
+    {
+        $supplier = Supplier::onlyTrashed()->findOrFail($id);
+        $supplier->restore();
+        $supplier->forceFill(['deleted_by' => null, 'deleted_by_name' => null])->save();
+        ActivityLog::record('trash.restore', "Restored supplier from the Trash Bin — {$supplier->name}", 'users', ['supplier' => $supplier->name]);
+
+        return response()->json(['restored' => true]);
+    }
+
+    public function forceDeleteSupplier(Request $request, int $id): JsonResponse
+    {
+        $this->confirmPassword($request);
+        $this->purgeSupplier(Supplier::onlyTrashed()->findOrFail($id));
+
+        return response()->json(['deleted' => true]);
+    }
+
+    private function purgeSupplier(Supplier $supplier): void
+    {
+        // Its products stay; they just no longer have a supplier.
+        $unlinked = Product::withTrashed()->where('supplier_id', $supplier->id)->update(['supplier_id' => null]);
+        $name = $supplier->name;
+        $supplier->forceDelete();
+        ActivityLog::record('trash.purge', "Permanently deleted supplier — {$name}; {$unlinked} product(s) now have no supplier", 'users', ['supplier' => $name, 'unlinkedProducts' => $unlinked]);
+    }
+
+    /* ===== Seasonal events ===== */
+
+    public function restoreEvent(int $id): JsonResponse
+    {
+        $event = SeasonalEvent::onlyTrashed()->findOrFail($id);
+        $event->restore();
+        $event->forceFill(['deleted_by' => null, 'deleted_by_name' => null])->save();
+        ActivityLog::record('trash.restore', "Restored seasonal event from the Trash Bin — {$event->name}", 'calendar', ['event' => $event->name]);
+
+        return response()->json(['restored' => true]);
+    }
+
+    public function forceDeleteEvent(Request $request, int $id): JsonResponse
+    {
+        $this->confirmPassword($request);
+        $this->purgeEvent(SeasonalEvent::onlyTrashed()->findOrFail($id));
+
+        return response()->json(['deleted' => true]);
+    }
+
+    private function purgeEvent(SeasonalEvent $event): void
+    {
+        $name = $event->name;
+        $event->forceDelete();
+        ActivityLog::record('trash.purge', "Permanently deleted seasonal event — {$name}", 'calendar', ['event' => $name]);
+    }
+
+    /* ===== Several at once ===== */
+
+    /**
+     * POST /api/trash/bulk  { action: restore|purge, items: [{kind, id}], current_password? }
+     * Restores parents first (suppliers → products → entries); deletes children
+     * first. Each item is done on its own, so one refusal doesn't stop the rest.
+     */
+    public function bulk(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'action' => ['required', 'in:restore,purge'],
+            'items' => ['required', 'array', 'min:1', 'max:500'],
+            'items.*.kind' => ['required', 'in:'.implode(',', self::KINDS)],
+            'items.*.id' => ['required'],
+        ]);
+        $feature = $data['action'] === 'restore' ? 'trash.restore' : 'trash.purge';
+        abort_unless(\App\Services\RoleAccessService::allows($request->user(), $feature), 403, 'Your role does not have access to this feature. Ask the Super Admin to turn it on in Settings → Role Access.');
+        if ($data['action'] === 'purge') {
+            $this->confirmPassword($request);
+        }
+
+        $order = $data['action'] === 'restore'
+            ? ['supplier' => 0, 'product' => 1, 'entry' => 2, 'event' => 3]
+            : ['entry' => 0, 'product' => 1, 'supplier' => 2, 'event' => 3];
+        $items = collect($data['items'])->sortBy(fn ($item) => $order[$item['kind']])->values();
+
+        $done = 0;
+        $failed = [];
+        foreach ($items as $item) {
+            try {
+                $this->applyOne($request, $data['action'], $item['kind'], (string) $item['id']);
+                $done++;
+            } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
+                // Already restored or deleted (e.g. an entry that came back with its product).
+                $done++;
+            } catch (ValidationException $error) {
+                $failed[] = ['kind' => $item['kind'], 'id' => $item['id'], 'message' => collect($error->errors())->flatten()->first()];
+            } catch (\Throwable $error) {
+                report($error);
+                $failed[] = ['kind' => $item['kind'], 'id' => $item['id'], 'message' => 'Could not be processed.'];
+            }
+        }
+
+        return response()->json(['done' => $done, 'failed' => $failed]);
+    }
+
+    /** DELETE /api/trash  { current_password } — permanently delete EVERYTHING in the Trash Bin. */
+    public function empty(Request $request): JsonResponse
+    {
+        $this->confirmPassword($request);
+        $before = $this->allRecords()->count();
+
+        foreach (StockMovement::onlyTrashed()->where('deleted_with_product', false)->pluck('id') as $id) {
+            $this->stockMovements->forceDelete((int) $id);
+        }
+        foreach (Product::onlyTrashed()->get() as $product) {
+            $image = $product->image;
+            $this->stockMovements->forceDeleteProduct($product);
+            app(ProductPhotoService::class)->deleteIfStored($image);
+        }
+        foreach (StockMovement::onlyTrashed()->pluck('id') as $id) {   // anything left over
+            $this->stockMovements->forceDelete((int) $id);
+        }
+        Supplier::onlyTrashed()->get()->each(fn (Supplier $supplier) => $this->purgeSupplier($supplier));
+        SeasonalEvent::onlyTrashed()->get()->each(fn (SeasonalEvent $event) => $this->purgeEvent($event));
+
+        ActivityLog::record('trash.empty', "Emptied the Trash Bin ({$before} items permanently deleted)", 'trash', ['items' => $before]);
+
+        return response()->json(['deleted' => $before]);
+    }
+
+    private function applyOne(Request $request, string $action, string $kind, string $id): void
+    {
+        match ("{$action}:{$kind}") {
+            'restore:product' => $this->restoreProduct($id),
+            'restore:entry' => $this->restoreMovement((int) $id),
+            'restore:supplier' => $this->restoreSupplier((int) $id),
+            'restore:event' => $this->restoreEvent((int) $id),
+            'purge:product' => $this->purgeProductQuietly($id),
+            'purge:entry' => $this->purgeMovementQuietly((int) $id),
+            'purge:supplier' => $this->purgeSupplier(Supplier::onlyTrashed()->findOrFail((int) $id)),
+            'purge:event' => $this->purgeEvent(SeasonalEvent::onlyTrashed()->findOrFail((int) $id)),
+        };
+    }
+
+    /* The single-item purge actions ask for the password themselves; in bulk
+       it was already checked once, so these skip that step. */
+    private function purgeProductQuietly(string $code): void
+    {
+        $product = Product::onlyTrashed()->where('code', $code)->firstOrFail();
+        $image = $product->image;
+        $entries = $this->stockMovements->forceDeleteProduct($product);
+        app(ProductPhotoService::class)->deleteIfStored($image);
+        ActivityLog::record('trash.purge', "Permanently deleted product — {$product->name}; retained {$entries} historical stock entries", 'boxes', [
+            'productId' => $product->code, 'product' => $product->name, 'retainedEntries' => $entries,
+        ]);
+    }
+
+    private function purgeMovementQuietly(int $id): void
+    {
+        $movement = $this->stockMovements->forceDelete($id);
+        ActivityLog::record('trash.purge', "Permanently deleted {$this->typeLabel($movement)} {$this->changeText($movement)} for {$movement->product_name}", 'boxes', [
+            'product' => $movement->product_name, 'movementId' => $movement->id,
+        ]);
     }
 
     public function restoreProduct(string $code): JsonResponse
@@ -161,6 +378,15 @@ class TrashBinController extends Controller
             'supplier_id' => $product->supplier_id,
         ], $product->id);
 
+        // Safety check: a product whose supplier is also in the Trash Bin gets
+        // its supplier back too, so it doesn't return without one.
+        $supplier = $product->supplier_id ? Supplier::onlyTrashed()->find($product->supplier_id) : null;
+        if ($supplier) {
+            $supplier->restore();
+            $supplier->forceFill(['deleted_by' => null, 'deleted_by_name' => null])->save();
+            ActivityLog::record('trash.restore', "Restored supplier from the Trash Bin (with product {$product->name}) — {$supplier->name}", 'users', ['supplier' => $supplier->name]);
+        }
+
         $entries = $this->stockMovements->restoreProduct($product);
 
         ActivityLog::record('trash.restore', "Restored product from the Trash Bin — {$product->name}", 'boxes', [
@@ -169,7 +395,7 @@ class TrashBinController extends Controller
             'restoredEntries' => $entries,
         ]);
 
-        return response()->json(['restored' => true, 'restoredEntries' => $entries]);
+        return response()->json(['restored' => true, 'restoredEntries' => $entries, 'restoredSupplier' => $supplier?->name]);
     }
 
     public function forceDeleteProduct(Request $request, string $code): JsonResponse

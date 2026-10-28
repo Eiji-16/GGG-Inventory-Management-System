@@ -13,6 +13,7 @@ use App\Http\Controllers\SafetyStockController;
 use App\Http\Controllers\SeasonalEventController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\SystemDataController;
 use App\Http\Controllers\TrashBinController;
 use Illuminate\Support\Facades\Route;
 
@@ -79,8 +80,27 @@ Route::middleware(['web', 'auth', 'active'])->group(function (): void {
     Route::delete('/trash/products/{code}', [TrashBinController::class, 'forceDeleteProduct'])->middleware('feature:trash.purge');
     Route::post('/trash/stock-movements/{id}/restore', [TrashBinController::class, 'restoreMovement'])->whereNumber('id')->middleware('feature:trash.restore');
     Route::delete('/trash/stock-movements/{id}', [TrashBinController::class, 'forceDeleteMovement'])->whereNumber('id')->middleware('feature:trash.purge');
+    Route::post('/trash/suppliers/{id}/restore', [TrashBinController::class, 'restoreSupplier'])->whereNumber('id')->middleware('feature:trash.restore');
+    Route::delete('/trash/suppliers/{id}', [TrashBinController::class, 'forceDeleteSupplier'])->whereNumber('id')->middleware('feature:trash.purge');
+    Route::post('/trash/seasonal-events/{id}/restore', [TrashBinController::class, 'restoreEvent'])->whereNumber('id')->middleware('feature:trash.restore');
+    Route::delete('/trash/seasonal-events/{id}', [TrashBinController::class, 'forceDeleteEvent'])->whereNumber('id')->middleware('feature:trash.purge');
+    // Several at once (the controller checks restore vs. delete permission) and Empty Trash.
+    Route::post('/trash/bulk', [TrashBinController::class, 'bulk'])->middleware('feature:trash.restore|trash.purge');
+    Route::delete('/trash', [TrashBinController::class, 'empty'])->middleware('feature:trash.purge');
 
     // Safety Stock Policy stays Super Admin only (not in Role Access).
     Route::put('/safety-stock', [SafetyStockController::class, 'update'])
         ->middleware('role:super_admin');
+});
+
+// Settings → Data & System: full backup, import and System Reset.
+// Super Admin only, and each action also needs the password (and a typed
+// confirm phrase for import / reset). Limited to 5 tries per 10 minutes.
+Route::middleware(['web', 'auth', 'active', 'role:super_admin'])->prefix('system')->group(function (): void {
+    Route::get('/overview', [SystemDataController::class, 'overview']);
+    Route::middleware('throttle:5,10')->group(function (): void {
+        Route::post('/export', [SystemDataController::class, 'export']);
+        Route::post('/import', [SystemDataController::class, 'import']);
+        Route::post('/reset', [SystemDataController::class, 'reset']);
+    });
 });

@@ -20,6 +20,6 @@ class SupplierActivityLogTest extends TestCase
 
         $this->assertDatabaseHas('activity_logs', ['action' => 'supplier.add', 'description' => 'Added supplier — Log Supplier']);
         $this->assertDatabaseHas('activity_logs', ['action' => 'supplier.edit', 'description' => 'Updated supplier — Log Supplier Co.']);
-        $this->assertDatabaseHas('activity_logs', ['action' => 'supplier.delete', 'description' => 'Deleted supplier — Log Supplier Co.']);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'supplier.delete', 'description' => 'Moved supplier to the Trash Bin — Log Supplier Co.']);
     }
 }

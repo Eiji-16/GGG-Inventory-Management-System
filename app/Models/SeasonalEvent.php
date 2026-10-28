@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
 /**
@@ -12,6 +13,9 @@ use Illuminate\Support\Carbon;
  */
 class SeasonalEvent extends Model
 {
+    // Deleting moves it to the Trash Bin (restore or delete for good there).
+    use SoftDeletes;
+
     protected $fillable = [
         'name',
         'start_date',

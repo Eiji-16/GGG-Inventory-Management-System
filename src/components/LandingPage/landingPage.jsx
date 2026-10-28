@@ -1100,7 +1100,9 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     canComputeEoq={canAccess('Auto-Calculator')}
                     canNotify={can('reorder.notify')}
                     canManageRequests={can('reorder.requests')}
+                    canReceive={can('stock.create')}
                     onRequestsChanged={() => setRequestsVersion((version) => version + 1)}
+                    onStockChanged={() => setPolicyRefreshKey((key) => key + 1)}
                   />
                 </div>
               )}

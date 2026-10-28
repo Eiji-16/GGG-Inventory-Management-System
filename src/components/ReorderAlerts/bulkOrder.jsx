@@ -5,6 +5,7 @@ import apiFetch from '../../apiFetch';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
 import { buildForecastHandoff } from '../../utils/forecastHandoff';
 import { useCurrency } from '../../CurrencyContext';
+import { orderPresets, PRESET_LABELS } from '../../utils/orderPresets';
 
 /* ===== BULK ORDER (Reorder List) =====
    Works out the order quantity for several products at once, using the SAME
@@ -25,7 +26,7 @@ import { useCurrency } from '../../CurrencyContext';
 
 const toNumber = (value) => (String(value ?? '').trim() === '' ? NaN : Number(value));
 const positive = (value) => Number.isFinite(toNumber(value)) && toNumber(value) > 0;
-const orderQuantityFor = (row) => (
+export const orderQuantityFor = (row) => (
   positive(row.annualDemand) && positive(row.orderingCost) && positive(row.holdingCost)
     ? Math.sqrt((2 * toNumber(row.annualDemand) * toNumber(row.orderingCost)) / toNumber(row.holdingCost))
     : null
@@ -39,6 +40,8 @@ export default function BulkOrder({ items, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [savedIds, setSavedIds] = useState(new Set());
+  // Which preset sets the quantity on the order list (export + totals).
+  const [basis, setBasis] = useState('eoq');
 
   /* Load each product's demand (same as Order Now) and its last Stock In
      price (for the estimated cost) once, when the window opens. */
@@ -101,19 +104,30 @@ export default function BulkOrder({ items, onClose, onSaved }) {
   const computed = useMemo(() => rows.map((row) => {
     const exact = orderQuantityFor(row);
     const quantity = exact === null ? null : Math.round(exact);
+    const monthly = row.forecast
+      ? Number(row.forecast.adjustedForecast)
+      : (positive(row.annualDemand) ? Number(row.annualDemand) / 12 : null);
+    const presets = orderPresets({ eoq: quantity, stock: row.stock, reorderPoint: row.reorderPoint, monthlyDemand: monthly });
+    // The amount on the order list: the chosen preset for this product.
+    const listQty = basis === 'eoq' ? quantity : (presets.find((option) => option.key === basis)?.qty ?? null);
     return {
       ...row,
       exact,
       quantity,
-      estimatedCost: quantity !== null && row.unitPrice != null ? quantity * row.unitPrice : null,
+      presets,
+      listQty,
+      estimatedCost: listQty !== null && row.unitPrice != null ? listQty * row.unitPrice : null,
     };
-  }), [rows]);
+  }), [rows, basis]);
 
+  // "ready" = has an Economic Order Quantity (these can be saved to Reports);
+  // "listed" = has a quantity for the chosen preset (export and totals).
   const ready = computed.filter((row) => row.quantity !== null);
-  const missing = computed.length - ready.length;
-  const totalUnits = ready.reduce((sum, row) => sum + row.quantity, 0);
-  const totalCost = ready.reduce((sum, row) => sum + (row.estimatedCost || 0), 0);
-  const anyWithoutPrice = ready.some((row) => row.estimatedCost === null);
+  const listed = computed.filter((row) => row.listQty !== null);
+  const missing = computed.length - listed.length;
+  const totalUnits = listed.reduce((sum, row) => sum + row.listQty, 0);
+  const totalCost = listed.reduce((sum, row) => sum + (row.estimatedCost || 0), 0);
+  const anyWithoutPrice = listed.some((row) => row.estimatedCost === null);
 
   /* Save each ready row exactly like the calculator does (POST /calculations). */
   const saveAll = async () => {
@@ -178,7 +192,7 @@ export default function BulkOrder({ items, onClose, onSaved }) {
     none: 'No sales yet — type it in',
   }[row.demandSource]);
 
-  const exportRows = () => ready.map((row) => [
+  const exportRows = () => listed.map((row) => [
     row.name,
     row.supplierName || '—',
     row.stock,
@@ -187,21 +201,22 @@ export default function BulkOrder({ items, onClose, onSaved }) {
     sourceLabel(row),
     Number(row.orderingCost),
     Number(row.holdingCost),
-    row.quantity,
+    row.listQty,
     row.estimatedCost !== null ? Number(row.estimatedCost.toFixed(2)) : '—',
   ]);
   const exportHeaders = ['Product', 'Supplier', 'Current stock', 'Reorder point', 'Annual demand', 'Demand from',
     `Ordering cost (${currencySymbol})`, `Holding cost (${currencySymbol})`, 'Order quantity', `Estimated cost (${currencySymbol})`];
 
   const exportExcel = async () => {
-    if (!ready.length) return;
+    if (!listed.length) return;
     try {
       await exportReportWorkbook({
         title: 'Bulk Order List',
-        subtitle: `Order quantities for ${ready.length} product${ready.length === 1 ? '' : 's'}`,
+        subtitle: `Order quantities (${PRESET_LABELS[basis]}) for ${listed.length} product${listed.length === 1 ? '' : 's'}`,
         fileName: `bulk-order-${new Date().toISOString().slice(0, 10)}`,
         summary: [
-          { label: 'Products', value: ready.length },
+          { label: 'Products', value: listed.length },
+          { label: 'Quantity basis', value: PRESET_LABELS[basis] },
           { label: 'Total units', value: totalUnits },
           { label: 'Estimated total cost', value: formatCurrency(totalCost) },
         ],
@@ -217,18 +232,18 @@ export default function BulkOrder({ items, onClose, onSaved }) {
   };
 
   const exportPdf = () => {
-    if (!ready.length) return;
+    if (!listed.length) return;
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       setMessage({ type: 'error', text: 'The list could not be opened. Allow pop-ups, then try again.' });
       return;
     }
     const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    const body = ready.map((row) => `<tr>
+    const body = listed.map((row) => `<tr>
       <td>${esc(row.name)}</td><td>${esc(row.supplierName || '—')}</td><td class="n">${esc(row.stock)}</td>
       <td class="n">${esc(Number(row.annualDemand).toLocaleString('en-PH'))}</td>
       <td class="n">${esc(formatCurrency(Number(row.orderingCost)))}</td><td class="n">${esc(formatCurrency(Number(row.holdingCost)))}</td>
-      <td class="n"><b>${esc(row.quantity.toLocaleString('en-PH'))}</b></td>
+      <td class="n"><b>${esc(row.listQty.toLocaleString('en-PH'))}</b></td>
       <td class="n">${esc(row.estimatedCost !== null ? formatCurrency(row.estimatedCost) : '—')}</td></tr>`).join('');
     printWindow.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8">
       <title>Bulk Order List</title>
@@ -284,6 +299,22 @@ export default function BulkOrder({ items, onClose, onSaved }) {
             disabled={!positive(sameCosts.orderingCost) && !positive(sameCosts.holdingCost)}>Apply to all</button>
         </div>
 
+        <div className="ra-bulk-preset" role="radiogroup" aria-label="Quantity on the order list">
+          <span>Order list quantity:</span>
+          {Object.entries(PRESET_LABELS).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="radio"
+              aria-checked={basis === key}
+              className={`ra-preset${basis === key ? ' is-active' : ''}`}
+              onClick={() => setBasis(key)}
+            >
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+
         <div className="ra-table-scroll ra-bulk-scroll">
           <table className="ra-table ra-bulk-table">
             <thead>
@@ -329,12 +360,18 @@ export default function BulkOrder({ items, onClose, onSaved }) {
                       onChange={(e) => updateRow(row.id, 'holdingCost', e.target.value)} aria-label={`Holding cost for ${row.name}`} />
                   </td>
                   <td data-label="Order quantity" className="ra-num">
-                    {row.quantity !== null ? (
-                      <span className="ra-product" title={`√(2 × ${row.annualDemand} × ${row.orderingCost} ÷ ${row.holdingCost}) = ${row.exact.toFixed(2)}`}>
-                        <strong className="ra-bulk-qty">{row.quantity.toLocaleString('en-PH')}</strong>
+                    {row.listQty !== null ? (
+                      <span
+                        className="ra-product"
+                        title={basis === 'eoq'
+                          ? `√(2 × ${row.annualDemand} × ${row.orderingCost} ÷ ${row.holdingCost}) = ${row.exact.toFixed(2)}`
+                          : row.presets.find((option) => option.key === basis)?.hint}
+                      >
+                        <strong className="ra-bulk-qty">{row.listQty.toLocaleString('en-PH')}</strong>
+                        {basis !== 'eoq' && row.quantity !== null && <small>Economic Order Quantity {row.quantity.toLocaleString('en-PH')}</small>}
                         {savedIds.has(row.id) && <small>Saved</small>}
                       </span>
-                    ) : <span className="ra-muted">Fill in all 3</span>}
+                    ) : <span className="ra-muted">{basis === 'eoq' ? 'Fill in all 3' : 'Not enough data'}</span>}
                   </td>
                   <td data-label="Estimated cost" className="ra-num">
                     {row.estimatedCost !== null ? formatCurrency(row.estimatedCost) : <span className="ra-muted">—</span>}
@@ -347,24 +384,24 @@ export default function BulkOrder({ items, onClose, onSaved }) {
 
         {!loading && (
           <div className="ra-bulk-totals">
-            <span><b>{ready.length}</b> of {computed.length} ready</span>
+            <span><b>{listed.length}</b> of {computed.length} on the list</span>
             <span>Total: <b>{totalUnits.toLocaleString('en-PH')}</b> units</span>
             <span>Estimated cost: <b>{formatCurrency(totalCost)}</b>{anyWithoutPrice ? ' (some items have no Stock In price yet)' : ''}</span>
-            {missing > 0 && <span className="ra-muted">{missing} still need costs</span>}
+            {missing > 0 && <span className="ra-muted">{missing} {basis === 'eoq' ? 'still need costs' : 'without enough data'}</span>}
           </div>
         )}
 
         {message.text && <p className={message.type === 'error' ? 'ra-error' : 'ra-notice'} role="status">{message.text}</p>}
 
         <div className="ra-modal-actions">
-          <button type="button" className="ra-order-btn" onClick={exportExcel} disabled={!ready.length || loading}>
+          <button type="button" className="ra-order-btn" onClick={exportExcel} disabled={!listed.length || loading}>
             <Download size={13} aria-hidden="true" /> Excel
           </button>
-          <button type="button" className="ra-order-btn" onClick={exportPdf} disabled={!ready.length || loading}>
+          <button type="button" className="ra-order-btn" onClick={exportPdf} disabled={!listed.length || loading}>
             <FileText size={13} aria-hidden="true" /> PDF
           </button>
           <button type="button" className="ra-order-btn is-urgent" onClick={saveAll} disabled={!ready.length || loading || saving}>
-            <Calculator size={13} aria-hidden="true" /> {saving ? 'Saving…' : `Save ${ready.length} to Reports`}
+            <Calculator size={13} aria-hidden="true" /> {saving ? 'Saving…' : `Save ${ready.length} Economic Order Quantity result${ready.length === 1 ? '' : 's'} to Reports`}
           </button>
         </div>
         <p className="ra-help">Planning only: this does not change stock or mark anything as ordered. Record a Stock In when the delivery arrives.</p>

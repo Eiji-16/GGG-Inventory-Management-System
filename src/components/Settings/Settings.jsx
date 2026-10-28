@@ -20,6 +20,7 @@ import {
 } from '../../data/safetyStock';
 import { CURRENCIES, useCurrency } from '../../CurrencyContext';
 import RoleAccess from './roleAccess';
+import SystemData from './systemData';
 
 const THEMES = [
   { value: 'soft-white', label: 'Soft White' },
@@ -350,6 +351,9 @@ function Settings({
 
       {/* ===== ROLE ACCESS (Super Admin only) ===== */}
       {isSuperAdmin && <RoleAccess />}
+
+      {/* ===== DATA & SYSTEM: backup, import, reset (Super Admin only) ===== */}
+      {isSuperAdmin && <SystemData />}
       </div>
 
       {/* ===== SAFETY STOCK POLICY ===== */}

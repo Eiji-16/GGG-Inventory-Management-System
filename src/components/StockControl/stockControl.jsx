@@ -71,6 +71,15 @@ const todayLocal = () => {
   return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
 };
 
+/* History "Date & time": the entry date, plus when it was recorded. */
+const entryWhen = (row) => {
+  const created = row.createdAt ? new Date(row.createdAt) : null;
+  if (!created || Number.isNaN(created.getTime())) return row.date || '—';
+  const time = created.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+  const createdDay = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}-${String(created.getDate()).padStart(2, '0')}`;
+  return createdDay === row.date ? `${row.date} · ${time}` : `${row.date} (recorded ${createdDay} · ${time})`;
+};
+
 /* ===== SIGNED QTY ===== */
 /* Variants a transaction can use for this product (see Product & Supplier). */
 const variantChoicesFor = (product) => {
@@ -140,6 +149,11 @@ function StockControl({
   const [page, setPage] = useState(1);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [highlightId, setHighlightId] = useState(null); /* row to flash from a Dashboard handoff */
+  /* ===== TABS =====
+     "stock":   the main Stock Control table (manage inventory here).
+     "history": read-only log of every stock change — who, what, when. */
+  const [view, setView] = useState('stock');
+  const [historyPage, setHistoryPage] = useState(1);
 
   const loadStockActivities = async (productId = null) => {
     if (!canViewActivity) return; // "Activity history" is switched off for this role
@@ -441,10 +455,33 @@ function StockControl({
     });
   };
 
+  /* ===== VARIANT COUNTS (display) =====
+     The server keeps ONE stock total per product (used by reorder points,
+     forecasts, the Dashboard and Reports — unchanged). Each variant's own
+     count is worked out here from its own entries: Stock In adds, Stock Out
+     removes, a Correction adds its difference. Entries with no variant form
+     their own group. */
+  const variantKeyOf = (row) => `${row.productId || row.productName || '—'}||${String(row.variantName || '').trim().toLowerCase()}`;
+  const variantData = useMemo(() => {
+    const stockByKey = new Map();   // product+variant → current count
+    const afterById = new Map();    // entry id → that variant's count right after it
+    const latestByKey = new Map();  // product+variant → its newest entry
+    ledgers.forEach((ledger) => {
+      ledger.movements.forEach((movement) => {
+        const key = variantKeyOf(movement);
+        const next = (stockByKey.get(key) || 0) + movement.delta;
+        stockByKey.set(key, next);
+        afterById.set(movement.id, next);
+        latestByKey.set(key, movement);   // movements are in date, then id order
+      });
+    });
+    return { stockByKey, afterById, latestIds: new Set([...latestByKey.values()].map((movement) => movement.id)) };
+  }, [ledgers]);
+
   const visibleRows = useMemo(() => {
   const q = query.trim().toLowerCase();
   const filtered = stockFromDatabase.filter((row) =>
-    !q || [row.productName, row.category, row.type, row.notes, row.recordedBy, row.date]
+    !q || [row.productName, row.category, row.type, row.notes, row.recordedBy, row.date, row.variantName]
       .some((field) => String(field || '').toLowerCase().includes(q))
   );
 
@@ -505,22 +542,41 @@ function StockControl({
   return mapped;
 }, [stockFromDatabase, ledgers, query, productById, productOptions, sortBy, sortDir]);
 
+  /* ===== MAIN TABLE: one row per product + variant =====
+     Each product + variant shows once, as its newest entry (the same row,
+     columns and actions as before). The same product name can show more
+     than once when the variants differ; the same product + variant never
+     twice. Every entry is still kept and shown in the History tab, and the
+     Excel export still lists every matching entry. */
+  const tableRows = useMemo(() => visibleRows
+    .filter(({ id }) => variantData.latestIds.has(id))
+    .map((item) => ({ ...item, variantStock: variantData.stockByKey.get(variantKeyOf(item.row)) ?? 0 })),
+  [visibleRows, variantData]);
+
+  /* ===== HISTORY: every entry, newest first (matches the search) ===== */
+  const historyRows = useMemo(() => [...visibleRows].sort((a, b) => (
+    String(b.row.date).localeCompare(String(a.row.date)) || Number(b.id) - Number(a.id)
+  )), [visibleRows]);
+
   const PAGE_SIZE = 50;
-  const pageCount = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(tableRows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
-  const pageRows = visibleRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const pageRows = tableRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const historyPageCount = Math.max(1, Math.ceil(historyRows.length / PAGE_SIZE));
+  const currentHistoryPage = Math.min(historyPage, historyPageCount);
+  const historyPageRows = historyRows.slice((currentHistoryPage - 1) * PAGE_SIZE, currentHistoryPage * PAGE_SIZE);
   // A new search or sort starts again at page 1.
-  useEffect(() => { setPage(1); }, [query, sortBy, sortDir]);
+  useEffect(() => { setPage(1); setHistoryPage(1); }, [query, sortBy, sortDir]);
   // Ticks only count for entries that still match the search: an entry hidden
   // by a search (or removed) is unticked, so "Clear stock (N)" never counts
   // something you can't see.
   useEffect(() => {
-    const shown = new Set(visibleRows.map(({ id }) => id));
+    const shown = new Set(tableRows.map(({ id }) => id));
     setSelectedIds((prev) => {
       const next = new Set([...prev].filter((id) => shown.has(id)));
       return next.size === prev.size ? prev : next;
     });
-  }, [visibleRows]);
+  }, [tableRows]);
 
   /* ===== EXPORT FORMATTED EXCEL REPORT ===== */
   const exportStockReport = async () => {
@@ -1124,17 +1180,104 @@ function StockControl({
   const pendingFor = (rowId) => pendingQty[rowId] || 0;
 
   const stepPending = (row, direction) => {
+    // A typed count is waiting: − / + adjust that count instead.
+    if (typedQty[row.id] !== undefined) {
+      const current = Number.parseInt(typedQty[row.id], 10);
+      const base = Number.isFinite(current) ? current : variantStockOf(row);
+      setTypedQty((prev) => ({ ...prev, [row.id]: String(Math.max(0, base + direction)) }));
+      return;
+    }
     const product = productById.get(row.productId);
     const onHand = Number(product?.stock);
     if (!Number.isInteger(onHand)) return;
+    const variantOnHand = variantStockOf(row);
     setPendingQty((prev) => {
       const next = (prev[row.id] || 0) + direction;
-      if (onHand + next < 0) return prev; // never below 0 on hand
+      if (onHand + next < 0 || variantOnHand + next < 0) return prev; // never below 0 on hand
       const updated = { ...prev };
       if (next === 0) delete updated[row.id];
       else updated[row.id] = next;
       return updated;
     });
+  };
+
+  /* ===== TYPED COUNT (the QTY box) =====
+     Clicking the number and typing the real count saves a Correction for
+     that product + variant (a physical count — not counted as a sale).
+     − / + without typing still save Stock In / Stock Out exactly as before. */
+  const [typedQty, setTypedQty] = useState({});   // e.g. { 12: '4' }
+  const variantStockOf = (row) => variantData.stockByKey.get(variantKeyOf(row)) ?? 0;
+  const typedCountFor = (rowId) => {
+    const value = Number.parseInt(typedQty[rowId] ?? '', 10);
+    return Number.isFinite(value) ? value : null;
+  };
+  const typeCount = (row, raw) => {
+    const text = String(raw).replace(/\s+/g, '');
+    if (!/^\d{0,6}$/.test(text)) return;
+    setPendingQty((prev) => { const next = { ...prev }; delete next[row.id]; return next; });
+    setTypedQty((prev) => ({ ...prev, [row.id]: text }));
+  };
+  const clearTyped = (rowId) => setTypedQty((prev) => { const next = { ...prev }; delete next[rowId]; return next; });
+  /* Leaving the box empty or unchanged puts the saved count back. */
+  const tidyTyped = (row) => {
+    const value = typedCountFor(row.id);
+    if (typedQty[row.id] !== undefined && (value === null || value === variantStockOf(row))) clearTyped(row.id);
+  };
+
+  const applyCount = async (row) => {
+    const product = productById.get(row.productId);
+    const counted = typedCountFor(row.id);
+    const variantOnHand = variantStockOf(row);
+    if (!product || counted === null || counted === variantOnHand || quickBusy.has(row.id)) return;
+    const before = Number(product.stock);
+    // The server's correction rule sets the PRODUCT total to the counted
+    // number, so send the total changed by this variant's difference.
+    const after = before + (counted - variantOnHand);
+    if (!Number.isInteger(before) || after < 0) {
+      setStockError(`${product.name} has only ${before} on hand in total — this count would make it negative.`);
+      return;
+    }
+    const safetyInfo = { productId: product.id, productName: product.name, safetyStock: product.safetyStock };
+    const crossed = after < before ? safetyCrossingFor(safetyInfo, before, after, safetyStock) : null;
+
+    setQuickBusy((prev) => new Set(prev).add(row.id));
+    try {
+      const response = await apiFetch('/api/stock-movements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          productId: product.id,
+          productName: product.name,
+          variantName: row.variantName || null,
+          type: 'Adjustment',
+          countedStock: after,
+          notes: null,
+          recordedBy: currentUserName || null,
+          date: todayLocal(),
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const validationError = result.errors ? Object.values(result.errors).flat()[0] : result.message;
+        throw new Error(validationError || `Could not save the count (${response.status}).`);
+      }
+      clearTyped(row.id);
+      setStockError('');
+      setMergeNotice('');
+      setSafetyAlert(crossed ? { ...crossed, productId: product.id, productName: product.name } : null);
+      await refreshStockData();
+      await loadStockActivities();
+      if (historyProduct && historyProduct !== '—') await loadStockActivities(historyProduct);
+      onInventoryChanged?.();
+    } catch (error) {
+      setStockError(error.message || 'Could not save the count.');
+    } finally {
+      setQuickBusy((prev) => {
+        const next = new Set(prev);
+        next.delete(row.id);
+        return next;
+      });
+    }
   };
 
   const clearPending = (rowId) => {
@@ -1270,6 +1413,16 @@ function StockControl({
   return (
     <div className="sc-table-parent">
 
+      {/* ===== TABS: Stock (manage inventory) | History (change log) ===== */}
+      <div className="sc-view-tabs" role="tablist" aria-label="Stock Control view">
+        <button type="button" role="tab" aria-selected={view === 'stock'} className={view === 'stock' ? 'is-active' : ''} onClick={() => setView('stock')}>
+          <Package size={13} aria-hidden="true" /> Stock
+        </button>
+        <button type="button" role="tab" aria-selected={view === 'history'} className={view === 'history' ? 'is-active' : ''} onClick={() => setView('history')}>
+          <History size={13} aria-hidden="true" /> History
+        </button>
+      </div>
+
       {/* ===== SEARCH BAR ===== */}
       <div className="sc-navigation-bar">
         <div className="sc-search-wrapper">
@@ -1306,7 +1459,8 @@ function StockControl({
         </button>
         )}
 
-        {/* ===== SORT DROPDOWN (icon button) ===== */}
+        {/* ===== SORT DROPDOWN (icon button, Stock tab) ===== */}
+        {view === 'stock' && (
         <div className="sc-sort-wrap">
           <button
             className="sc-add-btn sc-icon-only"
@@ -1347,6 +1501,7 @@ function StockControl({
             </div>
           )}
         </div>
+        )}
 
         {canClearStock && selectedProductIds.length > 0 && (
           <button
@@ -1419,7 +1574,8 @@ function StockControl({
         </div>
       )}
 
-      {/* ===== TABLE ===== */}
+      {/* ===== TABLE (Stock tab) ===== */}
+      {view === 'stock' && (<>
       <MobileSelectBar
         total={pageRows.length}
         count={selectedIds.size}
@@ -1443,7 +1599,7 @@ function StockControl({
               <th className="sc-th-left">Product</th>
               <th>Variant</th>
               <th>Type</th>
-              <th className="sc-th-quantity" title="Product stock right after this entry. Use − / + to deduct or add one unit.">QTY</th>
+              <th className="sc-th-quantity" title="Stock on hand for this product + variant. − / + save a Stock In / Stock Out; typing the real count saves a Correction.">QTY</th>
               <th className="sc-th-quantity" title="Unit price recorded on this transaction (cost on Stock In, selling price on Stock Out).">Price</th>
               <th>Reorder Point</th>
               <th className="sc-th-left">Notes</th>
@@ -1454,7 +1610,7 @@ function StockControl({
           <tbody>
             {stockLoading ? (
               <tr><td colSpan={11} className="sc-empty-state">Loading stock movements…</td></tr>
-            ) : pageRows.map(({ row: stock, id, totalQty, change, balanceAfter }) => {
+            ) : pageRows.map(({ row: stock, id, totalQty, change, balanceAfter, variantStock }) => {
               const product = productById.get(stock.productId);
               const statusRow = {
                 ...stock,
@@ -1510,60 +1666,79 @@ function StockControl({
                   </td>
                   <td className="sc-td-nowrap sc-td-strong" data-label="QTY">
                     {canAddStock && !stock.productDeleted ? (() => {
+                      // QTY = this product + variant's own count (all variants together: totalQty).
                       const pending = pendingFor(id);
-                      const onHand = Number(product?.stock);
+                      const typed = typedCountFor(id);
+                      const isTyping = typedQty[id] !== undefined;
                       const busy = quickBusy.has(id);
-                      const newTotal = onHand + pending;
+                      const shown = isTyping ? typed ?? variantStock : variantStock + pending;
+                      const countChange = isTyping && typed !== null ? typed - variantStock : 0;
+                      const hasChange = isTyping ? countChange !== 0 : pending !== 0;
                       const pendingText = `${pending > 0 ? '+' : '−'}${Math.abs(pending)}`;
+                      const save = () => (isTyping ? applyCount(stock) : applyPending(stock));
                       return (
-                        <span className={`sc-qty-control${pending ? ' has-pending' : ''}`}>
+                        <span className={`sc-qty-control sc-qty-typed${hasChange ? ' has-pending' : ''}`}>
                           <button
                             type="button"
                             className="sc-qty-btn sc-qty-minus"
                             onClick={() => stepPending(stock, -1)}
-                            disabled={busy || !(newTotal > 0)}
+                            disabled={busy || !(shown > 0)}
                             aria-label={`Deduct one ${stock.productName}`}
-                            title={newTotal > 0 ? 'Deduct 1 (press ✓ to save)' : 'Nothing left to deduct'}
+                            title={shown > 0 ? (isTyping ? 'One less in your count' : 'Deduct 1 (press ✓ to save)') : 'Nothing left to deduct'}
                           >
                             −
                           </button>
-                          {pending ? (
-                            <span
-                              className={`sc-qty-value ${pending > 0 ? 'sc-in' : 'sc-out'}`}
-                              title={`${onHand} on hand now ${pendingText} = ${newTotal} after you press ✓`}
-                            >
-                              {newTotal}
-                              <small className="sc-qty-pending">{pendingText}</small>
-                            </span>
-                          ) : (
-                            <span className="sc-qty-value" title={`${after} on hand after this entry · ${totalQty} on hand now`}>{after}</span>
-                          )}
+                          <input
+                            className={`sc-qty-input${isTyping ? ' is-count' : pending > 0 ? ' sc-in' : pending < 0 ? ' sc-out' : ''}`}
+                            type="text"
+                            inputMode="numeric"
+                            value={isTyping ? typedQty[id] : String(shown)}
+                            onChange={(e) => typeCount(stock, e.target.value)}
+                            onFocus={(e) => e.target.select()}
+                            onBlur={() => tidyTyped(stock)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') { e.preventDefault(); save(); }
+                              if (e.key === 'Escape') { clearTyped(id); clearPending(id); }
+                            }}
+                            disabled={busy}
+                            aria-label={`Quantity of ${stock.productName}${stock.variantName ? ` ${stock.variantName}` : ''} — type the real count to save a Correction`}
+                            title={`${variantStock} on hand for this ${stock.variantName ? 'variant' : 'product'}${totalQty !== variantStock ? ` · ${totalQty} for the whole product` : ''}. Type the real count to save a Correction.`}
+                          />
                           <button
                             type="button"
                             className="sc-qty-btn sc-qty-plus"
                             onClick={() => stepPending(stock, 1)}
                             disabled={busy}
                             aria-label={`Add one ${stock.productName}`}
-                            title="Add 1 (press ✓ to save)"
+                            title={isTyping ? 'One more in your count' : 'Add 1 (press ✓ to save)'}
                           >
                             +
                           </button>
                           <button
                             type="button"
                             className="sc-qty-btn sc-qty-apply"
-                            onClick={() => applyPending(stock)}
-                            disabled={busy || pending === 0}
-                            aria-label={pending ? `Save ${pendingText} for ${stock.productName}` : 'No change to save'}
-                            title={pending
-                              ? `Save ${pendingText} (${pending > 0 ? 'Stock In' : 'Stock Out / sale'}) → ${newTotal} on hand`
-                              : 'Use − / + first, then press ✓ to save'}
+                            onClick={save}
+                            disabled={busy || !hasChange}
+                            aria-label={hasChange ? `Save the change for ${stock.productName}` : 'No change to save'}
+                            title={!hasChange
+                              ? 'Use − / + or type the real count, then press ✓'
+                              : isTyping
+                                ? `Save a Correction: ${variantStock} → ${typed}`
+                                : `Save ${pendingText} (${pending > 0 ? 'Stock In' : 'Stock Out / sale'})`}
                           >
                             {busy ? '…' : <Check size={12} strokeWidth={3} />}
                           </button>
+                          {hasChange && (
+                            <small className={`sc-qty-hint ${(isTyping ? countChange : pending) > 0 ? 'sc-in' : 'sc-out'}`}>
+                              {isTyping
+                                ? `Correction ${countChange > 0 ? '+' : '−'}${Math.abs(countChange)}`
+                                : `${pending > 0 ? 'Stock In' : 'Stock Out'} ${pendingText}`}
+                            </small>
+                          )}
                         </span>
                       );
                     })() : (
-                      <span title={`${after} on hand after this entry · ${totalQty} on hand now`}>{after}</span>
+                      <span title={`${variantStock} on hand for this ${stock.variantName ? 'variant' : 'product'} · ${totalQty} for the whole product`}>{variantStock}</span>
                     )}
                   </td>
                   <td
@@ -1649,7 +1824,7 @@ function StockControl({
               );
             })}
 
-            {!stockLoading && !stockError && visibleRows.length === 0 && (
+            {!stockLoading && !stockError && tableRows.length === 0 && (
               <tr>
                 <td colSpan={11} className="sc-empty-state">
                   {stockFromDatabase.length === 0
@@ -1661,10 +1836,10 @@ function StockControl({
           </tbody>
         </table>
       </div>
-      {!stockLoading && visibleRows.length > PAGE_SIZE && (
+      {!stockLoading && tableRows.length > PAGE_SIZE && (
         <nav className="sc-pager" aria-label="Stock movement pages">
           <span>
-            Showing {((currentPage - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(currentPage * PAGE_SIZE, visibleRows.length).toLocaleString()} of {visibleRows.length.toLocaleString()}
+            Showing {((currentPage - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(currentPage * PAGE_SIZE, tableRows.length).toLocaleString()} of {tableRows.length.toLocaleString()}
           </span>
           <span className="sc-pager-buttons">
             <button type="button" className="sc-add-btn" onClick={() => setPage(currentPage - 1)} disabled={currentPage <= 1}>Previous</button>
@@ -1673,6 +1848,71 @@ function StockControl({
           </span>
         </nav>
       )}
+      </>)}
+
+      {/* ===== HISTORY TAB: read-only log of stock changes ===== */}
+      {view === 'history' && (<>
+      <div className="sc-table-scroll">
+        <table className="sc-table sc-history-table m-folders">
+          <thead>
+            <tr>
+              <th>Date &amp; time</th>
+              <th className="sc-th-left">Product</th>
+              <th className="sc-th-left">Variant</th>
+              <th className="sc-th-left">User</th>
+              <th>Type</th>
+              <th className="sc-th-quantity">Change</th>
+              <th className="sc-th-quantity" title="Stock of this product + variant before and after the change.">Before → After</th>
+            </tr>
+          </thead>
+          <tbody>
+            {stockLoading ? (
+              <tr><td colSpan={7} className="sc-empty-state">Loading stock history…</td></tr>
+            ) : historyPageRows.map(({ row: stock, id, change }) => {
+              const after = variantData.afterById.get(id) ?? 0;
+              const before = after - change;
+              return (
+                <tr key={id}>
+                  <td className="sc-td-nowrap" data-label="Date & time">{entryWhen(stock)}</td>
+                  <td className="sc-td-left m-title" data-label="Product">
+                    {stock.productName}
+                    {stock.productDeleted && <small className="sc-deleted-tag"> (deleted product)</small>}
+                  </td>
+                  <td className="sc-td-left" data-label="Variant">{stock.variantName || '—'}</td>
+                  <td className="sc-td-left" data-label="User">{stock.recordedBy || '—'}</td>
+                  <td className="m-peek" data-label="Type">
+                    <span className={`sc-type-pill sc-type-${(stock.type || '').replace(/\s+/g, '').toLowerCase()}`}>{movementLabel(stock.type)}</span>
+                  </td>
+                  <td className="sc-td-nowrap sc-td-strong" data-label="Change">
+                    <span className={change >= 0 ? 'sc-in' : 'sc-out'}>{change >= 0 ? '+' : '−'}{Math.abs(change)}</span>
+                  </td>
+                  <td className="sc-td-nowrap" data-label="Before → After">{before} → {after}</td>
+                </tr>
+              );
+            })}
+            {!stockLoading && !stockError && historyRows.length === 0 && (
+              <tr>
+                <td colSpan={7} className="sc-empty-state">
+                  {stockFromDatabase.length === 0 ? 'No stock changes recorded yet.' : 'No changes match your search.'}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {!stockLoading && historyRows.length > PAGE_SIZE && (
+        <nav className="sc-pager" aria-label="Stock history pages">
+          <span>
+            Showing {((currentHistoryPage - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(currentHistoryPage * PAGE_SIZE, historyRows.length).toLocaleString()} of {historyRows.length.toLocaleString()}
+          </span>
+          <span className="sc-pager-buttons">
+            <button type="button" className="sc-add-btn" onClick={() => setHistoryPage(currentHistoryPage - 1)} disabled={currentHistoryPage <= 1}>Previous</button>
+            <span aria-live="polite">Page {currentHistoryPage} of {historyPageCount}</span>
+            <button type="button" className="sc-add-btn" onClick={() => setHistoryPage(currentHistoryPage + 1)} disabled={currentHistoryPage >= historyPageCount}>Next</button>
+          </span>
+        </nav>
+      )}
+      </>)}
 
       {/* ===== ADD ITEM MODAL ===== */}
       {isModalOpen && createPortal(
@@ -2055,7 +2295,7 @@ function StockControl({
             </span>
             {confirmDelete.kind === 'entry' ? (
               <>
-                <h3 id="sc-delete-title">Delete this entry?</h3>
+                <h3 id="sc-delete-title">Delete this variant’s latest entry?</h3>
                 <p id="sc-delete-text">
                   The stock will go back to what it was before this entry. Other entries are not affected. The entry moves to the Trash Bin, where it can be restored.
                   <span className="sc-confirm-detail">
