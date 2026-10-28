@@ -2202,3 +2202,15 @@
     .sc-view-tabs { display: flex; }
     .sc-view-tabs button { flex: 1; justify-content: center; }
 }
+
+/*==========SCROLL INSIDE THE TABLE BOX (Stock + History, also Trash Bin)==========
+   Long tables scroll inside their own box; the column titles (already
+   sticky) stay visible at the top. Phones keep the normal card list. */
+@media (min-width: 901px) {
+    .sc-table-parent .sc-table-scroll {
+        max-height: calc(100vh - 230px);
+        min-height: 220px;
+        overflow: auto;
+        overscroll-behavior: contain;
+    }
+}

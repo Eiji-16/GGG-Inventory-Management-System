@@ -224,3 +224,37 @@ html[data-field-hints="hidden"] :is(
         table.m-folders > tbody > tr::after { transition: none; }
     }
 }
+
+/* ==========================================================================
+   TABLE ALIGNMENT — every table in the system (tech critique rule)
+   The first 2 columns are left-aligned; every other column is centred.
+   A leading tick-box column doesn't count: it stays centred and the next
+   two columns are the left-aligned ones. Message rows that span the whole
+   table ("Loading…", "No records") stay centred. Wide screens only — on
+   phones the tables turn into cards and keep their own layout.
+   ========================================================================== */
+@media (min-width: 901px) {
+    table th,
+    table td {
+        text-align: center !important;
+    }
+    table tr > :is(th, td):nth-child(-n + 2),
+    table tr:has(> :first-child > input[type="checkbox"]) > :nth-child(3) {
+        text-align: left !important;
+    }
+    table tr:has(> :first-child > input[type="checkbox"]) > :first-child,
+    table tr > td[colspan]:only-child {
+        text-align: center !important;
+    }
+    /* Cell contents laid out with flexbox follow the same rule. */
+    table tr > :is(th, td):nth-child(-n + 2) > :is(span, div, button):only-child,
+    table tr:has(> :first-child > input[type="checkbox"]) > :nth-child(3) > :is(span, div, button):only-child {
+        justify-content: flex-start !important;
+        justify-items: start !important;
+        text-align: left !important;
+    }
+    table tr:has(> :first-child > input[type="checkbox"]) > :nth-child(2) > :is(span, div, button):only-child {
+        justify-content: flex-start !important;
+        justify-items: start !important;
+    }
+}

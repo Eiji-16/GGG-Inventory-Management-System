@@ -1617,7 +1617,8 @@ function StockControl({
                 safetyStock: product?.safetyStock,
                 annualDemand: product?.annualDemand || product?.demandFromHistory,
                 leadTimeDays: product?.leadTimeDays,
-                remainingStock: totalQty,
+                // Status of THIS product + variant: its own count against the product's reorder point.
+                remainingStock: variantStock,
               };
               const after = balanceAfter;
               const signedText = `${change >= 0 ? '+' : '-'}${Math.abs(change)}`;
@@ -1752,7 +1753,7 @@ function StockControl({
                     {status ? (
                       <span
                         className={`sc-safety-badge sc-safety-${status}`}
-                        title={`${statusRow.remainingStock} on hand now · reorder point ${point} (safety stock plus demand during lead time)`}
+                        title={`${statusRow.remainingStock} on hand for this ${stock.variantName ? 'variant' : 'product'}${totalQty !== statusRow.remainingStock ? ` (${totalQty} for the whole product)` : ''} · reorder point ${point} (safety stock plus demand during lead time)`}
                       >
                         {status !== 'healthy' && <AlertTriangle size={10} />}
                         {STATUS_LABEL[status]}

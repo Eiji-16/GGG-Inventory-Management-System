@@ -7,6 +7,7 @@ import './app-error.css';
 import '../styles/motion.css'; /* subtle shared animations (hover, fades, pop-ups) */
 import { startSlidingTabs } from '../utils/slidingTabs';
 import { startMobileFolders } from '../utils/mobileFolders';
+import { startLoadingBar } from '../utils/loadingBar';
 import { readSavedTheme, saveTheme } from '../theme';
 import { CurrencyProvider } from '../CurrencyContext';
 import { applyShowFieldHints, readShowFieldHints } from '../fieldHints';
@@ -17,6 +18,7 @@ applyShowFieldHints(readShowFieldHints());
 startSlidingTabs();
 // Phones: list cards open/close on tap (see utils/mobileFolders.js).
 startMobileFolders();
+startLoadingBar();   // thin top bar whenever the system waits for the server
 
 function App() {
     const [authStatus, setAuthStatus] = useState('checking');

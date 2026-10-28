@@ -215,3 +215,93 @@
     }
     :where([class*="-btn"], [class*="btn-"], .f-btn):hover { transform: none; }
 }
+
+/* ===== GLOBAL LOADING BAR (src/utils/loadingBar.js) =====
+   A thin accent bar at the very top while the system waits for the server. */
+.ui-loading-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 4000;
+    width: 100%;
+    height: 3px;
+    pointer-events: none;
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left center;
+    background: linear-gradient(90deg, transparent, var(--accent, #E8C547) 30%, var(--accent, #E8C547) 70%, transparent);
+    box-shadow: 0 0 8px var(--accent-glow, rgba(232, 197, 71, 0.4));
+}
+.ui-loading-bar.is-active {
+    opacity: 1;
+    animation: ui-load-progress 1.6s var(--ui-ease-out) forwards;
+}
+.ui-loading-bar.is-active::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+    animation: ui-load-shine 1.1s linear infinite;
+}
+.ui-loading-bar.is-done {
+    transform: scaleX(1);
+    opacity: 0;
+    animation: none;
+    transition: transform 200ms var(--ui-ease), opacity 300ms var(--ui-ease) 120ms;
+}
+@keyframes ui-load-progress {
+    0%   { transform: scaleX(0); }
+    40%  { transform: scaleX(0.55); }
+    100% { transform: scaleX(0.9); }
+}
+@keyframes ui-load-shine {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(100%); }
+}
+/* While waiting, the pointer shows the "working" cursor (clicks still work). */
+:where(html[data-loading="true"]) body { cursor: progress; }
+
+/* ===== BUSY BUTTONS =====
+   Any button marked aria-busy="true" (or disabled while saving) shows a
+   small spinner and can't be pressed twice. */
+:where(button[aria-busy="true"]) {
+    position: relative;
+    cursor: progress;
+    pointer-events: none;
+}
+:where(button[aria-busy="true"])::after {
+    content: '';
+    width: 12px;
+    height: 12px;
+    margin-left: 6px;
+    display: inline-block;
+    vertical-align: -2px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: ui-spin 0.7s linear infinite;
+}
+@keyframes ui-spin { to { transform: rotate(360deg); } }
+
+/* ===== LOADING ROWS: "Loading…" messages inside tables gently pulse ===== */
+:where(.sc-empty-state, .ra-empty, .ps-empty, .tb-empty, [class*="empty-state"]):where(:not(:empty)) {
+    animation: ui-fade-in var(--ui-medium) var(--ui-ease) both;
+}
+:where(td[aria-busy="true"], .ui-loading) {
+    animation: ui-loading-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ui-loading-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.55; }
+}
+
+/* ===== SMOOTH SCROLLING inside scroll boxes ===== */
+:where([class*="table-scroll"], [class*="-scroll"]) {
+    scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ui-loading-bar.is-active { animation: none; transform: scaleX(0.9); }
+    .ui-loading-bar.is-active::after { animation: none; }
+    :where(td[aria-busy="true"], .ui-loading) { animation: none; }
+}
