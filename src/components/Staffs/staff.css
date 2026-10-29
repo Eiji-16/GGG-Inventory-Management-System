@@ -280,7 +280,7 @@
     display: flex;
     flex-direction: column;
     width: min(100%, 620px);
-    max-height: min(90vh, 760px);
+    max-height: min(calc(90vh / var(--ui-zoom, 1)), 760px);
     overflow-y: auto;
     color: var(--text-primary);
     background: var(--bg-card);
@@ -820,7 +820,7 @@
     }
 
     .st-modal {
-        max-height: 94vh;
+        max-height: calc(94vh / var(--ui-zoom, 1));
     }
 
     .st-account-confirm-actions {

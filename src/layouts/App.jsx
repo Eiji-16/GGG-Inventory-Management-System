@@ -5,6 +5,7 @@ import Login from '../components/Login/Login';
 import LandingPage from '../components/LandingPage/landingPage';
 import './app-error.css';
 import '../styles/motion.css'; /* subtle shared animations (hover, fades, pop-ups) */
+import '../styles/polish.css'; /* finishing layer: focus, inputs, main buttons, cards, tables */
 import { startSlidingTabs } from '../utils/slidingTabs';
 import { startMobileFolders } from '../utils/mobileFolders';
 import { startLoadingBar } from '../utils/loadingBar';
@@ -12,9 +13,15 @@ import { DEFAULT_THEME, normalizeTheme, readSavedTheme, readUserTheme, saveTheme
 import apiFetch from '../apiFetch';
 import { CurrencyProvider } from '../CurrencyContext';
 import { applyShowFieldHints, readShowFieldHints } from '../fieldHints';
+import { applyFontSize, readFontSize } from '../fontSize';
+import { startChartTooltip } from '../utils/chartTooltip';
 
 // Apply the saved "Show field descriptions" choice before the first render.
 applyShowFieldHints(readShowFieldHints());
+// Apply the saved font size (Settings → Font size) before the first render.
+applyFontSize(readFontSize());
+// Data box on hover for every chart (elements with data-tip="…").
+startChartTooltip();
 // Active tab highlights slide to the newly selected tab (all tab groups).
 startSlidingTabs();
 // Phones: list cards open/close on tap (see utils/mobileFolders.js).

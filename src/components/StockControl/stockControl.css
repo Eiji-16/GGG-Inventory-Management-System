@@ -74,7 +74,7 @@
     align-items: center;
     gap: 14px;
     flex-shrink: 0;
-    padding: 16px clamp(16px, 3vw, 36px);
+    padding: 16px clamp(16px, calc(3vw / var(--ui-zoom, 1)), 36px);
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-card);
 }
@@ -106,7 +106,7 @@
 
 .sc-reorder-fullscreen-title h2 {
     margin: 0 0 5px;
-    font-size: clamp(17px, 2vw, 21px);
+    font-size: clamp(17px, calc(2vw / var(--ui-zoom, 1)), 21px);
     letter-spacing: -0.02em;
 }
 
@@ -121,7 +121,7 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 22px clamp(16px, 3vw, 36px) 32px;
+    padding: 22px clamp(16px, calc(3vw / var(--ui-zoom, 1)), 36px) 32px;
     background: var(--bg-primary, var(--bg-card));
 }
 
@@ -1003,8 +1003,8 @@
     color: var(--text-primary);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    width: min(94vw, 42rem);
-    max-height: min(88vh, 46rem);
+    width: min(calc(94vw / var(--ui-zoom, 1)), 42rem);
+    max-height: min(calc(88vh / var(--ui-zoom, 1)), 46rem);
     overflow: hidden;
     box-shadow: 0 1.75rem 4rem rgba(0, 0, 0, 0.45);
     animation: sc-slide-up 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1275,8 +1275,8 @@
     background-color: var(--bg-card, #ffffff);
     color: var(--text-primary);
     border-radius: 8px;
-    width: min(94vw, 36rem);
-    max-height: 85vh;
+    width: min(calc(94vw / var(--ui-zoom, 1)), 36rem);
+    max-height: calc(85vh / var(--ui-zoom, 1));
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -1530,7 +1530,7 @@
 }
 
 .sc-activity-drawer {
-    width: clamp(320px, 38vw, 560px);
+    width: clamp(320px, calc(38vw / var(--ui-zoom, 1)), 560px);
     height: 100%;
     background-color: var(--bg-card, #ffffff);
     color: var(--text-primary);
@@ -2249,7 +2249,7 @@
    sticky) stay visible at the top. Phones keep the normal card list. */
 @media (min-width: 901px) {
     .sc-table-parent .sc-table-scroll {
-        max-height: calc(100vh - 230px);
+        max-height: calc(calc(100vh / var(--ui-zoom, 1)) - 230px);
         min-height: 220px;
         overflow: auto;
         overscroll-behavior: contain;

@@ -1838,7 +1838,7 @@ grid-column: 1 / -1;
     grid-template-areas:
         "sales   sales   sales coverage"
         "sales   sales   sales category"
-        "reorder reorder top   moves";
+        "reorder activity top  moves";
 }
 .parent.db-grid > .salesAnalytics-card    { grid-area: sales; }
 .parent.db-grid > .coverage-card          { grid-area: coverage; }
@@ -1846,6 +1846,7 @@ grid-column: 1 / -1;
 .parent.db-grid > .regionalBreakdown-card { grid-area: reorder; }
 .parent.db-grid > .productSales-card      { grid-area: top; }
 .parent.db-grid > .totalOrder-card        { grid-area: moves; }
+.parent.db-grid > .activity-card          { grid-area: activity; }
 .parent.db-grid > .card { min-height: 0; }
 
 /* The two split cards: each holds one section and fills its card. */
@@ -1864,7 +1865,7 @@ grid-column: 1 / -1;
         grid-template-areas:
             "sales    sales"
             "coverage category"
-            "reorder  reorder"
+            "reorder  activity"
             "top      moves";
     }
 }
@@ -1873,7 +1874,7 @@ grid-column: 1 / -1;
 @media (max-width: 640px) {
     .parent.db-grid {
         grid-template-columns: minmax(0, 1fr);
-        grid-template-areas: "sales" "reorder" "coverage" "category" "moves" "top";
+        grid-template-areas: "sales" "reorder" "activity" "coverage" "category" "moves" "top";
     }
 }
 
@@ -2203,7 +2204,7 @@ grid-column: 1 / -1;
 .db-kpi-tile-value {
     flex-wrap: wrap;
     row-gap: 2px;
-    font-size: clamp(19px, 1.8vw, 26px);
+    font-size: clamp(19px, calc(1.8vw / var(--ui-zoom, 1)), 26px);
     overflow-wrap: anywhere;
 }
 .db-kpi-tile-value small { white-space: nowrap; }
@@ -2214,3 +2215,295 @@ grid-column: 1 / -1;
 /* Stock Health: Critical gets its own colour (same as Reports & Analytics). */
 .db-kpi-bar-seg.is-crit, .db-kpi-legend i.is-crit { background: color-mix(in srgb, var(--accent-low) 70%, var(--accent-med)); }
 .db-kpi-legend { gap: 4px 8px; }
+
+
+/*==========SUPPLIER COVERAGE (ring + detail rows)==========
+   Ring = share of products linked to a supplier (hover each part for the
+   numbers). Detail rows on the right, each opens Product & Supplier. */
+.db-cov {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 14px;
+    min-height: 0;
+}
+.db-cov-ring {
+    position: relative;
+    flex: 0 0 auto;
+    width: 104px;
+    height: 104px;
+}
+.db-cov-ring svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.db-cov-track,
+.db-cov-arc {
+    fill: none;
+    stroke-width: 11;
+    transform: rotate(-90deg);
+    transform-origin: 60px 60px;
+}
+.db-cov-track { stroke: var(--static-bg-color); }
+.db-cov-arc { cursor: default; transition: stroke-width 0.18s ease, filter 0.18s ease; }
+.db-cov-arc.is-linked { stroke: var(--accent-high); }
+.db-cov-arc.is-missing { stroke: color-mix(in srgb, var(--accent-low) 75%, transparent); }
+.db-cov-arc:hover { stroke-width: 14; }
+.db-cov-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    pointer-events: none;
+}
+.db-cov-center small { color: var(--text-muted); font-size: 9.5px; font-weight: 600; }
+.db-cov-center strong { font-size: 21px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.db-cov-details {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+}
+.db-cov-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    width: 100%;
+    padding: 4px 2px;
+    color: var(--text-muted);
+    font: inherit;
+    text-align: left;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--hairline, var(--border-color));
+    cursor: pointer;
+    transition: color 0.18s ease, padding-left 0.18s ease;
+}
+.db-cov-row:last-child { border-bottom: 0; }
+.db-cov-row:hover { color: var(--accent); padding-left: 5px; }
+.db-cov-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 4px; }
+.db-cov-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.db-cov-label { color: var(--text-muted); font-size: 10px; font-weight: 600; }
+.db-cov-value {
+    overflow: hidden;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.db-cov-value.is-warn { color: var(--accent-low); }
+@container (max-width: 230px) {
+    .db-cov-ring { width: 84px; height: 84px; }
+    .db-cov-center strong { font-size: 17px; }
+    .db-cov { gap: 10px; }
+}
+
+/*==========TOP PRODUCTS SOLD (photo list)==========
+   Columns: Item (photo, name, category) | Stock now | Units sold. */
+.db-ps {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+.db-ps-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 4px;
+    border-radius: 8px;
+    outline: none;
+    transition: background-color 0.18s ease;
+}
+.db-ps-row:not(.db-ps-head):hover,
+.db-ps-row:not(.db-ps-head):focus-visible { background: var(--overlay-soft, rgba(255, 255, 255, 0.06)); }
+.db-ps-row:not(.db-ps-head):focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+.db-ps-head {
+    padding-top: 0;
+    padding-bottom: 3px;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+}
+.db-ps-head span:not(:first-child),
+.db-ps-num { text-align: right; }
+.db-ps-item { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.db-ps-thumb {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    overflow: hidden;
+    color: var(--accent);
+    background: var(--static-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+}
+.db-ps-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.db-ps-thumb.is-empty { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.db-ps-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.db-ps-name,
+.db-ps-sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.db-ps-name { color: var(--text-primary); font-size: 12px; font-weight: 600; }
+.db-ps-sub { color: var(--text-muted); font-size: 10px; }
+.db-ps-num { color: var(--text-primary); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.db-ps-num.is-low { color: var(--accent-med); }
+.db-ps-num.is-out { color: var(--accent-low); }
+.db-ps-sold { font-weight: 800; }
+
+/*==========RECENT ACTIVITY==========*/
+.activity-card { gap: 8px; }
+.db-act-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.db-act-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 5px 4px;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: left;
+    background: none;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.18s ease;
+}
+.db-act-row:hover { background: var(--overlay-soft, rgba(255, 255, 255, 0.06)); }
+.db-act-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+.db-act-avatar {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    background: linear-gradient(145deg, color-mix(in srgb, var(--avatar) 85%, #fff), var(--avatar));
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3px color-mix(in srgb, var(--avatar) 40%, transparent);
+}
+.db-act-text { display: flex; flex: 1; flex-direction: column; gap: 1px; min-width: 0; }
+.db-act-name,
+.db-act-line {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.db-act-name { font-size: 12px; font-weight: 700; }
+.db-act-line { color: var(--text-muted); font-size: 10.5px; }
+.db-act-product {
+    color: var(--text-primary);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--text-primary) 35%, transparent);
+    text-underline-offset: 2px;
+}
+.db-act-side { display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 1px; }
+.db-act-qty { font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.db-act-qty.is-in { color: var(--accent-high); }
+.db-act-qty.is-out { color: var(--accent-low); }
+.db-act-time { color: var(--text-muted); font-size: 9.5px; white-space: nowrap; }
+
+/*==========HOVER DATA on the small KPI bars==========*/
+.db-kpi-bar-seg[data-tip],
+.db-kpi-progress[data-tip] { cursor: default; transition: filter 0.15s ease, transform 0.15s ease; }
+.db-kpi-bar-seg[data-tip]:hover { filter: brightness(1.25); }
+.db-kpi-progress[data-tip]:hover > span { filter: brightness(1.15); }
+/* The health bar is thin (6px) and the card lifts 3px on hover, so each
+   segment gets a taller invisible hover area. */
+.db-kpi-bar.db-kpi-bar-hover { overflow: visible; }
+.db-kpi-bar-hover .db-kpi-bar-seg { position: relative; }
+.db-kpi-bar-hover .db-kpi-bar-seg::after { content: ''; position: absolute; inset: -8px 0; }
+.db-kpi-legend > span[data-tip] { cursor: default; }
+
+/*==========SALES HISTORY: BAR CHART OPTION (Line | Bar)==========*/
+.db-sales-bar {
+    transform-box: fill-box;
+    transform-origin: bottom;
+    animation: ui-grow-up 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    transition: opacity 0.15s ease, filter 0.15s ease;
+    pointer-events: none;
+}
+.db-sales-bar.is-dimmed { opacity: 0.6; }
+.db-sales-bar.is-active { filter: brightness(1.15) drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 50%, transparent)); }
+/* Month labels sit under the middle of each bar. */
+.db-hero-xaxis.is-bars {
+    display: grid;
+    grid-template-columns: repeat(var(--months, 12), minmax(0, 1fr));
+    padding-right: 0;
+}
+.db-hero-xaxis.is-bars span { text-align: center; }
+.salesAnalytics-card .db-hero-xaxis.is-bars { padding-left: 34px; }
+@media (prefers-reduced-motion: reduce) { .db-sales-bar { animation: none; } }
+
+/*==========KPI CARDS — ACRYLIC (frosted glass)==========
+   Soft colour pools sit behind the four cards; each card is a frosted,
+   slightly see-through pane (blur + a faint grain + a thin light edge), so
+   the colour glows through. Layout, size and hover stay the same. */
+.db-kpi-row {
+    position: relative;
+    isolation: isolate;
+}
+.db-kpi-row::before {
+    content: '';
+    position: absolute;
+    inset: -4px 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(22% 85% at 11% 45%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 72%),
+        radial-gradient(22% 85% at 37% 55%, color-mix(in srgb, var(--info-color, #60A5FA) 28%, transparent), transparent 72%),
+        radial-gradient(22% 85% at 63% 45%, color-mix(in srgb, var(--accent-high) 24%, transparent), transparent 72%),
+        radial-gradient(22% 85% at 89% 55%, color-mix(in srgb, #A78BFA 28%, transparent), transparent 72%);
+}
+.db-kpi-tile {
+    background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+        linear-gradient(150deg,
+            color-mix(in srgb, var(--kpi-accent) 12%, color-mix(in srgb, var(--bg-card) 64%, transparent)) 0%,
+            color-mix(in srgb, var(--bg-card) 60%, transparent) 62%);
+    border-color: color-mix(in srgb, #ffffff 10%, var(--border-color));
+    box-shadow:
+        var(--shadow-card),
+        inset 0 1px 0 rgba(255, 255, 255, 0.09);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    backdrop-filter: blur(16px) saturate(150%);
+}
+@media (hover: hover) {
+    .db-kpi-tile:not(.is-skeleton):hover {
+        box-shadow:
+            var(--shadow-hover, 0 8px 22px rgba(0, 0, 0, 0.3)),
+            0 0 0 1px color-mix(in srgb, var(--kpi-accent) 14%, transparent),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
+}
+/* Light themes: a whiter pane so text stays crisp. */
+:root[data-theme="soft-white"] .db-kpi-tile,
+:root[data-theme="lavender"] .db-kpi-tile,
+:root[data-theme="citrus"] .db-kpi-tile,
+:root[data-theme="olive"] .db-kpi-tile {
+    background:
+        linear-gradient(150deg,
+            color-mix(in srgb, var(--kpi-accent) 10%, rgba(255, 255, 255, 0.72)) 0%,
+            rgba(255, 255, 255, 0.66) 62%);
+    border-color: rgba(255, 255, 255, 0.75);
+    box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}

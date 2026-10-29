@@ -604,7 +604,7 @@ body {
 .dashboard-page-wrapper {
     margin: 0;
     padding: 0;
-    min-height: 100vh;
+    min-height: calc(100vh / var(--ui-zoom, 1));
     width: 100%;
     background: var(--bg-main);
     transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -629,7 +629,7 @@ body {
 
 .dashboard-page-wrapper{
     width: 100%;
-    min-height: 100vh;
+    min-height: calc(100vh / var(--ui-zoom, 1));
 
     display: flex;
     justify-content: center;
@@ -637,7 +637,7 @@ body {
 
 .dashboard-container-parent{
     display: flex;
-    min-height: 100vh;
+    min-height: calc(100vh / var(--ui-zoom, 1));
     gap: 5px;
     width: 100%;
     background-color: transparent;
@@ -661,7 +661,7 @@ body {
     justify-content: space-between;
     padding: 0;
     box-shadow: none;
-    min-height: calc(10vh - 2rem);
+    min-height: calc(calc(10vh / var(--ui-zoom, 1)) - 2rem);
     position: sticky;
     top: 1rem;
     flex-shrink: 0;
@@ -949,7 +949,7 @@ body {
     border-radius: 1.25rem;
     max-width: 1600px;
     width: 100%;
-    min-height: calc(90vh - 4.5rem);
+    min-height: calc(calc(90vh / var(--ui-zoom, 1)) - 4.5rem);
     box-sizing: border-box;
     flex-direction: column;
 }
@@ -1114,10 +1114,10 @@ body {
   top: calc(100% + 0.6rem);
   right: 0;
   z-index: 1200;
-  width: min(22rem, 88vw);
+  width: min(22rem, calc(88vw / var(--ui-zoom, 1)));
   display: flex;
   flex-direction: column;
-  max-height: min(30rem, 72vh);
+  max-height: min(30rem, calc(72vh / var(--ui-zoom, 1)));
   background: var(--dropdown-menu-bg);
   border: 1px solid var(--dropdown-menu-border);
   border-radius: 0.9rem;
@@ -1339,12 +1339,12 @@ body {
 
 @media (max-width: 480px) {
   .notif-box {
-    width: min(20rem, 92vw);
+    width: min(20rem, calc(92vw / var(--ui-zoom, 1)));
   }
 }
 
 /*==========NOTIFICATIONS — visual rows==========*/
-.notif-box { width: min(24rem, 92vw); }
+.notif-box { width: min(24rem, calc(92vw / var(--ui-zoom, 1))); }
 
 /* Summary chips under the header */
 .notif-summary {
@@ -1487,7 +1487,7 @@ body {
     overflow-x: hidden;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
-    height: calc(93vh - 4rem);
+    height: calc(calc(93vh / var(--ui-zoom, 1)) - 4rem);
     width: 100%;
     padding-bottom: 0;
 }
@@ -1735,7 +1735,7 @@ body {
 
     .main-content-window {
         height: auto;
-        min-height: 40vh;
+        min-height: calc(40vh / var(--ui-zoom, 1));
         overflow-y: visible;
     }
 
@@ -1744,9 +1744,9 @@ body {
         top: 0.5rem;
         left: 0.5rem;
         z-index: 200;
-        width: min(30rem, calc(100vw - 1rem));
-        height: calc(100vh - 1rem);
-        height: calc(100dvh - 1rem);
+        width: min(30rem, calc(calc(100vw / var(--ui-zoom, 1)) - 1rem));
+        height: calc(calc(100vh / var(--ui-zoom, 1)) - 1rem);
+        height: calc(calc(100dvh / var(--ui-zoom, 1)) - 1rem);
         min-height: 0;
         background: var(--drawer-background);
         border: 1px solid var(--drawer-border);
@@ -2023,7 +2023,7 @@ body {
     .notif-box {
         top: 3.25rem;
         right: 0.5rem;
-        width: calc(100vw - 1rem);
+        width: calc(calc(100vw / var(--ui-zoom, 1)) - 1rem);
     }
 }
 
@@ -2242,8 +2242,8 @@ body {
 @media (min-width: 821px) {
     .dashboard-container-parent {
         box-sizing: border-box;
-        height: 100vh;
-        height: 100dvh;
+        height: calc(100vh / var(--ui-zoom, 1));
+        height: calc(100dvh / var(--ui-zoom, 1));
         min-height: 0;
         padding-bottom: 0.4rem;   /* thinner frame under the page */
     }
@@ -2257,5 +2257,964 @@ body {
         flex: 1 1 auto;
         min-height: 0;
         height: auto;
+    }
+}
+
+/*==========SIDEBAR: ICONS ONLY / ICONS WITH NAMES (desktop)==========
+   The panel button under the logo switches between the normal icon bar and
+   a wider bar that also shows each page's name (src: landingPage.jsx,
+   "ggg-sidebar-mode" in this browser). Phones keep their slide-in menu. */
+.sidebar-mode-toggle { display: none; }
+
+@media (min-width: 821px) {
+    .sidebar-body {
+        transition: width 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* --- Icons only: the toggle sits under the logo --- */
+    .sidebar-body .sidebar-logo-row {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    .sidebar-body .sidebar-logo-row .sidebar-mode-toggle {
+        display: grid;
+        place-items: center;
+        width: 2.1rem;
+        height: 1.9rem;
+        margin: -0.5rem 0 0.35rem;
+        padding: 0;
+        color: var(--text-muted);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 0.55rem;
+        cursor: pointer;
+        transition: color 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+    }
+    .sidebar-body .sidebar-logo-row .sidebar-mode-toggle:hover {
+        color: var(--text-primary);
+        background: var(--static-bg-color);
+        border-color: var(--border-color);
+    }
+    .sidebar-body .sidebar-logo-row .sidebar-mode-toggle:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+    }
+
+    /* --- Icons with names --- */
+    .sidebar-body.is-expanded {
+        width: 13.25rem;
+        align-items: stretch;
+    }
+    .sidebar-body.is-expanded .sidebar-menu {
+        align-items: stretch;
+        gap: 0.2rem;
+        padding: 0.75rem 0.55rem;
+    }
+    .sidebar-body.is-expanded .sidebar-logo-row {
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 0.6rem;
+        margin-bottom: 0.3rem;
+        padding: 0 0.2rem 0.65rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .sidebar-body.is-expanded #sidebar-logo { padding-bottom: 0; flex: 0 0 auto; }
+    .sidebar-body.is-expanded .sidebar-logo-row button#sidebar-logo.sidebar-logo-editable { margin: 0; }
+    .sidebar-body.is-expanded .sidebar-brand {
+        display: flex;
+        flex-direction: column;
+        gap: 0.12rem;
+        min-width: 0;
+        color: var(--text-primary);
+        line-height: 1.15;
+        animation: sidebar-text-in 0.22s ease both;
+    }
+    .sidebar-body.is-expanded .sidebar-brand strong {
+        overflow: hidden;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .sidebar-body.is-expanded .sidebar-brand small {
+        color: var(--text-muted);
+        font-size: 0.52rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .sidebar-body.is-expanded .sidebar-brand { flex: 1 1 auto; }
+    .sidebar-body.is-expanded .sidebar-logo-row .sidebar-mode-toggle {
+        flex: 0 0 auto;
+        margin: 0 0 0 auto;
+        color: var(--text-primary);
+    }
+    .sidebar-body.is-expanded .sidebar-section-label {
+        display: block;
+        padding: 0.6rem 0.6rem 0.2rem;
+        color: var(--text-muted);
+        font-size: 0.56rem;
+        font-weight: 700;
+        letter-spacing: 0.13em;
+        line-height: 1;
+        text-transform: uppercase;
+        animation: sidebar-text-in 0.22s ease both;
+    }
+    .sidebar-body.is-expanded .sidebar-item:not(.sidebar-logo-row) button,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item button {
+        width: 100%;
+        height: auto;
+        min-height: 2.3rem;
+        justify-content: flex-start;
+        gap: 0.65rem;
+        padding: 0.4rem 0.65rem;
+        border-radius: 0.65rem;
+        background-color: transparent;
+    }
+    .sidebar-body.is-expanded .sidebar-item:not(.sidebar-logo-row) button:active,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item button:active {
+        transform: scale(0.985);
+    }
+    .sidebar-body.is-expanded .sidebar-label {
+        display: inline !important;
+        min-width: 0;
+        margin-left: 0;
+        color: var(--text-primary);
+        font-size: 0.78rem;
+        font-weight: 500;
+        line-height: 1.2;
+        text-align: left;
+        animation: sidebar-text-in 0.22s ease both;
+    }
+    .sidebar-body.is-expanded .sidebar-item.active .sidebar-label,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active .sidebar-label {
+        color: var(--icon-active-color);
+        font-weight: 650;
+    }
+    .sidebar-body.is-expanded .sidebar-count-badge {
+        position: static;
+        margin-left: auto;
+    }
+
+    /* Footer (Staffs, Trash Bin, Profile, Setting) and Logout. */
+    .sidebar-body.is-expanded .sidebar-footer-item { align-items: stretch; }
+    .sidebar-body.is-expanded .sub-sidebar-footer-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        padding: 0.45rem 0.55rem;
+        background-color: var(--bg-sidebar);
+        border-radius: 13px;
+    }
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button {
+        background-color: var(--background-icon-active-color) !important;
+    }
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active .sidebar-icon {
+        stroke: var(--icon-active-color) !important;
+    }
+    .sidebar-body.is-expanded .sub-sidebar-footer-item-logout {
+        align-items: stretch;
+        width: 100%;
+        padding: 0.3rem 0.55rem;
+    }
+}
+
+@keyframes sidebar-text-in {
+    from { opacity: 0; transform: translateX(-4px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sidebar-body { transition: none; }
+    .sidebar-body.is-expanded .sidebar-label,
+    .sidebar-body.is-expanded .sidebar-brand,
+    .sidebar-body.is-expanded .sidebar-section-label { animation: none; }
+}
+
+/*==========SIDEBAR NEVER TALLER THAN THE WINDOW (desktop)==========
+   On short windows (or Large font / names shown) the page buttons were
+   taller than the window, which pushed the whole page down and cut off its
+   bottom. Now the sidebar stays inside the frame: the footer (Staffs …
+   Logout) always shows, and the page list scrolls by itself (hidden
+   scrollbar) only when there isn't enough room. */
+@media (min-width: 821px) {
+    .sidebar-body {
+        min-height: 0;
+        max-height: 100%;
+    }
+    .sidebar-body .sidebar-menu {
+        flex: 0 1 auto !important;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        scrollbar-width: none;
+        overscroll-behavior: contain;
+    }
+    .sidebar-body .sidebar-menu::-webkit-scrollbar { display: none; }
+    /* The logo row stays at the top while the list scrolls under it. */
+    .sidebar-body .sidebar-menu > .sidebar-logo-row {
+        position: sticky;
+        top: -0.75rem;
+        z-index: 1;
+        background-color: var(--bg-sidebar, #172237);
+    }
+    /* Slightly tighter rows when names are shown. */
+    .sidebar-body.is-expanded .sidebar-item:not(.sidebar-logo-row) button,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item button {
+        min-height: 2.15rem;
+    }
+    .sidebar-body.is-expanded .sidebar-footer-item { gap: 0.4rem; padding-top: 0.5rem; padding-bottom: 0; }
+}
+
+/*==========SOFT FADE AT THE TOP / BOTTOM OF THE PAGE AREA==========
+   Content scrolling under the page title used to be cut off sharply. Now
+   it fades out over a short distance. The fade only shows on the edge that
+   has more content past it: none at the very top, none at the very end
+   (a scroll-linked animation sets the two fade sizes). Browsers without
+   scroll-linked animations simply show no fade. */
+@property --page-fade-top {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
+}
+@property --page-fade-bottom {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
+}
+@keyframes page-edge-fade {
+    0%   { --page-fade-top: 0px;  --page-fade-bottom: 22px; }
+    4%   { --page-fade-top: 22px; }
+    96%  { --page-fade-bottom: 22px; }
+    100% { --page-fade-top: 22px; --page-fade-bottom: 0px; }
+}
+@supports (animation-timeline: scroll()) {
+    .main-content-window {
+        -webkit-mask-image: linear-gradient(to bottom,
+            transparent 0,
+            #000 var(--page-fade-top),
+            #000 calc(100% - var(--page-fade-bottom)),
+            transparent 100%);
+        mask-image: linear-gradient(to bottom,
+            transparent 0,
+            #000 var(--page-fade-top),
+            #000 calc(100% - var(--page-fade-bottom)),
+            transparent 100%);
+        animation: page-edge-fade linear both;
+        animation-timeline: scroll(self block);
+    }
+    /* A pop-up opened inside the page must never be faded or cut. */
+    .main-content-window:has([role="dialog"], [role="alertdialog"], [class*="overlay"], [class*="backdrop"]) {
+        -webkit-mask-image: none;
+        mask-image: none;
+    }
+}
+
+/*==========OPEN SIDEBAR — ONE PANEL STYLE==========
+   "Icons with names" now looks like one continuous panel: compact rows, a soft highlight + gold marker for the open page,
+   and the signed-in person with a Logout button at the bottom.
+   Icons-only mode and the phone menu are unchanged. */
+.sidebar-user { display: none; }
+
+@media (min-width: 821px) {
+    .sidebar-body.is-expanded {
+        gap: 0;
+        justify-content: flex-start;
+        overflow: hidden;
+        background-color: var(--bg-sidebar);
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        box-shadow: var(--shadow-card);
+    }
+    .sidebar-body.is-expanded .sidebar-menu {
+        flex: 1 1 auto !important;
+        gap: 0.12rem;
+        padding: 0.8rem 0.6rem 0.5rem;
+        background: transparent;
+        border-radius: 0;
+    }
+    .sidebar-body.is-expanded .sidebar-menu > .sidebar-logo-row {
+        top: -0.8rem;
+        margin-bottom: 0.55rem;
+        padding: 0.05rem 0.2rem 0.7rem;
+        background-color: var(--bg-sidebar);
+    }
+
+    /* Rows */
+    .sidebar-body.is-expanded .sidebar-section-label {
+        padding: 0.75rem 0.65rem 0.3rem;
+        font-size: 0.55rem;
+    }
+    .sidebar-body.is-expanded .sidebar-item:not(.sidebar-logo-row) button,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item button {
+        position: relative;
+        min-height: 2.05rem;
+        gap: 0.7rem;
+        padding: 0.35rem 0.65rem;
+        border: 0;
+        border-radius: 0.5rem;
+        background-color: transparent !important;
+        box-shadow: none;
+    }
+    .sidebar-body.is-expanded .sidebar-label {
+        color: color-mix(in srgb, var(--text-primary) 72%, transparent);
+        font-size: 0.76rem;
+        font-weight: 500;
+    }
+    .sidebar-body.is-expanded .sidebar-icon {
+        width: 0.95rem;
+        height: 0.95rem;
+        opacity: 0.85;
+    }
+    /* Hover: soft tint, brighter text. */
+    .sidebar-body.is-expanded .sidebar-item:not(.active):not(.sidebar-logo-row) button:hover,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item:not(.active) button:hover {
+        background-color: color-mix(in srgb, var(--text-primary) 6%, transparent) !important;
+    }
+    .sidebar-body.is-expanded .sidebar-item:not(.active) button:hover .sidebar-label,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item:not(.active) button:hover .sidebar-label {
+        color: var(--text-primary);
+    }
+    /* Open page: soft highlight, gold icon and a small gold marker. */
+    .sidebar-body.is-expanded .sidebar-item.active button,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button {
+        background-color: color-mix(in srgb, var(--text-primary) 9%, transparent) !important;
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 6%, transparent);
+    }
+    .sidebar-body.is-expanded .sidebar-item.active button::before,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: -0.6rem;
+        width: 3px;
+        height: 1.05rem;
+        background: var(--accent);
+        border-radius: 0 3px 3px 0;
+        transform: translateY(-50%);
+        box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 55%, transparent);
+    }
+    .sidebar-body.is-expanded .sidebar-item.active .sidebar-icon,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active .sidebar-icon {
+        stroke: var(--accent) !important;
+        opacity: 1;
+    }
+    .sidebar-body.is-expanded .sidebar-item.active .sidebar-label,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active .sidebar-label {
+        color: var(--text-primary);
+        font-weight: 600;
+    }
+
+    /* Footer: same panel, separated by a thin line. */
+    .sidebar-body.is-expanded .sidebar-footer-item {
+        gap: 0;
+        margin-top: 0;
+        padding: 0;
+        border-top: 1px solid var(--border-color);
+        border-radius: 0;
+    }
+    .sidebar-body.is-expanded .sub-sidebar-footer-item {
+        gap: 0.12rem;
+        padding: 0.5rem 0.6rem;
+        background: transparent;
+        border-radius: 0;
+    }
+
+    /* Signed-in person + Logout. */
+    .sidebar-body.is-expanded .sub-sidebar-footer-item-logout {
+        flex-direction: row;
+        align-items: center;
+        gap: 0.35rem;
+        margin: 0;
+        padding: 0.6rem 0.6rem 0.65rem;
+        background: transparent !important;
+        border-top: 1px solid var(--border-color);
+        border-radius: 0;
+    }
+    .sidebar-body.is-expanded .sidebar-user {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        gap: 0.55rem;
+        min-width: 0;
+        padding: 0.25rem 0.35rem;
+        color: var(--text-primary);
+        font: inherit;
+        text-align: left;
+        background: transparent;
+        border: 0;
+        border-radius: 0.55rem;
+        cursor: pointer;
+        transition: background-color 0.18s ease;
+    }
+    .sidebar-body.is-expanded .sidebar-user:hover { background: color-mix(in srgb, var(--text-primary) 6%, transparent); }
+    .sidebar-user-avatar {
+        display: grid;
+        flex: 0 0 auto;
+        place-items: center;
+        width: 1.85rem;
+        height: 1.85rem;
+        color: var(--icon-active-color, #0B1B33);
+        font-size: 0.66rem;
+        font-weight: 800;
+        background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 70%, #fff), var(--accent));
+        border-radius: 50%;
+        box-shadow: 0 0 0 2px var(--bg-sidebar), 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent);
+    }
+    .sidebar-user-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+    .sidebar-user-text strong,
+    .sidebar-user-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sidebar-user-text strong { font-size: 0.74rem; font-weight: 650; }
+    .sidebar-user-text small { color: var(--text-muted); font-size: 0.6rem; }
+    .sidebar-body.is-expanded #log-out.sidebar-item { width: auto; flex: 0 0 auto; }
+    .sidebar-body.is-expanded #log-out.sidebar-item button {
+        width: 2rem;
+        min-height: 2rem;
+        justify-content: center;
+        padding: 0;
+    }
+    .sidebar-body.is-expanded #log-out button::before { display: none; }
+    .sidebar-body.is-expanded #log-out .sidebar-label { display: none !important; }
+    .sidebar-body.is-expanded #log-out button:hover {
+        background-color: color-mix(in srgb, var(--accent-low, #c4432e) 14%, transparent) !important;
+    }
+}
+
+/*==========OPEN SIDEBAR USES THE FULL WINDOW HEIGHT (desktop)==========
+   Like a classic app sidebar: when names are shown it reaches the top,
+   bottom and left edges of the window (the frame's padding is cancelled
+   with negative margins), with rounded corners only on the right. The
+   width / margin transition animates the change both ways. */
+@media (min-width: 821px) {
+    .sidebar-body {
+        transition:
+            width 0.26s cubic-bezier(0.4, 0, 0.2, 1),
+            margin 0.26s cubic-bezier(0.4, 0, 0.2, 1),
+            border-radius 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .sidebar-body.is-expanded {
+        top: 0;
+        max-height: none;
+        margin: -1rem 0.35rem -0.4rem -1rem;   /* = the frame's padding */
+        border-left: 0;
+        border-radius: 0 18px 18px 0;
+    }
+    .sidebar-body.is-expanded .sidebar-menu {
+        padding-top: 1.1rem;
+    }
+    .sidebar-body.is-expanded .sidebar-menu > .sidebar-logo-row {
+        top: -1.1rem;
+    }
+    .sidebar-body.is-expanded .sub-sidebar-footer-item-logout {
+        padding-bottom: 0.9rem;
+    }
+}
+@media (min-width: 821px) and (prefers-reduced-motion: reduce) {
+    .sidebar-body { transition: none; }
+}
+
+/*==========NESTED FRAME (desktop) — try-out, remove this block to undo==========
+   A dark outer app shell holds the sidebar; the pages sit inside a large
+   rounded inner panel with clear spacing between the two layers.
+   The shell is the same dark navy in every theme; the inner panel uses the
+   theme's own page colour (light themes = light panel). The sidebar keeps
+   its open / close animation — only its colours follow the dark shell. */
+@media (min-width: 821px) {
+    .dashboard-page-wrapper {
+        --shell-bg: color-mix(in srgb, var(--accent, #E8C547) 4%, #070b16);
+    }
+    html body .dashboard-page-wrapper {
+        background: var(--shell-bg);
+    }
+    .dashboard-container-parent {
+        gap: 0.7rem;
+        padding: 0.65rem;
+    }
+
+    /* --- Inner content panel --- */
+    .main-wrapper {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        padding: 0.65rem 0.95rem 0.55rem;
+        background:
+            radial-gradient(55% 32% at 50% 108%, color-mix(in srgb, var(--accent, #E8C547) 12%, transparent), transparent 70%),
+            var(--bg-main);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 22px;
+        box-shadow:
+            0 0 0 1px rgba(0, 0, 0, 0.35),
+            0 28px 60px -28px rgba(0, 0, 0, 0.7),
+            inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    }
+
+    /* --- Sidebar on the dark shell (its own light-on-dark colours) --- */
+    .sidebar-body {
+        --text-primary: #EEF1F7;
+        --text-muted: rgba(226, 232, 240, 0.52);
+        --border-color: rgba(255, 255, 255, 0.08);
+        --static-bg-color: rgba(255, 255, 255, 0.06);
+        --background-icon-active-color-theme: rgba(255, 255, 255, 0.1);
+        --text-sidebar-icon: #D5DBE7;
+        --bg-sidebar: var(--shell-bg);
+        color-scheme: dark;
+    }
+    /* Icons only: soft pills on the shell. */
+    .sidebar-body:not(.is-expanded) .sidebar-menu,
+    .sidebar-body:not(.is-expanded) .sub-sidebar-footer-item-logout {
+        background-color: rgba(255, 255, 255, 0.045);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    }
+    .sidebar-body:not(.is-expanded) .sidebar-menu > .sidebar-logo-row {
+        background-color: transparent;
+    }
+    /* With names: part of the shell itself (no panel edge), same animation. */
+    .sidebar-body.is-expanded {
+        margin: -0.65rem 0.15rem -0.65rem -0.65rem;   /* = the shell's padding */
+        background-color: transparent;
+        border: 0;
+        box-shadow: none;
+    }
+    .sidebar-body.is-expanded .sidebar-menu > .sidebar-logo-row {
+        border-bottom-color: rgba(255, 255, 255, 0.08);
+    }
+    .sidebar-body.is-expanded .sidebar-footer-item,
+    .sidebar-body.is-expanded .sub-sidebar-footer-item-logout {
+        border-top-color: rgba(255, 255, 255, 0.08);
+    }
+    .sidebar-user-avatar { box-shadow: 0 0 0 2px var(--shell-bg), 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent); }
+}
+
+/*==========DARK THEMES — REFINED SURFACES==========
+   The three dark themes get a deep but not pure-black page, cards one step
+   lighter than the page, and inputs one step lighter again, so cards,
+   tables, forms and pop-ups are easy to tell apart. Borders take a hint of
+   each theme's accent. Only colours change. */
+[data-theme="midnight-blue"] {
+    --bg-main: linear-gradient(180deg, #1b2646 0%, #1a2e62 100%);
+    --bg-card: #17264b;
+    --border-color: rgba(232, 197, 71, 0.14);
+    --static-bg-color: #223459;
+    --input-bg: #1f3054;
+    --hairline: rgba(248, 250, 252, 0.12);
+}
+[data-theme="graphite"] {
+    --bg-main: linear-gradient(180deg, #16181c 0%, #1a1d23 100%);
+    --bg-sidebar: #21242a;
+    --bg-card: #21242a;
+    --border-color: color-mix(in srgb, #60A5FA 10%, #30343c);
+    --static-bg-color: #2a2e35;
+    --input-bg: #272a31;
+    --border-strong: #454a55;
+}
+[data-theme="ember"] {
+    --bg-main: linear-gradient(180deg, #141110 0%, #191411 100%);
+    --bg-sidebar: #1e1a17;
+    --bg-card: #1e1a17;
+    --text-muted: #ABA49C;
+    --border-color: color-mix(in srgb, #F97316 10%, #332c27);
+    --static-bg-color: #29231f;
+    --input-bg: #27211d;
+    --border-strong: #463c35;
+}
+
+/*==========THE SIDEBAR CONTAINER FOLLOWS THE THEME (desktop)==========
+   The outer frame and the whole sidebar take the selected theme's colour:
+   a deep shade of the theme (never pure black) with a soft wash of its
+   accent at the top, an accent-tinted edge, and accent hover states.
+   Sizes, spacing and the open / close animation are unchanged. */
+@media (min-width: 821px) {
+    [data-theme="soft-white"]    .dashboard-page-wrapper { --shell-bg: #121722; }  /* navy, gold accent */
+    [data-theme="midnight-blue"] .dashboard-page-wrapper { --shell-bg: #0b1329; }
+    [data-theme="lavender"]      .dashboard-page-wrapper { --shell-bg: #16142a; }
+    [data-theme="citrus"]        .dashboard-page-wrapper { --shell-bg: #082d28; }
+    [data-theme="graphite"]      .dashboard-page-wrapper { --shell-bg: #101216; }
+    [data-theme="ember"]         .dashboard-page-wrapper { --shell-bg: #110e0c; }
+
+    .dashboard-page-wrapper {
+        --sidebar-top: color-mix(in srgb, var(--accent, #E8C547) 11%, var(--shell-bg));
+    }
+    .sidebar-body {
+        --background-icon-active-color-theme: color-mix(in srgb, var(--accent, #E8C547) 18%, transparent);
+    }
+
+    /* Icons only: the two sidebar pills carry the theme colour. */
+    .sidebar-body:not(.is-expanded) .sidebar-menu,
+    .sidebar-body:not(.is-expanded) .sub-sidebar-footer-item-logout {
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--accent, #E8C547) 13%, transparent) 0%, color-mix(in srgb, var(--accent, #E8C547) 3%, transparent) 100%),
+            rgba(255, 255, 255, 0.03);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, #E8C547) 16%, transparent);
+    }
+
+    /* With names: the whole sidebar is a themed panel on the shell. */
+    .sidebar-body.is-expanded {
+        background: linear-gradient(180deg, var(--sidebar-top) 0%, var(--shell-bg) 62%);
+        box-shadow: inset -1px 0 0 color-mix(in srgb, var(--accent, #E8C547) 16%, transparent);
+    }
+    .sidebar-body.is-expanded .sidebar-menu > .sidebar-logo-row {
+        background-color: var(--sidebar-top);
+    }
+    .sidebar-body.is-expanded .sidebar-item:not(.active):not(.sidebar-logo-row) button:hover,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item:not(.active) button:hover {
+        background-color: color-mix(in srgb, var(--accent, #E8C547) 10%, transparent) !important;
+    }
+    .sidebar-body.is-expanded .sidebar-item.active button,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button {
+        background-color: color-mix(in srgb, var(--accent, #E8C547) 15%, transparent) !important;
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, #E8C547) 22%, transparent);
+    }
+
+    /* Inner panel edge picks up the accent too (very lightly). */
+    .main-wrapper {
+        border-color: color-mix(in srgb, var(--accent, #E8C547) 14%, rgba(255, 255, 255, 0.06));
+    }
+}
+
+/*==========OLIVE THEME (charcoal frame + cream page)==========
+   Inspired by the Inventory360 look: a near-black frame and sidebar, a warm
+   cream page with white cards, and a muted olive accent with a soft lime
+   highlight. A light theme (cream page), so it follows the light-theme
+   rules everywhere else. */
+[data-theme="olive"] {
+    color-scheme: light;
+    --bg-main: #ECEBE3;
+    --bg-sidebar: #151613;
+    --bg-card: #FAFAF6;
+    --text-primary: #1D1E1A;
+    --text-muted: #6A6C62;
+    --border-color: rgba(29, 30, 26, 0.10);
+    --text-sidebar-icon: #1D1E1A;
+    --background-icon-active-color: #DCE78F;
+    --icon-active-color: #1D1E1A;
+    --background-icon-active-color-theme: rgba(138, 154, 43, 0.16);
+    --static-bg-color: #EFEEE7;
+    --scroll-thumb: rgba(29, 30, 26, 0.22);
+    --scroll-thumb-hover: rgba(29, 30, 26, 0.4);
+    --accent: #7E8F22;
+    --accent-low: #B8432F;
+    --accent-med: #B07D18;
+    --accent-high: #3F7D4F;
+    --accent-low-soft: rgba(184, 67, 47, 0.12);
+    --accent-med-soft: rgba(176, 125, 24, 0.14);
+    --accent-high-soft: rgba(63, 125, 79, 0.12);
+    --info-color: #3D6FB6;
+    --info-soft: rgba(61, 111, 182, 0.12);
+    --info-border: rgba(61, 111, 182, 0.35);
+    --border-strong: rgba(29, 30, 26, 0.22);
+    --btn-fill-bg: #1D1E1A;
+    --btn-fill-text: #FAFAF6;
+    --shadow-card: 0 1px 2px rgba(29, 30, 26, 0.06);
+    --shadow-hover: 0 8px 20px rgba(29, 30, 26, 0.1);
+    --overlay-soft: rgba(29, 30, 26, 0.04);
+    --overlay-medium: rgba(29, 30, 26, 0.08);
+    --hairline: rgba(29, 30, 26, 0.1);
+    --accent-ring: rgba(126, 143, 34, 0.18);
+    --accent-glow: rgba(126, 143, 34, 0.3);
+    --drawer-background: #151613;
+    --drawer-border: rgba(220, 231, 143, 0.25);
+    --drawer-section-label: #8d8f84;
+    --drawer-brand-color: #f2f2ec;
+    --drawer-muted: #a3a59a;
+    --drawer-item-bg: rgba(255, 255, 255, 0.03);
+    --drawer-item-border: rgba(255, 255, 255, 0.02);
+    --drawer-item-hover: rgba(255, 255, 255, 0.06);
+    --drawer-item-hover-border: rgba(220, 231, 143, 0.2);
+    --drawer-active-bg: linear-gradient(90deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+    --drawer-active-border: rgba(255, 255, 255, 0.06);
+    --drawer-active-text: #f2f2ec;
+    --drawer-active-shadow: none;
+    --drawer-icon-color: #e4e5dc;
+    --drawer-label-color: #e9eae2;
+    --input-bg: #F3F2EC;
+    --staff-primary-bg: #1D1E1A;
+    --staff-primary-text: #FAFAF6;
+}
+/* Its sidebar is dark: light icons inside (same rule as Lavender / Teal Citrus). */
+[data-theme="olive"] .sidebar-menu,
+[data-theme="olive"] .sub-sidebar-footer-item-logout {
+    --text-sidebar-icon: #E9EAE2;
+    --text-primary: #E9EAE2;
+    --static-bg-color: rgba(255, 255, 255, 0.06);
+    --background-icon-active-color-theme: rgba(255, 255, 255, 0.08);
+}
+
+/*==========SIDEBAR: SOLID, CLEAN, LESS GLOW (desktop)==========
+   The sidebar is one solid colour — exactly the frame behind it (each
+   theme's own deep shade) — with no colour wash or glow. The open page uses
+   a soft left-to-right highlight with a thin accent line, like a classic
+   app menu. A quiet focus ring replaces the bright outline. */
+@media (min-width: 821px) {
+    [data-theme="olive"] .dashboard-page-wrapper { --shell-bg: #121311; }
+
+    .sidebar-body.is-expanded {
+        background: var(--shell-bg);
+        box-shadow: none;
+    }
+    .sidebar-body.is-expanded .sidebar-menu > .sidebar-logo-row {
+        background-color: var(--shell-bg);
+    }
+    /* Icons only: plain solid pills, a step lighter than the frame. */
+    .sidebar-body:not(.is-expanded) .sidebar-menu,
+    .sidebar-body:not(.is-expanded) .sub-sidebar-footer-item-logout {
+        background: color-mix(in srgb, #ffffff 5%, var(--shell-bg));
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    }
+
+    /* Hover: a faint version of the highlight. */
+    .sidebar-body.is-expanded .sidebar-item:not(.active):not(.sidebar-logo-row) button:hover,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item:not(.active) button:hover {
+        background: linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.015) 75%, transparent 100%) !important;
+        background-color: transparent !important;
+    }
+    /* Open page: soft fade from the left, thin accent line, no glow, no outline. */
+    .sidebar-body.is-expanded .sidebar-item.active button,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button {
+        background: linear-gradient(90deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.04) 60%, transparent 100%) !important;
+        background-color: transparent !important;
+        box-shadow: none;
+    }
+    .sidebar-body.is-expanded .sidebar-item.active button::before,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button::before {
+        left: 0;
+        width: 2px;
+        height: 60%;
+        border-radius: 2px;
+        box-shadow: none;
+    }
+    .sidebar-body.is-expanded .sidebar-item.active .sidebar-icon,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active .sidebar-icon {
+        stroke: var(--text-primary) !important;
+    }
+    /* Olive's accent is dark (for the cream page); on the dark sidebar its
+       line uses the soft lime instead so it stays visible. */
+    [data-theme="olive"] .sidebar-body.is-expanded .sidebar-item.active button::before,
+    [data-theme="olive"] .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button::before {
+        background: #DCE78F;
+    }
+
+    /* No bright outline after a click; keyboard users get a quiet ring. */
+    .sidebar-body button:focus:not(:focus-visible) { outline: none; }
+    .sidebar-body button:focus-visible {
+        outline: 1.5px solid color-mix(in srgb, var(--accent, #E8C547) 70%, transparent);
+        outline-offset: 1px;
+    }
+
+    /* Less glow elsewhere in the frame. */
+    .sidebar-user-avatar { box-shadow: 0 0 0 2px var(--shell-bg); }
+    .main-wrapper {
+        background:
+            radial-gradient(55% 32% at 50% 108%, color-mix(in srgb, var(--accent, #E8C547) 6%, transparent), transparent 70%),
+            var(--bg-main);
+        box-shadow:
+            0 0 0 1px rgba(0, 0, 0, 0.3),
+            0 20px 44px -26px rgba(0, 0, 0, 0.6);
+        border-color: rgba(255, 255, 255, 0.06);
+    }
+}
+
+/*==========OPEN SIDEBAR IS TRANSPARENT (desktop)==========
+   It shows the frame behind it, so its colour is always exactly the frame's
+   and changes together with it when the theme changes (no mismatch while
+   the frame fades). The icon-only pills fade at the same speed. */
+@media (min-width: 821px) {
+    .sidebar-body.is-expanded,
+    .sidebar-body.is-expanded .sidebar-menu,
+    .sidebar-body.is-expanded .sidebar-footer-item,
+    .sidebar-body.is-expanded .sub-sidebar-footer-item,
+    .sidebar-body.is-expanded .sub-sidebar-footer-item-logout {
+        background: transparent !important;
+        box-shadow: none;
+    }
+    /* The logo row has no background of its own any more, so it scrolls
+       with the list (only on very short windows) instead of covering it. */
+    .sidebar-body.is-expanded .sidebar-menu > .sidebar-logo-row {
+        position: static;
+        background: transparent;
+    }
+    /* Same speed as the frame's colour change (0.4s). */
+    .dashboard-page-wrapper,
+    .sidebar-body .sidebar-menu,
+    .sidebar-body .sub-sidebar-footer-item-logout {
+        transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+}
+
+/*==========OPEN SIDEBAR: EDGE-TO-EDGE HIGHLIGHT (desktop)==========
+   The open page's row runs the full width of the sidebar (no rounded box):
+   a soft light fading out to the right, a faint touch of the theme colour
+   at the left, and a thin accent line down the whole left edge of the row.
+   Text and icons stay exactly where they were (the row is widened by the
+   list's side padding and the same amount is added back inside). */
+@media (min-width: 821px) {
+    .sidebar-body.is-expanded .sidebar-item:not(.sidebar-logo-row) button,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item button {
+        width: calc(100% + 1.2rem);
+        margin: 0 -0.6rem;
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
+        border-radius: 0;
+    }
+    .sidebar-body.is-expanded .sidebar-item:not(.active):not(.sidebar-logo-row) button:hover,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item:not(.active) button:hover {
+        background: linear-gradient(90deg, rgba(255, 255, 255, 0.055) 0%, rgba(255, 255, 255, 0.02) 55%, transparent 90%) !important;
+    }
+    .sidebar-body.is-expanded .sidebar-item.active button,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button {
+        background:
+            linear-gradient(90deg, color-mix(in srgb, var(--accent, #E8C547) 14%, transparent) 0%, transparent 38%),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.045) 45%, transparent 92%) !important;
+    }
+    .sidebar-body.is-expanded .sidebar-item.active button::before,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button::before {
+        top: 0;
+        left: 0;
+        width: 2px;
+        height: 100%;
+        border-radius: 0;
+        transform: none;
+        background: linear-gradient(180deg,
+            color-mix(in srgb, var(--accent, #E8C547) 35%, transparent) 0%,
+            var(--accent, #E8C547) 50%,
+            color-mix(in srgb, var(--accent, #E8C547) 35%, transparent) 100%);
+    }
+    [data-theme="olive"] .sidebar-body.is-expanded .sidebar-item.active button::before,
+    [data-theme="olive"] .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button::before {
+        background: linear-gradient(180deg, rgba(220, 231, 143, 0.35) 0%, #DCE78F 50%, rgba(220, 231, 143, 0.35) 100%);
+    }
+    [data-theme="olive"] .sidebar-body.is-expanded .sidebar-item.active button,
+    [data-theme="olive"] .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button {
+        background:
+            linear-gradient(90deg, rgba(220, 231, 143, 0.12) 0%, transparent 38%),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.045) 45%, transparent 92%) !important;
+    }
+}
+
+/*==========OPEN SIDEBAR: SELECTION ANIMATION (desktop)==========
+   When a page is selected, its highlight sweeps in from the left while
+   fading up, the accent line grows out from the middle, and the icon and
+   name ease into their bright colour. Short (about 0.4s) and played once. */
+@media (min-width: 821px) {
+    .sidebar-body.is-expanded .sidebar-item:not(.sidebar-logo-row) button,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item button {
+        isolation: isolate;
+    }
+    /* The highlight moves to its own layer so it can animate on its own. */
+    .sidebar-body.is-expanded .sidebar-item.active button,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button {
+        background: transparent !important;
+    }
+    .sidebar-body.is-expanded .sidebar-item.active button::after,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        background:
+            linear-gradient(90deg, color-mix(in srgb, var(--accent, #E8C547) 14%, transparent) 0%, transparent 38%),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.045) 45%, transparent 92%);
+        transform-origin: left center;
+        animation: nav-select-sweep 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    }
+    [data-theme="olive"] .sidebar-body.is-expanded .sidebar-item.active button::after,
+    [data-theme="olive"] .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button::after {
+        background:
+            linear-gradient(90deg, rgba(220, 231, 143, 0.12) 0%, transparent 38%),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.045) 45%, transparent 92%);
+    }
+    .sidebar-body.is-expanded .sidebar-item.active button::before,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button::before {
+        transform-origin: center;
+        animation: nav-select-line 0.36s cubic-bezier(0.22, 0.61, 0.36, 1) 0.04s both;
+    }
+    .sidebar-body.is-expanded .sidebar-item.active .sidebar-label,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active .sidebar-label,
+    .sidebar-body.is-expanded .sidebar-item.active .sidebar-icon,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active .sidebar-icon {
+        animation: nav-select-text 0.36s ease both;
+    }
+}
+@keyframes nav-select-sweep {
+    from { opacity: 0; transform: scaleX(0.35); }
+    to   { opacity: 1; transform: scaleX(1); }
+}
+@keyframes nav-select-line {
+    from { opacity: 0; transform: scaleY(0); }
+    to   { opacity: 1; transform: scaleY(1); }
+}
+@keyframes nav-select-text {
+    from { opacity: 0.55; transform: translateX(-2px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sidebar-body.is-expanded .sidebar-item.active button::after,
+    .sidebar-body.is-expanded .sidebar-item.active button::before,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button::after,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button::before,
+    .sidebar-body.is-expanded .sidebar-item.active .sidebar-label,
+    .sidebar-body.is-expanded .sidebar-item.active .sidebar-icon,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active .sidebar-label,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active .sidebar-icon {
+        animation: none;
+    }
+}
+
+/*==========OPEN SIDEBAR: NO DIVIDER LINES (desktop)==========
+   Fully see-through: the lines under the logo, above Staffs and above the
+   account row are removed; the groups are separated by space instead. */
+@media (min-width: 821px) {
+    .sidebar-body.is-expanded .sidebar-menu > .sidebar-logo-row,
+    .sidebar-body.is-expanded .sidebar-footer-item,
+    .sidebar-body.is-expanded .sub-sidebar-footer-item-logout {
+        border: 0 !important;
+    }
+    .sidebar-body.is-expanded .sidebar-footer-item { padding-top: 0.35rem; }
+    .sidebar-body.is-expanded .sub-sidebar-footer-item-logout { padding-top: 0.45rem; }
+}
+
+/*==========OPEN SIDEBAR: ACCOUNT ROW — GLOW INSTEAD OF A BOX (desktop)==========
+   Hovering your name no longer draws a grey box (the avatar's dark ring cut
+   into it). Instead the avatar gets a soft glow in the theme colour and the
+   name brightens. The Logout button keeps its own 2rem size (the full-width
+   row rule no longer stretches / squeezes it) and glows red on hover. */
+@media (min-width: 821px) {
+    .sidebar-body.is-expanded .sidebar-user,
+    .sidebar-body.is-expanded .sidebar-user:hover {
+        background: transparent;
+    }
+    .sidebar-body.is-expanded .sidebar-user-avatar {
+        box-shadow: none;
+        transition: box-shadow 0.25s ease, transform 0.25s ease;
+    }
+    .sidebar-body.is-expanded .sidebar-user:hover .sidebar-user-avatar,
+    .sidebar-body.is-expanded .sidebar-user:focus-visible .sidebar-user-avatar {
+        box-shadow:
+            0 0 0 2px color-mix(in srgb, var(--accent, #E8C547) 35%, transparent),
+            0 0 14px 2px color-mix(in srgb, var(--accent, #E8C547) 40%, transparent);
+        transform: scale(1.04);
+    }
+    .sidebar-body.is-expanded .sidebar-user-text strong { transition: color 0.2s ease; }
+    .sidebar-body.is-expanded .sidebar-user:hover .sidebar-user-text strong { color: #ffffff; }
+    .sidebar-body.is-expanded .sidebar-user:focus-visible { outline: none; }
+
+    /* Logout: a normal 2rem icon button again. */
+    .sidebar-body.is-expanded #log-out.sidebar-item button {
+        width: 2rem;
+        min-height: 2rem;
+        margin: 0;
+        padding: 0;
+        border-radius: 0.55rem;
+        background: transparent !important;
+    }
+    .sidebar-body.is-expanded #log-out.sidebar-item button:hover {
+        background: transparent !important;
+    }
+    .sidebar-body.is-expanded #log-out .sidebar-icon { transition: stroke 0.2s ease, filter 0.2s ease; }
+    .sidebar-body.is-expanded #log-out button:hover .sidebar-icon {
+        filter: drop-shadow(0 0 6px rgba(255, 90, 90, 0.75));
     }
 }

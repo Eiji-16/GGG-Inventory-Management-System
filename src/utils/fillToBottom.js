@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react';
+import { uiZoom } from '../fontSize';
 
 /* ===== FILL TO BOTTOM =====
    Makes a table box stretch down to the bottom of the page area, so there is
@@ -47,16 +48,19 @@ export default function useFillToBottom(gap = 4, { shrink = false } = {}) {
         element.style.maxHeight = '';
         return;
       }
+      // On-screen sizes are scaled by Settings → Font size; turn them back
+      // into page pixels so they match clientHeight and the px we set.
+      const zoom = uiZoom();
       const areaBox = area.getBoundingClientRect();
       // Inside height of the page area (without its bottom padding).
       const areaInside = area.clientHeight - parseFloat(window.getComputedStyle(area).paddingBottom || 0);
       // Where the page ends, measured from the top of the page area's content
       // (the same whether or not the page area is scrolled).
-      const pageBottom = page.getBoundingClientRect().bottom
+      const pageBottom = (page.getBoundingClientRect().bottom - areaBox.top) / zoom
         + parseFloat(window.getComputedStyle(page).marginBottom || 0)
-        - areaBox.top - area.clientTop + area.scrollTop;
+        - area.clientTop + area.scrollTop;
       const leftover = areaInside - pageBottom;              // empty space under the page
-      const current = element.getBoundingClientRect().height;
+      const current = element.getBoundingClientRect().height / zoom;
       const target = Math.max(MIN_HEIGHT, Math.floor(current + leftover - gap));
 
       if (shrink) {

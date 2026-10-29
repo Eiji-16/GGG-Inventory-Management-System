@@ -16,6 +16,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import './staff.css';
+import { uiZoom } from '../../fontSize';
 
 const ALL_ROLES = ['Staff', 'Admin', 'Super Admin'];
 
@@ -112,11 +113,14 @@ function Staffs({ isSuperAdmin = false }) {
       setMenu(null);
       return;
     }
-    const rect = e.currentTarget.getBoundingClientRect();
+    // Screen sizes ÷ zoom = page pixels (Settings → Font size).
+    const zoom = uiZoom();
+    const box = e.currentTarget.getBoundingClientRect();
+    const rect = { right: box.right / zoom, bottom: box.bottom / zoom };
     const MENU_W = 200;
     /* Right-align the menu to the button, then clamp inside the viewport so
        it is never clipped on either edge (fixed-position avoids table overflow). */
-    const left = Math.min(rect.right - MENU_W, window.innerWidth - MENU_W - 12);
+    const left = Math.min(rect.right - MENU_W, window.innerWidth / zoom - MENU_W - 12);
     setMenu({ id: s.id, top: rect.bottom + 6, left: Math.max(12, left) });
   };
 

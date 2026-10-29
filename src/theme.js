@@ -8,11 +8,14 @@ const LEGACY_THEME_VALUES = {
   false: 'soft-white',
   // The pure White theme was removed: a saved "white" opens as Soft White.
   white: 'soft-white',
+  // Emerald and Magenta were removed: a saved one opens as Midnight Blue.
+  emerald: 'midnight-blue',
+  magenta: 'midnight-blue',
 };
 
 export function normalizeTheme(value) {
   const theme = String(value || '').trim().toLowerCase();
-  if (['soft-white', 'lavender', 'citrus', 'graphite', 'midnight-blue', 'emerald', 'magenta', 'ember'].includes(theme)) {
+  if (['soft-white', 'lavender', 'citrus', 'olive', 'graphite', 'midnight-blue', 'ember'].includes(theme)) {
     return theme;
   }
   return LEGACY_THEME_VALUES[theme] || null;

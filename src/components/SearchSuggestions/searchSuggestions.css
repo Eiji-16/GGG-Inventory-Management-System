@@ -10,7 +10,7 @@
     z-index: 30;
     min-width: 100%;
     width: max-content;
-    max-width: min(360px, calc(100vw - 32px));
+    max-width: min(360px, calc(calc(100vw / var(--ui-zoom, 1)) - 32px));
     padding: 8px;
     background: var(--dropdown-menu-bg);
     border: 1px solid var(--dropdown-menu-border);

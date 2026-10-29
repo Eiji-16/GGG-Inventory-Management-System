@@ -310,7 +310,8 @@ function TrashBin({
       </div>
 
       <p className="tb-hint">
-        {pagination.total} {pagination.total === 1 ? 'item' : 'items'} shown. Items in the Trash Bin are left out of stock totals, reports and forecasts until restored.
+        {pagination.total} {pagination.total === 1 ? 'item' : 'items'} shown.
+        <span className="hint-text"> Items in the Trash Bin are left out of stock totals, reports and forecasts until restored.</span>
       </p>
 
       {error && !confirm && (

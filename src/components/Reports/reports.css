@@ -496,7 +496,7 @@
 .r-kpi-grid .r-kpi-card { min-width: 0; padding: 0.8rem 1rem; }
 .r-kpi-grid .r-kpi-card .r-kpi-label { margin-bottom: 4px; }
 .r-kpi-card .r-kpi-value {
-    font-size: clamp(18px, 1.7vw, 24px);
+    font-size: clamp(18px, calc(1.7vw / var(--ui-zoom, 1)), 24px);
     line-height: 1.2;
     overflow-wrap: anywhere;
     font-variant-numeric: tabular-nums;
@@ -552,8 +552,8 @@
 .r-modal {
     display: flex;
     flex-direction: column;
-    width: min(96vw, 72rem);
-    max-height: min(88vh, 52rem);
+    width: min(calc(96vw / var(--ui-zoom, 1)), 72rem);
+    max-height: min(calc(88vh / var(--ui-zoom, 1)), 52rem);
     overflow: hidden;
     color: var(--text-primary, #111);
     background: var(--bg-card, #fff);
@@ -620,7 +620,7 @@
     .r-overall-toolbar .r-modal-error { flex-basis: 100%; }
     .r-overall-toolbar .r-export-btn { flex: 1 1 auto; justify-content: center; }
     .r-modal-header { flex-direction: column; }
-    .r-modal { max-height: 92vh; }
+    .r-modal { max-height: calc(92vh / var(--ui-zoom, 1)); }
 }
 
 /*==========REPORTS FIT THE SCREEN, BOTH COLUMNS END ON ONE LINE==========
@@ -632,7 +632,7 @@
 .r-kpi-grid { gap: 8px; margin-bottom: 8px; }
 .r-kpi-grid .r-kpi-card { padding: 0.6rem 0.9rem; }
 .r-kpi-grid .r-kpi-card .r-kpi-label { margin-bottom: 2px; font-size: 10px; }
-.r-kpi-grid .r-kpi-card .r-kpi-value { font-size: clamp(17px, 1.5vw, 22px); }
+.r-kpi-grid .r-kpi-card .r-kpi-value { font-size: clamp(17px, calc(1.5vw / var(--ui-zoom, 1)), 22px); }
 .r-kpi-grid .r-kpi-card .r-kpi-sub { margin-top: 1px; font-size: 10.5px; }
 
 .r-overall-charts { gap: 8px; align-items: stretch; }
@@ -985,7 +985,7 @@
 /* Compact cards inside the layout (same as before). */
 .r-bento .r-kpi-card { min-width: 0; padding: 0.6rem 0.9rem; }
 .r-bento .r-kpi-card .r-kpi-label { margin-bottom: 0; font-size: 10px; }
-.r-bento .r-kpi-card .r-kpi-value { font-size: clamp(17px, 1.5vw, 22px); }
+.r-bento .r-kpi-card .r-kpi-value { font-size: clamp(17px, calc(1.5vw / var(--ui-zoom, 1)), 22px); }
 .r-bento .r-kpi-card .r-kpi-sub { margin-top: 1px; font-size: 10.5px; }
 .r-bento .r-overall-chart { margin-bottom: 0; }
 
@@ -1009,3 +1009,68 @@
     border: 1px solid var(--border-color, rgba(0,0,0,0.15));
     border-radius: 999px;
 }
+
+/*==========HOVER DATA ON EVERY CHART==========
+   The data box itself is shared (src/utils/chartTooltip.js). Here: the
+   hovered bar / row / week lights up so it is clear which one the box is for. */
+.r-line-hit { fill: transparent; }
+.r-line-guide { stroke: var(--text-muted, #888); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }
+.r-line-week .r-line-dot { pointer-events: none; transition: r 0.15s ease; }
+.r-line-week:hover .r-line-guide { opacity: 0.7; }
+.r-line-week:hover .r-line-dot { r: 5.5; stroke: var(--bg-card, #fff); stroke-width: 2; }
+.r-line-week:hover .r-line-label { fill: var(--text-primary); font-weight: 700; }
+.r-mini-col[data-tip] { border-radius: 6px; transition: background-color 0.15s ease; }
+.r-mini-col[data-tip]:hover { background: var(--overlay-soft, rgba(255, 255, 255, 0.06)); }
+.r-mini-col[data-tip]:hover .r-mini-bar { filter: brightness(1.2); }
+.r-fs-row[data-tip] { margin: 0 -6px; padding: 2px 6px; border-radius: 6px; transition: background-color 0.15s ease; }
+.r-fs-row[data-tip]:hover { background: var(--overlay-soft, rgba(255, 255, 255, 0.06)); }
+.r-fs-row[data-tip]:hover .r-fs-bar { filter: brightness(1.2); }
+.r-health-seg[data-tip] { transition: flex-grow 0.5s ease, filter 0.15s ease; }
+.r-health-seg[data-tip]:hover { filter: brightness(1.25); }
+.r-health-legend > span[data-tip] { border-radius: 4px; transition: color 0.15s ease; }
+.r-health-legend > span[data-tip]:hover { color: var(--text-primary); }
+
+/*==========CLEAN, PROFESSIONAL SUMMARY CARDS==========
+   The summary cards and the two export cards drop their per-card colours:
+   no coloured glow, no coloured top line, no tinted background. One quiet
+   style for all of them — plain card surface, neutral icon box, muted
+   label, strong number. Data colours stay where they carry meaning (the
+   Stock Health bar, chart bars). Clicking still opens each report. */
+.r-kpi-tile,
+.r-export-tile {
+    --kpi-accent: var(--text-muted, #888);
+    --kpi-soft: var(--overlay-soft, rgba(255, 255, 255, 0.05));
+    --kpi-line: var(--border-color, rgba(255, 255, 255, 0.1));
+    background: var(--bg-card, #fff);
+}
+.r-kpi-tile::before,
+.r-kpi-tile::after,
+.r-export-tile::before {
+    display: none;
+}
+.r-kpi-tile-icon,
+.r-export-tile-icon {
+    color: var(--text-muted, #888);
+    background: var(--overlay-soft, rgba(255, 255, 255, 0.05));
+    border-color: var(--border-color, rgba(255, 255, 255, 0.1));
+}
+.r-kpi-tile .r-kpi-label {
+    color: var(--text-muted, #888);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+}
+.r-kpi-tile .r-kpi-value { color: var(--text-primary); }
+/* Hover: a quiet lift of the border only; the arrow turns to text colour. */
+.r-kpi-tile.r-clickable:hover,
+.r-export-tile:hover:not(:disabled) {
+    border-color: var(--border-strong, rgba(255, 255, 255, 0.2));
+    box-shadow: var(--shadow-hover, 0 8px 22px rgba(0, 0, 0, 0.3));
+}
+.r-kpi-tile:hover .r-kpi-tile-icon { transform: none; color: var(--text-primary); }
+.r-kpi-tile:hover .r-kpi-tile-go,
+.r-export-tile:hover:not(:disabled) .r-export-tile-go,
+.r-export-tile:hover:not(:disabled) .r-export-tile-icon { color: var(--text-primary); }
+.r-kpi-tile.r-clickable:focus-visible,
+.r-export-tile:focus-visible { outline-color: var(--accent); }

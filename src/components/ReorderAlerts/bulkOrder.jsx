@@ -276,7 +276,7 @@ export default function BulkOrder({ items, onClose, onSaved }) {
         <div className="ra-bulk-head">
           <div>
             <h3 id="ra-bulk-title">Bulk order — {items.length} product{items.length === 1 ? '' : 's'}</h3>
-            <p className="ra-modal-sub">
+            <p className="ra-modal-sub hint-text">
               Each product gets its own order quantity: √(2 × annual demand × ordering cost ÷ holding cost) — the same as “Order Now”.
             </p>
           </div>

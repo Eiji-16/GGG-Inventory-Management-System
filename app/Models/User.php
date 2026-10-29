@@ -29,7 +29,9 @@ class User extends Authenticatable
     public const ROLES = [self::ROLE_SUPER_ADMIN, self::ROLE_ADMIN, self::ROLE_STAFF];
 
     /** Appearance themes a user can pick (same list as src/theme.js). */
-    public const THEMES = ['soft-white', 'lavender', 'citrus', 'graphite', 'midnight-blue', 'emerald', 'magenta', 'ember'];
+    // 'olive' = the dark-frame / cream-panel theme. 'emerald' and 'magenta' were
+    // removed from the screen but stay valid so older saved choices still load.
+    public const THEMES = ['soft-white', 'lavender', 'citrus', 'olive', 'graphite', 'midnight-blue', 'emerald', 'magenta', 'ember'];
 
     public const STATUS_ACTIVE = 'active';
     public const STATUS_INACTIVE = 'inactive';

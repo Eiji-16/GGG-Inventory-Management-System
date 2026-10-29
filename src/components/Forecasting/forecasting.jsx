@@ -925,16 +925,17 @@ export default function DemandForecastDesign({
                         const value = Number(row.unitsSold);
                         // Hover details = the same numbers the table shows for that period.
                         const tip = row.isForecast
-                          ? `${formatHistoryPeriod(row.periodDate, selectedPeriodType)} forecast: ${value.toFixed(1)} units${forecast?.seasonalEnabled ? ` (base ${Number(forecast.baseForecast).toFixed(1)}, ${formatSigned(effectivePct, 1)}% seasonal)` : ''}`
+                          ? `${formatHistoryPeriod(row.periodDate, selectedPeriodType)} forecast\n${value.toFixed(1)} units${forecast?.seasonalEnabled ? `\nbase ${Number(forecast.baseForecast).toFixed(1)}, ${formatSigned(effectivePct, 1)}% seasonal` : ''}`
                           : [
-                            `${formatHistoryPeriod(row.periodDate, selectedPeriodType)}: ${value.toLocaleString()} sold`,
+                            formatHistoryPeriod(row.periodDate, selectedPeriodType),
+                            `${value.toLocaleString()} sold`,
                             row.wmaForecast != null ? `forecast ${Number(row.wmaForecast).toFixed(1)}` : null,
                             row.variance != null ? `variance ${formatSigned(row.variance)}` : null,
                             row.weight ? `weight ×${row.weight} in the next forecast` : null,
                             row.source === 'past' ? (row.fromWeeks ? 'from Past Sales (weekly entries)' : 'from Past Sales') : row.source === 'mixed' ? 'Past Sales + Stock Out' : null,
-                          ].filter(Boolean).join(' · ');
+                          ].filter(Boolean).join('\n');
                         return (
-                          <div className={`fx-bar-col${row.isForecast ? ' is-forecast' : ''}${row.weight ? ' is-weighted' : ''}`} key={`${row.periodDate}-${row.isForecast ? 'f' : 'a'}`} title={tip}>
+                          <div className={`fx-bar-col${row.isForecast ? ' is-forecast' : ''}${row.weight ? ' is-weighted' : ''}`} key={`${row.periodDate}-${row.isForecast ? 'f' : 'a'}`} data-tip={tip}>
                             <span className="fx-bar-value">{row.isForecast ? value.toFixed(1) : value.toLocaleString()}</span>
                             <div className="fx-bar-track">
                               <div className="fx-bar" style={{ height: `${Math.max(2, (value / chartMax) * 100)}%` }} />
@@ -1173,7 +1174,7 @@ export default function DemandForecastDesign({
               <div className="f-seasonal-head">
                 <div>
                   <h3>Seasonal Events</h3>
-                  <p className="f-sub">
+                  <p className="f-sub hint-text">
                     Flag promotions and holidays. An active event raises or lowers the weighted moving average forecast of its affected products
                     whenever its dates overlap the forecast period.
                   </p>

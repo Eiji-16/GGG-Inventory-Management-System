@@ -13,7 +13,7 @@ html, body, #root {
 body {
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
+    min-height: calc(100vh / var(--ui-zoom, 1));
     overflow-x: hidden;
     background: var(--bg-main, #ffffff);
 }
@@ -34,7 +34,7 @@ body::-webkit-scrollbar {
 /*==========LOGIN PAGE WRAPPER==========*/
 .Login-page-wrapper {
     width: 100%;
-    min-height: 100vh;
+    min-height: calc(100vh / var(--ui-zoom, 1));
     background-color: #ffffff;
     display: flex;
     justify-content: center;
@@ -45,7 +45,7 @@ body::-webkit-scrollbar {
 /*==========LOGIN BOX==========*/
 .Login-box {
     display: flex;
-    width: min(100vw, 70rem);
+    width: min(calc(100vw / var(--ui-zoom, 1)), 70rem);
     min-height: 30rem;
     border-radius: 1.5rem;
     overflow: hidden;
@@ -240,7 +240,7 @@ body::-webkit-scrollbar {
 .ResetPass-modal {
     position: relative;
     width: min(100%, 29rem);
-    max-height: min(90vh, 46rem);
+    max-height: min(calc(90vh / var(--ui-zoom, 1)), 46rem);
     overflow-y: auto;
     display: flex;
     flex-direction: column;

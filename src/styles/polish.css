@@ -1,0 +1,162 @@
+/* ==========================================================================
+   POLISH — the finishing layer for the whole system
+   --------------------------------------------------------------------------
+   Loaded once, after motion.css (src/layouts/App.jsx). It does not move,
+   resize or rename anything; it only refines states that were missing or
+   uneven between pages:
+     1. Liquid gold fill on the main action button of each page
+     2. One focus ring for keyboard users everywhere
+     3. Inputs: clear, smooth focus
+     4. Disabled controls look and feel the same everywhere
+     5. Dashboard cards: quiet elevation and a light edge on hover
+     6. Tables: restrained row highlight, steady number columns
+     7. Dark themes: a faint light edge on card surfaces (depth, not glow)
+   Rules that only fill gaps use :where() (zero priority), so any page that
+   already styles a state keeps its own look.
+   ========================================================================== */
+
+:root {
+    --polish-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+    --polish-fast: 160ms;
+    --polish-ring: 0 0 0 3px color-mix(in srgb, var(--accent, #E8C547) 24%, transparent);
+}
+
+/* ===== 1. LIQUID FILL — main action buttons only =====
+   On hover a brighter gold "liquid" rises from the bottom with a soft wavy
+   surface. It sits behind the label, never takes clicks, and only runs on
+   desktop mice (touch screens keep the normal button). */
+@media (hover: hover) and (min-width: 901px) {
+    :is(
+        .sc-add-btn-primary,
+        .ps-add-btn-primary,
+        .f-btn-primary,
+        .s-primary-btn,
+        .st-create-account-button,
+        .ps-modal-save-btn,
+        .sc-modal-save-btn:not(.sc-confirm-danger-btn),
+        .ac-btn-compute,
+        .pf-btn-primary,
+        .lg-submit
+    ):not(:disabled):not([aria-busy="true"]) {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+    }
+    :is(
+        .sc-add-btn-primary,
+        .ps-add-btn-primary,
+        .f-btn-primary,
+        .s-primary-btn,
+        .st-create-account-button,
+        .ps-modal-save-btn,
+        .sc-modal-save-btn:not(.sc-confirm-danger-btn),
+        .ac-btn-compute,
+        .pf-btn-primary,
+        .lg-submit
+    ):not(:disabled):not([aria-busy="true"])::before {
+        content: '';
+        position: absolute;
+        left: -10%;
+        right: -10%;
+        bottom: 0;
+        z-index: -1;
+        height: 160%;
+        pointer-events: none;
+        /* Wavy surface (two soft arcs) over a brighter gold body. */
+        background:
+            radial-gradient(60% 22% at 25% 0%, transparent 62%, rgba(255, 244, 200, 0.55) 64%, transparent 74%),
+            radial-gradient(60% 22% at 78% 2%, transparent 62%, rgba(255, 244, 200, 0.4) 64%, transparent 74%),
+            linear-gradient(180deg, rgba(255, 238, 170, 0.42) 0%, rgba(255, 228, 140, 0.18) 45%, rgba(255, 255, 255, 0) 100%);
+        transform: translateY(100%);
+        transition: transform 0.45s var(--polish-ease);
+    }
+    :is(
+        .sc-add-btn-primary,
+        .ps-add-btn-primary,
+        .f-btn-primary,
+        .s-primary-btn,
+        .st-create-account-button,
+        .ps-modal-save-btn,
+        .sc-modal-save-btn:not(.sc-confirm-danger-btn),
+        .ac-btn-compute,
+        .pf-btn-primary,
+        .lg-submit
+    ):not(:disabled):not([aria-busy="true"]):hover::before {
+        transform: translateY(18%);
+    }
+}
+
+/* ===== 2. FOCUS RING (keyboard only) ===== */
+:where(button, a, [role="button"], [role="tab"], [role="switch"], [role="radio"], summary):focus-visible {
+    outline: 2px solid var(--accent, #E8C547);
+    outline-offset: 2px;
+}
+
+/* ===== 3. INPUTS: clear, smooth focus ===== */
+:where(
+    input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]),
+    select,
+    textarea
+):focus-visible {
+    outline: none;
+    border-color: var(--accent, #E8C547);
+    box-shadow: var(--polish-ring);
+}
+:where(input, select, textarea)::placeholder {
+    opacity: 0.85;
+}
+
+/* ===== 4. DISABLED CONTROLS ===== */
+:where(button, input, select, textarea):disabled {
+    cursor: not-allowed;
+}
+:where(button):disabled {
+    transform: none;
+    box-shadow: none;
+}
+
+/* ===== 5. DASHBOARD CARDS: quiet elevation =====
+   No movement (so nothing around them shifts) — just a light edge and a
+   slightly deeper shadow while the pointer is on the card. */
+.parent.db-grid > .card {
+    transition:
+        border-color var(--polish-fast) var(--polish-ease),
+        box-shadow var(--polish-fast) var(--polish-ease);
+}
+@media (hover: hover) {
+    .parent.db-grid > .card:not(.db-tone):hover {
+        border-color: color-mix(in srgb, var(--accent, #E8C547) 26%, var(--border-color, transparent));
+        box-shadow: var(--shadow-card), 0 10px 26px -14px rgba(0, 0, 0, 0.45);
+    }
+    .parent.db-grid > .card.db-tone:hover {
+        box-shadow: var(--shadow-card), 0 12px 28px -12px rgba(232, 56, 15, 0.55);
+    }
+}
+
+/* ===== 6. TABLES =====
+   Rows get a soft tint on hover (no movement); numbers line up. */
+@media (hover: hover) {
+    :where(table tbody tr:not(:has(td[colspan]))):hover > :where(td) {
+        background-color: color-mix(in srgb, var(--accent, #E8C547) 5%, transparent);
+    }
+}
+:where(table td, table th) {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ===== 7. DARK THEMES: card surfaces get a faint top light edge ===== */
+:root:is([data-theme="midnight-blue"], [data-theme="graphite"], [data-theme="emerald"], [data-theme="magenta"], [data-theme="ember"])
+    .parent.db-grid > .card:not(.db-tone):not(:hover) {
+    box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+/* ===== RESPECT "REDUCE MOTION" ===== */
+@media (prefers-reduced-motion: reduce) {
+    :is(
+        .sc-add-btn-primary, .ps-add-btn-primary, .f-btn-primary, .s-primary-btn,
+        .st-create-account-button, .ps-modal-save-btn, .sc-modal-save-btn,
+        .ac-btn-compute, .pf-btn-primary, .lg-submit
+    )::before {
+        transition: none !important;
+    }
+}

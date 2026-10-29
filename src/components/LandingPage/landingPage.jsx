@@ -23,7 +23,8 @@ import {
   BellRing,
   CircleUserRound,
   Camera,
-  Trash2
+  Trash2,
+  PanelLeft,
 } from 'lucide-react'; /* ===== ICONS ===== */
 
 import './landingPage.css'; /* ===== STYLES ===== */
@@ -235,6 +236,23 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
   const roleLabel = { super_admin: 'Super Admin', admin: 'Admin', staff: 'Staff' }[role] || 'Staff';
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); /* ===== SIDEBAR ===== */
+  /* Desktop sidebar: icons only (default) or icons with names. The choice is
+     saved in this browser. Phones keep their own slide-in menu. */
+  const [sidebarExpanded, setSidebarExpanded] = useState(() => {
+    try { return localStorage.getItem('ggg-sidebar-mode') === 'labels'; } catch { return false; }
+  });
+  const toggleSidebarMode = () => {
+    setSidebarExpanded((expanded) => {
+      const next = !expanded;
+      try { localStorage.setItem('ggg-sidebar-mode', next ? 'labels' : 'icons'); } catch { /* storage blocked */ }
+      return next;
+    });
+  };
+  // Tables that fill the screen measure again once the sidebar has resized.
+  useEffect(() => {
+    const timer = window.setTimeout(() => window.dispatchEvent(new Event('resize')), 300);
+    return () => window.clearTimeout(timer);
+  }, [sidebarExpanded]);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   /* ===== SIDEBAR PICTURE =====
@@ -699,7 +717,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
         {isSidebarOpen && (
           <div className="sidebar-backdrop" onClick={() => setIsSidebarOpen(false)} aria-hidden="true" />
         )}
-        <aside className={`sidebar-body ${isSidebarOpen ? 'open' : ''}`}>
+        <aside className={`sidebar-body ${isSidebarOpen ? 'open' : ''}${sidebarExpanded ? ' is-expanded' : ''}`}>
 {/* ===== SIDEBAR NAVIGATION ===== */}
   <ul className="sidebar-menu">
       <div className="sidebar-item sidebar-logo-row">
@@ -723,6 +741,17 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
           <strong>GGG Inventory</strong>
           <small>Inventory Management</small>
         </span>
+        {/* ===== ICONS ONLY / ICONS WITH NAMES (desktop) ===== */}
+        <button
+          type="button"
+          className="sidebar-mode-toggle"
+          onClick={toggleSidebarMode}
+          aria-pressed={sidebarExpanded}
+          aria-label={sidebarExpanded ? 'Show icons only' : 'Show icons with names'}
+          title={sidebarExpanded ? 'Show icons only' : 'Show icons with names'}
+        >
+          <PanelLeft size={16} strokeWidth={1.9} aria-hidden="true" />
+        </button>
         {/* ===== CLOSE BUTTON ===== */}
         <button
           className="sidebar-close-btn"
@@ -837,8 +866,18 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
             </div>
 
             <div className = "sub-sidebar-footer-item-logout">
+              {/* Signed-in person (open sidebar only); opens Profile. */}
+              <button type="button" className="sidebar-user" onClick={() => handleNavigate('Profile')} title="Open your profile">
+                <span className="sidebar-user-avatar" aria-hidden="true">
+                  {String(user?.name || '?').trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '?'}
+                </span>
+                <span className="sidebar-user-text">
+                  <strong>{user?.name || 'Account'}</strong>
+                  <small>{roleLabel}</small>
+                </span>
+              </button>
               <div id="log-out" className="sidebar-item">
-                <button onClick={() => setIsLogoutConfirmOpen(true)}>
+                <button onClick={() => setIsLogoutConfirmOpen(true)} aria-label="Logout" title="Logout">
                   <LogOut className="sidebar-icon" />
                   <span className="sidebar-label">Logout</span>
                 </button>

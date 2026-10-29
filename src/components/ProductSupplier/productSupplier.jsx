@@ -10,6 +10,7 @@ import apiFetch from '../../apiFetch';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
 import useFillToBottom from '../../utils/fillToBottom';
 import useRowsThatFit from '../../utils/fitRows';
+import { uiZoom } from '../../fontSize';
 
 
 
@@ -54,9 +55,12 @@ function ProductImagePreview({ src, name }) {
     const trigger = triggerRef.current;
     if (!trigger) return;
 
-    const bounds = trigger.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+    // Screen sizes ÷ zoom = page pixels (Settings → Font size).
+    const zoom = uiZoom();
+    const box = trigger.getBoundingClientRect();
+    const bounds = { left: box.left / zoom, right: box.right / zoom, top: box.top / zoom, height: box.height / zoom };
+    const viewportWidth = window.innerWidth / zoom;
+    const viewportHeight = window.innerHeight / zoom;
     const previewWidth = Math.min(280, viewportWidth - 24);
     const fitsRight = bounds.right + previewWidth + 20 <= viewportWidth;
     const fitsLeft = bounds.left - previewWidth - 20 >= 0;

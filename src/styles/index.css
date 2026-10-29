@@ -52,8 +52,15 @@ select option:checked {
    inputs and the explanatory info lines. Errors and live values stay visible. */
 /* .hint-text is the general class for any helper note — add it to new notes
    so this switch covers them too. */
+/* Keep this list complete: when a page gets a new helper note, give it the
+   class "hint-text" (or add its class here) so this switch hides it too. */
 html[data-field-hints="hidden"] :is(
     .hint-text,
+    .ac-history-note,
+    .fx-legend-hint,
+    .ps-modal-subtitle,
+    .sc-modal-subtitle,
+    .ra-receive-field small,
     .eq-hint,
     .eq-note,
     .sc-field-hint:not(.sc-field-total),
@@ -321,4 +328,116 @@ table input[type="checkbox"]:disabled {
    row). Message rows ("Loading…", "No rows") keep their own height. */
 [data-fit-rows] tbody tr:not(:has(td[colspan])):not(.ps-skeleton-row) {
     height: var(--fit-row-height, auto);
+}
+
+/*==========FONT SIZE (Settings → Font size)==========
+   Small / Medium / Large scale the whole screen (text, icons and boxes
+   together) — see src/fontSize.js. --ui-zoom is used by sizes written in
+   vh / vw, which zoom would otherwise make too big for the window. */
+:root { --ui-zoom: 1; }
+html[data-font-size="small"] { zoom: 0.9; --ui-zoom: 0.9; }
+html[data-font-size="large"] { zoom: 1.1; --ui-zoom: 1.1; }
+
+/*==========CHART HOVER TOOLTIP==========
+   One shared data box for every chart (src/utils/chartTooltip.js). Any
+   element with data-tip="…" shows it on hover / keyboard focus. */
+.chart-tip {
+    position: fixed;
+    z-index: 3000;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-width: 260px;
+    padding: 7px 10px 7px 11px;
+    color: var(--text-primary, #0b1b33);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.35;
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-color, rgba(11, 27, 51, 0.12));
+    border-left: 3px solid var(--accent, #E8C547);
+    border-radius: 8px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.chart-tip.is-visible { opacity: 1; transform: translateY(0); }
+.chart-tip strong {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+}
+.chart-tip strong i {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    border-radius: 2px;
+}
+.chart-tip span { color: var(--text-muted, #64748b); font-variant-numeric: tabular-nums; }
+/* The hovered bar / slice / dot lights up a little. */
+[data-tip] { cursor: default; }
+@media (hover: hover) {
+    svg [data-tip] { transition: opacity 0.15s ease, filter 0.15s ease; }
+    svg [data-tip]:hover { filter: brightness(1.18) drop-shadow(0 0 3px color-mix(in srgb, var(--accent, #E8C547) 45%, transparent)); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .chart-tip { transition: none; }
+}
+
+/*==========SUNLIGHT==========
+   A soft "sunrise" glow in the theme's accent colour (decoration only).
+   Add class "sunlight" to a card: a glowing sun sits on its bottom edge
+   with a thin bright horizon line. The page background also gets a faint
+   glow rising from the bottom of the window. */
+html .dashboard-page-wrapper {
+    background-image:
+        radial-gradient(60% 38% at 50% 104%, color-mix(in srgb, var(--accent, #E8C547) 20%, transparent) 0%, transparent 72%),
+        radial-gradient(40% 24% at 50% -6%, color-mix(in srgb, var(--accent, #E8C547) 8%, transparent) 0%, transparent 70%);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+.sunlight { isolation: isolate; }
+.sunlight::before,
+.sunlight::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    z-index: -1;
+    pointer-events: none;
+}
+/* The sun: a bright core with a wide warm halo. */
+.sunlight::before {
+    bottom: -150px;
+    width: min(560px, 120%);
+    height: 230px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: radial-gradient(closest-side,
+        color-mix(in srgb, #fff 55%, var(--accent, #E8C547)) 0%,
+        color-mix(in srgb, var(--accent, #E8C547) 55%, transparent) 22%,
+        color-mix(in srgb, var(--accent, #E8C547) 16%, transparent) 55%,
+        transparent 100%);
+    opacity: 0.6;
+    animation: sunlight-breathe 7s ease-in-out infinite;
+}
+/* The horizon: a thin line of light along the bottom edge. */
+.sunlight::after {
+    bottom: 0;
+    width: 70%;
+    height: 1px;
+    transform: translateX(-50%);
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent, #E8C547) 85%, #fff), transparent);
+    box-shadow: 0 0 12px 1px color-mix(in srgb, var(--accent, #E8C547) 60%, transparent);
+    opacity: 0.75;
+}
+@keyframes sunlight-breathe {
+    0%, 100% { opacity: 0.55; transform: translateX(-50%) scale(1); }
+    50%      { opacity: 0.72; transform: translateX(-50%) scale(1.05); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sunlight::before { animation: none; }
 }

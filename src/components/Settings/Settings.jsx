@@ -9,9 +9,11 @@ import {
   Check,
   Info,
   Search,
+  Type,
 } from 'lucide-react';
 import './settings.css';
 import { readShowFieldHints, saveShowFieldHints } from '../../fieldHints';
+import { FONT_SIZES, readFontSize, saveFontSize } from '../../fontSize';
 import {
   SAFETY_STOCK_DEFAULTS,
   DEFAULT_SAFETY_STOCK,
@@ -26,13 +28,12 @@ const THEMES = [
   { value: 'soft-white', label: 'Soft White' },
   { value: 'lavender', label: 'Lavender' },
   { value: 'citrus', label: 'Teal Citrus' },
+  { value: 'olive', label: 'Olive' },
   { value: 'graphite', label: 'Graphite' },
   { value: 'midnight-blue', label: 'Midnight Blue' },
-  { value: 'emerald', label: 'Emerald' },
-  { value: 'magenta', label: 'Magenta' },
   { value: 'ember', label: 'Ember' },
 ];
-const LIGHT_THEMES = ['soft-white', 'lavender', 'citrus'];
+const LIGHT_THEMES = ['soft-white', 'lavender', 'citrus', 'olive'];
 
 function Settings({
   theme,
@@ -65,6 +66,12 @@ function Settings({
   const [currencyError, setCurrencyError] = useState('');
   const [currencySaved, setCurrencySaved] = useState(false);
   const [showFieldHints, setShowFieldHints] = useState(readShowFieldHints);
+
+  const [fontSize, setFontSize] = useState(readFontSize);
+  const chooseFontSize = (value) => {
+    setFontSize(value);
+    saveFontSize(value);
+  };
 
   const toggleFieldHints = () => {
     const next = !showFieldHints;
@@ -307,7 +314,7 @@ function Settings({
           <span className="s-pref-icon s-pref-icon-text" aria-hidden="true">{currencySymbol}</span>
           <div className="s-pref-text">
             <label className="s-pref-title" htmlFor="s-currency">Currency</label>
-            <span className="s-pref-desc">
+            <span className="s-pref-desc hint-text">
               {canChangeCurrency
                 ? 'Applies to every account and report. Amounts are not converted.'
                 : 'Set for the whole system by someone with currency access.'}
@@ -327,6 +334,30 @@ function Settings({
               <option key={option.code} value={option.code}>{option.label}</option>
             ))}
           </select>
+        </div>
+
+        {/* Font size: three presets, saved in this browser (src/fontSize.js). */}
+        <div className="s-pref-row">
+          <span className="s-pref-icon" aria-hidden="true"><Type size={15} /></span>
+          <div className="s-pref-text">
+            <span className="s-pref-title" id="s-font-title">Font size</span>
+            <span className="s-pref-desc hint-text">Size of all text and screens in this browser.</span>
+          </div>
+          <div className="s-size-seg" role="radiogroup" aria-labelledby="s-font-title">
+            {FONT_SIZES.map((size) => (
+              <button
+                key={size.value}
+                type="button"
+                role="radio"
+                aria-checked={fontSize === size.value}
+                className={`s-size-btn s-size-btn-${size.value}${fontSize === size.value ? ' is-active' : ''}`}
+                onClick={() => chooseFontSize(size.value)}
+              >
+                <span className="s-size-glyph" aria-hidden="true">A</span>
+                {size.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Field descriptions */}

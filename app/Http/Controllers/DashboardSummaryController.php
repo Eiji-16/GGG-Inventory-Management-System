@@ -29,11 +29,15 @@ class DashboardSummaryController extends Controller
         $movedProductIds = StockMovement::query()->distinct()->pluck('product_id')->filter()->all();
         $movedSet = array_flip($movedProductIds);
 
+        // Short photo links (not the photos themselves) for the Top Products Sold list.
+        $photos = app(\App\Services\ProductPhotoService::class);
+
         $products = $productRecords
             ->map(fn (Product $product) => [
                 'id' => $product->code,
                 'name' => $product->name,
                 'category' => $product->category,
+                'image' => $photos->url($product),
                 'stock' => $product->stock_on_hand,
                 'safetyStock' => $product->safetyStock?->safety_stock,
                 'annualDemand' => $reorderPoints->annualDemand($product),
@@ -110,7 +114,7 @@ class DashboardSummaryController extends Controller
         $stockMovements = StockMovement::with('product:id,code')
             ->orderBy('movement_date')
             ->orderBy('id')
-            ->get(['id', 'product_id', 'product_name', 'movement_date', 'movement_type', 'is_adjustment', 'qty', 'created_at'])
+            ->get(['id', 'product_id', 'product_name', 'variant_name', 'movement_date', 'movement_type', 'is_adjustment', 'qty', 'recorded_by', 'created_at'])
             ->map(fn (StockMovement $movement) => [
                 'id' => $movement->id,
                 'productId' => $movement->product?->code,
@@ -119,6 +123,9 @@ class DashboardSummaryController extends Controller
                 'type' => $movement->movement_type,
                 'isAdjustment' => (bool) $movement->is_adjustment,
                 'qty' => $movement->qty,
+                // For the Recent Activity card: who saved it and which variant.
+                'variant' => $movement->variant_name,
+                'recordedBy' => $movement->recorded_by,
                 'createdAt' => $movement->created_at?->toIso8601String(),
             ]);
 

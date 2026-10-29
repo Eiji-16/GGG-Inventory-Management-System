@@ -159,7 +159,7 @@ export default function RoleAccess() {
 
           {!loading && !loadError && draft && (
             <>
-              <p className="s-roles-note">
+              <p className="s-roles-note hint-text">
                 Smaller features only work when their page is ticked too, and they appear once the page is on for Admin or Staff.
                 Changes reach other accounts within a minute.
               </p>

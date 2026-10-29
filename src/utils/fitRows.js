@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { uiZoom } from '../fontSize';
 
 /* ===== ROWS THAT FIT =====
    Works out how many table rows fit inside a table box, so each page of the
@@ -41,9 +42,11 @@ export default function useRowsThatFit(element, { min = 5, fallback = 20, deps =
       // A normal data row (skip "Loading…" / "No rows" messages that span all columns).
       const row = Array.from(element.querySelectorAll('tbody tr'))
         .find((tr) => !tr.querySelector('td[colspan]') && !tr.classList.contains('ps-skeleton-row'));
-      const rowHeight = row ? row.getBoundingClientRect().height : 0;
+      // On-screen sizes are scaled by Settings → Font size; use page pixels.
+      const zoom = uiZoom();
+      const rowHeight = row ? row.getBoundingClientRect().height / zoom : 0;
       if (!rowHeight) return;
-      const headHeight = element.querySelector('thead')?.getBoundingClientRect().height || 0;
+      const headHeight = (element.querySelector('thead')?.getBoundingClientRect().height || 0) / zoom;
       // The box's full height: its height limit when it shrinks to its rows
       // (useFillToBottom shrink mode), otherwise its actual height.
       const limit = parseFloat(element.style.maxHeight);

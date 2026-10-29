@@ -176,7 +176,7 @@ export default function SystemData() {
             <button type="button" className="s-sys-danger-btn" onClick={() => setDialog('reset')} disabled={!overview}>Reset…</button>
           </div>
 
-          <p className="s-roles-note">
+          <p className="s-roles-note hint-text">
             Before any import or reset, the server keeps a safety copy of the current data
             (the newest 5, in <code>storage/app/private/system-backups</code>).
           </p>

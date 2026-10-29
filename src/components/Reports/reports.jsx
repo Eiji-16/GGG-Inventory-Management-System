@@ -38,6 +38,9 @@ const EmptyRow = ({ cols, text }) => (
 
 const sumBy = (rows, key) => rows.reduce((total, row) => total + (Number(row[key]) || 0), 0);
 
+/* Hover data for one week (bar and line chart). */
+const weekTip = (r) => `Week of ${r.period}\nStock In: +${Number(r.in).toLocaleString()}\nStock Out: −${Number(r.out).toLocaleString()}\nNet change: ${r.in - r.out >= 0 ? '+' : '−'}${Math.abs(r.in - r.out).toLocaleString()}`;
+
 /* ===== CHART: weekly Stock In vs Stock Out (Bar / Line) ===== */
 function MovementLineChart({ rows, maxVal }) {
   const width = 600;
@@ -54,13 +57,26 @@ function MovementLineChart({ rows, maxVal }) {
       <line x1={pad.left} x2={width - pad.right} y1={pad.top + innerH} y2={pad.top + innerH} className="r-line-axis" />
       <path d={path('in')} className="r-line r-line-in" />
       <path d={path('out')} className="r-line r-line-out" />
-      {rows.map((r, i) => (
-        <g key={r.weekStart || i}>
-          <circle cx={x(i)} cy={y(r.in)} r="3.5" className="r-line-dot r-line-in"><title>{`Week of ${r.period}: +${r.in} in`}</title></circle>
-          <circle cx={x(i)} cy={y(r.out)} r="3.5" className="r-line-dot r-line-out"><title>{`Week of ${r.period}: −${r.out} out`}</title></circle>
-          <text x={x(i)} y={height - 6} textAnchor="middle" className="r-line-label">{r.period}</text>
-        </g>
-      ))}
+      {rows.map((r, i) => {
+        // A full-height hover strip per week: shows that week's numbers.
+        const step = rows.length > 1 ? innerW / (rows.length - 1) : innerW;
+        return (
+          <g key={r.weekStart || i} className="r-line-week">
+            <rect
+              className="r-line-hit"
+              x={x(i) - step / 2}
+              y={pad.top}
+              width={step}
+              height={innerH}
+              data-tip={weekTip(r)}
+            />
+            <line className="r-line-guide" x1={x(i)} x2={x(i)} y1={pad.top} y2={pad.top + innerH} />
+            <circle cx={x(i)} cy={y(r.in)} r="3.5" className="r-line-dot r-line-in" />
+            <circle cx={x(i)} cy={y(r.out)} r="3.5" className="r-line-dot r-line-out" />
+            <text x={x(i)} y={height - 6} textAnchor="middle" className="r-line-label">{r.period}</text>
+          </g>
+        );
+      })}
     </svg>
   );
 }
@@ -105,7 +121,7 @@ function MovementChartCard({ rows, loading, onOpen }) {
       ) : (
         <div className="r-mini-chart">
           {rows.map((r, i) => (
-            <div className="r-mini-col" key={r.weekStart || i} title={`Week of ${r.period}: +${r.in} in / −${r.out} out`}>
+            <div className="r-mini-col" key={r.weekStart || i} data-tip={weekTip(r)}>
               <div className="r-mini-bars">
                 <span className="r-mini-bar r-mini-in" style={{ height: `${(r.in / maxVal) * 100}%` }} />
                 <span className="r-mini-bar r-mini-out" style={{ height: `${(r.out / maxVal) * 100}%` }} />
@@ -134,8 +150,12 @@ function MovementBars({ title, items, tone, emptyText, onOpen }) {
       ) : (
         <ul className="r-fs-list">
           {items.map((item) => (
-            <li key={item.productId || item.product} className="r-fs-row">
-              <span className="r-fs-name" title={item.product}>{item.product}</span>
+            <li
+              key={item.productId || item.product}
+              className="r-fs-row"
+              data-tip={`${item.product}\n${Number(item.unitsSold).toLocaleString()} units sold${item.category && item.category !== '—' ? `\n${item.category}` : ''}${item.stock != null ? `\n${Number(item.stock).toLocaleString()} in stock now` : ''}`}
+            >
+              <span className="r-fs-name">{item.product}</span>
               <span className="r-fs-track">
                 <span className={`r-fs-bar r-fs-${tone}`} style={{ width: `${Math.max(2, (item.unitsSold / max) * 100)}%` }} />
               </span>
@@ -157,7 +177,7 @@ function ReorderBars({ rows, emptyText, onOpen }) {
   const items = [...rows]
     .sort((a, b) => (URGENCY_ORDER[a.urgency] ?? 3) - (URGENCY_ORDER[b.urgency] ?? 3)
       || (Number(a.currentStock) / Math.max(1, Number(a.reorderPoint))) - (Number(b.currentStock) / Math.max(1, Number(b.reorderPoint))))
-    .slice(0, 5);
+    .slice(0, 6);   // 6 rows fill the card (was 5)
   return (
     <div className="r-chart-card r-fs-card r-overall-chart r-clickable" {...clickableProps(onOpen, 'Reorder Point Report')}>
       <div className="r-chart-card-head">
@@ -173,7 +193,11 @@ function ReorderBars({ rows, emptyText, onOpen }) {
             const stock = Math.max(0, Number(item.currentStock) || 0);
             const tone = item.urgency === 'Low' ? 'warn' : 'slow';
             return (
-              <li key={item.productId || item.product} className="r-fs-row r-reorder-row" title={`${item.product}: ${stock} in stock, reorder point ${item.reorderPoint} (${item.urgency})`}>
+              <li
+                key={item.productId || item.product}
+                className="r-fs-row r-reorder-row"
+                data-tip={`${item.product}\n${item.urgency}\n${stock} in stock · reorder point ${item.reorderPoint}${item.criticalPoint != null ? ` · critical at ${item.criticalPoint}` : ''}${Number(item.reorderPoint) - stock + 1 > 0 ? `\nNeeds ${Number(item.reorderPoint) - stock + 1} more to get back above the reorder point` : ''}`}
+              >
                 <span className="r-fs-name">{item.product}</span>
                 <span className="r-fs-track">
                   <span className={`r-fs-bar r-fs-${tone}`} style={{ width: `${Math.max(2, Math.min(100, (stock / point) * 100))}%` }} />
@@ -368,14 +392,19 @@ function StockHealthTile({ rows, loading, onOpen }) {
         <div className="r-kpi-value">{loading ? '…' : `${healthy}%`}</div>
         <div className="r-kpi-sub">of {total} product{total === 1 ? '' : 's'} in stock</div>
       </div>
-      <div className="r-health-bar" aria-hidden="true">
+      <div className="r-health-bar">
         {parts.filter((p) => p.value > 0).map((p) => (
-          <span key={p.key} className={`r-health-seg is-${p.key}`} style={{ flexGrow: p.value }} />
+          <span
+            key={p.key}
+            className={`r-health-seg is-${p.key}`}
+            style={{ flexGrow: p.value }}
+            data-tip={`${p.label}\n${p.value} of ${total} products (${total ? Math.round((p.value / total) * 100) : 0}%)`}
+          />
         ))}
       </div>
       <div className="r-health-legend">
         {parts.map((p) => (
-          <span key={p.key}><i className={`is-${p.key}`} />{p.label} <strong>{p.value}</strong></span>
+          <span key={p.key} data-tip={`${p.label}\n${p.value} of ${total} products (${total ? Math.round((p.value / total) * 100) : 0}%)`}><i className={`is-${p.key}`} />{p.label} <strong>{p.value}</strong></span>
         ))}
       </div>
     </div>
