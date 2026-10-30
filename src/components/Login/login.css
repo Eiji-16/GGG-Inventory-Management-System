@@ -193,7 +193,9 @@
     background: transparent;
     border: 0;
     outline: none;
+    box-shadow: none; /* the navy box around it already shows focus */
 }
+.lg-input input:focus-visible { box-shadow: none; }
 .lg-input input::placeholder { color: #9aa3b8; }
 .lg-input input:-webkit-autofill,
 .lg-input input:-webkit-autofill:hover,
@@ -298,9 +300,10 @@
     .lg-features li:hover, .lg-submit:hover:not(:disabled) { transform: none; }
 }
 
-/* ===== SUNLIGHT behind the sign-in card =====
-   A gold sun rising from the bottom of the page, with soft rays that fade
-   out (a mask), a warm haze and a thin horizon line. Decoration only. */
+
+/* ===== SOFT LIGHT behind the sign-in card (2026-10-30) =====
+   Warm gold light glowing up from below the card and a cool light at the
+   top, like light reflected on glass — no sun or rays. Decoration only. */
 .lg-page {
     position: relative;
     isolation: isolate;
@@ -310,36 +313,41 @@
 .lg-page::after {
     content: '';
     position: absolute;
-    left: 50%;
     z-index: -1;
     pointer-events: none;
-    transform: translateX(-50%);
+    border-radius: 50%;
+    filter: blur(40px);
 }
-/* Rays + sun core, faded out towards the edges by the mask. */
+/* Gold glow under the card. */
 .lg-page::before {
-    bottom: -45vmax;
-    width: 150vmax;
-    height: 90vmax;
-    background:
-        radial-gradient(closest-side, rgba(255, 236, 170, 0.95) 0%, rgba(232, 197, 71, 0.55) 16%, rgba(232, 197, 71, 0.18) 38%, transparent 62%),
-        repeating-conic-gradient(from -90deg at 50% 50%, rgba(232, 197, 71, 0.2) 0deg 2.5deg, transparent 2.5deg 8deg);
-    -webkit-mask-image: radial-gradient(closest-side, #000 18%, rgba(0, 0, 0, 0.55) 45%, transparent 78%);
-    mask-image: radial-gradient(closest-side, #000 18%, rgba(0, 0, 0, 0.55) 45%, transparent 78%);
-    animation: lg-sun-breathe 9s ease-in-out infinite;
+    left: 50%;
+    bottom: -18vh;
+    width: min(90vw, 70rem);
+    height: 46vh;
+    transform: translateX(-50%);
+    background: radial-gradient(closest-side, rgba(232, 197, 71, 0.55), rgba(232, 197, 71, 0.18) 55%, transparent 100%);
+    animation: lg-light-breathe 8s ease-in-out infinite alternate;
 }
-/* Horizon: a thin bright line with a warm haze above it. */
+/* Cool navy light at the top left. */
 .lg-page::after {
-    bottom: 0;
-    width: 100%;
-    height: 38vh;
-    background:
-        linear-gradient(90deg, transparent 8%, rgba(232, 197, 71, 0.75) 50%, transparent 92%) bottom / 100% 1px no-repeat,
-        radial-gradient(60% 100% at 50% 100%, rgba(232, 197, 71, 0.22), transparent 70%);
+    left: -10vw;
+    top: -20vh;
+    width: 55vw;
+    height: 50vh;
+    background: radial-gradient(closest-side, rgba(22, 41, 92, 0.16), transparent 100%);
 }
-.lg-shell { position: relative; z-index: 1; }
-@keyframes lg-sun-breathe {
-    0%, 100% { opacity: 0.85; }
-    50%      { opacity: 1; }
+.lg-shell {
+    position: relative;
+    z-index: 1;
+    /* A thin warm light along the bottom edge of the card. */
+    box-shadow:
+        0 30px 80px -30px rgba(10, 21, 48, 0.45),
+        0 2px 6px rgba(10, 21, 48, 0.06),
+        0 24px 60px -20px rgba(232, 197, 71, 0.45);
+}
+@keyframes lg-light-breathe {
+    from { opacity: 0.75; }
+    to   { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
     .lg-page::before { animation: none; }

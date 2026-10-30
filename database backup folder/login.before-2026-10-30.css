@@ -1,0 +1,346 @@
+/* ==========================================================================
+   LOGIN PAGE (redesign) — navy and gold, the same in every theme
+   (the theme is chosen after signing in). Password-reset pop-up styles stay
+   in index.css.
+   ========================================================================== */
+.lg-page {
+    --lg-navy-900: #0a1530;
+    --lg-navy-800: #0f1f45;
+    --lg-navy-700: #16295c;
+    --lg-gold: #e8c547;
+    --lg-gold-strong: #d4ac2b;
+    --lg-ink: #13203f;
+    --lg-muted: #5b6785;
+    --lg-line: #dfe4ee;
+    --lg-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+    min-height: calc(100vh / var(--ui-zoom, 1));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    font-family: 'Poppins', system-ui, sans-serif;
+    background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(232, 197, 71, 0.10), transparent 60%),
+        radial-gradient(900px 500px at 110% 110%, rgba(22, 41, 92, 0.12), transparent 60%),
+        #eef1f7;
+}
+
+.lg-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    width: min(100%, 68rem);
+    min-height: 36rem;
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid rgba(19, 32, 63, 0.08);
+    border-radius: 24px;
+    box-shadow: 0 30px 80px -30px rgba(10, 21, 48, 0.45), 0 2px 6px rgba(10, 21, 48, 0.06);
+    animation: lg-rise 0.5s var(--lg-ease) both;
+}
+
+/* ===== Brand panel ===== */
+.lg-brand {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    padding: 40px 42px 30px;
+    overflow: hidden;
+    color: #fff;
+    background: linear-gradient(160deg, var(--lg-navy-700) 0%, var(--lg-navy-800) 45%, var(--lg-navy-900) 100%);
+}
+.lg-brand-grid {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(ellipse at 30% 20%, #000 20%, transparent 75%);
+}
+.lg-brand-glow {
+    position: absolute;
+    right: -120px;
+    bottom: -120px;
+    z-index: -1;
+    width: 360px;
+    height: 360px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(232, 197, 71, 0.28), transparent 65%);
+    animation: lg-glow 9s ease-in-out infinite alternate;
+}
+.lg-brand-top { display: flex; align-items: center; gap: 12px; }
+.lg-mark {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    color: var(--lg-navy-900);
+    background: linear-gradient(145deg, #f6dc7a, var(--lg-gold-strong));
+    border-radius: 12px;
+    box-shadow: 0 8px 20px -6px rgba(232, 197, 71, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.lg-brand-name { display: grid; line-height: 1.2; }
+.lg-brand-name strong { font-size: 15px; letter-spacing: 0.01em; }
+.lg-brand-name small { font-size: 11px; color: rgba(255, 255, 255, 0.65); letter-spacing: 0.04em; }
+
+.lg-brand-copy { margin-top: auto; }
+.lg-brand-copy h1 {
+    margin: 0 0 12px;
+    font-size: clamp(1.6rem, calc(2.6vw / var(--ui-zoom, 1)), 2.15rem);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+}
+.lg-brand-copy h1 span { color: var(--lg-gold); }
+.lg-brand-copy p { margin: 0; max-width: 26rem; font-size: 13.5px; line-height: 1.65; color: rgba(255, 255, 255, 0.72); }
+
+.lg-features { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.lg-features li {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 11px 13px;
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    transition: background-color 0.25s var(--lg-ease), border-color 0.25s var(--lg-ease), transform 0.25s var(--lg-ease);
+}
+.lg-features li:hover { background: rgba(255, 255, 255, 0.075); border-color: rgba(232, 197, 71, 0.35); transform: translateX(3px); }
+.lg-feature-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    color: var(--lg-gold);
+    background: rgba(232, 197, 71, 0.12);
+    border: 1px solid rgba(232, 197, 71, 0.28);
+    border-radius: 9px;
+}
+.lg-features strong { display: block; font-size: 12.5px; }
+.lg-features small { display: block; font-size: 11.5px; line-height: 1.45; color: rgba(255, 255, 255, 0.62); }
+.lg-brand-foot { margin: 0; font-size: 10.5px; color: rgba(255, 255, 255, 0.45); }
+
+/* ===== Form side ===== */
+.lg-form-side { min-width: 0; display: flex; align-items: center; justify-content: center; padding: 48px 52px; background: #fff; }
+.lg-form-wrap { width: 100%; max-width: 23rem; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 26px; }
+.lg-heading { display: grid; gap: 8px; }
+.lg-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    width: fit-content;
+    padding: 3px 9px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: #8a6a0c;
+    background: #fbf3d6;
+    border: 1px solid #f1e1a3;
+    border-radius: 999px;
+}
+.lg-heading h2 { margin: 0; font-size: 1.9rem; line-height: 1.15; letter-spacing: -0.03em; color: var(--lg-ink); }
+.lg-heading p { margin: 0; font-size: 13.5px; color: var(--lg-muted); }
+
+.lg-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.lg-field { display: grid; gap: 7px; }
+.lg-field label { font-size: 12.5px; font-weight: 600; color: var(--lg-ink); }
+.lg-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.lg-link {
+    padding: 0;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--lg-navy-700);
+    background: none;
+    border: 0;
+    cursor: pointer;
+    text-underline-offset: 3px;
+}
+.lg-link:hover { text-decoration: underline; color: #8a6a0c; }
+.lg-link:focus-visible { outline: 2px solid var(--lg-gold); outline-offset: 3px; border-radius: 4px; }
+
+.lg-input {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: #f6f8fc;
+    border: 1.5px solid var(--lg-line);
+    border-radius: 12px;
+    transition: border-color 0.2s var(--lg-ease), box-shadow 0.2s var(--lg-ease), background-color 0.2s var(--lg-ease);
+}
+.lg-input:hover { border-color: #c7cfdf; }
+.lg-input:focus-within {
+    background: #fff;
+    border-color: var(--lg-navy-700);
+    box-shadow: 0 0 0 4px rgba(22, 41, 92, 0.1);
+}
+.lg-input-icon { flex: 0 0 auto; margin-left: 14px; color: #8b95ad; transition: color 0.2s var(--lg-ease); }
+.lg-input:focus-within .lg-input-icon { color: var(--lg-navy-700); }
+.lg-input input {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    height: 48px;
+    padding: 0 14px 0 10px;
+    font: inherit;
+    font-size: 14px;
+    color: var(--lg-ink);
+    background: transparent;
+    border: 0;
+    outline: none;
+}
+.lg-input input::placeholder { color: #9aa3b8; }
+.lg-input input:-webkit-autofill,
+.lg-input input:-webkit-autofill:hover,
+.lg-input input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--lg-ink);
+    caret-color: var(--lg-ink);
+    transition: background-color 9999s ease-out 0s;
+}
+.lg-eye {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    margin-right: 4px;
+    color: #7b86a0;
+    background: transparent;
+    border: 0;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+.lg-eye:hover { color: var(--lg-navy-700); background: rgba(22, 41, 92, 0.06); }
+.lg-eye:focus-visible { outline: 2px solid var(--lg-gold); outline-offset: 1px; }
+.lg-caps { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: #a16207; }
+
+.lg-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: #b42318;
+    background: #fef3f2;
+    border: 1px solid #fecdca;
+    border-radius: 10px;
+    animation: lg-shake 0.35s var(--lg-ease);
+}
+.lg-error svg { flex: 0 0 auto; margin-top: 2px; }
+
+.lg-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 50px;
+    margin-top: 4px;
+    font: inherit;
+    font-size: 14.5px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: var(--lg-navy-900);
+    background: linear-gradient(180deg, #f2d566 0%, var(--lg-gold) 55%, var(--lg-gold-strong) 100%);
+    border: 1px solid #caa22a;
+    border-radius: 12px;
+    box-shadow: 0 10px 22px -10px rgba(212, 172, 43, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    cursor: pointer;
+    transition: transform 0.2s var(--lg-ease), box-shadow 0.2s var(--lg-ease), filter 0.2s var(--lg-ease);
+}
+.lg-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 14px 28px -12px rgba(212, 172, 43, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.45); }
+.lg-submit:hover:not(:disabled) .lg-submit-arrow { transform: translateX(3px); }
+.lg-submit:active:not(:disabled) { transform: translateY(0); filter: brightness(0.97); }
+.lg-submit:focus-visible { outline: 3px solid rgba(22, 41, 92, 0.35); outline-offset: 2px; }
+.lg-submit:disabled { cursor: progress; opacity: 0.85; }
+.lg-submit-arrow { transition: transform 0.2s var(--lg-ease); }
+.lg-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(10, 21, 48, 0.25);
+    border-top-color: var(--lg-navy-900);
+    border-radius: 50%;
+    animation: lg-spin 0.7s linear infinite;
+}
+.lg-help { margin: 0; font-size: 12px; text-align: center; color: var(--lg-muted); }
+.lg-help b { color: var(--lg-ink); }
+
+@keyframes lg-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes lg-glow { from { transform: translate(0, 0) scale(1); } to { transform: translate(-30px, -20px) scale(1.08); } }
+@keyframes lg-spin { to { transform: rotate(360deg); } }
+@keyframes lg-shake { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-4px); } 60% { transform: translateX(3px); } }
+
+/* ===== Tablets / phones ===== */
+@media (max-width: 900px) {
+    .lg-shell { grid-template-columns: minmax(0, 1fr); width: min(100%, 30rem); min-height: 0; }
+    .lg-brand { gap: 14px; padding: 24px 26px; }
+    .lg-brand-copy { margin-top: 4px; }
+    .lg-brand-copy h1 { font-size: 1.35rem; margin-bottom: 6px; }
+    .lg-brand-copy p { font-size: 12.5px; }
+    .lg-features, .lg-brand-foot { display: none; }
+    .lg-form-side { padding: 30px 26px 34px; }
+}
+@media (max-width: 420px) {
+    .lg-page { padding: 12px; }
+    .lg-shell { border-radius: 18px; }
+    .lg-heading h2 { font-size: 1.6rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lg-shell, .lg-brand-glow, .lg-error, .lg-spinner { animation: none; }
+    .lg-features li, .lg-submit, .lg-submit-arrow { transition: none; }
+    .lg-features li:hover, .lg-submit:hover:not(:disabled) { transform: none; }
+}
+
+/* ===== SUNLIGHT behind the sign-in card =====
+   A gold sun rising from the bottom of the page, with soft rays that fade
+   out (a mask), a warm haze and a thin horizon line. Decoration only. */
+.lg-page {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+}
+.lg-page::before,
+.lg-page::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    z-index: -1;
+    pointer-events: none;
+    transform: translateX(-50%);
+}
+/* Rays + sun core, faded out towards the edges by the mask. */
+.lg-page::before {
+    bottom: -45vmax;
+    width: 150vmax;
+    height: 90vmax;
+    background:
+        radial-gradient(closest-side, rgba(255, 236, 170, 0.95) 0%, rgba(232, 197, 71, 0.55) 16%, rgba(232, 197, 71, 0.18) 38%, transparent 62%),
+        repeating-conic-gradient(from -90deg at 50% 50%, rgba(232, 197, 71, 0.2) 0deg 2.5deg, transparent 2.5deg 8deg);
+    -webkit-mask-image: radial-gradient(closest-side, #000 18%, rgba(0, 0, 0, 0.55) 45%, transparent 78%);
+    mask-image: radial-gradient(closest-side, #000 18%, rgba(0, 0, 0, 0.55) 45%, transparent 78%);
+    animation: lg-sun-breathe 9s ease-in-out infinite;
+}
+/* Horizon: a thin bright line with a warm haze above it. */
+.lg-page::after {
+    bottom: 0;
+    width: 100%;
+    height: 38vh;
+    background:
+        linear-gradient(90deg, transparent 8%, rgba(232, 197, 71, 0.75) 50%, transparent 92%) bottom / 100% 1px no-repeat,
+        radial-gradient(60% 100% at 50% 100%, rgba(232, 197, 71, 0.22), transparent 70%);
+}
+.lg-shell { position: relative; z-index: 1; }
+@keyframes lg-sun-breathe {
+    0%, 100% { opacity: 0.85; }
+    50%      { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .lg-page::before { animation: none; }
+}

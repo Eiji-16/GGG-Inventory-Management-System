@@ -15,6 +15,9 @@ import { CurrencyProvider } from '../CurrencyContext';
 import { applyShowFieldHints, readShowFieldHints } from '../fieldHints';
 import { applyFontSize, readFontSize } from '../fontSize';
 import { startChartTooltip } from '../utils/chartTooltip';
+import { startScrollEdgeGlow } from '../utils/scrollEdgeGlow';
+import { startExitAnimations } from '../utils/exitAnimations';
+import { startSidebarSlider } from '../utils/sidebarSlider';
 
 // Apply the saved "Show field descriptions" choice before the first render.
 applyShowFieldHints(readShowFieldHints());
@@ -22,6 +25,9 @@ applyShowFieldHints(readShowFieldHints());
 applyFontSize(readFontSize());
 // Data box on hover for every chart (elements with data-tip="…").
 startChartTooltip();
+startScrollEdgeGlow();   // soft accent light when a panel is scrolled to its end
+startExitAnimations();   // pop-ups, menus and notifications fade out when they close
+startSidebarSlider();    // one sidebar highlight that slides to the opened page
 // Active tab highlights slide to the newly selected tab (all tab groups).
 startSlidingTabs();
 // Phones: list cards open/close on tap (see utils/mobileFolders.js).

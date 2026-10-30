@@ -65,96 +65,11 @@
     gap: 6px;
     margin-bottom: 6px;
 }
-
-.db-kpi-card {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-    min-height: 60px;
-    padding: 8px 10px;
-    color: var(--text-primary);
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    box-shadow: var(--shadow-card);
-    box-sizing: border-box;
-}
-
-.db-kpi-icon {
-    display: grid;
-    place-items: center;
-    width: 34px;
-    height: 34px;
-    flex: 0 0 auto;
-    color: var(--accent);
-    background: var(--static-bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-}
-
-.db-kpi-low .db-kpi-icon { color: var(--accent-med); }
-.db-kpi-movement .db-kpi-icon { color: var(--accent-high); }
-
-.db-kpi-copy {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 0;
-}
-
-.db-kpi-label {
-    overflow: hidden;
-    color: var(--text-muted);
-    font-size: 10px;
-    font-weight: 600;
-    line-height: 1.2;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.db-kpi-value {
-    color: var(--text-primary);
-    font-size: 19px;
-    font-weight: 800;
-    line-height: 1.1;
-    font-variant-numeric: tabular-nums;
-}
-
-.db-kpi-value-placeholder {
-    width: 52px;
-    height: 19px;
-}
-
-.db-coverage-empty {
-    color: var(--text-muted);
-    font-size: 10px;
-    text-align: center;
-}
-
-.db-coverage-row {
-    min-width: 0;
-    gap: 10px;
-}
-
-.eoqActivity-card {
-    gap: 8px;
-    container-type: inline-size;
-}
-
 .db-coverage-open-btn {
     position: absolute;
     top: 8px;
     right: 8px;
     z-index: 1;
-}
-
-.db-coverage-content {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 18px;
-    flex: 1;
-    min-height: 0;
 }
 
 .db-coverage-section {
@@ -187,33 +102,6 @@
     flex: 1;
     min-height: 0;
     align-items: center;
-}
-
-.db-coverage-svg {
-    width: 116px;
-    max-width: 55%;
-    flex: 0 1 116px;
-}
-
-.db-coverage-stats {
-    min-width: 0;
-    flex: 1;
-    gap: 8px;
-}
-
-.db-coverage-stats .db-metric-value {
-    font-size: 15px;
-    line-height: 1.15;
-    font-variant-numeric: tabular-nums;
-}
-
-.db-coverage-value {
-    font-size: 20px;
-    font-variant-numeric: tabular-nums;
-}
-
-.db-coverage-label {
-    font-size: 8.5px;
 }
 
 .db-category-section .db-donut-row {
@@ -301,13 +189,8 @@
     100% { transform: translateX(100%); }
 }
 .db-skel-title { height: 13px; width: 55%; }
-.db-skel-sub   { height: 9px;  width: 38%; }
-.db-skel-big   { height: 34px; width: 60%; margin-top: 4px; }
-.db-skel-chart { flex: 1; min-height: 120px; margin-top: 6px; }
-.db-skel-fill  { flex: 1; min-height: 70px; margin-top: 4px; }
-.db-skel-spark { flex: 1; min-height: 34px; margin-top: auto; }
-.db-skel-row   { height: 26px; width: 100%; }
-.db-skel-note {
+.db-skel-sub   { height: 9px;  width: 38%; }.db-skel-chart { flex: 1; min-height: 120px; margin-top: 6px; }
+.db-skel-fill  { flex: 1; min-height: 70px; margin-top: 4px; }.db-skel-note {
     margin: 10px 2px 0;
     font-size: 12px;
     color: var(--text-muted);
@@ -334,24 +217,6 @@
 .parent > .card:nth-child(10) { animation-delay: 0.36s; }
 
 /*==========CLICKABLE CARD==========*/
-.db-clickable {
-    cursor: pointer;
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-                box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-                border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.db-clickable:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-hover);
-    border-color: var(--border-strong);
-}
-
-.db-clickable:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: -2px;
-}
-
 /*==========CARD HEAD==========*/
 .db-card-head {
     display: flex;
@@ -414,12 +279,6 @@
     outline-offset: 2px;
 }
 
-.db-clickable:hover .db-open-arrow {
-    opacity: 1;
-    color: var(--accent);
-    transform: translate(1px, -1px);
-}
-
 /*==========SEGMENT TOGGLE==========*/
 .db-seg {
     display: inline-flex;
@@ -449,38 +308,7 @@
 }
 
 /*==========DELTA PILL==========*/
-.db-delta {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    font-size: 10.5px;
-    font-weight: 700;
-    flex-shrink: 0;
-}
-
-.db-delta-up { color: var(--accent-high); }
-.db-delta-down { color: var(--accent-low); }
-
 /*==========METRIC BLOCK==========*/
-.db-metric {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-}
-
-.db-metric-label {
-    font-size: 9.5px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-.db-metric-value {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
 /*==========HERO (SALES ANALYTICS)==========*/
 .db-hero-plot {
     position: relative;
@@ -499,16 +327,6 @@
 .db-hero-point {
     cursor: crosshair;
     outline: none;
-}
-
-.db-hero-hit-area {
-    fill: transparent;
-    pointer-events: all;
-}
-
-.db-hero-point:focus-visible .db-hero-point-dot {
-    stroke: var(--text-primary);
-    stroke-width: 3;
 }
 
 .db-hero-tooltip {
@@ -537,38 +355,12 @@
 .db-hero-tooltip span { color: var(--text-muted); }
 .db-hero-tooltip strong { font-size: 11px; }
 
-.db-hero-xaxis {
-    display: flex;
-    justify-content: space-between;
-    font-size: 9.5px;
-    color: var(--text-muted);
-    padding: 0 6px;
-    margin-top: 2px;
-}
-
-.db-hero-foot {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-top: 0;
-}
-
-.db-hero-foot .db-open-arrow {
-    margin-left: auto;
-}
-
 /*==========STAT CARDS==========*/
 .db-stat-value {
     font-size: 26px;
     font-weight: 800;
     color: var(--text-primary);
     line-height: 1.1;
-}
-
-.db-stat-sub {
-    font-size: 10.5px;
-    color: var(--text-muted);
-    margin-top: -4px;
 }
 
 .db-empty-chart {
@@ -596,50 +388,7 @@
     width: 100%;
 }
 
-.db-spark-wrap {
-    flex: 1;
-    min-height: 34px;
-    margin-top: auto;
-}
-
-.db-spark-svg {
-    width: 100%;
-    height: 100%;
-    min-height: 34px;
-    display: block;
-}
-
 /*==========STACKED SEGMENT BAR==========*/
-.db-catalog-total {
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--text-primary);
-    line-height: 1.1;
-}
-
-.db-catalog-total span {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-muted);
-}
-
-.db-stack-bar {
-    display: flex;
-    width: 100%;
-    height: 12px;
-    border-radius: 999px;
-    overflow: hidden;
-    background: var(--static-bg-color);
-    margin: 2px 0;
-}
-
-.db-stack-bar-sm { height: 8px; }
-
-.db-stack-seg {
-    height: 100%;
-    display: block;
-}
-
 /*==========LEGEND==========*/
 .db-legend {
     display: flex;
@@ -699,53 +448,7 @@
     font-weight: 700;
 }
 
-.db-donut-center-val {
-    fill: var(--text-primary);
-    font-size: 16px;
-    font-weight: 800;
-}
-
-.db-donut-center-label {
-    fill: var(--text-muted);
-    font-size: 7px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-}
-
 /*==========GAUGE (EOQ)==========*/
-.db-gauge-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex: 1;
-}
-
-.db-gauge-svg {
-    width: 120px;
-    height: 74px;
-    flex-shrink: 0;
-}
-
-.db-gauge-value {
-    fill: var(--text-primary);
-    font-size: 16px;
-    font-weight: 800;
-}
-
-.db-gauge-label {
-    fill: var(--text-muted);
-    font-size: 8.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.db-gauge-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
 /*==========COLUMN CHART (ORDERS)==========*/
 .db-col-chart {
     flex: 1;
@@ -844,19 +547,6 @@
 }
 
 /*==========RANKING BARS (PRODUCT SALES)==========*/
-.db-rank {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    flex: 1;
-    justify-content: safe center;
-    margin-top: 2px;
-    min-height: 0;
-    max-height: calc(5 * 20px + 4 * 6px);
-    overflow-y: auto;
-    padding-right: 2px;
-}
-
 /* Thin, visible scrollbar: with the scrollbar hidden, a list with more
    items than fit just looked cut off half-way through a row. */
 .db-rank,
@@ -886,121 +576,8 @@
     background: transparent;
 }
 
-.db-rank-row {
-    display: grid;
-    grid-template-columns: 96px 1fr 34px;
-    align-items: center;
-    gap: 8px;
-    min-height: 20px;
-    flex-shrink: 0;
-    font-size: 11px;
-}
-
-.db-rank-name {
-    color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.db-rank-track {
-    height: 8px;
-    width: 100%;
-    background: var(--static-bg-color);
-    border-radius: 999px;
-    overflow: hidden;
-}
-
-.db-rank-fill {
-    display: block;
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent), var(--accent-high));
-    border-radius: 999px;
-}
-
-.db-rank-val {
-    text-align: right;
-    color: var(--text-muted);
-    font-weight: 700;
-    font-size: 10.5px;
-}
-
 /*==========ALERT LIST (STOCK ALERTS)==========*/
-.db-alert-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: 1;
-    margin-top: 2px;
-    /* Scroll when many products are low/out of stock instead of growing the card. */
-    max-height: calc(4 * 29px + 3 * 4px);
-    min-height: 0;
-    overflow-y: auto;
-    padding-right: 2px;
-}
-.db-alert-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 8px;
-    border-radius: 8px;
-    background: var(--overlay-soft);
-    border-left: 3px solid transparent;
-    min-height: 29px;
-    flex-shrink: 0;
-    font-size: 11px;
-}
-
 /* Clickable alert rows jump to the item in Stock Control. */
-.db-alert-clickable {
-    width: 100%;
-    text-align: left;
-    cursor: pointer;
-    color: inherit;
-    font: inherit;
-    transition: background 0.15s ease, transform 0.15s ease;
-}
-.db-alert-clickable:hover {
-    background: var(--background-icon-active-color-theme, var(--overlay-soft));
-    transform: translateX(2px);
-}
-
-.db-alert-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.db-alert-name {
-    color: var(--text-primary);
-    flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.db-alert-qty {
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--text-muted);
-    white-space: nowrap;
-}
-
-.db-alert-out { border-left-color: var(--accent-low); }
-.db-alert-out .db-alert-dot { background: var(--accent-low); }
-.db-alert-out .db-alert-qty { color: var(--accent-low); }
-
-.db-alert-critical { border-left-color: var(--accent-low); }
-.db-alert-critical .db-alert-dot { background: var(--accent-low); }
-.db-alert-critical .db-alert-qty { color: var(--accent-low); }
-
-.db-alert-low { border-left-color: var(--accent-med); }
-.db-alert-low .db-alert-dot { background: var(--accent-med); }
-
-.db-alert-reorder { border-left-color: var(--accent); }
-.db-alert-reorder .db-alert-dot { background: var(--accent); }
-
 /*==========DESKTOP LAYOUT==========*/
 .salesAnalytics-card {
     grid-column: 1 / span 5;
@@ -1008,33 +585,10 @@
     min-height: 13.5rem;
 }
 
-.catalogStatus-card {
-    grid-column: 1 / -1;
-    grid-row: 1;
-    min-height: 6.5rem;
-}
-
-.db-kpi-row .catalogStatus-card {
-    grid-column: auto;
-    grid-row: auto;
-}
-
-.totalRevenue-card {
-    grid-column: 6 / span 2;
-    grid-row: 2;
-    min-height: 10.5rem;
-}
-
 .regionalBreakdown-card {
     grid-column: 1 / span 2;
     grid-row: 3;
     min-height: 11.5rem;
-}
-
-.eoqActivity-card {
-    grid-column: 3 / span 3;
-    grid-row: 3;
-    min-height: 10rem;
 }
 
 .totalOrder-card {
@@ -1045,18 +599,6 @@
 
 .productSales-card {
     grid-column: 1 / span 3;
-    grid-row: 4;
-    min-height: 12rem;
-}
-
-.lowStockalerts-card {
-    grid-column: 4 / span 2;
-    grid-row: 4;
-    min-height: 12rem;
-}
-
-.totalCustomer-card {
-    grid-column: 6 / span 1;
     grid-row: 4;
     min-height: 12rem;
 }
@@ -1075,28 +617,8 @@
 grid-column: 5 / span 2;
 }
 
-.parent-without-user-accounts .catalogStatus-card {
-grid-column: 1 / -1;
-}
-
-.parent-without-user-accounts .totalRevenue-card {
-    min-height: 10.5rem;
-}
-
-.parent-without-user-accounts .eoqActivity-card {
-    grid-column: 3 / span 2;
-}
-
 .parent-without-user-accounts .productSales-card {
     grid-column: 1 / span 2;
-}
-
-.parent-without-user-accounts .lowStockalerts-card {
-    grid-column: 3 / span 2;
-}
-
-.parent-without-user-accounts .totalCustomer-card {
-    grid-column: 5 / span 2;
 }
 
 /*==========TABLET RESPONSIVENESS==========*/
@@ -1119,28 +641,10 @@ grid-column: 1 / -1;
         min-height: 12rem;
     }
 
-    .catalogStatus-card {
-        grid-column: 1 / span 4;
-        grid-row: 1;
-        min-height: 7.5rem;
-    }
-
-    .totalRevenue-card {
-        grid-column: 1 / span 2;
-        grid-row: 3;
-        min-height: 7.5rem;
-    }
-
     .regionalBreakdown-card {
         grid-column: 1 / span 2;
         grid-row: 4;
         min-height: 11.5rem;
-    }
-
-    .eoqActivity-card {
-        grid-column: 3 / span 2;
-        grid-row: 4;
-        min-height: 10rem;
     }
 
     .totalOrder-card {
@@ -1149,41 +653,13 @@ grid-column: 1 / -1;
         min-height: 8rem;
     }
 
-    .totalCustomer-card {
-        grid-column: 3 / span 2;
-        grid-row: 5;
-        min-height: 8rem;
-    }
-
-    .parent-without-user-accounts .catalogStatus-card {
-        grid-column: 1 / span 4;
-        grid-row: 1;
-    }
-
-    .parent-without-user-accounts .totalRevenue-card {
-        grid-column: 3 / span 2;
-        grid-row: 3;
-        min-height: 10rem;
-    }
-
     .parent-without-user-accounts .regionalBreakdown-card {
         grid-column: 1 / span 2;
         grid-row: 4;
     }
 
-    .parent-without-user-accounts .eoqActivity-card {
-        grid-column: 3 / span 2;
-        grid-row: 4;
-        min-height: 10rem;
-    }
-
     .parent-without-user-accounts .totalOrder-card {
         grid-column: 1 / span 2;
-        grid-row: 5;
-    }
-
-    .parent-without-user-accounts .totalCustomer-card {
-        grid-column: 3 / span 2;
         grid-row: 5;
     }
 
@@ -1193,20 +669,8 @@ grid-column: 1 / -1;
         min-height: 12rem;
     }
 
-    .parent-without-user-accounts .lowStockalerts-card {
-        grid-column: 3 / span 2;
-        grid-row: 6;
-        min-height: 12rem;
-    }
-
     .productSales-card {
         grid-column: 1 / span 2;
-        grid-row: 6;
-        min-height: 12rem;
-    }
-
-    .lowStockalerts-card {
-        grid-column: 3 / span 2;
         grid-row: 6;
         min-height: 12rem;
     }
@@ -1223,15 +687,6 @@ grid-column: 1 / -1;
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .db-kpi-card {
-        min-height: 58px;
-        padding: 8px 9px;
-    }
-
-    .db-kpi-value {
-        font-size: 18px;
-    }
-
     .salesAnalytics-card {
         grid-column: 1 / span 2;
         grid-row: auto;
@@ -1246,16 +701,6 @@ grid-column: 1 / -1;
         min-height: 7.5rem;
     }
 
-    .catalogStatus-card {
-        grid-column: 1 / span 2;
-    }
-
-    .totalRevenue-card {
-        grid-column: span 1;
-        grid-row: auto;
-        min-height: 9rem;
-    }
-
     .parent-without-user-accounts .totalRevenue-card,
     .parent-without-user-accounts .totalOrder-card,
     .parent-without-user-accounts .totalCustomer-card {
@@ -1268,10 +713,6 @@ grid-column: 1 / -1;
         grid-column: 1 / span 2;
         grid-row: auto;
         min-height: 9rem;
-    }
-
-    .eoqActivity-card {
-        min-height: 10rem;
     }
 
     .regionalBreakdown-card {
@@ -1300,19 +741,6 @@ grid-column: 1 / -1;
         grid-row: auto;
         min-height: 7.5rem;
     }
-
-    .parent-without-user-accounts .catalogStatus-card {
-        grid-column: 1 / span 2;
-        grid-row: auto;
-    }
-    .parent-without-user-accounts .totalRevenue-card {
-        min-height: 9rem;
-    }
-
-    .parent-without-user-accounts .totalRevenue-card {
-        min-height: 9rem;
-    }
-
     .parent-without-user-accounts .productSales-card {
         min-height: 10.5rem;
     }
@@ -1333,20 +761,6 @@ grid-column: 1 / -1;
 @media (max-width: 400px) {
     .db-kpi-row {
         gap: 6px;
-    }
-
-    .db-kpi-card {
-        gap: 7px;
-        padding: 8px;
-    }
-
-    .db-kpi-icon {
-        width: 30px;
-        height: 30px;
-    }
-
-    .db-kpi-label {
-        font-size: 9px;
     }
 
     .parent {
@@ -1373,47 +787,13 @@ grid-column: 1 / -1;
     }
 
     .salesAnalytics-card { min-height: 10.5rem; }
-    .regionalBreakdown-card { min-height: 11.5rem; }
-    .eoqActivity-card { min-height: 10rem; }
-    .totalOrder-card { min-height: 7.5rem; }
+    .regionalBreakdown-card { min-height: 11.5rem; }    .totalOrder-card { min-height: 7.5rem; }
     .productSales-card,
     .lowStockalerts-card,
     .totalCustomer-card { min-height: 10.5rem; }
 }
 
 /*==========EMPTY CARD==========*/
-.db-empty-card {
-    flex: 1;
-    min-height: 80px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    gap: 6px;
-    padding: 1rem;
-    box-sizing: border-box;
-}
-
-.db-empty-icon {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-muted);
-}
-
-.db-empty-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-muted);
-}
-
-.db-empty-sub {
-    font-size: 10px;
-    color: var(--text-muted);
-    line-height: 1.3;
-    max-width: 200px;
-}
-
 /*==========ORDER SOON (reorder suggestions, in the regionalBreakdown slot)==========*/
 .regionalBreakdown-card {
     display: flex;
@@ -1554,15 +934,7 @@ grid-column: 1 / -1;
     }
 
     .parent-without-user-accounts .db-col-chart { min-height: 64px; max-height: 120px; }
-    .parent-without-user-accounts .db-spark-wrap { max-height: 72px; }
-
-    /* Top products: list starts at the top instead of floating in the middle */
-    .parent-without-user-accounts .db-rank {
-        justify-content: flex-start;
-        gap: 10px;
-        margin-top: 8px;
-    }
-}
+    /* Top products: list starts at the top instead of floating in the middle */}
 
 /* ===== Inventory by Category legend: never cut off =====
    Long names shorten with "…" (full name on hover); the count always shows. */
@@ -1606,16 +978,9 @@ grid-column: 1 / -1;
 }
 
 /*==========DASHBOARD BOTTOM ROW==========*/
-/* Stock Alerts fills the space left by the removed duplicate reorder card. */
-.lowStockalerts-card { grid-column: 4 / span 4; }
-.parent-without-user-accounts .productSales-card { grid-column: 1 / span 3; }
-.parent-without-user-accounts .lowStockalerts-card { grid-column: 4 / span 3; }
-
+/* Stock Alerts fills the space left by the removed duplicate reorder card. */.parent-without-user-accounts .productSales-card { grid-column: 1 / span 3; }
 @media (max-width: 1024px) {
-    .parent-without-user-accounts .totalOrder-card { grid-column: 1 / span 4; }
-    .lowStockalerts-card,
-    .parent-without-user-accounts .lowStockalerts-card { grid-column: 3 / span 2; }
-    .parent-without-user-accounts .productSales-card { grid-column: 1 / span 2; }
+    .parent-without-user-accounts .totalOrder-card { grid-column: 1 / span 4; }    .parent-without-user-accounts .productSales-card { grid-column: 1 / span 2; }
 }
 
 @media (max-width: 640px) {
@@ -1631,9 +996,6 @@ grid-column: 1 / -1;
 }
 
 /* User Accounts in the top row (Super Admin) and the Reorder List card below. */
-.db-kpi-users .db-kpi-icon { color: var(--accent); }
-.db-stat-reorder { color: var(--accent-med); }
-
 
 /*==========SALES HISTORY: y-axis labels==========*/
 .salesAnalytics-card .db-hero-plot { --plot-pad: 34px; padding-left: var(--plot-pad); }
@@ -1652,25 +1014,8 @@ grid-column: 1 / -1;
     font-variant-numeric: tabular-nums;
     line-height: 1;
 }
-.salesAnalytics-card .db-hero-xaxis { padding-left: 40px; }
-
 /*==========SMALL CHIP (Total Units Sold)==========*/
-.db-chip {
-    align-self: flex-start;
-    padding: 2px 8px;
-    color: var(--accent-high);
-    font-size: 10.5px;
-    font-weight: 700;
-    background: rgba(67, 211, 158, 0.12);
-    border-radius: 999px;
-}
-
 /*==========STOCK ALERTS: rows are buttons — drop the browser's default border==========*/
-.db-alert-row {
-    border: 0;
-    border-left: 3px solid transparent;
-}
-
 /*==========INVENTORY BY CATEGORY — rose pie==========*/
 .db-rose-svg { overflow: visible; }
 .db-rose-slice {
@@ -1761,25 +1106,10 @@ grid-column: 1 / -1;
 .salesAnalytics-card .db-trend-plot > svg { width: 100%; }
 
 /*==========TOTAL UNITS SOLD — smooth area==========*/
-.db-smooth-area { display: block; width: 100%; height: 100%; min-height: 60px; overflow: visible; }
-
 /*==========COLOURED CARDS==========
    Four fixed tones (same in every theme). Each tone re-points the theme
    variables inside its card so text, borders, bars and charts stay readable. */
-.db-tone { border-color: transparent !important; }
-.db-tone-ink {
-    --bg-card: #1D1C22;
-    --text-primary: #F6F4F8;
-    --text-muted: rgba(246, 244, 248, 0.62);
-    --static-bg-color: rgba(255, 255, 255, 0.08);
-    --border-color: rgba(255, 255, 255, 0.1);
-    --hairline: rgba(255, 255, 255, 0.12);
-    --overlay-soft: rgba(255, 255, 255, 0.07);
-    --accent-ring: rgba(255, 255, 255, 0.14);
-    color-scheme: dark;
-    background: radial-gradient(120% 90% at 100% 0%, #34323c 0%, #1d1c22 55%, #141317 100%) !important;
-}
-.db-tone-flame {
+.db-tone { border-color: transparent !important; }.db-tone-flame {
     --bg-card: #FF4A1C;
     --text-primary: #FFFFFF;
     --text-muted: rgba(255, 255, 255, 0.8);
@@ -1791,38 +1121,7 @@ grid-column: 1 / -1;
     --accent-ring: rgba(255, 255, 255, 0.22);
     color-scheme: dark;
     background: linear-gradient(150deg, #FF6A33 0%, #FF4A1C 55%, #E8380F 100%) !important;
-}
-.db-tone-mist {
-    --bg-card: #ECEBEF;
-    --text-primary: #1E1D23;
-    --text-muted: #5E5C66;
-    --static-bg-color: rgba(30, 29, 35, 0.06);
-    --border-color: rgba(30, 29, 35, 0.1);
-    --hairline: rgba(30, 29, 35, 0.1);
-    --overlay-soft: rgba(30, 29, 35, 0.05);
-    --accent-high: #1E8A5F;
-    --accent-med: #C08A1E;
-    --accent-low: #D2452C;
-    color-scheme: light;
-    background: linear-gradient(160deg, #F4F3F6 0%, #E4E3E8 100%) !important;
-}
-.db-tone-peach {
-    --bg-card: #F4DCCB;
-    --text-primary: #2B1D15;
-    --text-muted: #7A5B4B;
-    --static-bg-color: rgba(255, 255, 255, 0.45);
-    --border-color: rgba(43, 29, 21, 0.1);
-    --hairline: rgba(43, 29, 21, 0.12);
-    --overlay-soft: rgba(255, 255, 255, 0.4);
-    --accent-med: #B87508;
-    --accent-low: #C93A22;
-    color-scheme: light;
-    background: linear-gradient(165deg, #FBEDE3 0%, #F2D3BF 100%) !important;
-}
-/* KPI icons follow the card's own text colour on the strong tones. */
-.db-kpi-card.db-tone-ink .db-kpi-icon,
-.db-kpi-card.db-tone-flame .db-kpi-icon { color: var(--text-primary); }
-/* Stock Movements bars on the orange card: white, the busiest day solid. */
+}/* KPI icons follow the card's own text colour on the strong tones. *//* Stock Movements bars on the orange card: white, the busiest day solid. */
 .db-tone-flame .db-col-bar { opacity: 0.5; }
 .db-tone-flame .db-col-bar-max { opacity: 1; }
 
@@ -2207,15 +1506,12 @@ grid-column: 1 / -1;
     font-size: clamp(19px, calc(1.8vw / var(--ui-zoom, 1)), 26px);
     overflow-wrap: anywhere;
 }
-.db-kpi-tile-value small { white-space: nowrap; }
-.db-kpi-value { overflow-wrap: anywhere; }
-.db-kpi-tile-foot { overflow-wrap: anywhere; }
+.db-kpi-tile-value small { white-space: nowrap; }.db-kpi-tile-foot { overflow-wrap: anywhere; }
 .db-kpi-legend > span:not(.db-kpi-pulse) { white-space: normal; }
 
 /* Stock Health: Critical gets its own colour (same as Reports & Analytics). */
 .db-kpi-bar-seg.is-crit, .db-kpi-legend i.is-crit { background: color-mix(in srgb, var(--accent-low) 70%, var(--accent-med)); }
 .db-kpi-legend { gap: 4px 8px; }
-
 
 /*==========SUPPLIER COVERAGE (ring + detail rows)==========
    Ring = share of products linked to a supplier (hover each part for the
@@ -2444,20 +1740,14 @@ grid-column: 1 / -1;
 }
 .db-sales-bar.is-dimmed { opacity: 0.6; }
 .db-sales-bar.is-active { filter: brightness(1.15) drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 50%, transparent)); }
-/* Month labels sit under the middle of each bar. */
-.db-hero-xaxis.is-bars {
-    display: grid;
-    grid-template-columns: repeat(var(--months, 12), minmax(0, 1fr));
-    padding-right: 0;
-}
-.db-hero-xaxis.is-bars span { text-align: center; }
-.salesAnalytics-card .db-hero-xaxis.is-bars { padding-left: 34px; }
-@media (prefers-reduced-motion: reduce) { .db-sales-bar { animation: none; } }
+/* Month labels sit under the middle of each bar. */@media (prefers-reduced-motion: reduce) { .db-sales-bar { animation: none; } }
 
-/*==========KPI CARDS — ACRYLIC (frosted glass)==========
-   Soft colour pools sit behind the four cards; each card is a frosted,
-   slightly see-through pane (blur + a faint grain + a thin light edge), so
-   the colour glows through. Layout, size and hover stay the same. */
+/*==========KPI CARDS — ACRYLIC, CLEAN (2026-10-30)==========
+   Frosted-glass cards again (blur + soft light behind them), but kept calm:
+   the light behind the row now comes from the ACTIVE THEME's accent colour
+   (gold on Midnight Blue, orange on Ember, blue on Graphite …), so the row
+   changes with the theme. The cards themselves are one neutral frosted pane
+   with a thin light edge; each card's own colour shows only on its icon. */
 .db-kpi-row {
     position: relative;
     isolation: isolate;
@@ -2465,33 +1755,41 @@ grid-column: 1 / -1;
 .db-kpi-row::before {
     content: '';
     position: absolute;
-    inset: -4px 0;
+    inset: -6px 0;
     z-index: -1;
     pointer-events: none;
     background:
-        radial-gradient(22% 85% at 11% 45%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 72%),
-        radial-gradient(22% 85% at 37% 55%, color-mix(in srgb, var(--info-color, #60A5FA) 28%, transparent), transparent 72%),
-        radial-gradient(22% 85% at 63% 45%, color-mix(in srgb, var(--accent-high) 24%, transparent), transparent 72%),
-        radial-gradient(22% 85% at 89% 55%, color-mix(in srgb, #A78BFA 28%, transparent), transparent 72%);
+        radial-gradient(26% 90% at 10% 40%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 72%),
+        radial-gradient(24% 80% at 42% 65%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 72%),
+        radial-gradient(26% 90% at 72% 35%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 72%),
+        radial-gradient(22% 80% at 95% 60%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 72%);
+    filter: blur(6px);
 }
 .db-kpi-tile {
     background:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
-        linear-gradient(150deg,
-            color-mix(in srgb, var(--kpi-accent) 12%, color-mix(in srgb, var(--bg-card) 64%, transparent)) 0%,
-            color-mix(in srgb, var(--bg-card) 60%, transparent) 62%);
-    border-color: color-mix(in srgb, #ffffff 10%, var(--border-color));
+        linear-gradient(160deg,
+            color-mix(in srgb, #ffffff 7%, color-mix(in srgb, var(--bg-card) 62%, transparent)) 0%,
+            color-mix(in srgb, var(--bg-card) 58%, transparent) 60%);
+    border: 1px solid color-mix(in srgb, #ffffff 9%, var(--border-color));
     box-shadow:
         var(--shadow-card),
-        inset 0 1px 0 rgba(255, 255, 255, 0.09);
-    -webkit-backdrop-filter: blur(16px) saturate(150%);
-    backdrop-filter: blur(16px) saturate(150%);
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    backdrop-filter: blur(18px) saturate(150%);
+}
+/* No coloured corner glow or top line on each card — the light is behind the row. */
+.db-kpi-tile::before,
+.db-kpi-tile::after { display: none; }
+.db-kpi-tile-icon {
+    background: color-mix(in srgb, var(--kpi-accent) 14%, transparent);
+    color: var(--kpi-accent);
 }
 @media (hover: hover) {
     .db-kpi-tile:not(.is-skeleton):hover {
+        transform: translateY(-2px);
+        border-color: color-mix(in srgb, var(--accent) 35%, var(--border-color));
         box-shadow:
             var(--shadow-hover, 0 8px 22px rgba(0, 0, 0, 0.3)),
-            0 0 0 1px color-mix(in srgb, var(--kpi-accent) 14%, transparent),
             inset 0 1px 0 rgba(255, 255, 255, 0.12);
     }
 }
@@ -2500,10 +1798,233 @@ grid-column: 1 / -1;
 :root[data-theme="lavender"] .db-kpi-tile,
 :root[data-theme="citrus"] .db-kpi-tile,
 :root[data-theme="olive"] .db-kpi-tile {
-    background:
-        linear-gradient(150deg,
-            color-mix(in srgb, var(--kpi-accent) 10%, rgba(255, 255, 255, 0.72)) 0%,
-            rgba(255, 255, 255, 0.66) 62%);
-    border-color: rgba(255, 255, 255, 0.75);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.64) 60%);
+    border-color: rgba(255, 255, 255, 0.8);
     box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/*==========STOCK MOVEMENTS CARD FOLLOWS THE THEME==========
+   It used to be orange in every theme. Now it uses the theme's own button
+   colour and the matching text colour (gold with dark text on Midnight Blue,
+   blue on Graphite, orange on Ember …). */
+.totalOrder-card.db-tone-flame {
+    --tone-bg: var(--background-icon-active-color, var(--accent));
+    --tone-ink: var(--icon-active-color, #0b1426);
+    --bg-card: var(--tone-bg);
+    --text-primary: var(--tone-ink);
+    --text-muted: color-mix(in srgb, var(--tone-ink) 72%, transparent);
+    --static-bg-color: color-mix(in srgb, var(--tone-ink) 12%, transparent);
+    --border-color: color-mix(in srgb, var(--tone-ink) 18%, transparent);
+    --hairline: color-mix(in srgb, var(--tone-ink) 20%, transparent);
+    --overlay-soft: color-mix(in srgb, var(--tone-ink) 10%, transparent);
+    --accent: var(--tone-ink);
+    --accent-ring: color-mix(in srgb, var(--tone-ink) 22%, transparent);
+    color-scheme: normal;
+    background:
+        radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, #ffffff 22%, transparent), transparent 55%),
+        linear-gradient(150deg, color-mix(in srgb, var(--tone-bg) 85%, #ffffff) 0%, var(--tone-bg) 55%, color-mix(in srgb, var(--tone-bg) 82%, #000000) 100%) !important;
+}
+
+/*==========REORDER LIST / RECENT ACTIVITY FILL THEIR CARD==========
+   The list takes the free height of its card (desktop) and the page shows as
+   many whole rows as fit (useFitCount in dashboard.jsx). "contain: size"
+   stops the list from making the card taller by itself. */
+@media (min-width: 1025px) {
+    .db-fit-box {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: hidden;
+        contain: size;
+    }
+    /* Rows that don't fit stay in place but invisible (so they can be measured). */
+    .db-fit-box > .db-fit-hidden { visibility: hidden; }
+    /* Space left under the last whole row, shared out as extra height. */
+    .db-fit-box > .db-order-row {
+        padding-top: calc(7px + var(--fit-extra, 0px) / 2);
+        padding-bottom: calc(7px + var(--fit-extra, 0px) / 2);
+    }
+    .db-fit-box.db-act-list > li {
+        padding-top: calc(var(--fit-extra, 0px) / 2);
+        padding-bottom: calc(var(--fit-extra, 0px) / 2);
+    }
+}
+@media (max-width: 1024px) {
+    .db-fit-box > .db-fit-hidden { display: none; }
+}
+
+/*==========SALES TREND OVERVIEW (2026-10-30, round 2)==========
+   Frosted acrylic card with soft theme light, controls in the header
+   (Weekly / Monthly / Yearly, Line / Bar, Refresh, Download), a thin line
+   with dotted guide lines, and a bar view with hatched bars for the period
+   before (last year / last month / last week). */
+.db-trend-card {
+    gap: 6px;
+    isolation: isolate;
+    background:
+        radial-gradient(60% 55% at 0% 0%, color-mix(in srgb, #ffffff 9%, transparent), transparent 70%),
+        radial-gradient(55% 60% at 100% 100%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%),
+        linear-gradient(160deg, color-mix(in srgb, #ffffff 5%, var(--bg-card)) 0%, var(--bg-card) 60%);
+    border-color: color-mix(in srgb, #ffffff 10%, var(--border-color));
+    box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+/* Faint grain, like frosted glass. */
+.db-trend-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.5;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+:root[data-theme="soft-white"] .db-trend-card,
+:root[data-theme="lavender"] .db-trend-card,
+:root[data-theme="citrus"] .db-trend-card,
+:root[data-theme="olive"] .db-trend-card {
+    background:
+        radial-gradient(55% 60% at 100% 100%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+        linear-gradient(160deg, #ffffff 0%, var(--bg-card) 70%);
+    border-color: rgba(255, 255, 255, 0.85);
+    box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.db-trend-head { align-items: center; flex-wrap: wrap; row-gap: 6px; }
+.db-trend-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-left: auto;
+}
+.db-trend-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+.db-trend-icon-btn:hover:not(:disabled) {
+    color: var(--text-primary);
+    border-color: color-mix(in srgb, var(--text-primary) 25%, var(--border-color));
+    background: var(--overlay-soft, rgba(255, 255, 255, 0.05));
+}
+.db-trend-icon-btn:disabled { opacity: 0.6; cursor: progress; }
+.db-trend-icon-btn.is-busy svg { animation: db-trend-spin 0.9s linear infinite; }
+@keyframes db-trend-spin { to { transform: rotate(360deg); } }
+
+.db-trend-card .db-trend-total { margin: 0; }
+.db-trend-total-label { font-size: 11px; }
+.db-trend-total strong { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+
+/* Lines inside the chart. */
+.db-trend-vline {
+    stroke: var(--text-muted);
+    stroke-width: 1;
+    stroke-dasharray: 1 4;
+    stroke-linecap: round;
+    opacity: 0.45;
+}
+.db-trend-baseline { stroke: var(--hairline, rgba(255, 255, 255, 0.12)); stroke-width: 1; }
+.db-trend-line {
+    stroke: var(--accent);
+    stroke-width: 1.8;
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 55%, transparent));
+}
+.db-trend-card .db-trend-guide { stroke: var(--text-primary); stroke-dasharray: 3 4; opacity: 0.5; }
+/* Hover dot: white with a soft glow. */
+.db-trend-card .db-trend-dot {
+    width: 10px;
+    height: 10px;
+    background: #fff;
+    border: 0;
+    box-shadow:
+        0 0 0 4px color-mix(in srgb, #ffffff 16%, transparent),
+        0 0 14px 4px color-mix(in srgb, var(--accent) 65%, transparent);
+}
+/* Bars. */
+.db-trend-bar { animation-duration: 420ms; }
+.db-trend-hatch-line {
+    stroke: var(--text-muted);
+    stroke-width: 1.6;
+    opacity: 0.55;
+}
+.db-trend-ghost {
+    stroke: color-mix(in srgb, var(--text-muted) 35%, transparent);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+/* Hover label: dark box, accent bar on the left, number on top. */
+.db-trend-card .db-trend-tag {
+    gap: 2px;
+    padding: 7px 12px 7px 11px;
+    border-radius: 6px;
+    border-left: 3px solid var(--accent);
+    transform: translate(12px, calc(-100% - 10px));
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent);
+}
+.db-trend-card .db-trend-tag.db-hero-tooltip-left { transform: translate(calc(-100% - 12px), calc(-100% - 10px)); }
+.db-trend-card .db-trend-tag strong { font-size: 13.5px; font-weight: 700; }
+.db-trend-card .db-trend-tag span { font-size: 10.5px; }
+
+/* Axis labels sit right under each point (same position rule as the dot). */
+.db-trend-xaxis {
+    --plot-pad: 34px;
+    position: relative;
+    height: 16px;
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: 9.5px;
+}
+.db-trend-xaxis span {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+/* Bar view: labels in small pills, like the reference. */
+.db-trend-xaxis.is-bars { height: 18px; }
+.db-trend-xaxis.is-bars span {
+    padding: 1px 7px;
+    background: var(--static-bg-color, rgba(255, 255, 255, 0.06));
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+}
+.db-trend-legend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    color: var(--text-muted);
+    font-size: 10.5px;
+}
+.db-trend-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.db-trend-legend i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+.db-trend-legend i.is-hatch {
+    border-radius: 2px;
+    background: repeating-linear-gradient(45deg, var(--text-muted) 0 1.5px, transparent 1.5px 4px);
+    opacity: 0.8;
+}
+@media (max-width: 640px) {
+    .db-trend-total strong { font-size: 22px; }
+    .db-trend-actions { width: 100%; justify-content: flex-start; margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .db-trend-icon-btn.is-busy svg { animation: none; }
 }

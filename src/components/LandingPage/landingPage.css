@@ -2485,11 +2485,20 @@ body {
     inherits: false;
     initial-value: 0px;
 }
-@keyframes page-edge-fade {
-    0%   { --page-fade-top: 0px;  --page-fade-bottom: 22px; }
-    4%   { --page-fade-top: 22px; }
-    96%  { --page-fade-bottom: 22px; }
-    100% { --page-fade-top: 22px; --page-fade-bottom: 0px; }
+/* Two separate fades measured in pixels of scrolling (not % of the page):
+   the top fade grows over the first 60px scrolled, the bottom fade shrinks
+   over the last 60px. Before, the top fade switched fully on after 4% of the
+   scroll, so on a page that scrolls only a little (Large font) it covered the
+   top edge of the first cards. */
+/* 2026-10-30: fade made smaller (10px instead of 22px) and slower to appear
+   (over the first 120px), so it never eats into the first row of cards. */
+@keyframes page-edge-fade-top {
+    from { --page-fade-top: 0px; }
+    to   { --page-fade-top: 10px; }
+}
+@keyframes page-edge-fade-bottom {
+    from { --page-fade-bottom: 10px; }
+    to   { --page-fade-bottom: 0px; }
 }
 @supports (animation-timeline: scroll()) {
     .main-content-window {
@@ -2503,8 +2512,9 @@ body {
             #000 var(--page-fade-top),
             #000 calc(100% - var(--page-fade-bottom)),
             transparent 100%);
-        animation: page-edge-fade linear both;
-        animation-timeline: scroll(self block);
+        animation: page-edge-fade-top linear both, page-edge-fade-bottom linear both;
+        animation-timeline: scroll(self block), scroll(self block);
+        animation-range: 0px 120px, calc(100% - 120px) 100%;
     }
     /* A pop-up opened inside the page must never be faded or cut. */
     .main-content-window:has([role="dialog"], [role="alertdialog"], [class*="overlay"], [class*="backdrop"]) {
@@ -3216,5 +3226,36 @@ body {
     .sidebar-body.is-expanded #log-out .sidebar-icon { transition: stroke 0.2s ease, filter 0.2s ease; }
     .sidebar-body.is-expanded #log-out button:hover .sidebar-icon {
         filter: drop-shadow(0 0 6px rgba(255, 90, 90, 0.75));
+    }
+}
+
+
+/*==========OPEN SIDEBAR: SOFT TOP / BOTTOM EDGES ON THE SELECTED PAGE (2026-10-30)==========
+   The highlight behind the open page and its accent line now fade out at the
+   top and bottom, so the selected row blends into the sidebar instead of
+   ending in a hard edge. */
+@media (min-width: 821px) {
+    .sidebar-body.is-expanded .sidebar-item.active button::after,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button::after {
+        -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 28%, #000 72%, transparent 100%);
+        mask-image: linear-gradient(180deg, transparent 0%, #000 28%, #000 72%, transparent 100%);
+    }
+    .sidebar-body.is-expanded .sidebar-item.active button::before,
+    .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item.active button::before {
+        -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 30%, #000 70%, transparent 100%);
+        mask-image: linear-gradient(180deg, transparent 0%, #000 30%, #000 70%, transparent 100%);
+    }
+}
+
+/*==========ICONS-ONLY SIDEBAR WITH LARGE FONT (2026-10-30)==========
+   The icons-only sidebar has no text, so the Large font size only made it
+   taller: on a laptop screen it no longer fit and the page icons were cut
+   off / scrolled inside their pill. It now stays at its normal size when
+   Large is chosen (zoom back to 1 inside it; --ui-zoom: 1 keeps its
+   screen-height sizes right). The sidebar with names keeps the large text. */
+@media (min-width: 821px) {
+    :root[data-font-size="large"] .sidebar-body:not(.is-expanded) {
+        zoom: 0.909091;   /* 1 ÷ 1.1 (the Large zoom) */
+        --ui-zoom: 1;
     }
 }

@@ -199,12 +199,27 @@ function ProductSupplier({
   canViewSuppliers = true,
   canManageSuppliers = true,
   dataRevision = 0,
+  handoff = null,
 }) {
   const [productsFromDatabase, setProductsFromDatabase] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState('');
   const [productsRetry, setProductsRetry] = useState(0);
   const [section, setSection] = useState('products'); /* ===== PRODUCTS | SUPPLIERS ===== */
+  /* Supplier filter from the Dashboard's Supplier Coverage card:
+     '' = all, 'linked' = has a supplier, 'none' = no supplier. */
+  const [supplierFilter, setSupplierFilter] = useState('');
+  /* Dashboard links say exactly what to open (tab and filter). */
+  useEffect(() => {
+    // Opened another way (sidebar or another page): show the full list again.
+    if (!handoff) { setSupplierFilter(''); return; }
+    if (handoff.section === 'suppliers' || handoff.section === 'products') {
+      setSection(handoff.section === 'suppliers' && !canViewSuppliers ? 'products' : handoff.section);
+    }
+    if (handoff.section === 'products') {
+      setSupplierFilter(handoff.supplierFilter === 'linked' || handoff.supplierFilter === 'none' ? handoff.supplierFilter : '');
+    }
+  }, [handoff]);
   const [suppliers, setSuppliers] = useState([]); /* ===== SUPPLIER LIST (type-ahead + reuse) ===== */
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [cursor, setCursor] = useState(0); /* ===== PAGE START ===== */
@@ -279,9 +294,12 @@ function ProductSupplier({
   /* ===== FILTER + SORT PRODUCTS ===== */
   const filteredProducts = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const matched = !q
+    const bySupplier = !supplierFilter
       ? productsFromDatabase
-      : productsFromDatabase.filter((p) =>
+      : productsFromDatabase.filter((p) => (supplierFilter === 'linked' ? Boolean(p.supplierId) : !p.supplierId));
+    const matched = !q
+      ? bySupplier
+      : bySupplier.filter((p) =>
           [p.id, p.name, (p.variants || []).join(' '), p.category, p.brand, p.model, p.unitMeasure, p.supplierName, p.supplierContact]
             .some((field) => String(field ?? '').toLowerCase().includes(q))
         );
@@ -300,7 +318,7 @@ function ProductSupplier({
     });
 
     return sorted;
-  }, [productsFromDatabase, query, sortBy, sortDir]);
+  }, [productsFromDatabase, query, sortBy, sortDir, supplierFilter]);
 
   /* Little ▲/▼ beside the column that's currently the active sort key. */
   const sortIndicator = (key) => (sortBy === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
@@ -308,7 +326,7 @@ function ProductSupplier({
   /* ===== RESET PAGE ===== */
   useEffect(() => {
     setCursor(0);
-  }, [query]);
+  }, [query, supplierFilter]);
 
   const total = filteredProducts.length;
   /* ===== FIT TO SCREEN =====
@@ -705,6 +723,18 @@ function ProductSupplier({
             </div>
           </SearchSuggestions>
         </div>
+        {supplierFilter && (
+          <button
+            type="button"
+            className="ps-filter-chip"
+            onClick={() => setSupplierFilter('')}
+            title="Show all products"
+          >
+            {supplierFilter === 'linked' ? 'With a supplier' : 'Without a supplier'}
+            <X size={12} aria-hidden="true" />
+            <span className="ps-sr-only"> (remove filter)</span>
+          </button>
+        )}
         {canExportProducts && (
         <button
           className="ps-add-btn ps-icon-only"
@@ -876,12 +906,17 @@ function ProductSupplier({
                 </td>
                 <td className="ps-td-left" data-label="Variant" title={(product.variants || []).join(', ')}>
                   {product.variants?.length ? (
-                    <span className="ps-variant-list">
+                    <span className="ps-variant-list ps-variant-row">
+                      {/* Wide screens show up to 3 names; smaller screens (or
+                          Large font) show only the first name + "+N" (CSS). */}
                       {product.variants.slice(0, 3).map((variant) => (
                         <span className="ps-variant-chip" key={variant}>{variant}</span>
                       ))}
                       {product.variants.length > 3 && (
-                        <span className="ps-variant-chip ps-variant-more">+{product.variants.length - 3}</span>
+                        <span className="ps-variant-chip ps-variant-more ps-variant-more-wide">+{product.variants.length - 3}</span>
+                      )}
+                      {product.variants.length > 1 && (
+                        <span className="ps-variant-chip ps-variant-more ps-variant-more-short">+{product.variants.length - 1}</span>
                       )}
                     </span>
                   ) : <span className="ps-td-muted">—</span>}

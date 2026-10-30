@@ -34,11 +34,9 @@ import { useCurrency } from '../../CurrencyContext';
 import { buildForecastHandoff } from '../../utils/forecastHandoff';
 import {
   SAFETY_STOCK_DEFAULTS,
-  safetyPointFor,
   reorderPointFor,
   stockStatusFor,
   annualDemandFor,
-  policyFor,
   safetyCrossingFor,
   safetyReachedFor,
   STATUS_LABEL,
@@ -183,6 +181,10 @@ function StockControl({
      "stock":   the main Stock Control table (manage inventory here).
      "history": read-only log of every stock change — who, what, when. */
   const [view, setView] = useState('stock');
+  /* Dashboard links can open a tab directly (e.g. Stock Movements → History). */
+  useEffect(() => {
+    if (handoff?.view === 'history' || handoff?.view === 'stock') setView(handoff.view);
+  }, [handoff]);
   const [historyPage, setHistoryPage] = useState(1);
 
   const loadStockActivities = async (productId = null) => {
@@ -1706,7 +1708,6 @@ function StockControl({
                 // Status of THIS product + variant: its own count against the product's reorder point.
                 remainingStock: variantStock,
               };
-              const after = balanceAfter;
               const signedText = `${change >= 0 ? '+' : '-'}${Math.abs(change)}`;
               const status = stockStatusFor(statusRow, safetyStock);
               const point = reorderPointFor(statusRow, safetyStock);
@@ -1840,7 +1841,7 @@ function StockControl({
                       </span>
                     ) : '—'}
                   </td>
-                  <td className="sc-td-left sc-td-muted" data-label="Notes" title={stock.notes}>{stock.notes || '—'}</td>
+                  <td className="sc-td-left sc-td-muted" data-label="Notes" title={stock.notes}><span className="sc-notes-text">{stock.notes || '—'}</span></td>
                   <td className="sc-td-nowrap" data-label="Recorded by">{stock.recordedBy || '—'}</td>
                   <td className="sc-td-actions" data-label="Actions">
                     <div className="sc-action-cell-container">

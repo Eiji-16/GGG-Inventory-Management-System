@@ -1100,6 +1100,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
               {visitedViews.has('Product-Supplier') && canAccess('Product-Supplier') && (
                 <div className="app-view-panel" hidden={activeView !== 'Product-Supplier'}>
                   <ProductSupplier
+                    handoff={handoff}
                     dataRevision={dataRevision}
                     onCatalogChange={() => setPolicyRefreshKey((key) => key + 1)}
                     canAddProduct={can('products.create')}

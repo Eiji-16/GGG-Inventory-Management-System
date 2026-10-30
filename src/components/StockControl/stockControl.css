@@ -2277,3 +2277,87 @@
     -ms-overflow-style: none;
 }
 .sc-table-parent .sc-table-scroll::-webkit-scrollbar { width: 0 !important; height: 0 !important; display: none !important; }
+
+
+/*==========FIT THE STOCK TABLE ON LAPTOP SCREENS (2026-10-30)==========
+   Same problem as Product & Supplier: at 100% zoom on a laptop (and with
+   Large font) the last columns were cut off. Desktop only: tighter cell
+   spacing, and long product names / notes / names wrap onto 2 lines
+   instead of stretching the table. */
+@media (min-width: 901px) {
+    .sc-table thead th { padding: 10px 6px; }
+    .sc-table tbody td { padding: 8px 6px; }
+    .sc-table tbody td.sc-cell-name .sc-product-link {
+        display: block;
+        min-width: 6rem;
+        max-width: 11rem;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        line-height: 1.3;
+    }
+    .sc-table tbody td[data-label="Variant"] { max-width: 7rem; overflow-wrap: break-word; }
+    /* Notes: up to 2 lines, then "…" (the full note shows on hover). */
+    .sc-table tbody td[data-label="Notes"] { min-width: 5.5rem; }
+    .sc-table .sc-notes-text {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        max-width: 9rem;
+        overflow: hidden;
+        overflow-wrap: break-word;
+    }
+    .sc-table tbody td[data-label="Recorded by"] { white-space: normal; min-width: 4rem; }
+    .sc-table tbody td[data-label="Date"] { font-size: 12px; }
+    .sc-table .sc-qty-input { width: 2.6rem; }
+    .sc-table .sc-table-action-btn { padding: 3px; }
+    /* Column titles may use 2 lines (e.g. REORDER / POINT) instead of widening the table. */
+    .sc-table thead th { white-space: normal; line-height: 1.25; }
+}
+
+
+/*==========ACTION COLUMN ALWAYS VISIBLE (2026-10-30)==========
+   With real data (long names, notes, big numbers) the table can still be a
+   little wider than its box, and the last column (Action) was cut off.
+   Desktop: the Action column now stays pinned to the right edge of the table
+   box, on a solid background with a soft shadow on its left, so its buttons
+   are always fully visible. Its background repeats the row's colour (status
+   tint, hover, selected) so the row still reads as one line. */
+@media (min-width: 901px) {
+    /* Solid colour of the pinned cell = the row's colour over the card, so
+       it changes together with the row (same 0.15s fade, no delay). */
+    .sc-table tbody tr { --sc-cell: var(--bg-card); }
+    .sc-table tbody tr.sc-row-critical { --sc-cell: color-mix(in srgb, rgb(255, 77, 77) 6%, var(--bg-card)); }
+    .sc-table tbody tr.sc-row-outofstock { --sc-cell: color-mix(in srgb, rgb(220, 38, 38) 10%, var(--bg-card)); }
+    .sc-table tbody tr.sc-row-low { --sc-cell: color-mix(in srgb, rgb(232, 197, 71) 7%, var(--bg-card)); }
+    .sc-table tbody tr:hover,
+    .sc-table tbody tr.is-selected {
+        --sc-cell: color-mix(in srgb, var(--accent, #E8C547) 5%, color-mix(in srgb, var(--background-icon-active-color, #E8C547) 15%, var(--bg-card)));
+    }
+    .sc-table tbody td { transition: background-color 0.15s ease; }
+
+    .sc-table thead th:last-child,
+    .sc-table tbody td.sc-td-actions {
+        position: sticky;
+        right: 0;
+        box-shadow: -10px 0 12px -10px rgba(0, 0, 0, 0.45);
+    }
+    .sc-table thead th:last-child {
+        z-index: 3;
+        background:
+            linear-gradient(var(--static-bg-color, transparent), var(--static-bg-color, transparent)),
+            var(--bg-card);
+    }
+    .sc-table tbody td.sc-td-actions {
+        z-index: 1;
+        background-color: var(--sc-cell) !important;
+        background-image: none;
+    }
+    /* Up to 3 buttons per line; rows with 4–5 buttons use 2 short lines
+       (rows are already 2 lines tall), which keeps the column narrow. */
+    .sc-table .sc-action-cell-container {
+        flex-wrap: wrap;
+        width: 66px;            /* 3 buttons (20px each) + 2 gaps */
+        margin: 0 auto;
+        row-gap: 2px;
+    }
+}

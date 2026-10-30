@@ -388,56 +388,13 @@ html[data-font-size="large"] { zoom: 1.1; --ui-zoom: 1.1; }
     .chart-tip { transition: none; }
 }
 
-/*==========SUNLIGHT==========
-   A soft "sunrise" glow in the theme's accent colour (decoration only).
-   Add class "sunlight" to a card: a glowing sun sits on its bottom edge
-   with a thin bright horizon line. The page background also gets a faint
-   glow rising from the bottom of the window. */
+/*==========PAGE GLOW==========
+   A faint glow in the theme's accent colour rising from the bottom of the
+   window (decoration only). (The old "sunlight" card effect was removed.) */
 html .dashboard-page-wrapper {
     background-image:
         radial-gradient(60% 38% at 50% 104%, color-mix(in srgb, var(--accent, #E8C547) 20%, transparent) 0%, transparent 72%),
         radial-gradient(40% 24% at 50% -6%, color-mix(in srgb, var(--accent, #E8C547) 8%, transparent) 0%, transparent 70%);
     background-repeat: no-repeat;
     background-attachment: fixed;
-}
-.sunlight { isolation: isolate; }
-.sunlight::before,
-.sunlight::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    z-index: -1;
-    pointer-events: none;
-}
-/* The sun: a bright core with a wide warm halo. */
-.sunlight::before {
-    bottom: -150px;
-    width: min(560px, 120%);
-    height: 230px;
-    transform: translateX(-50%);
-    border-radius: 50%;
-    background: radial-gradient(closest-side,
-        color-mix(in srgb, #fff 55%, var(--accent, #E8C547)) 0%,
-        color-mix(in srgb, var(--accent, #E8C547) 55%, transparent) 22%,
-        color-mix(in srgb, var(--accent, #E8C547) 16%, transparent) 55%,
-        transparent 100%);
-    opacity: 0.6;
-    animation: sunlight-breathe 7s ease-in-out infinite;
-}
-/* The horizon: a thin line of light along the bottom edge. */
-.sunlight::after {
-    bottom: 0;
-    width: 70%;
-    height: 1px;
-    transform: translateX(-50%);
-    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent, #E8C547) 85%, #fff), transparent);
-    box-shadow: 0 0 12px 1px color-mix(in srgb, var(--accent, #E8C547) 60%, transparent);
-    opacity: 0.75;
-}
-@keyframes sunlight-breathe {
-    0%, 100% { opacity: 0.55; transform: translateX(-50%) scale(1); }
-    50%      { opacity: 0.72; transform: translateX(-50%) scale(1.05); }
-}
-@media (prefers-reduced-motion: reduce) {
-    .sunlight::before { animation: none; }
 }

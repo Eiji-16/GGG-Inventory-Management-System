@@ -204,6 +204,237 @@
     animation: ui-fade-in 300ms var(--ui-ease) 320ms both;
 }
 
+/* ===== CHARTS AND NUMBERS — round 2 (2026-10-30) =====
+   Same keyframes and timing as above, now also for the Reports page and the
+   Dashboard's Sales Trend card. Charts replay when you switch Weekly /
+   Monthly / Yearly or Line / Bar (the chart is drawn fresh), but not when
+   the data quietly refreshes in the background. */
+
+/* Count-up numbers (src/utils/countUp.jsx): digits keep the same width while
+   counting, so nothing next to them moves. The final value is kept for
+   screen readers. */
+.ui-count { font-variant-numeric: tabular-nums; }
+.ui-count-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+
+/* Reports — Stock In vs Stock Out bars rise one week after another. */
+:where(.r-mini-bar) {
+    transform-origin: bottom center;
+    animation: ui-grow-up 520ms var(--ui-ease-out) both;
+}
+:where(.r-mini-col:nth-child(2) .r-mini-bar) { animation-delay: 35ms; }
+:where(.r-mini-col:nth-child(3) .r-mini-bar) { animation-delay: 70ms; }
+:where(.r-mini-col:nth-child(4) .r-mini-bar) { animation-delay: 105ms; }
+:where(.r-mini-col:nth-child(5) .r-mini-bar) { animation-delay: 140ms; }
+:where(.r-mini-col:nth-child(6) .r-mini-bar) { animation-delay: 175ms; }
+:where(.r-mini-col:nth-child(7) .r-mini-bar) { animation-delay: 210ms; }
+:where(.r-mini-col:nth-child(8) .r-mini-bar) { animation-delay: 245ms; }
+:where(.r-mini-col:nth-child(n + 9) .r-mini-bar) { animation-delay: 280ms; }
+
+/* Reports — the two lines draw themselves from left to right, then the dots appear. */
+@keyframes ui-draw-line {
+    from { stroke-dashoffset: 1; }
+    to { stroke-dashoffset: 0; }
+}
+:where(.r-line) {
+    stroke-dasharray: 1;
+    animation: ui-draw-line 800ms var(--ui-ease-out) both;
+}
+:where(.r-line.r-line-out) { animation-delay: 90ms; }
+:where(.r-line-dot) {
+    animation: ui-fade-in 300ms var(--ui-ease) 600ms both;
+}
+
+/* Reports — Fast-Moving / Needs Reorder bars and the Stock Health bar fill
+   from the left, one row after another. */
+:where(.r-fs-bar, .r-health-seg) {
+    transform-origin: left center;
+    animation: ui-grow-right 560ms var(--ui-ease-out) both;
+}
+:where(.r-fs-row:nth-child(2) .r-fs-bar) { animation-delay: 45ms; }
+:where(.r-fs-row:nth-child(3) .r-fs-bar) { animation-delay: 90ms; }
+:where(.r-fs-row:nth-child(4) .r-fs-bar) { animation-delay: 135ms; }
+:where(.r-fs-row:nth-child(5) .r-fs-bar) { animation-delay: 180ms; }
+:where(.r-fs-row:nth-child(n + 6) .r-fs-bar) { animation-delay: 225ms; }
+
+/* Dashboard — KPI bars (Stock Health, Units Sold) fill from the left. */
+:where(.db-kpi-bar-seg, .db-kpi-progress > span) {
+    transform-origin: left center;
+    animation: ui-grow-right 600ms var(--ui-ease-out) both;
+}
+
+/* Dashboard — Sales Trend: the plot and its labels fade in as the chart
+   redraws; the hatched "last period" bars fade in behind the bars. */
+:where(.db-trend-plot, .db-trend-xaxis) {
+    animation: ui-fade-in var(--ui-medium) var(--ui-ease) both;
+}
+:where(.db-trend-ghost) {
+    animation: ui-fade-in 400ms var(--ui-ease) 120ms both;
+}
+
+/* ===== SCROLL EDGE GLOW (src/utils/scrollEdgeGlow.js) =====
+   A short, soft accent light on the top or bottom edge of a scrolling panel
+   when you keep scrolling past its end. Drawn as its own layer on top of the
+   panel's edge, so it never moves anything or blocks clicks. */
+.ui-edge-glow {
+    position: fixed;
+    z-index: 3500;
+    height: 18px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 360ms var(--ui-ease);
+}
+.ui-edge-glow.is-top {
+    background:
+        linear-gradient(90deg, transparent 10%, color-mix(in srgb, var(--accent, #E8C547) 70%, transparent) 50%, transparent 90%) top / 100% 1px no-repeat,
+        radial-gradient(55% 100% at 50% 0%, color-mix(in srgb, var(--accent, #E8C547) 30%, transparent), transparent 100%);
+}
+.ui-edge-glow.is-bottom {
+    background:
+        linear-gradient(90deg, transparent 10%, color-mix(in srgb, var(--accent, #E8C547) 70%, transparent) 50%, transparent 90%) bottom / 100% 1px no-repeat,
+        radial-gradient(55% 100% at 50% 100%, color-mix(in srgb, var(--accent, #E8C547) 30%, transparent), transparent 100%);
+}
+.ui-edge-glow.is-on {
+    opacity: 1;
+    transition-duration: var(--ui-fast);
+}
+@media (prefers-reduced-motion: reduce) {
+    .ui-edge-glow { transition: none; }
+}
+
+/* ==========================================================================
+   STAGE B (2026-10-30): EVERYTHING OPENS AND CLOSES LIKE THE DROPDOWN
+   Reference: the dropdown menu (cs-pop) — about 0.14 s, a 4 px slide and a
+   fade, ease-out when opening. Closing plays the same movement backwards
+   with ease-in, so things leave a little faster than they arrive.
+   ========================================================================== */
+:root {
+    --ui-exit: 150ms;
+    --ui-ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --ui-slide: 280ms;
+}
+
+/* ===== CLOSING (src/utils/exitAnimations.js) =====
+   A short-lived copy of the pop-up / menu that just closed fades out in its
+   place. It can't be clicked or reached by keyboard. */
+@keyframes ui-fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+@keyframes ui-sink-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateY(6px) scale(0.985); }
+}
+@keyframes ui-lift-out {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateY(-4px); }
+}
+.ui-leaving {
+    pointer-events: none !important;
+}
+.ui-leaving,
+.ui-leaving * {
+    animation: none !important;
+    transition: none !important;
+}
+/* Pop-up backdrop fades; the window inside sinks a little as it fades. */
+.ui-leaving.is-popup {
+    animation: ui-fade-out var(--ui-exit) var(--ui-ease-in) forwards !important;
+}
+.ui-leaving.is-popup > * {
+    animation: ui-sink-out var(--ui-exit) var(--ui-ease-in) forwards !important;
+}
+/* A pop-up window without a backdrop of its own. */
+.ui-leaving.is-popup:is([role="dialog"], [role="alertdialog"]) {
+    animation: ui-sink-out var(--ui-exit) var(--ui-ease-in) forwards !important;
+}
+.ui-leaving.is-popup:is([role="dialog"], [role="alertdialog"]) > * { animation: none !important; }
+/* Menus and lists: the dropdown's opening, backwards. */
+.ui-leaving.is-menu {
+    animation: ui-lift-out 130ms var(--ui-ease-in) forwards !important;
+}
+
+/* ===== TAB SWITCHES: the newly shown section fades in =====
+   Products ↔ Suppliers (Product & Supplier) and Stock ↔ History (Stock
+   Control). "backwards": no transform is left behind afterwards, so pop-ups
+   inside still cover the whole screen. */
+:where(.ps-section-root > *, .sc-table-parent .sc-table-scroll) {
+    animation: ui-rise-in var(--ui-medium) var(--ui-ease-out) backwards;
+}
+
+/* ===== SLIDING SIDEBAR HIGHLIGHT (src/utils/sidebarSlider.js) ===== */
+.ui-nav-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition:
+        transform var(--ui-slide) cubic-bezier(0.22, 0.61, 0.36, 1),
+        width var(--ui-slide) cubic-bezier(0.22, 0.61, 0.36, 1),
+        height var(--ui-slide) cubic-bezier(0.22, 0.61, 0.36, 1),
+        opacity var(--ui-medium) var(--ui-ease);
+}
+.ui-nav-slider.is-ready { opacity: 1; }
+.ui-nav-slider.no-anim { transition: opacity var(--ui-medium) var(--ui-ease); }
+/* The items sit above the moving highlight; the sticky logo row above both. */
+.ui-nav-has-slider > .sidebar-item:not(.sidebar-logo-row) > button,
+.ui-nav-has-slider > .siderbar-item > button {
+    position: relative;
+    z-index: 1;
+}
+.ui-nav-has-slider > .sidebar-logo-row { z-index: 2; }
+/* While the slider shows, the open item's own highlight is hidden (the
+   slider IS the highlight). Its icon and text colours stay. */
+.ui-nav-has-slider > .sidebar-item.active > button,
+.ui-nav-has-slider > .siderbar-item.active > button {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+.ui-nav-has-slider > .sidebar-item.active > button::before,
+.ui-nav-has-slider > .sidebar-item.active > button::after,
+.ui-nav-has-slider > .siderbar-item.active > button::before,
+.ui-nav-has-slider > .siderbar-item.active > button::after {
+    opacity: 0 !important;
+    animation: none !important;
+}
+/* "Icons with names" look: soft highlight from the left, thin accent line,
+   both fading out at the top and bottom (same look as before). */
+.ui-nav-slider.is-names {
+    border-radius: 0;
+    background:
+        linear-gradient(90deg, color-mix(in srgb, var(--accent, #E8C547) 14%, transparent) 0%, transparent 38%),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.045) 45%, transparent 92%);
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 28%, #000 72%, transparent 100%);
+    mask-image: linear-gradient(180deg, transparent 0%, #000 28%, #000 72%, transparent 100%);
+}
+.ui-nav-slider.is-names::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 2px;
+    background: var(--accent, #E8C547);
+}
+[data-theme="olive"] .ui-nav-slider.is-names {
+    background:
+        linear-gradient(90deg, rgba(220, 231, 143, 0.12) 0%, transparent 38%),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.045) 45%, transparent 92%);
+}
+[data-theme="olive"] .ui-nav-slider.is-names::before { background: #DCE78F; }
+@media (max-width: 820px) {
+    .ui-nav-slider { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ui-nav-slider { transition: none; }
+}
+
 /* ===== RESPECT "REDUCE MOTION" ===== */
 @media (prefers-reduced-motion: reduce) {
     *,

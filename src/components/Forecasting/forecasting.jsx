@@ -7,32 +7,6 @@ import PastSalesPanel from './pastSales';
 
 const FORECAST_METHOD = 'Weighted Moving Average';
 const FORECAST_METHOD_NOTE = 'Uses the three most recent completed periods with weights 1, 2 and 3; the newest period receives the greatest weight.';
-const HISTORY_PAGE_SIZE = 4;
-const SALES_AUTOSAVE_DELAY = 700;
-
-const MONTH_OPTIONS = [
-  { value: '01', label: 'January' },
-  { value: '02', label: 'February' },
-  { value: '03', label: 'March' },
-  { value: '04', label: 'April' },
-  { value: '05', label: 'May' },
-  { value: '06', label: 'June' },
-  { value: '07', label: 'July' },
-  { value: '08', label: 'August' },
-  { value: '09', label: 'September' },
-  { value: '10', label: 'October' },
-  { value: '11', label: 'November' },
-  { value: '12', label: 'December' },
-];
-
-const YEAR_OPTIONS = (() => {
-  const current = new Date().getFullYear();
-  const years = [];
-  for (let y = current; y >= 1999; y--) {
-    years.push(String(y));
-  }
-  return years;
-})();
 
 async function requestJson(url, options = {}) {
   const response = await apiFetch(url, {
@@ -73,43 +47,6 @@ function formatHistoryPeriod(date, periodType = 'month') {
   return formatPeriod(date, periodType);
 }
 
-function isoWeekStart(weekValue) {
-  const match = /^(\d{4})-W(\d{2})$/.exec(weekValue);
-  if (!match) return '';
-  const year = Number(match[1]);
-  const week = Number(match[2]);
-  const januaryFourth = new Date(Date.UTC(year, 0, 4));
-  const day = januaryFourth.getUTCDay() || 7;
-  const monday = new Date(januaryFourth);
-  monday.setUTCDate(januaryFourth.getUTCDate() - day + 1 + (week - 1) * 7);
-  return monday.toISOString().slice(0, 10);
-}
-
-function weeksInYear(year) {
-  const start = isoWeekStart(`${year}-W01`);
-  const nextYearStart = isoWeekStart(`${Number(year) + 1}-W01`);
-  const weeks = [];
-  for (let date = new Date(`${start}T00:00:00Z`), end = new Date(`${nextYearStart}T00:00:00Z`); date < end; date.setUTCDate(date.getUTCDate() + 7)) {
-    const weekNumber = weeks.length + 1;
-    const periodDate = date.toISOString().slice(0, 10);
-    weeks.push({
-      key: periodDate,
-      periodDate,
-      value: String(weekNumber).padStart(2, '0'),
-      label: `Week ${String(weekNumber).padStart(2, '0')}`,
-    });
-  }
-  return weeks;
-}
-
-function seasonalKey(year, month) {
-  return `${year}-${String(month).padStart(2, '0')}`;
-}
-
-function seasonalDraftKey(productId, year, month) {
-  return `${productId}|${seasonalKey(year, month)}`;
-}
-
 const SearchIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
     <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
@@ -131,121 +68,6 @@ const CalculatorIcon = () => (
     <line x1="16" y1="15" x2="16" y2="18" />
   </svg>
 );
-
-function SalesYearSelect({ selectedYear, onChange }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeYear, setActiveYear] = useState(selectedYear);
-  const containerRef = useRef(null);
-  const buttonRef = useRef(null);
-  const listRef = useRef(null);
-  const selectedYearIndex = YEAR_OPTIONS.indexOf(selectedYear);
-
-  useEffect(() => {
-    if (!isOpen) return undefined;
-
-    const closeOnOutsideClick = (event) => {
-      if (!containerRef.current?.contains(event.target)) setIsOpen(false);
-    };
-    document.addEventListener('pointerdown', closeOnOutsideClick);
-    return () => document.removeEventListener('pointerdown', closeOnOutsideClick);
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    listRef.current?.focus();
-    listRef.current
-      ?.querySelector(`[data-year="${activeYear}"]`)
-      ?.scrollIntoView({ block: 'nearest' });
-  }, [activeYear, isOpen]);
-
-  const openDropdown = (index = selectedYearIndex) => {
-    const safeIndex = Math.max(0, Math.min(index, YEAR_OPTIONS.length - 1));
-    setActiveYear(YEAR_OPTIONS[safeIndex]);
-    setIsOpen(true);
-  };
-
-  const selectYear = (year) => {
-    onChange(year);
-    setIsOpen(false);
-    buttonRef.current?.focus();
-  };
-
-  const handleListKeyDown = (event) => {
-    const activeIndex = YEAR_OPTIONS.indexOf(activeYear);
-    let nextIndex = activeIndex;
-
-    if (event.key === 'ArrowDown') nextIndex = Math.min(activeIndex + 1, YEAR_OPTIONS.length - 1);
-    else if (event.key === 'ArrowUp') nextIndex = Math.max(activeIndex - 1, 0);
-    else if (event.key === 'Home') nextIndex = 0;
-    else if (event.key === 'End') nextIndex = YEAR_OPTIONS.length - 1;
-    else if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      selectYear(activeYear);
-      return;
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      setIsOpen(false);
-      buttonRef.current?.focus();
-      return;
-    } else {
-      return;
-    }
-
-    event.preventDefault();
-    setActiveYear(YEAR_OPTIONS[nextIndex]);
-  };
-
-  return (
-    <div className="f-year-select-wrap" ref={containerRef}>
-      <button
-        ref={buttonRef}
-        id="sales-year-select"
-        className="f-custom-select-btn"
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        aria-controls="sales-year-options"
-        onClick={() => (isOpen ? setIsOpen(false) : openDropdown())}
-        onKeyDown={(event) => {
-          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-            event.preventDefault();
-            openDropdown();
-          }
-        }}
-      >
-        {selectedYear}
-      </button>
-      {isOpen && (
-        <div
-          ref={listRef}
-          id="sales-year-options"
-          className="f-year-dropdown-menu"
-          role="listbox"
-          aria-label="Sales year"
-          aria-activedescendant={`sales-year-option-${activeYear}`}
-          tabIndex={0}
-          onKeyDown={handleListKeyDown}
-          onBlur={() => setIsOpen(false)}
-        >
-          {YEAR_OPTIONS.map((year) => (
-            <div
-              id={`sales-year-option-${year}`}
-              className={`f-year-opt${year === selectedYear ? ' is-selected' : ''}${year === activeYear ? ' is-active' : ''}`}
-              key={year}
-              role="option"
-              aria-selected={year === selectedYear}
-              data-year={year}
-              onClick={() => selectYear(year)}
-            >
-              {year}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function ForecastProductSelect({ products, allProducts, productId, loading, onChange }) {
   const [isOpen, setIsOpen] = useState(false);

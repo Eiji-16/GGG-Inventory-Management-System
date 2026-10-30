@@ -8,6 +8,7 @@ import './reports.css';
 import exportReportWorkbook, { printReportPdf } from '../../utils/exportReportWorkbook';
 import { useCurrency } from '../../CurrencyContext';
 import useFillToBottom from '../../utils/fillToBottom';
+import { CountUp, CountUpText } from '../../utils/countUp';
 
 /* ===== REPORTS & ANALYTICS: ONE OVERALL REPORT =====
    One page, no tabs. It shows the overall picture of the system's data:
@@ -55,8 +56,8 @@ function MovementLineChart({ rows, maxVal }) {
   return (
     <svg className="r-line-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Weekly stock in and stock out line chart">
       <line x1={pad.left} x2={width - pad.right} y1={pad.top + innerH} y2={pad.top + innerH} className="r-line-axis" />
-      <path d={path('in')} className="r-line r-line-in" />
-      <path d={path('out')} className="r-line r-line-out" />
+      <path d={path('in')} className="r-line r-line-in" pathLength="1" />
+      <path d={path('out')} className="r-line r-line-out" pathLength="1" />
       {rows.map((r, i) => {
         // A full-height hover strip per week: shows that week's numbers.
         const step = rows.length > 1 ? innerW / (rows.length - 1) : innerW;
@@ -117,9 +118,9 @@ function MovementChartCard({ rows, loading, onOpen }) {
       {rows.length === 0 ? (
         <div className="r-chart-placeholder">{loading ? 'Loading…' : 'No movement data yet.'}</div>
       ) : chartType === 'line' ? (
-        <MovementLineChart rows={rows} maxVal={maxVal} />
+        <MovementLineChart key="line" rows={rows} maxVal={maxVal} />
       ) : (
-        <div className="r-mini-chart">
+        <div className="r-mini-chart" key="bar">
           {rows.map((r, i) => (
             <div className="r-mini-col" key={r.weekStart || i} data-tip={weekTip(r)}>
               <div className="r-mini-bars">
@@ -389,7 +390,7 @@ function StockHealthTile({ rows, loading, onOpen }) {
         <span className="r-kpi-tile-go" aria-hidden="true"><ArrowUpRight size={14} strokeWidth={2.2} /></span>
       </span>
       <div className="r-health-main">
-        <div className="r-kpi-value">{loading ? '…' : `${healthy}%`}</div>
+        <div className="r-kpi-value">{loading ? '…' : <CountUp value={healthy} format={(n) => `${Math.round(n)}%`} />}</div>
         <div className="r-kpi-sub">of {total} product{total === 1 ? '' : 's'} in stock</div>
       </div>
       <div className="r-health-bar">
@@ -671,7 +672,7 @@ export default function ReportsAnalyticsDesign({ safetyStock, refreshKey = 0, is
                   <span className="r-kpi-label">{card.label}</span>
                   <span className="r-kpi-tile-go" aria-hidden="true"><ArrowUpRight size={14} strokeWidth={2.2} /></span>
                 </span>
-                <div className="r-kpi-value">{firstLoad ? '…' : card.value}</div>
+                <div className="r-kpi-value">{firstLoad ? '…' : <CountUpText text={card.value} />}</div>
                 <div className="r-kpi-sub">{card.sub}</div>
               </div>
             ))}

@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Package, Boxes, ShieldCheck, ShoppingBag, TrendingUp, TrendingDown, Minus, ArrowUpRight, ChevronRight } from 'lucide-react';
+import { Package, Boxes, ShieldCheck, ShoppingBag, TrendingUp, TrendingDown, Minus, ArrowUpRight, ChevronRight, RefreshCw, Download } from 'lucide-react';
 import './dashboard.css';
 import { statusPointsFor } from '../../data/safetyStock';
+import exportReportWorkbook from '../../utils/exportReportWorkbook';
+import { uiZoom } from '../../fontSize';
+import { CountUp } from '../../utils/countUp';
 
 const fmt = (value) => Number(value || 0).toLocaleString('en-PH');
 
@@ -30,9 +33,58 @@ const fallbackCategoryColors = ['#A78BFA', '#FB7185', '#38BDF8', '#F97316', '#2D
 /* Reorder List and Stock Alerts show this many full rows, then a "View all" link
    (instead of cutting a row in half at the bottom of the card). */
 const LIST_LIMIT = 3;
-/* Recent Activity shows the newest stock entries. */
+/* Recent Activity shows the newest stock entries (as many as fit, up to this many). */
 const ACTIVITY_LIMIT = 4;
+const ACTIVITY_MAX = 12;
+const REORDER_MAX = 12;
 const pct = (part, whole) => (whole ? Math.round((part / whole) * 100) : 0);
+
+/* ===== FILL THE CARD =====
+   Reorder List and Recent Activity show as many whole rows as fit in their
+   card (the card height comes from the tallest card in that row), instead
+   of a fixed 3 / 4 rows with empty space underneath. Desktop only — on
+   tablets and phones the cards grow with their rows, so the fixed number
+   (fallback) is used. Re-measures when the card changes size. */
+const FIT_DESKTOP = '(min-width: 1025px)';
+function useFitCount(ref, fallback, deps = []) {
+  const [count, setCount] = useState(fallback);
+  useEffect(() => {
+    const box = ref.current;
+    if (!box || typeof ResizeObserver === 'undefined') return undefined;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      box.style.removeProperty('--fit-extra');   // measure at the normal row size
+      if (!window.matchMedia(FIT_DESKTOP).matches) { setCount(fallback); return; }
+      // Every row is in the page (the extra ones are invisible), so count the
+      // rows whose bottom edge is inside the box. Rows may differ in height.
+      const bottom = box.getBoundingClientRect().bottom + 0.5;
+      const rows = Array.from(box.children);
+      if (!rows.length) return;
+      const fits = Math.max(1, rows.filter((row) => row.getBoundingClientRect().bottom <= bottom).length);
+      setCount(fits);
+      // When there are more rows than fit, the space left under the last whole
+      // row is shared out: each shown row gets a little taller (see
+      // --fit-extra in dashboard.css), so the card is filled to the bottom
+      // with no empty strip. Screen sizes are divided by the font-size zoom.
+      if (rows.length > fits) {
+        const leftover = bottom - 0.5 - rows[fits - 1].getBoundingClientRect().bottom;
+        if (leftover > 1) box.style.setProperty('--fit-extra', `${leftover / fits / uiZoom()}px`);
+      }
+    };
+    const schedule = () => { if (!frame) frame = window.requestAnimationFrame(measure); };
+    const observer = new ResizeObserver(schedule);
+    observer.observe(box);
+    window.addEventListener('resize', schedule);
+    schedule();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', schedule);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, deps);
+  return count;
+}
 
 /* Small product photo for Top Products Sold; a box icon when there is no
    photo (or it can't be loaded). */
@@ -123,79 +175,6 @@ function scalePoints(values, width, height, padX = 6, padTop = 10, padBottom = 8
   ]);
 }
 
-/* A round axis top just above the peak (e.g. 276 → 300), so axis labels read cleanly. */
-function niceCeil(value) {
-  if (value <= 0) return 1;
-  const magnitude = 10 ** Math.floor(Math.log10(value));
-  const step = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((s) => s * magnitude >= value);
-  return step * magnitude;
-}
-
-/* Smooth line through the points that never overshoots them (monotone
-   cubic), so a curve can't dip below zero or above the peak between months. */
-function smoothLine(points) {
-  if (points.length < 2) return '';
-  const n = points.length;
-  const dx = [];
-  const slope = [];
-  for (let i = 0; i < n - 1; i += 1) {
-    dx[i] = points[i + 1][0] - points[i][0];
-    slope[i] = dx[i] ? (points[i + 1][1] - points[i][1]) / dx[i] : 0;
-  }
-  const tangent = [slope[0]];
-  for (let i = 1; i < n - 1; i += 1) {
-    tangent[i] = slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2;
-  }
-  tangent[n - 1] = slope[n - 2];
-  for (let i = 0; i < n - 1; i += 1) {
-    if (slope[i] === 0) {
-      tangent[i] = 0;
-      tangent[i + 1] = 0;
-    } else {
-      const a = tangent[i] / slope[i];
-      const b = tangent[i + 1] / slope[i];
-      const h = a * a + b * b;
-      if (h > 9) {
-        const t = 3 / Math.sqrt(h);
-        tangent[i] = t * a * slope[i];
-        tangent[i + 1] = t * b * slope[i];
-      }
-    }
-  }
-  let path = `M ${points[0][0]},${points[0][1]}`;
-  for (let i = 0; i < n - 1; i += 1) {
-    const third = dx[i] / 3;
-    path += ` C ${points[i][0] + third},${points[i][1] + tangent[i] * third}`;
-    path += ` ${points[i + 1][0] - third},${points[i + 1][1] - tangent[i + 1] * third}`;
-    path += ` ${points[i + 1][0]},${points[i + 1][1]}`;
-  }
-  return path;
-}
-
-function Sparkline({ values, stroke, gid }) {
-  if (values.length < 2 || values.every((value) => value === 0)) {
-    return <EmptyChart message="No chart data yet" />;
-  }
-  const width = 120;
-  const height = 40;
-  const points = scalePoints(values, width, height, 3, 5, 5);
-  const line = smoothLine(points);
-  const area = `${line} L ${points[points.length - 1][0]},${height} L ${points[0][0]},${height} Z`;
-
-  return (
-    <svg className="db-spark-svg" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={stroke} stopOpacity="0.35" />
-          <stop offset="100%" stopColor={stroke} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill={`url(#${gid})`} />
-      <path d={line} fill="none" stroke={stroke} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function EmptyChart({ message = 'No data recorded yet' }) {
   return <div className="db-empty-chart">{message}</div>;
 }
@@ -206,6 +185,84 @@ function OpenArrow() {
       <path d="M7 17L17 7" /><path d="M8 7h9v9" />
     </svg>
   );
+}
+
+/* ===== Sales Trend Overview helpers ===== */
+const SALES_VIEWS = [['week', 'Weekly'], ['month', 'Monthly'], ['year', 'Yearly']];
+const SALES_VIEW_WORD = { week: 'this week', month: 'this month', year: 'this year' };
+// Bar chart: the hatched bar behind each bar is the same day / month one period earlier.
+const SALES_PREV_WORD = { week: 'last week', month: 'last month', year: 'last year' };
+const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+/* Short axis numbers: 2000 → 2k, 1500 → 1.5k. */
+const shortNumber = (value) => (value >= 1000 ? `${Number((value / 1000).toFixed(1))}k` : String(value));
+
+/* Points for the Sales Trend Overview chart.
+   Yearly  = this year, one point per month (Jan–Dec), from the same monthly
+             sales the rest of the page uses (Stock Out + Past Sales).
+   Monthly = this month, one point per day; Weekly = this week (Mon–Sun), one
+             point per day. Daily points come from Stock Out entries (not
+             corrections), because Past Sales are saved per month/week.
+   Days or months that have not happened yet stay on the axis without a point. */
+function buildSalesTrend(view, salesHistory, stockMovements) {
+  const now = new Date();
+  const todayKey = dateKey(now);
+  if (view === 'year') {
+    const year = now.getFullYear();
+    const totals = new Map();
+    salesHistory.forEach((record) => {
+      const key = String(record.periodDate || '').slice(0, 7);
+      if (!key.startsWith(`${year}-`) && !key.startsWith(`${year - 1}-`)) return;
+      totals.set(key, (totals.get(key) || 0) + (Number(record.unitsSold) || 0));
+    });
+    return Array.from({ length: 12 }, (_, month) => {
+      const date = new Date(year, month, 1);
+      const key = `${year}-${String(month + 1).padStart(2, '0')}`;
+      return {
+        key,
+        axis: date.toLocaleDateString('en', { month: 'short' }),
+        title: date.toLocaleDateString('en', { month: 'long', year: 'numeric' }),
+        showLabel: true,
+        units: month <= now.getMonth() ? (totals.get(key) || 0) : null,
+        // Same month last year.
+        previous: totals.get(`${year - 1}-${String(month + 1).padStart(2, '0')}`) || 0,
+      };
+    });
+  }
+  // Daily views.
+  let days;
+  let previousOf;
+  if (view === 'week') {
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+    days = Array.from({ length: 7 }, (_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i));
+    // Same weekday last week.
+    previousOf = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate() - 7);
+  } else {
+    const count = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    days = Array.from({ length: count }, (_, i) => new Date(now.getFullYear(), now.getMonth(), i + 1));
+    // Same day number last month (none when last month was shorter).
+    const lastMonthDays = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+    previousOf = (date) => (date.getDate() <= lastMonthDays ? new Date(date.getFullYear(), date.getMonth() - 1, date.getDate()) : null);
+  }
+  const totals = new Map();
+  stockMovements.forEach((movement) => {
+    if (movement.type !== 'out' || movement.isAdjustment) return;
+    const qty = Number(movement.qty) || 0;
+    if (qty <= 0) return;
+    totals.set(movement.date, (totals.get(movement.date) || 0) + qty);
+  });
+  return days.map((date, index) => {
+    const key = dateKey(date);
+    const before = previousOf(date);
+    return {
+      key,
+      axis: view === 'week' ? date.toLocaleDateString('en', { weekday: 'short' }) : String(date.getDate()),
+      title: date.toLocaleDateString('en', { weekday: view === 'week' ? 'long' : undefined, month: 'long', day: 'numeric', year: 'numeric' }),
+      // Monthly: label every 5th day (1, 5, 10 …) so the axis stays readable.
+      showLabel: view === 'week' || index === 0 || (index + 1) % 5 === 0,
+      units: key <= todayKey ? (totals.get(key) || 0) : null,
+      previous: before ? (totals.get(dateKey(before)) || 0) : 0,
+    };
+  });
 }
 
 /* fetchSummary: shared loader from the main page (one request for the bell
@@ -222,10 +279,24 @@ const defaultFetchSummary = () => fetch('/api/dashboard/summary', { headers: { A
   });
 
 function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = true, fetchSummary = defaultFetchSummary, dataRevision = 0 }) {
-  const [range, setRange] = useState(12);
+  // The other cards (Top Products Sold, units this month) look at the last 12 months.
+  const range = 12;
   const [activeCategory, setActiveCategory] = useState(null);
   const [hoveredSalesMonth, setHoveredSalesMonth] = useState(null);
-  // Sales History as a line or a bar chart (saved in this browser).
+  // Sales Trend Overview: Weekly / Monthly / Yearly (saved in this browser).
+  const [salesView, setSalesView] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ggg-sales-view');
+      return SALES_VIEWS.some(([key]) => key === saved) ? saved : 'year';
+    } catch { return 'year'; }
+  });
+  const chooseSalesView = (view) => {
+    setSalesView(view);
+    setHoveredSalesMonth(null);
+    try { localStorage.setItem('ggg-sales-view', view); } catch { /* storage blocked */ }
+  };
+  const [downloading, setDownloading] = useState(false);
+  // Sales Trend as a line or a bar chart (saved in this browser).
   const [salesChart, setSalesChart] = useState(() => {
     try { return localStorage.getItem('ggg-sales-chart') === 'bar' ? 'bar' : 'line'; } catch { return 'line'; }
   });
@@ -238,6 +309,10 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const summaryRequestRef = useRef(0);
+  const reorderBoxRef = useRef(null);
+  const activityBoxRef = useRef(null);
+  const reorderFit = useFitCount(reorderBoxRef, LIST_LIMIT, [summary, loading]);
+  const activityFit = useFitCount(activityBoxRef, ACTIVITY_LIMIT, [summary, loading]);
 
   const loadSummary = ({ quiet = false } = {}) => {
     const requestId = summaryRequestRef.current + 1;
@@ -429,7 +504,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
     // Recent Activity: newest stock entries first.
     const recentActivity = [...stockMovements]
       .sort((a, b) => String(b.createdAt || b.date || '').localeCompare(String(a.createdAt || a.date || '')) || (b.id || 0) - (a.id || 0))
-      .slice(0, ACTIVITY_LIMIT);
+      .slice(0, ACTIVITY_MAX);
     const alerts = [
       ...outOfStock.map((product) => ({ ...product, level: 'out' })),
       ...lowStock.sort((a, b) => a.quantity - b.quantity).map((product) => ({
@@ -573,25 +648,71 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
   const healthTone = derived.health.out || derived.health.critical ? 'bad' : (derived.health.low ? 'warn' : 'good');
   const NetIcon = kpi.netChange > 0 ? TrendingUp : (kpi.netChange < 0 ? TrendingDown : Minus);
   const netClass = kpi.netChange > 0 ? 'is-up' : (kpi.netChange < 0 ? 'is-down' : 'is-flat');
-  const heroValues = derived.monthly.map((month) => month.units);
-  const heroPeak = Math.max(0, ...heroValues);
-  // Zero-based axis: the height of each point is its real share of the axis top.
-  const heroTop = niceCeil(heroPeak);
+
+  /* ===== Sales Trend Overview chart =====
+     Line: thin line with straight steps between points. Bar: rounded bars,
+     with a hatched bar behind each one for the same period one step earlier
+     (last year / last month / last week). The axis starts at 0 so each
+     point's height is its true share of the axis top. */
   const isBarChart = salesChart === 'bar';
-  // Bar chart: each month sits in the middle of its own equal slot.
-  const heroPadX = isBarChart ? 520 / (heroValues.length * 2 || 1) : 10;
-  const heroPoints = derived.hasSalesData ? scalePoints(heroValues, 520, 150, heroPadX, 16, 12, { min: 0, max: heroTop }) : [];
-  // Trend line: straight segments between months (shows each change honestly).
-  const heroLine = heroPoints.map(([x, y], index) => `${index ? 'L' : 'M'} ${x},${y}`).join(' ');
+  const trend = buildSalesTrend(salesView, summary.salesHistory || [], summary.stockMovements || []);
+  const trendValues = trend.map((point) => point.units ?? 0);
+  const previousValues = trend.map((point) => point.previous || 0);
+  const trendTotal = trendValues.reduce((sum, value) => sum + value, 0);
+  const trendHasData = trendTotal > 0 || (isBarChart && previousValues.some((value) => value > 0));
+  // Axis top = 5 round steps (1, 2, 2.5 or 5 × 10ⁿ), e.g. peak 7,400 → 0 · 2k · 4k … 10k.
+  const trendStep = (() => {
+    const peak = Math.max(0, ...trendValues, ...(isBarChart ? previousValues : []));
+    const raw = Math.max(1, peak / 5);
+    const magnitude = 10 ** Math.floor(Math.log10(raw));
+    return [1, 2, 2.5, 5, 10].find((s) => s * magnitude >= raw) * magnitude;
+  })();
+  const heroTop = trendStep * 5;
+  // Bars sit in the middle of equal slots; the line runs edge to edge.
+  const heroPadX = isBarChart ? 520 / (trend.length * 2 || 1) : 10;
+  const heroPoints = scalePoints(trendValues, 520, 150, heroPadX, 16, 12, { min: 0, max: heroTop });
+  const previousPoints = scalePoints(previousValues, 520, 150, heroPadX, 16, 12, { min: 0, max: heroTop });
+  const drawnCount = trend.filter((point) => point.units != null).length;
+  const heroLine = heroPoints.slice(0, drawnCount).map(([x, y], index) => `${index ? 'L' : 'M'} ${x},${y}`).join(' ');
   const heroStep = heroPoints.length > 1 ? heroPoints[1][0] - heroPoints[0][0] : 520;
-  const heroBarWidth = Math.min(30, heroStep * 0.56);
-  const monthTitle = (key) => {
-    const [y, m] = String(key).split('-').map(Number);
-    return new Date(y, m - 1, 1).toLocaleDateString('en', { month: 'long', year: 'numeric' });
+  const heroBarWidth = Math.min(26, heroStep * 0.58);
+  // Six axis numbers like 0 · 2k · 4k · 6k · 8k · 10k.
+  const heroTicks = [1, 0.8, 0.6, 0.4, 0.2, 0].map((share) => ({ value: Math.round(heroTop * share), y: 138 - share * 122 }));
+  const plotLeft = (x) => `calc(var(--plot-pad, 0px) + (100% - var(--plot-pad, 0px)) * ${x / 520})`;
+  const hovered = hoveredSalesMonth !== null && trend[hoveredSalesMonth] && trend[hoveredSalesMonth].units != null ? hoveredSalesMonth : null;
+  const periodWord = salesView === 'year' ? 'This year' : salesView === 'month' ? 'This month' : 'This week';
+  const previousWord = SALES_PREV_WORD[salesView].replace(/^./, (c) => c.toUpperCase());
+
+  /* Download Report: the numbers behind the chart as an Excel file
+     (same layout as the Reports page exports). */
+  const downloadSalesReport = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const viewName = SALES_VIEWS.find(([key]) => key === salesView)[1];
+      const period = salesView === 'year' ? 'Month' : 'Day';
+      await exportReportWorkbook({
+        title: 'Sales Trend Overview',
+        subtitle: `${viewName} view · units sold ${SALES_VIEW_WORD[salesView]}`,
+        fileName: `sales-trend-${salesView === 'year' ? 'yearly' : salesView === 'month' ? 'monthly' : 'weekly'}`,
+        summary: [
+          { label: `Total units sold ${SALES_VIEW_WORD[salesView]}`, value: trendTotal },
+          { label: `Highest ${period.toLowerCase()}`, value: Math.max(0, ...trendValues) },
+        ],
+        sections: [{
+          title: `Units sold per ${period.toLowerCase()}`,
+          headers: [period, 'Units sold', `Units sold ${SALES_PREV_WORD[salesView]}`],
+          rows: trend.filter((point) => point.units != null).map((point) => [point.title, point.units, point.previous || 0]),
+        }],
+        scope: salesView === 'year'
+          ? 'Stock Out entries (not corrections) and Past Sales, per month'
+          : 'Stock Out entries (not corrections), per day',
+        columnWidths: [30, 18, 24],
+      });
+    } finally {
+      setDownloading(false);
+    }
   };
-  const heroTicks = [1, 2 / 3, 1 / 3, 0].map((share) => ({ value: Math.round(heroTop * share), y: 138 - share * 122 }));
-  const monthsWithSales = derived.monthly.filter((month) => month.units > 0).length;
-  const heroAverage = monthsWithSales ? Math.round(derived.unitsSold / derived.monthly.length) : 0;
 
   return (
     <main className="dashboard-content-view">
@@ -603,10 +724,10 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             tone="gold"
             Icon={Package}
             label="Products"
-            value={fmt(kpi.total)}
+            value={<CountUp value={kpi.total} />}
             unit={kpi.total === 1 ? 'product' : 'products'}
-            onClick={() => go('Product-Supplier')}
-            openLabel="Open Product & Supplier"
+            onClick={() => go('Product-Supplier', { section: 'products' })}
+            openLabel="Open the Products list"
           >
             {kpi.total ? (
               <>
@@ -621,9 +742,9 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             tone="blue"
             Icon={Boxes}
             label="Stock on Hand"
-            value={fmt(derived.totalStock)}
+            value={<CountUp value={derived.totalStock} />}
             unit="units"
-            onClick={() => go('Stock')}
+            onClick={() => go('Stock', { view: 'stock' })}
             openLabel="Open Stock Control"
           >
             {kpi.hasEntriesThisMonth ? (
@@ -646,7 +767,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             tone={healthTone}
             Icon={ShieldCheck}
             label="Stock Health"
-            value={kpi.healthyPct == null ? '—' : `${kpi.healthyPct}%`}
+            value={kpi.healthyPct == null ? '—' : <CountUp value={kpi.healthyPct} format={(n) => `${Math.round(n)}%`} />}
             unit={kpi.healthyPct == null ? '' : 'in stock'}
             onClick={() => go('Reorder-Alerts')}
             openLabel="Open Reorder List"
@@ -681,7 +802,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             tone="violet"
             Icon={ShoppingBag}
             label="Units Sold This Month"
-            value={fmt(kpi.soldThisMonth)}
+            value={<CountUp value={kpi.soldThisMonth} />}
             unit="units"
             onClick={() => go('Forecasting')}
             openLabel="Open Forecasting"
@@ -705,13 +826,20 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
           </KpiTile>
         </section>
         <div className={`parent db-grid${isSuperAdmin ? '' : ' parent-without-user-accounts'}`}>
-          <div className="salesAnalytics-card card sunlight">
-            <div className="db-card-head">
+          <div className={`salesAnalytics-card card db-trend-card${isBarChart ? ' is-bars' : ''}`}>
+            <div className="db-card-head db-trend-head">
               <div className="db-card-titles">
-                <span className="db-card-title">Sales History</span>
-                <span className="db-card-sub">Track units sold by month to spot seasonal trends</span>
+                <span className="db-card-title">Sales Trend Overview</span>
+                <span className="db-card-sub">Track units sold to spot seasonal trends and growth.</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div className="db-trend-actions">
+                <div className="db-seg" role="group" aria-label="Sales period">
+                  {SALES_VIEWS.map(([key, label]) => (
+                    <button key={key} type="button" className={`db-seg-btn ${salesView === key ? 'active' : ''}`} aria-pressed={salesView === key} onClick={() => chooseSalesView(key)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
                 <div className="db-seg" role="group" aria-label="Chart type">
                   {[['line', 'Line'], ['bar', 'Bar']].map(([type, label]) => (
                     <button key={type} type="button" className={`db-seg-btn ${salesChart === type ? 'active' : ''}`} aria-pressed={salesChart === type} onClick={() => chooseSalesChart(type)}>
@@ -719,57 +847,77 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                     </button>
                   ))}
                 </div>
-                <div className="db-seg">
-                  {[6, 12].map((months) => (
-                    <button key={months} className={`db-seg-btn ${range === months ? 'active' : ''}`} onClick={() => { setRange(months); setHoveredSalesMonth(null); }}>
-                      {months}M
-                    </button>
-                  ))}
-                </div>
-                <button className="db-open-arrow-btn" onClick={() => go('Forecasting')} aria-label="Open Forecasting" type="button"><OpenArrow /></button>
+                <button
+                  type="button"
+                  className={`db-trend-icon-btn${loading ? ' is-busy' : ''}`}
+                  onClick={() => loadSummary()}
+                  aria-label="Refresh data"
+                  data-tip="Refresh data"
+                >
+                  <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className={`db-trend-icon-btn${downloading ? ' is-busy-soft' : ''}`}
+                  onClick={downloadSalesReport}
+                  disabled={downloading}
+                  aria-label="Download report (Excel)"
+                  data-tip="Download report (Excel)"
+                >
+                  <Download size={14} strokeWidth={2} aria-hidden="true" />
+                </button>
               </div>
             </div>
-            {/* Total for the selected range, with an accent bar (trend-overview style). */}
             <div className="db-trend-total">
-              <span className="db-trend-total-label">Total units sold · last {range} months</span>
-              <strong>{derived.hasSalesData ? fmt(derived.unitsSold) : '—'}</strong>
+              <span className="db-trend-total-label">Total units sold {SALES_VIEW_WORD[salesView]}</span>
+              <strong><CountUp value={trendTotal} /></strong>
             </div>
-            <div className={`db-hero-plot db-trend-plot${heroPoints.length ? '' : ' db-chart-empty-plot'}`}>
-              {heroPoints.length ? (
+            <div key={`${salesView}-${salesChart}`} className={`db-hero-plot db-trend-plot${trendHasData ? '' : ' db-chart-empty-plot'}`}>
+              {trendHasData ? (
                 <>
                   <div className="db-hero-yaxis" aria-hidden="true">
                     {heroTicks.map((tick) => (
-                      <span key={tick.y} style={{ top: `${(tick.y / 150) * 100}%` }}>{fmt(tick.value)}</span>
+                      <span key={tick.y} style={{ top: `${(tick.y / 150) * 100}%` }}>{shortNumber(tick.value)}</span>
                     ))}
                   </div>
-                  <svg className="db-hero-svg" viewBox="0 0 520 150" preserveAspectRatio="none" aria-label="Monthly units sold">
-                    {heroTicks.map((tick) => <line key={tick.y} x1="0" y1={tick.y} x2="520" y2={tick.y} stroke="var(--hairline)" vectorEffect="non-scaling-stroke" />)}
-                    {isBarChart && (
-                      <defs>
-                        <linearGradient id="dbSalesBarFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="var(--accent)" stopOpacity="1" />
-                          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.6" />
-                        </linearGradient>
-                      </defs>
-                    )}
-                    {isBarChart && heroPoints.map(([x, y], index) => (
+                  <svg className="db-hero-svg" viewBox="0 0 520 150" preserveAspectRatio="none" aria-label={`Units sold ${SALES_VIEW_WORD[salesView]}`}>
+                    <defs>
+                      <linearGradient id="dbTrendBarFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--accent)" stopOpacity="1" />
+                        <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.4" />
+                      </linearGradient>
+                      <pattern id="dbTrendHatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                        <line x1="0" y1="0" x2="0" y2="5" className="db-trend-hatch-line" />
+                      </pattern>
+                    </defs>
+                    {/* Dotted guide lines from top to bottom at each labelled point. */}
+                    {trend.map((point, index) => (point.showLabel ? (
+                      <line key={`grid-${point.key}`} className="db-trend-vline" x1={heroPoints[index][0]} y1="16" x2={heroPoints[index][0]} y2="138" vectorEffect="non-scaling-stroke" />
+                    ) : null))}
+                    <line className="db-trend-baseline" x1="0" y1="138" x2="520" y2="138" vectorEffect="non-scaling-stroke" />
+                    {isBarChart && previousPoints.map(([x, y], index) => (previousValues[index] > 0 ? (
+                      <rect key={`prev-${trend[index].key}`} className="db-trend-ghost" x={x - heroBarWidth / 2} y={y} width={heroBarWidth} height={Math.max(0, 138 - y)} rx="3" fill="url(#dbTrendHatch)" />
+                    ) : null))}
+                    {isBarChart && heroPoints.slice(0, drawnCount).map(([x, y], index) => (
                       <rect
-                        key={`bar-${derived.monthly[index].key}`}
-                        className={`db-sales-bar${hoveredSalesMonth === index ? ' is-active' : ''}${hoveredSalesMonth !== null && hoveredSalesMonth !== index ? ' is-dimmed' : ''}`}
+                        key={`bar-${trend[index].key}`}
+                        className={`db-sales-bar db-trend-bar${hovered === index ? ' is-active' : ''}${hovered !== null && hovered !== index ? ' is-dimmed' : ''}`}
                         x={x - heroBarWidth / 2}
                         y={y}
                         width={heroBarWidth}
                         height={Math.max(0, 138 - y)}
-                        fill="url(#dbSalesBarFill)"
+                        rx="3"
+                        fill="url(#dbTrendBarFill)"
+                        style={{ animationDelay: `${index * 35}ms` }}
                       />
                     ))}
-                    {!isBarChart && hoveredSalesMonth !== null && heroPoints[hoveredSalesMonth] && (
-                      <line className="db-trend-guide" x1={heroPoints[hoveredSalesMonth][0]} y1={heroPoints[hoveredSalesMonth][1]} x2={heroPoints[hoveredSalesMonth][0]} y2="138" vectorEffect="non-scaling-stroke" />
+                    {!isBarChart && hovered !== null && (
+                      <line className="db-trend-guide" x1={heroPoints[hovered][0]} y1={heroPoints[hovered][1]} x2={heroPoints[hovered][0]} y2="138" vectorEffect="non-scaling-stroke" />
                     )}
-                    {!isBarChart && <path d={heroLine} fill="none" stroke="var(--accent)" strokeWidth="1.8" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />}
-                    {heroPoints.map(([x], index) => (
+                    {!isBarChart && <path className="db-trend-line" d={heroLine} fill="none" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />}
+                    {heroPoints.map(([x], index) => (trend[index].units != null ? (
                       <rect
-                        key={derived.monthly[index].key}
+                        key={trend[index].key}
                         className="db-hero-point db-trend-hit"
                         x={x - heroStep / 2}
                         y="0"
@@ -777,49 +925,48 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                         height="150"
                         tabIndex={0}
                         role="img"
-                        aria-label={`${monthTitle(derived.monthly[index].key)}: ${fmt(derived.monthly[index].units)} units sold`}
+                        aria-label={`${trend[index].title}: ${fmt(trend[index].units)} units sold`}
                         onMouseEnter={() => setHoveredSalesMonth(index)}
                         onMouseLeave={() => setHoveredSalesMonth(null)}
                         onFocus={() => setHoveredSalesMonth(index)}
                         onBlur={() => setHoveredSalesMonth(null)}
                       />
-                    ))}
+                    ) : null))}
                   </svg>
-                  {hoveredSalesMonth !== null && derived.monthly[hoveredSalesMonth] && (
+                  {hovered !== null && (
                     <>
-                      {!isBarChart && <span
-                        className="db-trend-dot"
-                        style={{
-                          // Same place as the point on the line: the line is drawn after
-                          // the y-axis labels (--plot-pad), so add that offset.
-                          left: `calc(var(--plot-pad, 0px) + (100% - var(--plot-pad, 0px)) * ${heroPoints[hoveredSalesMonth][0] / 520})`,
-                          top: `${(heroPoints[hoveredSalesMonth][1] / 150) * 100}%`,
-                        }}
-                        aria-hidden="true"
-                      />}
+                      {!isBarChart && (
+                        <span
+                          className="db-trend-dot"
+                          style={{ left: plotLeft(heroPoints[hovered][0]), top: `${(heroPoints[hovered][1] / 150) * 100}%` }}
+                          aria-hidden="true"
+                        />
+                      )}
                       <div
-                        className={`db-hero-tooltip db-trend-tag${heroPoints[hoveredSalesMonth][0] > 390 ? ' db-hero-tooltip-left' : ''}`}
-                        style={{
-                          // Same place as the point on the line: the line is drawn after
-                          // the y-axis labels (--plot-pad), so add that offset.
-                          left: `calc(var(--plot-pad, 0px) + (100% - var(--plot-pad, 0px)) * ${heroPoints[hoveredSalesMonth][0] / 520})`,
-                          top: `${(heroPoints[hoveredSalesMonth][1] / 150) * 100}%`,
-                        }}
+                        className={`db-hero-tooltip db-trend-tag${heroPoints[hovered][0] > 390 ? ' db-hero-tooltip-left' : ''}`}
+                        style={{ left: plotLeft(heroPoints[hovered][0]), top: `${(heroPoints[hovered][1] / 150) * 100}%` }}
                         role="status"
                         aria-live="polite"
                       >
-                        <strong>{fmt(derived.monthly[hoveredSalesMonth].units)}</strong>
-                        <span>units sold in {monthTitle(derived.monthly[hoveredSalesMonth].key)}</span>
+                        <strong>{fmt(trend[hovered].units)} units</strong>
+                        <span>Sales on {trend[hovered].title}</span>
+                        {isBarChart && <span>{previousWord}: {fmt(trend[hovered].previous || 0)} units</span>}
                       </div>
                     </>
                   )}
                 </>
-              ) : <EmptyChart message="No sales recorded in this period" />}
+              ) : <EmptyChart message={`No sales recorded ${SALES_VIEW_WORD[salesView]}`} />}
             </div>
-            {heroPoints.length > 0 && <div className={`db-hero-xaxis${isBarChart ? ' is-bars' : ''}`} style={isBarChart ? { '--months': derived.monthly.length } : undefined}>{derived.monthly.map((month) => <span key={month.key}>{month.label}</span>)}</div>}
-            <div className="db-card-foot db-hero-foot">
-              <div className="db-metric"><span className="db-metric-label">Monthly peak</span><span className="db-metric-value">{derived.hasSalesData ? fmt(heroPeak) : '—'}</span></div>
-              <div className="db-metric"><span className="db-metric-label">Avg / month</span><span className="db-metric-value">{derived.hasSalesData ? fmt(heroAverage) : '—'}</span></div>
+            {trendHasData && (
+              <div key={`axis-${salesView}-${salesChart}`} className={`db-trend-xaxis${isBarChart ? ' is-bars' : ''}`} aria-hidden="true">
+                {trend.map((point, index) => (point.showLabel
+                  ? <span key={point.key} style={{ left: plotLeft(heroPoints[index][0]) }}>{point.axis}</span>
+                  : null))}
+              </div>
+            )}
+            <div className="db-trend-legend">
+              <span><i aria-hidden="true" />{isBarChart ? periodWord : 'All products'}</span>
+              {isBarChart && <span><i className="is-hatch" aria-hidden="true" />{previousWord}</span>}
             </div>
           </div>
 
@@ -838,14 +985,17 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
               <button className="db-open-arrow-btn" onClick={() => go('Reorder-Alerts')} aria-label="Open Reorder List" type="button"><OpenArrow /></button>
             </div>
             {(summary.reorderSuggestions || []).length ? (
-              <div className="db-order-list">
-                {summary.reorderSuggestions.slice(0, LIST_LIMIT).map((item) => {
+              <>
+              <div className="db-order-list db-fit-box" ref={reorderBoxRef}>
+                {summary.reorderSuggestions.slice(0, REORDER_MAX).map((item, index) => {
                   const tag = reorderTag(item);
                   return (
                     <button
                       key={item.productId}
                       type="button"
-                      className={`db-order-row is-${tag.level}`}
+                      className={`db-order-row is-${tag.level}${index >= reorderFit ? ' db-fit-hidden' : ''}`}
+                      aria-hidden={index >= reorderFit || undefined}
+                      tabIndex={index >= reorderFit ? -1 : undefined}
                       onClick={() => go('Stock', { highlightProductId: item.productId })}
                       title={item.reasons.join('\n')}
                     >
@@ -865,12 +1015,13 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                     </button>
                   );
                 })}
-                {summary.reorderSuggestions.length > LIST_LIMIT && (
-                  <button type="button" className="db-list-more" onClick={() => go('Reorder-Alerts')}>
-                    View all {fmt(summary.reorderSuggestions.length)} in the Reorder List →
-                  </button>
-                )}
               </div>
+              {summary.reorderSuggestions.length > reorderFit && (
+                <button type="button" className="db-list-more" onClick={() => go('Reorder-Alerts')}>
+                  View all {fmt(summary.reorderSuggestions.length)} in the Reorder List →
+                </button>
+              )}
+              </>
             ) : (
               <div className="db-order-empty">
                 <strong>All good</strong>
@@ -882,7 +1033,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
           {/* Supplier Coverage and Inventory by Category: two separate cards
               in the right column beside Sales History. */}
           <div className="coverage-card card">
-            <button className="db-open-arrow-btn db-coverage-open-btn" onClick={() => go('Product-Supplier')} aria-label="Open suppliers" type="button"><OpenArrow /></button>
+            <button className="db-open-arrow-btn db-coverage-open-btn" onClick={() => go('Product-Supplier', { section: 'suppliers' })} aria-label="Open suppliers" type="button"><OpenArrow /></button>
             <div className="db-coverage-section">
               <div className="db-card-titles">
                 <span className="db-card-title">Supplier Coverage</span>
@@ -921,16 +1072,17 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                   </svg>
                   <span className="db-cov-center" aria-hidden="true">
                     <small>Coverage</small>
-                    <strong>{derived.products.length ? `${derived.supplierCoverage}%` : '—'}</strong>
+                    <strong>{derived.products.length ? <CountUp value={derived.supplierCoverage} format={(n) => `${Math.round(n)}%`} /> : '—'}</strong>
                   </span>
                 </div>
                 <div className="db-cov-details">
                   {[
-                    { label: 'Suppliers', value: fmt(summary.supplierCount) },
-                    { label: 'Linked products', value: `${fmt(derived.assignedProducts)} of ${fmt(derived.products.length)}` },
-                    { label: 'Unassigned', value: fmt(derived.unassignedProducts), warn: derived.unassignedProducts > 0 },
+                    // Each row opens exactly what it counts.
+                    { label: 'Suppliers', value: fmt(summary.supplierCount), to: { section: 'suppliers' }, tip: 'Open the Suppliers list' },
+                    { label: 'Linked products', value: `${fmt(derived.assignedProducts)} of ${fmt(derived.products.length)}`, to: { section: 'products', supplierFilter: 'linked' }, tip: 'Show products that have a supplier' },
+                    { label: 'Unassigned', value: fmt(derived.unassignedProducts), warn: derived.unassignedProducts > 0, to: { section: 'products', supplierFilter: 'none' }, tip: 'Show products without a supplier' },
                   ].map((row) => (
-                    <button key={row.label} type="button" className="db-cov-row" onClick={() => go('Product-Supplier')}>
+                    <button key={row.label} type="button" className="db-cov-row" onClick={() => go('Product-Supplier', row.to)} title={row.tip}>
                       <span className="db-cov-text">
                         <span className="db-cov-label">{row.label}</span>
                         <span className={`db-cov-value${row.warn ? ' is-warn' : ''}`}>{row.value}</span>
@@ -944,7 +1096,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
           </div>
 
           <div className="category-card card">
-            <button className="db-open-arrow-btn db-coverage-open-btn" onClick={() => go('Product-Supplier')} aria-label="Open products" type="button"><OpenArrow /></button>
+            <button className="db-open-arrow-btn db-coverage-open-btn" onClick={() => go('Product-Supplier', { section: 'products' })} aria-label="Open products" type="button"><OpenArrow /></button>
             <div className="db-category-section">
               <div className="db-card-titles">
                 <span className="db-card-title">Inventory by Category</span>
@@ -998,8 +1150,8 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
           </div>
 
           <div className="totalOrder-card card db-tone db-tone-flame">
-            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Stock Movements</span><span className="db-card-sub">Ledger entries · last 7 days</span></div><button className="db-open-arrow-btn" onClick={() => go('Stock')} aria-label="Open Stock Control" type="button"><OpenArrow /></button></div>
-            <div className="db-stat-value">{derived.hasMovementData ? fmt(derived.movementCount) : '—'}</div>
+            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Stock Movements</span><span className="db-card-sub">Ledger entries · last 7 days</span></div><button className="db-open-arrow-btn" onClick={() => go('Stock', { view: 'history' })} aria-label="Open Stock Control history" type="button"><OpenArrow /></button></div>
+            <div className="db-stat-value">{derived.hasMovementData ? <CountUp value={derived.movementCount} /> : '—'}</div>
             {derived.hasMovementData ? (
               <div className="db-col-chart">
                 {derived.dailyMovements.map((day) => (
@@ -1031,18 +1183,19 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                 <span className="db-card-title">Recent Activity</span>
                 <span className="db-card-sub">Latest stock entries</span>
               </div>
-              <button className="db-open-arrow-btn" onClick={() => go('Stock')} aria-label="Open Stock Control" type="button"><OpenArrow /></button>
+              <button className="db-open-arrow-btn" onClick={() => go('Stock', { view: 'history' })} aria-label="Open Stock Control history" type="button"><OpenArrow /></button>
             </div>
             {derived.recentActivity.length ? (
-              <ul className="db-act-list">
-                {derived.recentActivity.map((movement) => {
+              <ul className="db-act-list db-fit-box" ref={activityBoxRef}>
+                {derived.recentActivity.map((movement, index) => {
                   const person = movement.recordedBy || 'Unknown user';
                   const qty = Number(movement.qty) || 0;
                   const sign = movement.type === 'in' ? '+' : '−';
                   return (
-                    <li key={movement.id}>
+                    <li key={movement.id} className={index >= activityFit ? 'db-fit-hidden' : undefined} aria-hidden={index >= activityFit || undefined}>
                       <button
                         type="button"
+                        tabIndex={index >= activityFit ? -1 : undefined}
                         className="db-act-row"
                         onClick={() => go('Stock', movement.productId ? { highlightProductId: movement.productId } : null)}
                         data-tip={`${activityVerb(movement)} ${fmt(qty)} unit${qty === 1 ? '' : 's'}\n${movement.productName}${movement.variant ? ` · ${movement.variant}` : ''}\nBy ${person} · ${movement.date || ''}`}

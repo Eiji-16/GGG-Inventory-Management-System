@@ -160,3 +160,194 @@
         transition: none !important;
     }
 }
+
+/* ==========================================================================
+   PREMIUM UI — STAGE 1: BUTTONS AND TABLE ACTIONS (2026-10-30)
+   Each kind of button gets its own effect (not one effect for everything):
+     8.  Table action icons — a soft round background grows in, the icon
+         makes a small movement that fits the action (pencil tilts, history
+         turns back, trash lifts). Replaces the old "whole button scales up
+         and glows" hover, so nothing jumps inside the table.
+     9.  Secondary buttons (Cancel, ghost, toolbar) — a light tint slides in
+         from the left, the border warms to the accent colour.
+     10. Main buttons — keep the gold liquid fill (section 1), plus a small
+         lift with a soft accent shadow, and a press-down on click.
+     11. Danger buttons — a soft red shadow on hover, press-down on click.
+     12. Close (×) buttons — the × turns a quarter.
+     13. Page arrows — an accent ring on hover.
+   Only transform / opacity / colour / shadow change, so no layout moves.
+   Hover effects run only on devices with a mouse; touch keeps the plain
+   buttons (every button still works without hover).
+   ========================================================================== */
+
+/* ===== 8. TABLE ACTION ICONS ===== */
+:is(.sc-table-action-btn, .ps-table-action-btn) {
+    position: relative;
+    isolation: isolate;
+}
+:is(.sc-table-action-btn, .ps-table-action-btn) svg {
+    transition: transform 0.22s var(--polish-ease);
+}
+@media (hover: hover) {
+    :is(.sc-table-action-btn, .ps-table-action-btn)::after {
+        content: '';
+        position: absolute;
+        inset: 1px;
+        z-index: -1;
+        border-radius: 7px;
+        background: color-mix(in srgb, currentColor 15%, transparent);
+        opacity: 0;
+        transform: scale(0.55);
+        /* Same speed as the row highlight (0.15s), so both change together. */
+        transition: opacity 0.15s ease, transform 0.2s var(--polish-ease);
+        pointer-events: none;
+    }
+    :is(.sc-table-action-btn, .ps-table-action-btn):hover::after,
+    :is(.sc-table-action-btn, .ps-table-action-btn):focus-visible::after {
+        opacity: 1;
+        transform: scale(1);
+    }
+    /* The button itself no longer grows or glows — the background does the work. */
+    :is(.sc-table-action-btn, .ps-table-action-btn):hover {
+        background: transparent !important;
+        filter: none !important;
+        transform: none !important;
+    }
+    :is(.sc-edit-btn, .ps-edit-btn):hover svg { transform: rotate(-12deg) translateY(-1px); }
+    :is(.sc-delete-btn, .ps-delete-btn):hover svg { transform: translateY(-1.5px); }
+    .sc-clear-all-btn:hover svg { transform: rotate(-14deg); }
+    .sc-history-btn:hover svg { transform: rotate(-40deg); }
+    .sc-eoq-btn:hover svg { transform: translateY(-1.5px); }
+}
+:is(.sc-table-action-btn, .ps-table-action-btn):active { transform: none !important; }
+:is(.sc-table-action-btn, .ps-table-action-btn):active svg { transform: scale(0.86); }
+:is(.sc-table-action-btn, .ps-table-action-btn):active::after { transform: scale(0.88); }
+
+/* ===== 9. SECONDARY BUTTONS: sliding tint ===== */
+@media (hover: hover) {
+    :is(
+        .sc-add-btn:not(.sc-add-btn-primary),
+        .ps-add-btn:not(.ps-add-btn-primary),
+        .sc-modal-cancel-btn, .ps-modal-cancel-btn,
+        .f-btn-ghost, .pf-btn-ghost, .s-ghost-btn,
+        .ac-btn-reset, .ac-btn-cancel, .r-export-btn
+    ) {
+        background-image: linear-gradient(90deg,
+            color-mix(in srgb, var(--accent, #E8C547) 18%, transparent),
+            color-mix(in srgb, var(--accent, #E8C547) 7%, transparent));
+        background-repeat: no-repeat;
+        background-position: left center;
+        background-size: 0% 100%;
+        transition:
+            background-size 0.34s var(--polish-ease),
+            border-color 0.2s ease,
+            color 0.2s ease,
+            box-shadow 0.2s ease,
+            transform 0.2s var(--polish-ease);
+    }
+    :is(
+        .sc-add-btn:not(.sc-add-btn-primary),
+        .ps-add-btn:not(.ps-add-btn-primary),
+        .sc-modal-cancel-btn, .ps-modal-cancel-btn,
+        .f-btn-ghost, .pf-btn-ghost, .s-ghost-btn,
+        .ac-btn-reset, .ac-btn-cancel, .r-export-btn
+    ):hover:not(:disabled) {
+        background-color: transparent !important;
+        background-image: linear-gradient(90deg,
+            color-mix(in srgb, var(--accent, #E8C547) 18%, transparent),
+            color-mix(in srgb, var(--accent, #E8C547) 7%, transparent)) !important;
+        background-repeat: no-repeat !important;
+        background-position: left center !important;
+        background-size: 100% 100% !important;
+        border-color: color-mix(in srgb, var(--accent, #E8C547) 50%, var(--border-color, transparent)) !important;
+        box-shadow: 0 6px 14px -10px color-mix(in srgb, var(--accent, #E8C547) 70%, transparent);
+    }
+}
+:is(
+    .sc-add-btn:not(.sc-add-btn-primary),
+    .ps-add-btn:not(.ps-add-btn-primary),
+    .sc-modal-cancel-btn, .ps-modal-cancel-btn,
+    .f-btn-ghost, .pf-btn-ghost, .s-ghost-btn,
+    .ac-btn-reset, .ac-btn-cancel, .r-export-btn
+):active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+/* ===== 10. MAIN BUTTONS: lift + press ===== */
+@media (hover: hover) {
+    :is(
+        .sc-add-btn-primary, .ps-add-btn-primary, .f-btn-primary, .s-primary-btn,
+        .st-create-account-button, .ps-modal-save-btn,
+        .sc-modal-save-btn:not(.sc-confirm-danger-btn),
+        .ac-btn-compute, .pf-btn-primary, .lg-submit
+    ):hover:not(:disabled):not([aria-busy="true"]) {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 20px -12px color-mix(in srgb, var(--accent, #E8C547) 80%, transparent);
+    }
+}
+:is(
+    .sc-add-btn-primary, .ps-add-btn-primary, .f-btn-primary, .s-primary-btn,
+    .st-create-account-button, .ps-modal-save-btn,
+    .sc-modal-save-btn:not(.sc-confirm-danger-btn),
+    .ac-btn-compute, .pf-btn-primary, .lg-submit
+):active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+    box-shadow: none;
+}
+
+/* ===== 11. DANGER BUTTONS ===== */
+:is(.sc-confirm-danger-btn, .ps-confirm-delete-btn, .s-sys-danger-btn, .ps-delete-selected-btn, .sc-delete-selected-btn) {
+    transition: transform 0.2s var(--polish-ease), box-shadow 0.2s ease, filter 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+@media (hover: hover) {
+    :is(.sc-confirm-danger-btn, .ps-confirm-delete-btn, .s-sys-danger-btn, .ps-delete-selected-btn, .sc-delete-selected-btn):hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 20px -12px rgba(229, 72, 77, 0.85);
+    }
+}
+:is(.sc-confirm-danger-btn, .ps-confirm-delete-btn, .s-sys-danger-btn, .ps-delete-selected-btn, .sc-delete-selected-btn):active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+    box-shadow: none;
+}
+
+/* ===== 12. CLOSE (×) BUTTONS ===== */
+:is(.sc-modal-close-btn, .ps-modal-close-btn, .ps-page-message-close) svg {
+    transition: transform 0.28s var(--polish-ease);
+}
+@media (hover: hover) {
+    :is(.sc-modal-close-btn, .ps-modal-close-btn, .ps-page-message-close):hover svg { transform: rotate(90deg); }
+}
+
+/* ===== 13. PAGE ARROWS ===== */
+:is(.sc-pager-arrow, .ps-pagination button, .tb-pagination button, .f-monthly-pagination button) {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+}
+@media (hover: hover) {
+    :is(.sc-pager-arrow, .ps-pagination button, .tb-pagination button, .f-monthly-pagination button):hover:not(:disabled) {
+        border-color: color-mix(in srgb, var(--accent, #E8C547) 55%, transparent);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #E8C547) 14%, transparent);
+    }
+}
+
+/* ===== STAGE 1: RESPECT "REDUCE MOTION" ===== */
+@media (prefers-reduced-motion: reduce) {
+    :is(.sc-table-action-btn, .ps-table-action-btn),
+    :is(.sc-table-action-btn, .ps-table-action-btn)::after,
+    :is(.sc-table-action-btn, .ps-table-action-btn) svg,
+    :is(.sc-modal-close-btn, .ps-modal-close-btn, .ps-page-message-close) svg,
+    :is(
+        .sc-add-btn, .ps-add-btn, .sc-modal-cancel-btn, .ps-modal-cancel-btn,
+        .f-btn-ghost, .pf-btn-ghost, .s-ghost-btn, .ac-btn-reset, .ac-btn-cancel, .r-export-btn,
+        .sc-add-btn-primary, .ps-add-btn-primary, .f-btn-primary, .s-primary-btn,
+        .st-create-account-button, .ps-modal-save-btn, .sc-modal-save-btn,
+        .ac-btn-compute, .pf-btn-primary, .lg-submit,
+        .sc-confirm-danger-btn, .ps-confirm-delete-btn, .s-sys-danger-btn,
+        .ps-delete-selected-btn, .sc-delete-selected-btn
+    ) {
+        transition: none !important;
+    }
+    :is(.sc-table-action-btn, .ps-table-action-btn):hover svg,
+    :is(.sc-modal-close-btn, .ps-modal-close-btn, .ps-page-message-close):hover svg {
+        transform: none !important;
+    }
+}
