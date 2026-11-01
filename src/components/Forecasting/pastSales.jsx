@@ -18,6 +18,9 @@ import CustomSelect from './CustomSelect';
 
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const MAX_IMPORT_ROWS = 60000;
+const MAX_SALES_UNITS = 4294967295;
+
+const formatUnits = (value) => Number(value).toLocaleString(undefined, { maximumFractionDigits: 11 });
 
 async function requestJson(url, options = {}) {
   const response = await apiFetch(url, {
@@ -204,7 +207,7 @@ function ImportCard({ products, onImported }) {
             <div><span>Rows read</span><strong>{preview.summary.rowsRead.toLocaleString()}</strong></div>
             <div className="is-good"><span>Months ready</span><strong>{preview.summary.readyMonths.toLocaleString()}</strong></div>
             <div><span>Products</span><strong>{preview.summary.products.toLocaleString()}</strong></div>
-            <div><span>Units</span><strong>{preview.summary.totalUnits.toLocaleString()}</strong></div>
+            <div><span>Units</span><strong>{formatUnits(preview.summary.totalUnits)}</strong></div>
             <div className={preview.summary.skipped ? 'is-warn' : ''}><span>Skipped</span><strong>{preview.summary.skipped.toLocaleString()}</strong></div>
             <div className={preview.summary.errors ? 'is-bad' : ''}><span>Errors</span><strong>{preview.summary.errors.toLocaleString()}</strong></div>
           </div>
@@ -256,7 +259,7 @@ function ImportCard({ products, onImported }) {
                         <td>{row.product} <small className="ps-muted">{row.productId}</small></td>
                         <td>{monthLabel(row.month)}</td>
                         <td className="fx-num">
-                          {row.unitsSold.toLocaleString()}
+                          {formatUnits(row.unitsSold)}
                           {row.rows > 1 && <small className="ps-muted"> ({row.rows} rows added)</small>}
                         </td>
                       </tr>
@@ -372,9 +375,9 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
       if (locked || !(key in drafts)) continue;
       const text = String(drafts[key]).trim();
       if (text === String(saved[key] ?? '')) continue;
-      const units = text === '' ? null : Number(text);
-      if (units !== null && (!Number.isInteger(units) || units < 0)) {
-        setError(`${title}: enter a whole number of 0 or more, or leave it blank.`);
+      const units = text === '' ? null : text;
+      if (units !== null && (!/^\d+(?:\.\d{1,11})?$/.test(units) || Number(units) > MAX_SALES_UNITS)) {
+        setError(`${title}: enter a quantity from 0 to ${MAX_SALES_UNITS.toLocaleString()} with up to 11 decimal places, or leave it blank.`);
         return;
       }
       records.push(isWeekly ? { week: key, unitsSold: units } : { month: key, unitsSold: units });
@@ -494,8 +497,8 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
                   <input
                     type="number"
                     min="0"
-                    step="1"
-                    inputMode="numeric"
+                    step="any"
+                    inputMode="decimal"
                     placeholder={auto ? String(weeks.unitsSold) : '—'}
                     value={valueFor(key)}
                     onChange={(e) => setDrafts((current) => ({ ...current, [key]: e.target.value }))}
@@ -510,7 +513,7 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
                       : `${weeks.weeksEntered} of the ${weeks.weeksNeeded} weeks of ${title} have weekly entries — enter all of them to use the weekly total.`}
                   >
                     {auto ? `Weekly total used`
-                      : mismatch ? `⚠ Weeks total ${weeks.unitsSold.toLocaleString()}`
+                      : mismatch ? `⚠ Weeks total ${formatUnits(weeks.unitsSold)}`
                       : weeks.complete ? 'Matches weeks ✓'
                       : `Weeks: ${weeks.weeksEntered} of ${weeks.weeksNeeded} entered`}
                   </small>

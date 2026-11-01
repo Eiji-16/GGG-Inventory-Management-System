@@ -21,6 +21,7 @@ import {
   DEFAULT_CRITICAL_POINT,
 } from '../../data/safetyStock';
 import { CURRENCIES, useCurrency } from '../../CurrencyContext';
+import CustomSelect from '../Forecasting/CustomSelect';
 import RoleAccess from './roleAccess';
 import SystemData from './systemData';
 
@@ -34,6 +35,24 @@ const THEMES = [
   { value: 'ember', label: 'Ember' },
 ];
 const LIGHT_THEMES = ['soft-white', 'lavender', 'citrus', 'olive'];
+const MAX_POLICY_COUNT = 1_000_000;
+
+const validatePolicyValue = (field, value) => {
+  if (value === '' || value == null) return '';
+
+  const number = Number(value);
+  if (!Number.isFinite(number) || !Number.isInteger(number)) return 'Enter a whole number.';
+  if (number < 0) return 'Enter zero or a positive number.';
+  if (field === 'leadTimeDays' && number > 365) return 'Lead time cannot exceed 365 days.';
+  if (number > MAX_POLICY_COUNT) return `Value cannot exceed ${MAX_POLICY_COUNT.toLocaleString()}.`;
+  return '';
+};
+
+const validateRequiredPolicyValue = (field, value) => (
+  (value === '' || value == null) && field !== 'leadTimeDays'
+    ? 'This value is required.'
+    : validatePolicyValue(field, value)
+);
 
 function Settings({
   theme,
@@ -62,6 +81,7 @@ function Settings({
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [policyInputErrors, setPolicyInputErrors] = useState({});
   const [currencySaving, setCurrencySaving] = useState(false);
   const [currencyError, setCurrencyError] = useState('');
   const [currencySaved, setCurrencySaved] = useState(false);
@@ -81,6 +101,7 @@ function Settings({
 
   useEffect(() => {
     setDraft(safetyStock);
+    setPolicyInputErrors({});
   }, [safetyStock]);
 
   const rows = useMemo(
@@ -124,6 +145,14 @@ function Settings({
   const setStatusMode = (row, mode) => {
     setSaved(false);
     setSaveError('');
+    if (mode === 'auto') {
+      setPolicyInputErrors((current) => {
+        const next = { ...current };
+        delete next[`${row.productId}:lowPoint`];
+        delete next[`${row.productId}:criticalPoint`];
+        return next;
+      });
+    }
     const preview = previewFor(row);
     setDraft((prev) => ({
       ...prev,
@@ -145,6 +174,16 @@ function Settings({
   };
 
   const editRow = (productId, field, value) => {
+    const error = validatePolicyValue(field, value);
+    const errorKey = `${productId}:${field}`;
+    setPolicyInputErrors((current) => {
+      if (error) return { ...current, [errorKey]: error };
+      const next = { ...current };
+      delete next[errorKey];
+      return next;
+    });
+    if (error) return;
+
     setSaved(false);
     setSaveError('');
     setDraft((prev) => ({
@@ -156,6 +195,9 @@ function Settings({
   const resetRow = (productId) => {
     setSaved(false);
     setSaveError('');
+    setPolicyInputErrors((current) => Object.fromEntries(
+      Object.entries(current).filter(([key]) => !key.startsWith(`${productId}:`))
+    ));
     setDraft((prev) => ({
       ...prev,
       [productId]: {
@@ -171,9 +213,25 @@ function Settings({
 
   const applyChanges = async () => {
     if (!onUpdateSafetyStock) return;
-    const invalid = rows.find((row) => manualError(row));
+    const invalid = rows.find((row) => {
+      const fields = ['safetyStock', 'leadTimeDays'];
+      if (row.statusMode === 'manual') fields.push('lowPoint', 'criticalPoint');
+      return fields.some((field) => validateRequiredPolicyValue(field, row[field])) || manualError(row);
+    });
+    if (Object.keys(policyInputErrors).length > 0) {
+      setSaveError('Correct the highlighted policy values before applying changes.');
+      return;
+    }
     if (invalid) {
-      setSaveError(`${invalid.productName}: ${manualError(invalid)}`);
+      const fields = ['safetyStock', 'leadTimeDays', ...(invalid.statusMode === 'manual' ? ['lowPoint', 'criticalPoint'] : [])];
+      const fieldErrors = fields.reduce((errors, field) => {
+        const error = validateRequiredPolicyValue(field, invalid[field]);
+        if (error) errors[`${invalid.productId}:${field}`] = error;
+        return errors;
+      }, {});
+      setPolicyInputErrors((current) => ({ ...current, ...fieldErrors }));
+      const invalidField = fields.find((field) => validateRequiredPolicyValue(field, invalid[field]));
+      setSaveError(`${invalid.productName}: ${invalidField ? validateRequiredPolicyValue(invalidField, invalid[invalidField]) : manualError(invalid)}`);
       return;
     }
     setSaving(true);
@@ -188,12 +246,12 @@ function Settings({
     }
   };
 
-  const handleCurrencyChange = async (event) => {
+  const handleCurrencyChange = async (nextCurrency) => {
     setCurrencySaving(true);
     setCurrencyError('');
     setCurrencySaved(false);
     try {
-      await updateCurrency(event.target.value);
+      await updateCurrency(nextCurrency);
       setCurrencySaved(true);
     } catch (error) {
       setCurrencyError(error.message || 'Could not save the currency preference.');
@@ -206,6 +264,7 @@ function Settings({
     setDraft(safetyStock);
     setSaved(false);
     setSaveError('');
+    setPolicyInputErrors({});
   };
 
   const restoreThemePreview = () => {
@@ -252,8 +311,7 @@ function Settings({
     ].some((field) => String(field || '').toLowerCase().includes(policyQueryText)))
     : rows;
 
-  /* Super Admin: Preferences on the left, Safety Stock Policy on the right
-     (its list scrolls on its own). Everyone else: one column. */
+  /* Super Admin-only controls share the right column; preferences stay left. */
   return (
     <div className={`s-container${isSuperAdmin ? ' s-container-split' : ''}`}>
       <div className="s-col">
@@ -323,17 +381,15 @@ function Settings({
             {currencySaved && <span className="s-pref-status" role="status"><Check size={11} /> Saved for the whole system</span>}
             {currencyError && <span className="s-pref-error" role="alert">{currencyError}</span>}
           </div>
-          <select
+          <CustomSelect
             id="s-currency"
-            className="s-select"
+            className="s-currency-select"
             value={currency}
             onChange={handleCurrencyChange}
             disabled={currencySaving || !canChangeCurrency}
-          >
-            {CURRENCIES.map((option) => (
-              <option key={option.code} value={option.code}>{option.label}</option>
-            ))}
-          </select>
+            ariaLabel="System currency"
+            options={CURRENCIES.map((option) => ({ value: option.code, label: option.label }))}
+          />
         </div>
 
         {/* Font size: three presets, saved in this browser (src/fontSize.js). */}
@@ -379,17 +435,17 @@ function Settings({
           </button>
         </div>
       </section>
-
-      {/* ===== ROLE ACCESS (Super Admin only) ===== */}
-      {isSuperAdmin && <RoleAccess />}
-
-      {/* ===== DATA & SYSTEM: backup, import, reset (Super Admin only) ===== */}
-      {isSuperAdmin && <SystemData />}
       </div>
 
-      {/* ===== SAFETY STOCK POLICY ===== */}
-      {/* Only the Super Admin sees this section (Admin and Staff don't). */}
       {isSuperAdmin && (
+      <div className="s-admin-col">
+      {/* ===== ROLE ACCESS (Super Admin only) ===== */}
+      <RoleAccess />
+
+      {/* ===== DATA & SYSTEM: backup, import, reset (Super Admin only) ===== */}
+      <SystemData />
+
+      {/* ===== SAFETY STOCK POLICY ===== */}
       <section className={`s-card s-policy${advancedOpen ? ' is-open' : ''}${isSuperAdmin ? '' : ' is-locked'}`} aria-labelledby="s-policy-title">
         <header className="s-card-head">
           <div className="s-card-head-main">
@@ -408,21 +464,18 @@ function Settings({
               </span>
             </div>
           </div>
-          {isSuperAdmin && (
-            <button
-              type="button"
-              className="s-icon-btn s-collapse-btn"
-              onClick={() => setAdvancedOpen((open) => !open)}
-              aria-expanded={advancedOpen}
-              aria-controls="s-policy-body"
-              title={advancedOpen ? 'Collapse' : 'Expand'}
-            >
-              <ChevronDown size={16} className="s-chevron" />
-            </button>
-          )}
+          <button
+            type="button"
+            className="s-ghost-btn s-roles-toggle"
+            onClick={() => setAdvancedOpen((open) => !open)}
+            aria-expanded={advancedOpen}
+            aria-controls="s-policy-body"
+          >
+            {advancedOpen ? 'Hide' : 'Manage'} <ChevronDown size={13} className={advancedOpen ? 's-roles-chevron is-open' : 's-roles-chevron'} />
+          </button>
         </header>
 
-        {isSuperAdmin && advancedOpen && (
+        {advancedOpen && (
           <div className="s-policy-body" id="s-policy-body">
             {/* Toolbar: search + legend */}
             <div className="s-policy-toolbar">
@@ -464,6 +517,7 @@ function Settings({
 
               {visibleRows.map((row) => {
                 const preview = previewFor(row);
+                const inputError = (field) => policyInputErrors[`${row.productId}:${field}`];
                 return (
                   <div className="s-policy-row" key={row.productId} role="row">
                     <span className="s-policy-product" title={[row.productName, row.brand, row.model].filter(Boolean).join(' · ')}>
@@ -471,24 +525,38 @@ function Settings({
                       <small>{[row.brand, row.model, row.supplierName || 'No supplier'].filter(Boolean).join(' · ')}</small>
                     </span>
 
-                    <input
-                      type="number"
-                      min="0"
-                      value={row.safetyStock ?? ''}
-                      onChange={(e) => editRow(row.productId, 'safetyStock', e.target.value)}
-                      aria-label={`Safety stock for ${row.productName}`}
-                    />
+                    <div className="s-policy-input-wrap">
+                      <input
+                        type="number"
+                        min="0"
+                        max={MAX_POLICY_COUNT}
+                        step="1"
+                        value={row.safetyStock ?? ''}
+                        onChange={(e) => editRow(row.productId, 'safetyStock', e.target.value)}
+                        aria-label={`Safety stock for ${row.productName}`}
+                        aria-invalid={Boolean(inputError('safetyStock'))}
+                        aria-describedby={inputError('safetyStock') ? `s-policy-error-${row.productId}-safetyStock` : undefined}
+                        title={inputError('safetyStock')}
+                      />
+                      {inputError('safetyStock') && <small id={`s-policy-error-${row.productId}-safetyStock`} className="s-policy-input-error">{inputError('safetyStock')}</small>}
+                    </div>
 
-                    <input
-                      type="number"
-                      min="0"
-                      max="365"
-                      value={row.leadTimeDays ?? ''}
-                      onChange={(e) => editRow(row.productId, 'leadTimeDays', e.target.value)}
-                      aria-label={`Lead time override in days for ${row.productName}`}
-                      placeholder={row.supplierLeadTimeDays != null ? `${row.supplierLeadTimeDays} (supplier)` : 'not set'}
-                      title={row.supplierName ? `Supplier: ${row.supplierName}` : 'No supplier linked'}
-                    />
+                    <div className="s-policy-input-wrap">
+                      <input
+                        type="number"
+                        min="0"
+                        max="365"
+                        step="1"
+                        value={row.leadTimeDays ?? ''}
+                        onChange={(e) => editRow(row.productId, 'leadTimeDays', e.target.value)}
+                        aria-label={`Lead time override in days for ${row.productName}`}
+                        aria-invalid={Boolean(inputError('leadTimeDays'))}
+                        aria-describedby={inputError('leadTimeDays') ? `s-policy-error-${row.productId}-leadTimeDays` : undefined}
+                        placeholder={row.supplierLeadTimeDays != null ? `${row.supplierLeadTimeDays} (supplier)` : 'not set'}
+                        title={inputError('leadTimeDays') || (row.supplierName ? `Supplier: ${row.supplierName}` : 'No supplier linked')}
+                      />
+                      {inputError('leadTimeDays') && <small id={`s-policy-error-${row.productId}-leadTimeDays`} className="s-policy-input-error">{inputError('leadTimeDays')}</small>}
+                    </div>
 
                     <span className="s-policy-point" title={preview.detail}>
                       <strong>{preview.point}</strong>
@@ -515,11 +583,35 @@ function Settings({
                           <div className="s-manual-points">
                             <label>
                               <span className="s-band is-low">Low at</span>
-                              <input type="number" min="0" value={row.lowPoint ?? ''} onChange={(e) => editRow(row.productId, 'lowPoint', e.target.value)} aria-label={`Low point for ${row.productName}`} />
+                              <input
+                                type="number"
+                                min="0"
+                                max={MAX_POLICY_COUNT}
+                                step="1"
+                                value={row.lowPoint ?? ''}
+                                onChange={(e) => editRow(row.productId, 'lowPoint', e.target.value)}
+                                aria-label={`Low point for ${row.productName}`}
+                                aria-invalid={Boolean(inputError('lowPoint'))}
+                                aria-describedby={inputError('lowPoint') ? `s-policy-error-${row.productId}-lowPoint` : undefined}
+                                title={inputError('lowPoint')}
+                              />
+                              {inputError('lowPoint') && <small id={`s-policy-error-${row.productId}-lowPoint`} className="s-policy-input-error">{inputError('lowPoint')}</small>}
                             </label>
                             <label>
                               <span className="s-band is-critical">Critical at</span>
-                              <input type="number" min="0" value={row.criticalPoint ?? ''} onChange={(e) => editRow(row.productId, 'criticalPoint', e.target.value)} aria-label={`Critical point for ${row.productName}`} />
+                              <input
+                                type="number"
+                                min="0"
+                                max={MAX_POLICY_COUNT}
+                                step="1"
+                                value={row.criticalPoint ?? ''}
+                                onChange={(e) => editRow(row.productId, 'criticalPoint', e.target.value)}
+                                aria-label={`Critical point for ${row.productName}`}
+                                aria-invalid={Boolean(inputError('criticalPoint'))}
+                                aria-describedby={inputError('criticalPoint') ? `s-policy-error-${row.productId}-criticalPoint` : undefined}
+                                title={inputError('criticalPoint')}
+                              />
+                              {inputError('criticalPoint') && <small id={`s-policy-error-${row.productId}-criticalPoint`} className="s-policy-input-error">{inputError('criticalPoint')}</small>}
                             </label>
                           </div>
                           {manualError(row)
@@ -579,6 +671,7 @@ function Settings({
           </div>
         )}
       </section>
+      </div>
       )}
     </div>
   );

@@ -85,7 +85,7 @@ class ProductController extends Controller
             'supplierName'    => ['nullable', 'string', 'max:255'],
             'supplierContact' => ['nullable', 'string', 'max:255'],
             'unitCost'        => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
-            'stock'           => ['nullable', 'integer', 'min:0'],   // ← ADDED
+            'stock'           => ['nullable', 'integer', 'min:0', 'max:2147483647'],   // ← ADDED
             'variants'        => ['nullable', 'array', 'max:50'],
             'variants.*'      => ['nullable', 'string', 'max:100'],
         ]);
@@ -139,7 +139,7 @@ class ProductController extends Controller
             'supplierName'    => ['nullable', 'string', 'max:255'],
             'supplierContact' => ['nullable', 'string', 'max:255'],
             'unitCost'        => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:9999999999.99'],
-            'stock'           => ['sometimes', 'integer', 'min:0'],   // opening balance
+            'stock'           => ['sometimes', 'integer', 'min:0', 'max:2147483647'],   // opening balance
             'variants'        => ['sometimes', 'nullable', 'array', 'max:50'],
             'variants.*'      => ['nullable', 'string', 'max:100'],
         ]);

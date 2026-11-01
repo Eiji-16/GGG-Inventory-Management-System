@@ -10,6 +10,7 @@ import '../StockControl/stockControl.css';
 import './trashBin.css';
 import apiFetch from '../../apiFetch';
 import { useCurrency } from '../../CurrencyContext';
+import CustomSelect from '../Forecasting/CustomSelect';
 
 /* ===== TRASH BIN =====
    Deleted products, stock entries, suppliers and seasonal events land here
@@ -289,13 +290,20 @@ function TrashBin({
           <Search size={13} className="sc-search-icon" />
           <input type="search" placeholder="Search the Trash Bin…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search the Trash Bin" />
         </div>
-        <label className="tb-filter">
+        <div className="tb-filter">
           <span>Deleted by</span>
-          <select value={deletedBy} onChange={(e) => setDeletedBy(e.target.value)}>
-            <option value="">Anyone</option>
-            {deleters.map((name) => <option key={name} value={name}>{name}</option>)}
-          </select>
-        </label>
+          <CustomSelect
+            id="tb-deleted-by"
+            className="tb-deleted-by-select"
+            value={deletedBy}
+            onChange={setDeletedBy}
+            ariaLabel="Filter by deleted by"
+            options={[
+              { value: '', label: 'Anyone' },
+              ...deleters.map((name) => ({ value: name, label: name })),
+            ]}
+          />
+        </div>
         {canPurge && (
           <button
             type="button"

@@ -660,9 +660,7 @@
 .r-overall-fs .r-overall-chart {
     min-height: 0;
     overflow: auto;
-    scrollbar-width: none;
 }
-.r-overall-fs .r-overall-chart::-webkit-scrollbar { display: none; }
 .r-overall-chart { padding: 0.75rem 0.95rem; }
 .r-overall-chart .r-chart-card-head { margin-bottom: 0.45rem; }
 .r-overall .r-fs-list { gap: 6px; }
@@ -899,9 +897,7 @@
 .r-bento-fast > *,
 .r-bento-reorder > * { flex: 1 1 auto; min-height: 0; }
 .r-bento-fast .r-overall-chart,
-.r-bento-reorder .r-overall-chart { overflow: auto; scrollbar-width: none; }
-.r-bento-fast .r-overall-chart::-webkit-scrollbar,
-.r-bento-reorder .r-overall-chart::-webkit-scrollbar { display: none; }
+.r-bento-reorder .r-overall-chart { overflow: auto; }
 
 /* Big chart grows with its spot. */
 .r-bento-movement .r-overall-chart { display: flex; flex-direction: column; }

@@ -25,7 +25,7 @@ class PastSale extends Model
     ];
 
     protected $casts = [
-        'units_sold' => 'integer',
+        'units_sold' => 'decimal:11',
     ];
 
     /** Always stored as a plain date so lookups match on every database. */

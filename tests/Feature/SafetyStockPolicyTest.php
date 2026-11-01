@@ -182,4 +182,31 @@ class SafetyStockPolicyTest extends TestCase
         $this->putJson("/api/products/{$product['id']}/eoq-costs", ['orderingCost' => 0, 'holdingCost' => 10])
             ->assertUnprocessable();
     }
+
+    public function test_safety_stock_and_manual_status_points_match_the_policy_count_limit(): void
+    {
+        $product = $this->postJson('/api/products', ['name' => 'Bounded Policy Product'])->assertCreated()->json();
+        $maxSafetyStock = 1000000;
+
+        $this->putJson('/api/safety-stock', [
+            'policies' => [['productId' => $product['id'], 'safetyStock' => $maxSafetyStock]],
+        ])->assertOk();
+
+        $this->putJson('/api/safety-stock', [
+            'policies' => [['productId' => $product['id'], 'safetyStock' => $maxSafetyStock + 1]],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['policies.0.safetyStock']);
+
+        $this->putJson('/api/safety-stock', [
+            'policies' => [[
+                'productId' => $product['id'],
+                'safetyStock' => 0,
+                'statusMode' => 'manual',
+                'lowPoint' => $maxSafetyStock + 1,
+                'criticalPoint' => $maxSafetyStock + 1,
+            ]],
+        ])->assertUnprocessable()->assertJsonValidationErrors([
+            'policies.0.lowPoint',
+            'policies.0.criticalPoint',
+        ]);
+    }
 }

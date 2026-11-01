@@ -137,7 +137,10 @@ export default function RoleAccess() {
         <div className="s-card-head-main">
           <span className="s-pref-icon is-accent" aria-hidden="true"><KeyRound size={15} /></span>
           <div className="s-card-titles">
-            <h2 className="s-card-title" id="s-roles-title">Role Access</h2>
+            <h2 className="s-card-title" id="s-roles-title">
+              Role Access
+              <span className="s-restricted-badge"><KeyRound size={9} /> Super Admin</span>
+            </h2>
             <span className="s-card-sub">Choose what Admin and Staff can use. The Super Admin can always use everything.</span>
           </div>
         </div>

@@ -102,8 +102,37 @@
     border-color: var(--accent, #E8C547);
     box-shadow: var(--polish-ring);
 }
+
+/* Search fields already show focus on their containing control; avoid a
+   second inset focus box on the nested input. */
+:is(.sc-search-box, .ps-search-box, .st-search-box, .ra-search, .s-search) input:focus-visible {
+    outline: none;
+    box-shadow: none;
+}
+
 :where(input, select, textarea)::placeholder {
     opacity: 0.85;
+}
+
+/* Native selects keep their accessible OS option list, but share one clear
+   closed-control treatment across the app instead of browser-specific arrows. */
+select:not([multiple]) {
+    -webkit-appearance: none;
+    appearance: none;
+    padding-right: 2.25rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2394A3B8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+}
+
+select:not([multiple]):hover:not(:disabled) {
+    border-color: var(--border-strong, var(--accent, #E8C547));
+}
+
+select:not([multiple]):focus-visible {
+    outline: none;
+    border-color: var(--accent, #E8C547);
+    box-shadow: var(--polish-ring);
 }
 
 /* ===== 4. DISABLED CONTROLS ===== */

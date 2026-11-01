@@ -158,14 +158,11 @@
 .tb-search { flex: 1 1 200px; max-width: 320px; }
 /* "Deleted by" label sits beside its dropdown so the row stays one line. */
 .tb-filter { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
-.tb-filter select {
-    height: 1.9rem;
-    padding: 0 8px;
-    font: inherit;
+.tb-deleted-by-select { width: 140px; }
+.tb-deleted-by-select .cs-button {
+    min-height: 30px;
+    padding: 5px 8px;
     font-size: 11px;
-    color: var(--text-primary);
-    background: var(--input-bg, var(--static-bg-color));
-    border: 1px solid var(--border-color);
     border-radius: 7px;
 }
 .tb-empty-btn { margin-left: auto; color: var(--accent-low); border-color: color-mix(in srgb, var(--accent-low) 50%, var(--border-strong)); }

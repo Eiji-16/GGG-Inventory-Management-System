@@ -29,6 +29,10 @@ class PastSalesController extends Controller
 
     private const WEEK_PATTERN = '/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/';
 
+    private const MAX_UNITS = '4294967295';
+
+    private const UNITS_SCALE = 11;
+
     public function __construct(private readonly SalesForecastService $forecasts) {}
 
     /** GET /api/past-sales?product={code}&periodType=month|week (month by default) */
@@ -48,7 +52,7 @@ class PastSalesController extends Controller
                 ->get()
                 ->map(fn (PastSale $sale) => [
                     'week'      => $sale->period_date->toDateString(),
-                    'unitsSold' => $sale->units_sold,
+                    'unitsSold' => (float) $sale->units_sold,
                     'source'    => $sale->source,
                     'used'      => $sale->period_date->lt($cutoff),
                 ]);
@@ -71,7 +75,7 @@ class PastSalesController extends Controller
             ->get()
             ->map(fn (PastSale $sale) => [
                 'month'     => $sale->period_date->format('Y-m'),
-                'unitsSold' => $sale->units_sold,
+                'unitsSold' => (float) $sale->units_sold,
                 'source'    => $sale->source,
                 'used'      => $sale->period_date->lt($cutoff),
             ]);
@@ -84,7 +88,7 @@ class PastSalesController extends Controller
             ->where('period_type', 'week')
             ->get(['period_date', 'units_sold'])
             ->filter(fn (PastSale $sale) => $sale->period_date->toDateString() < $weekCutoff)
-            ->mapWithKeys(fn (PastSale $sale) => [$sale->period_date->toDateString() => $sale->units_sold])
+            ->mapWithKeys(fn (PastSale $sale) => [$sale->period_date->toDateString() => (float) $sale->units_sold])
             ->all();
         $typedMonths = $rows->pluck('month')->all();
         $fromWeeks = collect($this->forecasts->monthsFromWeeks($weeks))
@@ -124,7 +128,7 @@ class PastSalesController extends Controller
             'productId'           => ['required', 'string', Rule::exists('products', 'code')->whereNull('deleted_at')],
             'records'             => ['required', 'array', 'max:120'],
             'records.*.month'     => ['required', 'string', 'distinct', 'regex:'.self::MONTH_PATTERN],
-            'records.*.unitsSold' => ['nullable', 'integer', 'min:0', 'max:100000000'],
+            'records.*.unitsSold' => ['nullable', 'numeric', 'decimal:0,'.self::UNITS_SCALE, 'min:0', 'max:'.self::MAX_UNITS],
         ]);
 
         $product = Product::where('code', $data['productId'])->firstOrFail();
@@ -175,7 +179,7 @@ class PastSalesController extends Controller
             'periodType'          => ['required', Rule::in(['week'])],
             'records'             => ['required', 'array', 'max:260'],
             'records.*.week'      => ['required', 'string', 'distinct', 'regex:'.self::WEEK_PATTERN],
-            'records.*.unitsSold' => ['nullable', 'integer', 'min:0', 'max:100000000'],
+            'records.*.unitsSold' => ['nullable', 'numeric', 'decimal:0,'.self::UNITS_SCALE, 'min:0', 'max:'.self::MAX_UNITS],
         ]);
 
         $product = Product::where('code', $data['productId'])->firstOrFail();
@@ -235,13 +239,8 @@ class PastSalesController extends Controller
     public function import(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'rows'               => ['required', 'array', 'min:1', 'max:60000'],
-            'rows.*.row'         => ['nullable', 'integer'],
-            'rows.*.productId'   => ['nullable', 'string', 'max:255'],
-            'rows.*.productName' => ['nullable', 'string', 'max:255'],
-            'rows.*.month'       => ['nullable', 'string', 'max:20'],
-            'rows.*.unitsSold'   => ['nullable'],
-            'commit'             => ['sometimes', 'boolean'],
+            'rows'   => ['required', 'array', 'min:1', 'max:60000'],
+            'commit' => ['sometimes', 'boolean'],
         ]);
 
         $products = Product::query()->get(['id', 'code', 'name']);
@@ -266,6 +265,11 @@ class PastSalesController extends Controller
         };
 
         foreach ($data['rows'] as $row) {
+            if (! is_array($row)) {
+                $issue([], 'error', 'Row must be an object.');
+                continue;
+            }
+
             $code = mb_strtolower(trim((string) ($row['productId'] ?? '')));
             $name = mb_strtolower(trim((string) ($row['productName'] ?? '')));
             $product = $code !== '' ? $byCode->get($code) : null;
@@ -292,8 +296,9 @@ class PastSalesController extends Controller
             if ($units === null || $units === '') {
                 continue; // blank cell — nothing sold recorded, skip quietly
             }
-            if (! is_numeric($units) || (float) $units < 0 || floor((float) $units) != (float) $units) {
-                $issue($row, 'error', 'Units sold must be a whole number of 0 or more.');
+            $units = $this->normalizeUnits($units);
+            if ($units === null) {
+                $issue($row, 'error', 'Units sold must be from 0 to 4,294,967,295 with no more than 11 decimal places.');
                 continue;
             }
 
@@ -309,8 +314,14 @@ class PastSalesController extends Controller
             }
 
             $key = $product->id.'|'.$month;
-            $ready[$key] ??= ['productId' => $product->id, 'code' => $product->code, 'name' => $product->name, 'month' => $month, 'unitsSold' => 0, 'rows' => 0];
-            $ready[$key]['unitsSold'] += (int) $units;
+            $ready[$key] ??= ['productId' => $product->id, 'code' => $product->code, 'name' => $product->name, 'month' => $month, 'unitsSold' => '0', 'rows' => 0];
+            $totalUnits = $this->addUnits($ready[$key]['unitsSold'], $units);
+            if ($totalUnits === null) {
+                $issue($row, 'error', 'Combined units sold exceed the database limit.');
+                continue;
+            }
+
+            $ready[$key]['unitsSold'] = $totalUnits;
             $ready[$key]['rows']++;
         }
 
@@ -349,7 +360,7 @@ class PastSalesController extends Controller
                 'rowsRead'     => count($data['rows']),
                 'readyMonths'  => count($readyList),
                 'products'     => count(array_unique(array_column($readyList, 'productId'))),
-                'totalUnits'   => array_sum(array_column($readyList, 'unitsSold')),
+                'totalUnits'   => array_sum(array_map('floatval', array_column($readyList, 'unitsSold'))),
                 'errors'       => $errors,
                 'skipped'      => count($issues) - $errors,
             ],
@@ -357,10 +368,103 @@ class PastSalesController extends Controller
                 'productId' => $r['code'],
                 'product'   => $r['name'],
                 'month'     => $r['month'],
-                'unitsSold' => $r['unitsSold'],
+                'unitsSold' => (float) $r['unitsSold'],
                 'rows'      => $r['rows'],
             ], array_slice($readyList, 0, 300)),
             'issues'    => array_slice($issues, 0, 500),
         ]);
+    }
+
+    private function normalizeUnits(mixed $units): ?string
+    {
+        if (! is_numeric($units) || ! is_finite((float) $units) || (float) $units < 0) {
+            return null;
+        }
+
+        $value = trim((string) $units);
+        if (str_contains(strtolower($value), 'e')) {
+            $value = $this->expandScientificNotation($value);
+            if ($value === null) {
+                return null;
+            }
+        }
+        if (! preg_match('/^\d+(?:\.\d{1,11})?$/D', $value)) {
+            return null;
+        }
+
+        [$whole, $fraction] = array_pad(explode('.', $value, 2), 2, '');
+        $whole = ltrim($whole, '0') ?: '0';
+        $fraction = rtrim($fraction, '0');
+        $maxWhole = self::MAX_UNITS;
+        if (strlen($whole) > strlen($maxWhole)
+            || (strlen($whole) === strlen($maxWhole) && strcmp($whole, $maxWhole) > 0)
+            || ($whole === $maxWhole && $fraction !== '')) {
+            return null;
+        }
+
+        return $fraction === '' ? $whole : $whole.'.'.$fraction;
+    }
+
+    private function expandScientificNotation(string $value): ?string
+    {
+        if (! preg_match('/^(\d+)(?:\.(\d*))?[eE]([+-]?\d+)$/D', $value, $matches)) {
+            return null;
+        }
+
+        $exponent = (int) $matches[3];
+        if (abs($exponent) > 20) {
+            return null;
+        }
+
+        $digits = $matches[1].($matches[2] ?? '');
+        $decimalPosition = strlen($matches[1]) + $exponent;
+        if ($decimalPosition <= 0) {
+            return '0.'.str_repeat('0', -$decimalPosition).$digits;
+        }
+        if ($decimalPosition >= strlen($digits)) {
+            return $digits.str_repeat('0', $decimalPosition - strlen($digits));
+        }
+
+        return substr($digits, 0, $decimalPosition).'.'.substr($digits, $decimalPosition);
+    }
+
+    private function addUnits(string $left, string $right): ?string
+    {
+        $leftParts = array_pad(explode('.', $left, 2), 2, '');
+        $rightParts = array_pad(explode('.', $right, 2), 2, '');
+        $scale = str_repeat('0', self::UNITS_SCALE);
+        $leftScaled = ltrim($leftParts[0].str_pad($leftParts[1], self::UNITS_SCALE, '0'), '0') ?: '0';
+        $rightScaled = ltrim($rightParts[0].str_pad($rightParts[1], self::UNITS_SCALE, '0'), '0') ?: '0';
+        $sum = $this->addUnsignedIntegers($leftScaled, $rightScaled);
+        $maxScaled = self::MAX_UNITS.$scale;
+
+        if (strlen($sum) > strlen($maxScaled)
+            || (strlen($sum) === strlen($maxScaled) && strcmp($sum, $maxScaled) > 0)) {
+            return null;
+        }
+
+        $sum = str_pad($sum, self::UNITS_SCALE + 1, '0', STR_PAD_LEFT);
+        $whole = substr($sum, 0, -self::UNITS_SCALE);
+        $fraction = rtrim(substr($sum, -self::UNITS_SCALE), '0');
+
+        return $fraction === '' ? ($whole ?: '0') : ($whole ?: '0').'.'.$fraction;
+    }
+
+    private function addUnsignedIntegers(string $left, string $right): string
+    {
+        $leftIndex = strlen($left) - 1;
+        $rightIndex = strlen($right) - 1;
+        $carry = 0;
+        $sum = '';
+
+        while ($leftIndex >= 0 || $rightIndex >= 0 || $carry > 0) {
+            $digit = $carry
+                + ($leftIndex >= 0 ? (int) $left[$leftIndex--] : 0)
+                + ($rightIndex >= 0 ? (int) $right[$rightIndex--] : 0);
+            $sum = (string) ($digit % 10).$sum;
+            $carry = intdiv($digit, 10);
+        }
+
+        return ltrim($sum, '0') ?: '0';
     }
 }

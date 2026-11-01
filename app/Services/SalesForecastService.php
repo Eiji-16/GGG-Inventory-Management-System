@@ -66,7 +66,7 @@ class SalesForecastService
                 ->whereIn('product_id', $chunk)
                 ->get(['product_id', 'period_type', 'period_date', 'units_sold'])
                 ->each(function (PastSale $row) use (&$data): void {
-                    $data['past'][$row->product_id][] = [Carbon::parse($row->period_date)->toDateString(), (int) $row->units_sold, $row->period_type ?: 'month'];
+                    $data['past'][$row->product_id][] = [Carbon::parse($row->period_date)->toDateString(), (float) $row->units_sold, $row->period_type ?: 'month'];
                 });
             StockMovement::query()
                 ->whereIn('product_id', $chunk)
@@ -186,7 +186,7 @@ class SalesForecastService
         return PastSale::query()
             ->where('product_id', $product->id)
             ->get(['period_type', 'period_date', 'units_sold'])
-            ->map(fn (PastSale $row) => [Carbon::parse($row->period_date)->toDateString(), (int) $row->units_sold, $row->period_type ?: 'month'])
+            ->map(fn (PastSale $row) => [Carbon::parse($row->period_date)->toDateString(), (float) $row->units_sold, $row->period_type ?: 'month'])
             ->all();
     }
 
@@ -202,7 +202,7 @@ class SalesForecastService
      * weeklyPastSalesCutoff(), so nothing overlaps Stock Control sales.
      *
      * @param  array<int, array{0: string, 1: int, 2: string}>|null  $rows  [date, units, type]; null = read them
-     * @return array<string, array{unitsSold: int, fromWeeks: bool}>  keyed by 'YYYY-MM-01', oldest first
+     * @return array<string, array{unitsSold: int|float, fromWeeks: bool}>  keyed by 'YYYY-MM-01', oldest first
      */
     public function pastMonthlyTotals(Product $product, ?array $rows = null): array
     {
@@ -248,8 +248,8 @@ class SalesForecastService
      * A month is "complete" when every Monday-to-Sunday week that touches it
      * has an entry.
      *
-     * @param  array<string, int>  $weeks  Monday date ('YYYY-MM-DD') => units sold that week
-     * @return array<string, array{unitsSold: int, weeksEntered: int, weeksNeeded: int, complete: bool}>  keyed by 'YYYY-MM-01'
+     * @param  array<string, int|float>  $weeks  Monday date ('YYYY-MM-DD') => units sold that week
+     * @return array<string, array{unitsSold: int|float, weeksEntered: int, weeksNeeded: int, complete: bool}>  keyed by 'YYYY-MM-01'
      */
     public function monthsFromWeeks(array $weeks): array
     {
@@ -261,11 +261,13 @@ class SalesForecastService
             $lastMonth = $end->copy()->startOfMonth()->toDateString();
 
             if ($firstMonth === $lastMonth) {
-                $parts = [$firstMonth => (int) $units];
+                $parts = [$firstMonth => $units];
             } else {
                 $daysInFirst = (int) round($start->diffInDays($end->copy()->startOfMonth())); // days before the 1st of the next month
-                $first = (int) round($units * $daysInFirst / 7, 0, PHP_ROUND_HALF_UP);
-                $parts = [$firstMonth => $first, $lastMonth => (int) $units - $first];
+                $first = floor((float) $units) === (float) $units
+                    ? (int) round($units * $daysInFirst / 7, 0, PHP_ROUND_HALF_UP)
+                    : round($units * $daysInFirst / 7, 11, PHP_ROUND_HALF_UP);
+                $parts = [$firstMonth => $first, $lastMonth => $units - $first];
             }
 
             foreach ($parts as $month => $share) {
@@ -307,7 +309,7 @@ class SalesForecastService
      *    cannot be split into weeks — nobody knows which week it sold in).
      * A month is never taken from both, so the same sale is never counted twice.
      *
-     * @return array<int, array{periodDate: string, unitsSold: int, source: string}>
+     * @return array<int, array{periodDate: string, unitsSold: int|float, source: string}>
      */
     public function salesSeries(Product $product, string $periodType = 'month'): array
     {
@@ -317,7 +319,7 @@ class SalesForecastService
         $sources = [];
         $first = null;
         $fromWeeks = [];
-        $add = function (Carbon $date, int $units, string $source, bool $weekly = false) use (&$totals, &$sources, &$first, &$fromWeeks, $periodType): void {
+        $add = function (Carbon $date, int|float $units, string $source, bool $weekly = false) use (&$totals, &$sources, &$first, &$fromWeeks, $periodType): void {
             $start = $this->periodStart($date, $periodType);
             $key = $start->toDateString();
             $totals[$key] = ($totals[$key] ?? 0) + $units;
@@ -381,7 +383,7 @@ class SalesForecastService
             $kinds = array_keys($sources[$key] ?? []);
             $series[] = [
                 'periodDate' => $key,
-                'unitsSold'  => (int) ($totals[$key] ?? 0),
+                'unitsSold'  => $this->outputUnits((float) ($totals[$key] ?? 0)),
                 'source'     => count($kinds) > 1 ? 'mixed' : ($kinds[0] ?? 'none'),
             ] + (isset($fromWeeks[$key]) ? ['fromWeeks' => true] : []);
         }
@@ -426,7 +428,7 @@ class SalesForecastService
 
             $rows[] = [
                 'periodDate'  => $row['periodDate'],
-                'unitsSold'   => (int) $row['unitsSold'],
+                'unitsSold'   => $this->outputUnits((float) $row['unitsSold']),
                 'weight'      => $index >= $count - $weighted ? $index - ($count - $weighted) + 1 : null,
                 'wmaForecast' => $forecast,
                 'variance'    => $forecast === null ? null : round($units[$index] - $forecast, 1),
@@ -444,6 +446,11 @@ class SalesForecastService
                 ? round(array_sum(array_map('abs', $variances)) / count($variances), 1)
                 : null,
         ];
+    }
+
+    private function outputUnits(float $units): int|float
+    {
+        return floor($units) === $units ? (int) $units : $units;
     }
 
     public function confidenceFor(int $dataPoints): string

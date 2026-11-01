@@ -7,6 +7,7 @@ import PastSalesPanel from './pastSales';
 
 const FORECAST_METHOD = 'Weighted Moving Average';
 const FORECAST_METHOD_NOTE = 'Uses the three most recent completed periods with weights 1, 2 and 3; the newest period receives the greatest weight.';
+const formatUnits = (value) => Number(value).toLocaleString(undefined, { maximumFractionDigits: 11 });
 
 async function requestJson(url, options = {}) {
   const response = await apiFetch(url, {
@@ -750,7 +751,7 @@ export default function DemandForecastDesign({
                           ? `${formatHistoryPeriod(row.periodDate, selectedPeriodType)} forecast\n${value.toFixed(1)} units${forecast?.seasonalEnabled ? `\nbase ${Number(forecast.baseForecast).toFixed(1)}, ${formatSigned(effectivePct, 1)}% seasonal` : ''}`
                           : [
                             formatHistoryPeriod(row.periodDate, selectedPeriodType),
-                            `${value.toLocaleString()} sold`,
+                            `${formatUnits(value)} sold`,
                             row.wmaForecast != null ? `forecast ${Number(row.wmaForecast).toFixed(1)}` : null,
                             row.variance != null ? `variance ${formatSigned(row.variance)}` : null,
                             row.weight ? `weight ×${row.weight} in the next forecast` : null,
@@ -758,7 +759,7 @@ export default function DemandForecastDesign({
                           ].filter(Boolean).join('\n');
                         return (
                           <div className={`fx-bar-col${row.isForecast ? ' is-forecast' : ''}${row.weight ? ' is-weighted' : ''}`} key={`${row.periodDate}-${row.isForecast ? 'f' : 'a'}`} data-tip={tip}>
-                            <span className="fx-bar-value">{row.isForecast ? value.toFixed(1) : value.toLocaleString()}</span>
+                            <span className="fx-bar-value">{row.isForecast ? value.toFixed(1) : formatUnits(value)}</span>
                             <div className="fx-bar-track">
                               <div className="fx-bar" style={{ height: `${Math.max(2, (value / chartMax) * 100)}%` }} />
                             </div>
@@ -780,7 +781,7 @@ export default function DemandForecastDesign({
                       <p className="fx-calc-strip">
                         <span className="fx-calc-label">{FORECAST_METHOD}</span>
                         <span>
-                          ({weightedRows.map((row) => `${Number(row.unitsSold).toLocaleString()}×${row.weight}`).join(' + ')}) ÷ {weightTotal} = <strong>{Number(forecast.baseForecast).toFixed(1)}</strong>
+                          ({weightedRows.map((row) => `${formatUnits(row.unitsSold)}×${row.weight}`).join(' + ')}) ÷ {weightTotal} = <strong>{Number(forecast.baseForecast).toFixed(1)}</strong>
                           {forecast.seasonalEnabled ? <> → <strong className="fx-calc-adj">{Number(adjustedDemand).toFixed(1)}</strong> with {formatSigned(effectivePct, 1)}% seasonal</> : null}
                         </span>
                       </p>
@@ -944,7 +945,7 @@ export default function DemandForecastDesign({
                                   </span>
                                 )}
                               </td>
-                              <td className="fx-num">{Number(row.unitsSold).toLocaleString()}</td>
+                              <td className="fx-num">{formatUnits(row.unitsSold)}</td>
                               <td className="fx-num">{row.weight ? <span className="fx-weight">×{row.weight}</span> : '—'}</td>
                               <td className="fx-num">{row.wmaForecast == null ? '—' : Number(row.wmaForecast).toFixed(1)}</td>
                               <td className={`fx-num ${row.variance == null ? '' : row.variance >= 0 ? 'fx-up' : 'fx-down'}`}>

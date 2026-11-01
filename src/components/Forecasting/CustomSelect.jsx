@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import './customSelect.css';
 
 /* ==========================================================================
    CUSTOM SELECT — themed dropdown used instead of the browser's own list

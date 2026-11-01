@@ -22,6 +22,7 @@ import {
   ClipboardList,
   ArrowUpDown,
   Check,
+  RotateCcw,
   ChevronLeft,
   ChevronRight,
   Package } from 'lucide-react';
@@ -617,10 +618,10 @@ function StockControl({
     String(b.row.date).localeCompare(String(a.row.date)) || Number(b.id) - Number(a.id)
   )), [visibleRows]);
 
-  // Rows per page = as many as fit in the table box (phones: 20 cards).
+  // Show at least 11 rows per page (phones: 11 cards); the table box can scroll.
   const PAGE_SIZE = useRowsThatFit(tableBox, {
-    min: 3,
-    fallback: 20,
+    min: 11,
+    fallback: 11,
     deps: [view, stockLoading, tableRows.length > 0, historyRows.length > 0],
   });
   const pageCount = Math.max(1, Math.ceil(tableRows.length / PAGE_SIZE));
@@ -1375,6 +1376,10 @@ function StockControl({
       return updated;
     });
   };
+  const resetQty = (rowId) => {
+    clearTyped(rowId);
+    clearPending(rowId);
+  };
 
   const lastPriceFor = (productId, type) => {
     let latest = null;
@@ -1671,8 +1676,8 @@ function StockControl({
         onToggleAll={toggleSelectAll}
         onClear={() => setSelectedIds(new Set())}
       />
-      <div className="sc-table-scroll" ref={tableBoxRef}>
-        <table className="sc-table m-folders">
+      <div className="sc-table-scroll sc-stock-table-scroll" ref={tableBoxRef}>
+        <table className="sc-table sc-stock-table m-folders">
           <thead>
             <tr>
               <th className="sc-th-check">
@@ -1768,6 +1773,16 @@ function StockControl({
                         <span className={`sc-qty-control sc-qty-typed${hasChange ? ' has-pending' : ''}`}>
                           <button
                             type="button"
+                            className="sc-qty-btn sc-qty-reset"
+                            onClick={() => resetQty(id)}
+                            disabled={busy || !hasChange}
+                            aria-label={`Restore saved quantity for ${stock.productName}`}
+                            title={`Discard this row's unsaved edits and restore the saved on-hand count (${variantStock})`}
+                          >
+                            <RotateCcw size={12} aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
                             className="sc-qty-btn sc-qty-minus"
                             onClick={() => stepPending(stock, -1)}
                             disabled={busy || !(shown > 0)}
@@ -1842,7 +1857,7 @@ function StockControl({
                     ) : '—'}
                   </td>
                   <td className="sc-td-left sc-td-muted" data-label="Notes" title={stock.notes}><span className="sc-notes-text">{stock.notes || '—'}</span></td>
-                  <td className="sc-td-nowrap" data-label="Recorded by">{stock.recordedBy || '—'}</td>
+                  <td className="sc-td-nowrap" data-label="Recorded by" title={stock.recordedBy || ''}>{stock.recordedBy || '—'}</td>
                   <td className="sc-td-actions" data-label="Actions">
                     <div className="sc-action-cell-container">
                       {/* Economic Order Quantity Calculator: follows the calculator box in Role Access */}

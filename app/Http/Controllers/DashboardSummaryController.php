@@ -69,7 +69,7 @@ class DashboardSummaryController extends Controller
         // (Read directly instead of the saved sales_history rows, which could
         // keep old numbers after a product's stock was cleared.)
         $monthly = [];
-        $addSale = function (Product $product, string $month, int $units) use (&$monthly): void {
+        $addSale = function (Product $product, string $month, int|float $units) use (&$monthly): void {
             $key = $product->id.'|'.$month;
             $monthly[$key] ??= [
                 'productId' => $product->code,
@@ -99,7 +99,7 @@ class DashboardSummaryController extends Controller
                 $product = $productsById[$productId];
                 $rows = $pastRows->map(fn ($past) => [
                     \Illuminate\Support\Carbon::parse($past->period_date)->toDateString(),
-                    (int) $past->units_sold,
+                    (float) $past->units_sold,
                     $past->period_type ?: 'month',
                 ])->all();
                 foreach ($forecasts->pastMonthlyTotals($product, $rows) as $month => $row) {

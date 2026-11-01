@@ -20,6 +20,47 @@
     --dropdown-menu-selected: var(--accent, #e8c547);
 }
 
+/* One restrained scrollbar treatment across scrollable app surfaces. Keep
+   WebKit styling separate from the standards fallback: mixing
+   scrollbar-color/width with ::-webkit-scrollbar can restore native arrows. */
+@supports selector(::-webkit-scrollbar) {
+    *::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    *::-webkit-scrollbar-track,
+    *::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+
+    *::-webkit-scrollbar-thumb {
+        min-height: 24px;
+        background: var(--scroll-thumb, rgba(100, 116, 139, 0.4));
+        background-clip: padding-box;
+        border: 2px solid transparent;
+        border-radius: 999px;
+    }
+
+    *::-webkit-scrollbar-thumb:hover {
+        background: var(--scroll-thumb-hover, var(--accent, #e8c547));
+        background-clip: padding-box;
+    }
+
+    *::-webkit-scrollbar-button {
+        display: none;
+        width: 0;
+        height: 0;
+    }
+}
+
+@supports not selector(::-webkit-scrollbar) {
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--scroll-thumb, rgba(100, 116, 139, 0.4)) transparent;
+    }
+}
+
 html,
 body,
 #root {
@@ -44,7 +85,8 @@ select option {
 }
 
 select option:checked {
-    color: var(--dropdown-menu-selected);
+    color: var(--icon-active-color, #0b1b33);
+    background: var(--background-icon-active-color, var(--dropdown-menu-selected));
     font-weight: 700;
 }
 

@@ -62,7 +62,7 @@ function Login({ onLogin }) {
 
             onLogin(data.user);
         } catch (requestError) {
-            console.error('Login request failed:', requestError);
+            console.error('Login request failed:', requestError);                                                                                               
             setError('Can’t reach the server. Check that Laragon is running, then try again.');
         } finally {
             setIsSubmitting(false);

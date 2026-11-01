@@ -106,6 +106,25 @@ class PastSalesTest extends TestCase
         ]])->assertUnprocessable()->assertJsonValidationErrors('records.0.month');
     }
 
+    public function test_manual_month_and_week_entries_accept_fractional_quantities(): void
+    {
+        $product = $this->product('PRD-FRACTIONAL-ENTRY', 'Fractional Entry Item');
+
+        $this->putJson('/api/past-sales', ['productId' => $product->code, 'records' => [
+        ['month' => '2026-08', 'unitsSold' => '0.125'],
+        ]])->assertOk()->assertJsonPath('rows.0.unitsSold', 0.125);
+
+        $this->putJson('/api/past-sales', ['productId' => $product->code, 'periodType' => 'week', 'records' => [
+        ['week' => '2026-09-28', 'unitsSold' => '0.03333333333'],
+        ]])->assertOk()->assertJsonPath('rows.0.unitsSold', 0.03333333333);
+
+        $this->assertEqualsWithDelta(
+        0.03333333333,
+        (float) PastSale::where('product_id', $product->id)->where('period_type', 'week')->value('units_sold'),
+        0.00000000001
+        );
+    }
+
     public function test_import_preview_then_commit_with_totals_skips_and_errors(): void
     {
         $ip = $this->product('PRD-IP11', 'Iphone 11');
@@ -125,7 +144,7 @@ class PastSalesTest extends TestCase
             ['row' => 9, 'productName' => 'Duplicate Name', 'month' => '2026-05', 'unitsSold' => 1],
             ['row' => 10, 'productName' => 'Phone Case', 'month' => 'banana', 'unitsSold' => 1],
             ['row' => 11, 'productName' => 'Phone Case', 'month' => '2026-03', 'unitsSold' => -2],
-            ['row' => 12, 'productName' => 'Phone Case', 'month' => '2026-02', 'unitsSold' => 2.5],
+            ['row' => 12, 'productName' => 'Phone Case', 'month' => '2026-02', 'unitsSold' => '2.123456789012'],
         ];
 
         $preview = $this->postJson('/api/past-sales/import', ['rows' => $rows])->assertOk()->json();
@@ -143,7 +162,58 @@ class PastSalesTest extends TestCase
         // Re-importing replaces (does not double) the month totals.
         $this->postJson('/api/past-sales/import', ['rows' => $rows, 'commit' => true])->assertOk();
         $this->assertSame(2, PastSale::count());
-        $this->assertSame(11, PastSale::where('product_id', $ip->id)->value('units_sold'));
+        $this->assertEqualsWithDelta(11, (float) PastSale::where('product_id', $ip->id)->value('units_sold'), 0.00000000001);
+    }
+
+    public function test_import_preview_reports_malformed_and_overflowing_units_as_row_issues(): void
+    {
+        $this->product('PRD-BOUNDARY', 'Boundary Item');
+        $month = now()->subMonthNoOverflow()->format('Y-m');
+        $maxUnits = 4294967295;
+
+        $preview = $this->postJson('/api/past-sales/import', ['rows' => [
+            ['row' => 2, 'productId' => 'PRD-BOUNDARY', 'month' => $month, 'unitsSold' => $maxUnits],
+            ['row' => 3, 'productId' => 'PRD-BOUNDARY', 'month' => $month, 'unitsSold' => $maxUnits + 1],
+            ['row' => 4, 'productId' => 'PRD-BOUNDARY', 'month' => $month, 'unitsSold' => 1],
+            'malformed row',
+        ]])->assertOk()->json();
+
+        $this->assertSame(4, $preview['summary']['rowsRead']);
+        $this->assertSame(3, $preview['summary']['errors']);
+        $this->assertSame($maxUnits, $preview['ready'][0]['unitsSold']);
+        $this->assertSame(3, count($preview['issues']));
+        $this->assertSame('Combined units sold exceed the database limit.', $preview['issues'][1]['message']);
+        $this->assertSame('Row must be an object.', $preview['issues'][2]['message']);
+    }
+
+    public function test_decimal_monthly_sales_are_saved_and_used_without_truncation(): void
+    {
+        $product = $this->product('PRD-FRACTIONAL', 'Fractional Item');
+        $rows = [
+            ['productId' => 'PRD-FRACTIONAL', 'month' => '2026-06', 'unitsSold' => '0.03333333333'],
+            ['productId' => 'PRD-FRACTIONAL', 'month' => '2026-06', 'unitsSold' => '0.1'],
+            ['productId' => 'PRD-FRACTIONAL', 'month' => '2026-07', 'unitsSold' => '1.25'],
+            ['productId' => 'PRD-FRACTIONAL', 'month' => '2026-08', 'unitsSold' => '2.5'],
+            ['productId' => 'PRD-FRACTIONAL', 'month' => '2026-09', 'unitsSold' => '3.75'],
+        ];
+
+        $preview = $this->postJson('/api/past-sales/import', ['rows' => $rows])->assertOk()->json();
+        $this->assertSame(4, $preview['summary']['readyMonths']);
+        $this->assertEqualsWithDelta(7.63333333333, $preview['summary']['totalUnits'], 0.00000000001);
+        $this->assertEqualsWithDelta(0.13333333333, $preview['ready'][0]['unitsSold'], 0.00000000001);
+
+        $this->postJson('/api/past-sales/import', ['rows' => $rows, 'commit' => true])
+            ->assertOk()
+            ->assertJsonPath('saved', 4);
+
+        $stored = PastSale::where('product_id', $product->id)->whereDate('period_date', '2026-06-01')->value('units_sold');
+        $this->assertEqualsWithDelta(0.13333333333, (float) $stored, 0.00000000001);
+
+        $history = $this->getJson('/api/forecasts/history?product=PRD-FRACTIONAL')->assertOk()->json('rows');
+        $this->assertEqualsWithDelta(0.13333333333, $history[0]['unitsSold'], 0.00000000001);
+        $this->postJson('/api/forecasts', ['productId' => 'PRD-FRACTIONAL'])
+            ->assertOk()
+            ->assertJsonPath('baseForecast', 2.9);
     }
 
     public function test_week_grid_saves_weeks_before_stock_control_begins_and_keeps_months_separate(): void

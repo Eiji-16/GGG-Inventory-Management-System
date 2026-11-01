@@ -60,11 +60,11 @@ class SafetyStockController extends Controller
         $data = $request->validate([
             'policies' => ['required', 'array'],
             'policies.*.productId' => ['required', 'string', 'distinct', Rule::exists('products', 'code')->whereNull('deleted_at')],
-            'policies.*.safetyStock' => ['required', 'integer', 'min:0'],
+            'policies.*.safetyStock' => ['required', 'integer', 'min:0', 'max:1000000'],
             'policies.*.leadTimeDays' => ['nullable', 'integer', 'min:0', 'max:365'],
             'policies.*.statusMode' => ['sometimes', Rule::in(['auto', 'manual'])],
-            'policies.*.lowPoint' => ['nullable', 'integer', 'min:0', 'required_if:policies.*.statusMode,manual'],
-            'policies.*.criticalPoint' => ['nullable', 'integer', 'min:0', 'required_if:policies.*.statusMode,manual'],
+            'policies.*.lowPoint' => ['nullable', 'integer', 'min:0', 'max:1000000', 'required_if:policies.*.statusMode,manual'],
+            'policies.*.criticalPoint' => ['nullable', 'integer', 'min:0', 'max:1000000', 'required_if:policies.*.statusMode,manual'],
         ]);
         foreach ($data['policies'] as $index => $policy) {
             if (($policy['statusMode'] ?? 'auto') === 'manual' && (int) $policy['criticalPoint'] > (int) $policy['lowPoint']) {

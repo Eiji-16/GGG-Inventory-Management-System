@@ -9,7 +9,6 @@ import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
 import useFillToBottom from '../../utils/fillToBottom';
-import useRowsThatFit from '../../utils/fitRows';
 import { uiZoom } from '../../fontSize';
 
 
@@ -329,16 +328,14 @@ function ProductSupplier({
   }, [query, supplierFilter]);
 
   const total = filteredProducts.length;
-  /* ===== FIT TO SCREEN =====
-     The products table stretches to the bottom of the page and shows as many
-     rows per page as fit, so the page itself doesn't scroll. */
+  /* ===== PRODUCTS PER PAGE =====
+     Keep a predictable page size so the table doesn't clip a partially shown
+     product row when the available height changes. */
   const fillTableToBottom = useFillToBottom(4, { shrink: true });   // full page fills the box; a short last page shrinks
-  const [tableBox, setTableBox] = useState(null);
   const tableRef = useCallback((element) => {
     fillTableToBottom(element);
-    setTableBox(element);
   }, [fillTableToBottom]);
-  const PAGE_SIZE = useRowsThatFit(tableBox, { min: 3, fallback: 10, deps: [productsLoading, total > 0] });
+  const PAGE_SIZE = 10;
   const safeCursor = total === 0 ? 0 : Math.min(cursor, total - 1);
   /* ===== PAGE START ===== */
   const pageCursor = Math.floor(safeCursor / PAGE_SIZE) * PAGE_SIZE;
@@ -668,7 +665,11 @@ function ProductSupplier({
      search bar) of whichever list is open, so tabs, search and buttons share
      one row. */
   const sectionTabs = (
-    <div className="ps-section-tabs" role="tablist" aria-label="Management sections">
+    <div
+      className={`ps-section-tabs${canViewSuppliers ? ' has-suppliers-tab' : ''}${section === 'suppliers' ? ' is-suppliers-active' : ''}`}
+      role="tablist"
+      aria-label="Management sections"
+    >
       <button type="button" role="tab" aria-selected={section === 'products'} className={section === 'products' ? 'is-active' : ''} onClick={() => setSection('products')}>
         <Package size={13} aria-hidden="true" /> Products
       </button>
@@ -821,7 +822,7 @@ function ProductSupplier({
         onToggleAll={toggleSelectAll}
         onClear={() => setSelectedIds(new Set())}
       />
-      <div className="ps-table-scroll" ref={tableRef} aria-busy={productsLoading}>
+      <div className="ps-table-scroll ps-product-table-scroll" ref={tableRef} aria-busy={productsLoading}>
         <table className="ps-table m-folders">
           <thead>
             <tr>

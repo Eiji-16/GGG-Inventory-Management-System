@@ -1515,163 +1515,6 @@ body {
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/*==========TAB SCROLLBAR==========*/
-.main-content-window,
-.dashboard-scroll-container,
-.ps-modal-body,
-.sc-modal-body,
-.sc-history-body,
-.sc-table-scroll,
-.ac-modal-body,
-.ac-history-list,
-.ac-batch-product-list,
-.f-scroll-table,
-.pf-scroll,
-.notif-box-list,
-.ra-tabbar,
-.fx-table-modal,
-.f-event-modal,
-.ps-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: var(--scroll-thumb) transparent;
-}
-
-.main-content-window::-webkit-scrollbar,
-.dashboard-scroll-container::-webkit-scrollbar,
-.ps-modal-body::-webkit-scrollbar,
-.sc-modal-body::-webkit-scrollbar,
-.sc-history-body::-webkit-scrollbar,
-.sc-table-scroll::-webkit-scrollbar,
-.ac-modal-body::-webkit-scrollbar,
-.ac-history-list::-webkit-scrollbar,
-.ac-batch-product-list::-webkit-scrollbar,
-.f-scroll-table::-webkit-scrollbar,
-.pf-scroll::-webkit-scrollbar,
-.notif-box-list::-webkit-scrollbar,
-.ra-tabbar::-webkit-scrollbar,
-.fx-table-modal::-webkit-scrollbar,
-.f-event-modal::-webkit-scrollbar,
-.ps-scroll::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-/*==========SCROLL TRACK==========*/
-.main-content-window::-webkit-scrollbar-track,
-.dashboard-scroll-container::-webkit-scrollbar-track,
-.ps-modal-body::-webkit-scrollbar-track,
-.sc-modal-body::-webkit-scrollbar-track,
-.sc-history-body::-webkit-scrollbar-track,
-.sc-table-scroll::-webkit-scrollbar-track,
-.ac-modal-body::-webkit-scrollbar-track,
-.ac-history-list::-webkit-scrollbar-track,
-.ac-batch-product-list::-webkit-scrollbar-track,
-.f-scroll-table::-webkit-scrollbar-track,
-.pf-scroll::-webkit-scrollbar-track,
-.notif-box-list::-webkit-scrollbar-track,
-.ra-tabbar::-webkit-scrollbar-track,
-.fx-table-modal::-webkit-scrollbar-track,
-.f-event-modal::-webkit-scrollbar-track,
-.ps-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-/*==========SCROLL THUMB==========*/
-.main-content-window::-webkit-scrollbar-thumb,
-.dashboard-scroll-container::-webkit-scrollbar-thumb,
-.ps-modal-body::-webkit-scrollbar-thumb,
-.sc-modal-body::-webkit-scrollbar-thumb,
-.sc-history-body::-webkit-scrollbar-thumb,
-.sc-table-scroll::-webkit-scrollbar-thumb,
-.ac-modal-body::-webkit-scrollbar-thumb,
-.ac-history-list::-webkit-scrollbar-thumb,
-.ac-batch-product-list::-webkit-scrollbar-thumb,
-.f-scroll-table::-webkit-scrollbar-thumb,
-.pf-scroll::-webkit-scrollbar-thumb,
-.notif-box-list::-webkit-scrollbar-thumb,
-.ra-tabbar::-webkit-scrollbar-thumb,
-.fx-table-modal::-webkit-scrollbar-thumb,
-.f-event-modal::-webkit-scrollbar-thumb,
-.ps-scroll::-webkit-scrollbar-thumb {
-  background: var(--scroll-thumb);
-  border-radius: 999px;
-  border: none;
-}
-
-.main-content-window::-webkit-scrollbar-thumb:hover,
-.dashboard-scroll-container::-webkit-scrollbar-thumb:hover,
-.ps-modal-body::-webkit-scrollbar-thumb:hover,
-.sc-modal-body::-webkit-scrollbar-thumb:hover,
-.sc-history-body::-webkit-scrollbar-thumb:hover,
-.sc-table-scroll::-webkit-scrollbar-thumb:hover,
-.ac-modal-body::-webkit-scrollbar-thumb:hover,
-.ac-history-list::-webkit-scrollbar-thumb:hover,
-.ac-batch-product-list::-webkit-scrollbar-thumb:hover,
-.f-scroll-table::-webkit-scrollbar-thumb:hover,
-.pf-scroll::-webkit-scrollbar-thumb:hover,
-.notif-box-list::-webkit-scrollbar-thumb:hover,
-.ra-tabbar::-webkit-scrollbar-thumb:hover,
-.fx-table-modal::-webkit-scrollbar-thumb:hover,
-.f-event-modal::-webkit-scrollbar-thumb:hover,
-.ps-scroll::-webkit-scrollbar-thumb:hover {
-  background: var(--scroll-thumb-hover);
-}
-
-/*==========NO SCROLL ARROWS==========*/
-.main-content-window::-webkit-scrollbar-button,
-.dashboard-scroll-container::-webkit-scrollbar-button,
-.ps-modal-body::-webkit-scrollbar-button,
-.sc-modal-body::-webkit-scrollbar-button,
-.sc-history-body::-webkit-scrollbar-button,
-.sc-table-scroll::-webkit-scrollbar-button,
-.ac-modal-body::-webkit-scrollbar-button,
-.ac-history-list::-webkit-scrollbar-button,
-.ac-batch-product-list::-webkit-scrollbar-button,
-.f-scroll-table::-webkit-scrollbar-button,
-.pf-scroll::-webkit-scrollbar-button,
-.notif-box-list::-webkit-scrollbar-button,
-.ra-tabbar::-webkit-scrollbar-button,
-.fx-table-modal::-webkit-scrollbar-button,
-.f-event-modal::-webkit-scrollbar-button,
-.ps-scroll::-webkit-scrollbar-button {
-  display: none;
-  width: 0;
-  height: 0;
-}
-
-/* Pop-ups: keep the scrollbar clear of the rounded corners and a bit wider.
-   Chrome/Edge ignore the ::-webkit-scrollbar styles below when scrollbar-width
-   or scrollbar-color is set (and then draw arrow buttons), so those two are
-   reset only in browsers that support ::-webkit-scrollbar. Firefox keeps the
-   thin themed scrollbar from scrollbar-width/scrollbar-color above. */
-@supports selector(::-webkit-scrollbar) {
-  .fx-table-modal,
-  .f-event-modal {
-    scrollbar-width: auto;
-    scrollbar-color: auto;
-  }
-}
-.fx-table-modal::-webkit-scrollbar,
-.f-event-modal::-webkit-scrollbar {
-  width: 6px;
-}
-.fx-table-modal::-webkit-scrollbar-track,
-.f-event-modal::-webkit-scrollbar-track {
-  margin-block: 14px;
-}
-
-/*==========HIDDEN TAB SCROLLBAR==========*/
-.main-content-window {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.main-content-window::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
-}
-
 /*==========RESPONSIVENESS==========*/
 /* Tablet / small laptop — tighten the outer frame so content gets more room. */
 @media (max-width: 1024px) {
@@ -1758,14 +1601,6 @@ body {
         transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: var(--shadow-hover);
         overflow-y: auto;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-    }
-
-    .sidebar-body::-webkit-scrollbar {
-        width: 0;
-        height: 0;
-        display: none;
     }
 
     .sidebar-body.open {
@@ -2450,10 +2285,15 @@ body {
         min-height: 0;
         overflow-y: auto;
         overflow-x: hidden;
-        scrollbar-width: none;
         overscroll-behavior: contain;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
     }
-    .sidebar-body .sidebar-menu::-webkit-scrollbar { display: none; }
+    .sidebar-body .sidebar-menu::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+    }
     /* The logo row stays at the top while the list scrolls under it. */
     .sidebar-body .sidebar-menu > .sidebar-logo-row {
         position: sticky;

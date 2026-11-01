@@ -218,4 +218,23 @@ class ProductPersistenceTest extends TestCase
             'stock' => 8,
         ]);
     }
+
+    public function test_product_stock_is_limited_to_the_signed_database_integer_range(): void
+    {
+        $maxStock = 2147483647;
+
+        $this->postJson('/api/products', [
+            'name' => 'Over-limit stock',
+            'stock' => $maxStock + 1,
+        ])->assertUnprocessable()->assertJsonValidationErrors('stock');
+
+        $product = $this->postJson('/api/products', [
+            'name' => 'Maximum stock',
+            'stock' => $maxStock,
+        ])->assertCreated()->json();
+
+        $this->putJson('/api/products/'.$product['id'], [
+            'stock' => $maxStock + 1,
+        ])->assertUnprocessable()->assertJsonValidationErrors('stock');
+    }
 }

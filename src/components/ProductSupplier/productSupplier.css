@@ -76,17 +76,18 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    min-width: 12rem;
-    padding: 0.3rem 0.65rem;
-    background-color: transparent;
-    border-radius: 8px;
-    border: 1px solid var(--border-strong);
-    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    width: 12.1rem;
+    min-width: 0;
+    height: 2rem;
+    padding: 0 9px;
+    background: var(--input-bg, var(--bg-main));
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    transition: border-color 0.18s ease;
 }
 
 .ps-search-box:focus-within {
     border-color: var(--accent, #E8C547);
-    box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
 .ps-search-box .ps-search-icon {
@@ -97,7 +98,7 @@
 .ps-search-box input {
     outline: none;
     border: none;
-    font-size: 12px;
+    font-size: 11.5px;
     background: transparent;
     color: var(--text-primary);
     width: 100%;
@@ -1316,6 +1317,7 @@
 /* Products | Suppliers tabs: compact, FIRST in the toolbar row (before the
    search bar) — same look as the Stock | History tabs in Stock Control. */
 .ps-section-tabs {
+    position: relative;
     display: inline-flex;
     flex-shrink: 0;
     gap: 4px;
@@ -1325,7 +1327,25 @@
     border-radius: 10px;
 }
 
+.ps-section-tabs.has-suppliers-tab::before {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: 4px;
+    width: calc((100% - 12px) / 2);
+    border-radius: 7px;
+    background: var(--btn-fill-bg, var(--background-icon-active-color));
+    content: '';
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ps-section-tabs.has-suppliers-tab.is-suppliers-active::before {
+    transform: translateX(calc(100% + 4px));
+}
+
 .ps-section-tabs button {
+    position: relative;
+    z-index: 1;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -1338,16 +1358,25 @@
     border: 0;
     border-radius: 7px;
     cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.ps-section-tabs.has-suppliers-tab button {
+    flex: 1 1 0;
+    justify-content: center;
 }
 
 .ps-section-tabs button:hover { color: var(--text-primary); }
 
 .ps-section-tabs button.is-active {
     color: var(--btn-fill-text, var(--icon-active-color));
-    background: var(--btn-fill-bg, var(--background-icon-active-color));
 }
 
 .ps-section-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+    .ps-section-tabs.has-suppliers-tab::before { transition: none; }
+}
 
 .ps-navigation-bar { align-items: center; }
 
@@ -1522,29 +1551,21 @@
     }
 }
 
-/*==========FIT TO SCREEN (Products and Suppliers tables)==========
-   The table box gets its height from useFillToBottom (it reaches the bottom of
-   the page), so long lists scroll inside the box and the page doesn't.
-   Column titles stay visible (they are already sticky). Phones keep cards. */
+/*==========FIT TO SCREEN (Products table)==========
+   Products are paginated to fit the available table area, so only horizontal
+   scrolling is needed on desktop. Phones keep the normal card list. */
 @media (min-width: 901px) {
-    .ps-table-scroll {
-        overflow: auto;
-        overscroll-behavior: contain;
+    .ps-product-table-scroll {
+        overflow-x: auto;
+        overflow-y: hidden;
+        overscroll-behavior-x: contain;
     }
 }
-
-/* Hidden scrollbar on the table box (it still scrolls with the mouse wheel /
-   trackpad), same as the Stock Control table. */
-.ps-table-parent .ps-table-scroll {
-    scrollbar-width: none !important;
-    -ms-overflow-style: none;
-}
-.ps-table-parent .ps-table-scroll::-webkit-scrollbar { width: 0 !important; height: 0 !important; display: none !important; }
 
 /* Desktop: tighter space under the table and its page buttons. */
 @media (min-width: 901px) {
     .ps-table-parent { padding-bottom: 0; }
-    .ps-pagination { padding: 6px 0 0; }
+    .ps-pagination { padding: 12px 0 0; }
 }
 
 /* Product details: Variants row spans the full width; chips can use it all. */
@@ -1610,11 +1631,15 @@
    so Edit / Delete are never cut off even when a row has long text. */
 @media (min-width: 901px) {
     .ps-table tbody tr { --ps-cell: var(--bg-card); }
+    .ps-table tbody td { transition: background-color 0.15s ease; }
     .ps-table tbody tr.ps-row-clickable:hover,
     .ps-table tbody tr.ps-row-clickable.is-selected {
-        --ps-cell: color-mix(in srgb, var(--accent, #E8C547) 5%, color-mix(in srgb, var(--background-icon-active-color, #E8C547) 15%, var(--bg-card)));
+        background-color: transparent !important;
     }
-    .ps-table tbody td { transition: background-color 0.15s ease; }
+    .ps-table tbody tr.ps-row-clickable:hover > td,
+    .ps-table tbody tr.ps-row-clickable.is-selected > td {
+        background-color: var(--background-icon-active-color-theme) !important;
+    }
 
     .ps-table thead th:last-child,
     .ps-table tbody td.ps-td-actions {

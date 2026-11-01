@@ -29,8 +29,6 @@
     box-sizing: border-box;
     grid-template-columns: repeat(7, minmax(0, 1fr));
     grid-template-rows: auto;
-    -ms-overflow-style: none;
-    scrollbar-width: none;
     min-width: 0;
 }
 
@@ -552,28 +550,7 @@
 .db-rank,
 .db-alert-list,
 .db-order-list {
-    scrollbar-width: thin;
-    scrollbar-color: var(--border-color, rgba(148, 163, 184, 0.35)) transparent;
     padding-right: 4px;
-}
-
-.db-rank::-webkit-scrollbar,
-.db-alert-list::-webkit-scrollbar,
-.db-order-list::-webkit-scrollbar {
-    width: 4px;
-}
-
-.db-rank::-webkit-scrollbar-thumb,
-.db-alert-list::-webkit-scrollbar-thumb,
-.db-order-list::-webkit-scrollbar-thumb {
-    background: var(--border-color, rgba(148, 163, 184, 0.35));
-    border-radius: 4px;
-}
-
-.db-rank::-webkit-scrollbar-track,
-.db-alert-list::-webkit-scrollbar-track,
-.db-order-list::-webkit-scrollbar-track {
-    background: transparent;
 }
 
 /*==========ALERT LIST (STOCK ALERTS)==========*/
@@ -1752,24 +1729,8 @@ grid-column: 5 / span 2;
     position: relative;
     isolation: isolate;
 }
-.db-kpi-row::before {
-    content: '';
-    position: absolute;
-    inset: -6px 0;
-    z-index: -1;
-    pointer-events: none;
-    background:
-        radial-gradient(26% 90% at 10% 40%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 72%),
-        radial-gradient(24% 80% at 42% 65%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 72%),
-        radial-gradient(26% 90% at 72% 35%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 72%),
-        radial-gradient(22% 80% at 95% 60%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 72%);
-    filter: blur(6px);
-}
 .db-kpi-tile {
-    background:
-        linear-gradient(160deg,
-            color-mix(in srgb, #ffffff 7%, color-mix(in srgb, var(--bg-card) 62%, transparent)) 0%,
-            color-mix(in srgb, var(--bg-card) 58%, transparent) 60%);
+    background: color-mix(in srgb, var(--bg-card) 68%, transparent);
     border: 1px solid color-mix(in srgb, #ffffff 9%, var(--border-color));
     box-shadow:
         var(--shadow-card),
@@ -1798,7 +1759,7 @@ grid-column: 5 / span 2;
 :root[data-theme="lavender"] .db-kpi-tile,
 :root[data-theme="citrus"] .db-kpi-tile,
 :root[data-theme="olive"] .db-kpi-tile {
-    background: linear-gradient(160deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.64) 60%);
+    background: color-mix(in srgb, #ffffff 72%, transparent);
     border-color: rgba(255, 255, 255, 0.8);
     box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }

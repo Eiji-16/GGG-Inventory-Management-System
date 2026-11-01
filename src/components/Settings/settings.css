@@ -20,6 +20,14 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: start;
+    gap: 8px;
+}
+
+.s-admin-col {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
 }
 
 @media (max-width: 980px) {
@@ -156,25 +164,17 @@
     color: var(--accent-low, #ef4444);
 }
 
-.s-select {
+.s-currency-select {
     flex: 0 0 auto;
     width: 210px;
     max-width: 50%;
+}
+
+.s-currency-select .cs-button {
+    min-height: 34px;
     padding: 6px 8px;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background: var(--input-bg, var(--static-bg-color));
-    color: var(--text-primary);
-    font: inherit;
     font-size: 11.5px;
 }
-
-.s-select:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
-}
-
-.s-select:disabled { opacity: 0.6; }
 
 /* Compact theme selector inside a row. */
 .s-pref-row .s-theme-selector {
@@ -224,20 +224,35 @@
     background: var(--overlay-soft);
 }
 
-.s-collapse-btn { border-color: transparent; }
-.s-policy.is-open .s-chevron { transform: rotate(180deg); }
-
 /*==========SAFETY STOCK POLICY CARD==========*/
 /* The card fits the screen; only its product list scrolls. */
 .s-container-split .s-policy.is-open {
-    position: sticky;
-    top: 8px;
     max-height: calc(calc(100dvh / var(--ui-zoom, 1)) - 120px);
 }
 
 .s-policy.is-open {
     max-height: calc(calc(100dvh / var(--ui-zoom, 1)) - 120px);
     overflow: hidden;
+}
+
+.s-roles-body,
+.s-sys-body,
+.s-policy-body {
+    transform-origin: top;
+    animation: s-disclosure-open 0.22s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes s-disclosure-open {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .s-card { animation: none; }
+    .s-roles-body,
+    .s-sys-body,
+    .s-policy-body { animation: none; }
+    .s-roles-chevron { transition: none; }
 }
 
 .s-policy.is-locked .s-card-sub { color: var(--text-muted); }
@@ -306,13 +321,7 @@
     overflow: auto;
     border: 1px solid var(--hairline, var(--border-color));
     border-radius: 8px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--scroll-thumb) transparent;
 }
-
-.s-policy-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
-.s-policy-scroll::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 999px; }
-.s-policy-scroll::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
 
 .s-policy-head,
 .s-policy-row {
@@ -365,6 +374,12 @@
 .s-policy-product strong { font-size: 12px; }
 .s-policy-product small { font-size: 10px; color: var(--text-muted); }
 
+.s-policy-input-wrap {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
 .s-policy-row input {
     width: 100%;
     box-sizing: border-box;
@@ -379,6 +394,16 @@
 }
 
 .s-policy-row input:focus { border-color: var(--accent); }
+.s-policy-row input[aria-invalid="true"] {
+    border-color: var(--accent-low, #ef4444);
+    box-shadow: 0 0 0 2px var(--accent-low-soft, rgba(239, 68, 68, 0.12));
+}
+
+.s-policy-input-error {
+    color: var(--accent-low, #ef4444);
+    font-size: 9px;
+    line-height: 1.2;
+}
 
 .s-policy-point {
     display: flex;
@@ -448,7 +473,7 @@
 /*==========SMALL SCREENS==========*/
 @media (max-width: 640px) {
     .s-pref-row { flex-wrap: wrap; }
-    .s-pref-row-currency .s-select { width: 100%; max-width: none; }
+    .s-pref-row-currency .s-currency-select { width: 100%; max-width: none; }
     .s-pref-row .s-theme-selector { margin-left: 40px; }
     .s-policy.is-open { max-height: calc(calc(100dvh / var(--ui-zoom, 1)) - 90px); }
     .s-search { max-width: none; }
@@ -726,6 +751,8 @@
     padding: 2px 5px;
 }
 
+.s-manual-points .s-policy-input-error { grid-column: 1 / -1; }
+
 .s-restricted-badge {
     display: inline-flex;
     align-items: center;
@@ -740,12 +767,6 @@
     color: var(--background-icon-active-color);
     border: 1px solid currentColor;
     vertical-align: middle;
-}
-
-.s-chevron {
-    color: var(--text-muted);
-    flex-shrink: 0;
-    transition: transform 0.2s ease;
 }
 
 /*==========BUTTONS==========*/
@@ -836,8 +857,6 @@
     overflow-y: auto;
     border: 1px solid var(--hairline, var(--border-color));
     border-radius: 6px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--scroll-thumb) transparent;
 }
 
 .s-roles-row {
