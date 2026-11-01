@@ -10,6 +10,24 @@ import ReceiveDelivery from './ReceiveDelivery';
 import MobileSelectBar from '../MobileSelectBar/MobileSelectBar';
 import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
 
+const DEMO_ALERTS = [
+  { code: 'DEMO-1001', name: 'Grand Piano Tuning Lever', category: 'Tools', supplier: 'Sample Piano Supply', stock: 2, reorderPoint: 8, status: 'Low Stock' },
+  { code: 'DEMO-1002', name: 'Hammer Shank Set', category: 'Action Parts', supplier: 'Demo Music Parts', stock: 0, reorderPoint: 6, status: 'Out of Stock' },
+  { code: 'DEMO-1003', name: 'Bass String Wire .046', category: 'Strings', supplier: 'Sample Piano Supply', stock: 3, reorderPoint: 10, status: 'Low Stock' },
+  { code: 'DEMO-1004', name: 'Ivory Keytop Pair', category: 'Keys', supplier: 'Demo Music Parts', stock: 0, reorderPoint: 4, status: 'Out of Stock' },
+  { code: 'DEMO-1005', name: 'Damper Felt Strip', category: 'Felt', supplier: 'Example Instrument Co.', stock: 5, reorderPoint: 12, status: 'Low Stock' },
+  { code: 'DEMO-1006', name: 'Tuning Pin No. 2', category: 'Hardware', supplier: 'Sample Piano Supply', stock: 1, reorderPoint: 9, status: 'Low Stock' },
+  { code: 'DEMO-1007', name: 'Key Bushing Cloth', category: 'Felt', supplier: 'Example Instrument Co.', stock: 0, reorderPoint: 7, status: 'Out of Stock' },
+  { code: 'DEMO-1008', name: 'Balance Rail Punching', category: 'Action Parts', supplier: 'Demo Music Parts', stock: 4, reorderPoint: 11, status: 'Low Stock' },
+  { code: 'DEMO-1009', name: 'Brass Music Desk Hinge', category: 'Hardware', supplier: 'Sample Piano Supply', stock: 2, reorderPoint: 5, status: 'Low Stock' },
+  { code: 'DEMO-1010', name: 'Hammer Felt Set', category: 'Felt', supplier: 'Example Instrument Co.', stock: 6, reorderPoint: 14, status: 'Low Stock' },
+  { code: 'DEMO-1011', name: 'Treble String Wire .018', category: 'Strings', supplier: 'Demo Music Parts', stock: 1, reorderPoint: 8, status: 'Low Stock' },
+  { code: 'DEMO-1012', name: 'Pedal Spring', category: 'Hardware', supplier: 'Sample Piano Supply', stock: 3, reorderPoint: 6, status: 'Low Stock' },
+  { code: 'DEMO-1013', name: 'White Keytop Set', category: 'Keys', supplier: 'Example Instrument Co.', stock: 0, reorderPoint: 5, status: 'Out of Stock' },
+  { code: 'DEMO-1014', name: 'Damper Head Felt', category: 'Felt', supplier: 'Demo Music Parts', stock: 2, reorderPoint: 9, status: 'Low Stock' },
+  { code: 'DEMO-1015', name: 'Tuning Pin No. 1', category: 'Hardware', supplier: 'Sample Piano Supply', stock: 4, reorderPoint: 10, status: 'Low Stock' },
+];
+
 /* ===== REORDER LIST (Figure 9, formerly "Auto Reorder Alerts") =====
    Lists every product whose stock is at or below its reorder point.
    Reorder point = safety stock + (annual demand ÷ 365 × lead time). */
@@ -186,6 +204,16 @@ export default function ReorderAlerts({
       || (statusFilter === 'low' && item.status !== 'Out of Stock');
     return matchesQuery && matchesStatus;
   });
+  const showingDemo = !loading && !error && alerts.length === 0;
+  const demoVisible = showingDemo ? DEMO_ALERTS.filter((item) => {
+    const q = query.trim().toLowerCase();
+    const matchesQuery = !q || [item.name, item.code, item.category, item.supplier]
+      .some((value) => value.toLowerCase().includes(q));
+    const matchesStatus = statusFilter === 'all'
+      || (statusFilter === 'out' && item.status === 'Out of Stock')
+      || (statusFilter === 'low' && item.status === 'Low Stock');
+    return matchesQuery && matchesStatus;
+  }) : [];
 
   /* ===== BULK ORDER SELECTION ===== */
   // Ticks on products that are no longer alerts are ignored.
@@ -325,8 +353,13 @@ export default function ReorderAlerts({
             <button type="button" onClick={() => setNotice('')} aria-label="Dismiss message">×</button>
           </p>
         )}
+        {showingDemo && (
+          <p className="ra-demo-notice" role="note">
+            Visual preview only: these 15 sample rows are not real inventory, and their actions are disabled.
+          </p>
+        )}
 
-        {canComputeEoq && (
+        {canComputeEoq && !showingDemo && (
           <MobileSelectBar
             total={visible.length}
             count={selectedAlerts.length}
@@ -356,6 +389,47 @@ export default function ReorderAlerts({
             <tbody>
               {loading ? (
                 <tr><td colSpan={columnCount} className="ra-empty">Checking stock levels…</td></tr>
+              ) : visible.length === 0 && showingDemo ? (
+                demoVisible.length === 0 ? (
+                  <tr><td colSpan={columnCount} className="ra-empty">No sample products match your search.</td></tr>
+                ) : demoVisible.map((item) => (
+                  <tr key={item.code} className="ra-demo-row">
+                    {canComputeEoq && (
+                      <td className="ra-check m-keep" data-label="Bulk order">
+                        <input type="checkbox" disabled aria-label={`${item.name} sample row`} />
+                      </td>
+                    )}
+                    <td className="m-title" data-label="Product">
+                      <span className="ra-product">
+                        <strong>{item.name}</strong>
+                        <small>{item.code} · Sample</small>
+                      </span>
+                    </td>
+                    <td data-label="Category">{item.category}</td>
+                    <td data-label="Supplier">{item.supplier}</td>
+                    <td data-label="Current Stock" className="ra-num">{item.stock}</td>
+                    <td data-label="Reorder Point" className="ra-num">{item.reorderPoint}</td>
+                    <td className="m-peek" data-label="Status">
+                      <span className={`ra-status ${item.status === 'Out of Stock' ? 'is-out' : 'is-low'}`}>
+                        <AlertTriangle size={11} aria-hidden="true" /> {item.status}
+                      </span>
+                    </td>
+                    <td data-label="Action">
+                      <span className="ra-actions">
+                        {canComputeEoq && (
+                          <button type="button" className="ra-order-btn" disabled title="Sample preview actions are disabled">
+                            <Calculator size={13} aria-hidden="true" /> Order Now
+                          </button>
+                        )}
+                        {canReceive && (
+                          <button type="button" className="ra-order-btn ra-receive-btn" disabled title="Sample preview actions are disabled">
+                            <PackageCheck size={13} aria-hidden="true" /> Received
+                          </button>
+                        )}
+                      </span>
+                    </td>
+                  </tr>
+                ))
               ) : visible.length === 0 ? (
                 <tr>
                   <td colSpan={columnCount} className="ra-empty">

@@ -1,11 +1,19 @@
 /*==========AUTO REORDER ALERTS==========*/
+.reorder-alerts-panel {
+    height: 100%;
+    min-height: 0;
+}
+
 .ra-root {
     display: grid;
     /* minmax(0, 1fr): may shrink to the screen (otherwise the wide table
        pushes the page past the edge and it gets cut off on phones). */
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
     gap: 14px;
     min-width: 0;
+    min-height: 0;
+    height: 100%;
     color: var(--text-primary);
 }
 
@@ -49,7 +57,11 @@
 }
 
 .ra-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
     padding: 16px;
+    overflow: hidden;
 }
 
 .ra-card-head {
@@ -136,7 +148,10 @@
 }
 
 .ra-table-scroll {
-    overflow-x: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
     border: 1px solid var(--border-color);
     border-radius: 8px;
 }
@@ -149,6 +164,9 @@
 }
 
 .ra-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     padding: 9px 12px;
     color: var(--text-muted);
     font-size: 10.5px;
@@ -231,6 +249,25 @@
     padding: 22px 12px;
     color: var(--text-muted);
     text-align: center;
+}
+
+.ra-demo-notice {
+    margin: 0 0 10px;
+    padding: 8px 10px;
+    color: var(--text-muted);
+    font-size: 11.5px;
+    background: var(--static-bg-color);
+    border: 1px dashed var(--border-color);
+    border-radius: 7px;
+}
+
+.ra-demo-row {
+    opacity: 0.82;
+}
+
+.ra-demo-row button:disabled,
+.ra-demo-row input:disabled {
+    cursor: not-allowed;
 }
 
 .ra-all-good {
@@ -362,9 +399,17 @@
    Products): label on the left from data-label, value on the right, the
    action button at the bottom. Two cards per row between 641 and 900px. */
 @media (max-width: 900px) {
+    .ra-root {
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .ra-card {
+        min-height: 0;
+    }
+
     .ra-table-scroll {
         border: none;
-        overflow: visible;
+        overflow: auto;
     }
 
     .ra-table {
@@ -440,6 +485,18 @@
 
     .ra-table tbody td.ra-empty::before { content: none; }
     .ra-table tbody tr:has(.ra-empty) { padding: 0; border: none; box-shadow: none; background: transparent; }
+}
+
+@media (max-width: 820px) {
+    .reorder-alerts-panel,
+    .ra-root {
+        height: auto;
+    }
+
+    .ra-table-scroll {
+        flex: 0 1 auto;
+        max-height: 70vh;
+    }
 }
 
 @media (max-width: 900px) and (min-width: 641px) {

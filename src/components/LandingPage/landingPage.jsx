@@ -1132,7 +1132,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                 </div>
               )}
               {visitedViews.has('Reorder-Alerts') && canAccess('Reorder-Alerts') && (
-                <div className="app-view-panel" hidden={activeView !== 'Reorder-Alerts'}>
+                <div className="app-view-panel reorder-alerts-panel" hidden={activeView !== 'Reorder-Alerts'}>
                   <ReorderAlerts
                     onNavigate={handleNavigate}
                     safetyStock={safetyStock}
