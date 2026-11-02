@@ -125,6 +125,27 @@ class PastSalesTest extends TestCase
         );
     }
 
+    public function test_manual_month_and_week_entries_are_limited_to_four_integer_digits(): void
+    {
+        $product = $this->product('PRD-MANUAL-LIMIT', 'Manual Limit Item');
+
+        $this->putJson('/api/past-sales', ['productId' => $product->code, 'records' => [
+            ['month' => '2026-08', 'unitsSold' => '9999'],
+        ]])->assertOk()->assertJsonPath('rows.0.unitsSold', 9999);
+
+        $this->putJson('/api/past-sales', ['productId' => $product->code, 'records' => [
+            ['month' => '2026-07', 'unitsSold' => '10000'],
+        ]])->assertUnprocessable()->assertJsonValidationErrors('records.0.unitsSold');
+
+        $this->putJson('/api/past-sales', ['productId' => $product->code, 'periodType' => 'week', 'records' => [
+            ['week' => '2026-08-31', 'unitsSold' => '9999'],
+        ]])->assertOk()->assertJsonPath('rows.0.unitsSold', 9999);
+
+        $this->putJson('/api/past-sales', ['productId' => $product->code, 'periodType' => 'week', 'records' => [
+            ['week' => '2026-08-24', 'unitsSold' => '10000'],
+        ]])->assertUnprocessable()->assertJsonValidationErrors('records.0.unitsSold');
+    }
+
     public function test_import_preview_then_commit_with_totals_skips_and_errors(): void
     {
         $ip = $this->product('PRD-IP11', 'Iphone 11');

@@ -31,6 +31,8 @@ class PastSalesController extends Controller
 
     private const MAX_UNITS = '4294967295';
 
+    private const MAX_MANUAL_UNITS = '9999';
+
     private const UNITS_SCALE = 11;
 
     public function __construct(private readonly SalesForecastService $forecasts) {}
@@ -128,7 +130,7 @@ class PastSalesController extends Controller
             'productId'           => ['required', 'string', Rule::exists('products', 'code')->whereNull('deleted_at')],
             'records'             => ['required', 'array', 'max:120'],
             'records.*.month'     => ['required', 'string', 'distinct', 'regex:'.self::MONTH_PATTERN],
-            'records.*.unitsSold' => ['nullable', 'numeric', 'decimal:0,'.self::UNITS_SCALE, 'min:0', 'max:'.self::MAX_UNITS],
+            'records.*.unitsSold' => ['nullable', 'numeric', 'decimal:0,'.self::UNITS_SCALE, 'min:0', 'max:'.self::MAX_MANUAL_UNITS],
         ]);
 
         $product = Product::where('code', $data['productId'])->firstOrFail();
@@ -179,7 +181,7 @@ class PastSalesController extends Controller
             'periodType'          => ['required', Rule::in(['week'])],
             'records'             => ['required', 'array', 'max:260'],
             'records.*.week'      => ['required', 'string', 'distinct', 'regex:'.self::WEEK_PATTERN],
-            'records.*.unitsSold' => ['nullable', 'numeric', 'decimal:0,'.self::UNITS_SCALE, 'min:0', 'max:'.self::MAX_UNITS],
+            'records.*.unitsSold' => ['nullable', 'numeric', 'decimal:0,'.self::UNITS_SCALE, 'min:0', 'max:'.self::MAX_MANUAL_UNITS],
         ]);
 
         $product = Product::where('code', $data['productId'])->firstOrFail();

@@ -1791,6 +1791,33 @@ grid-column: 5 / span 2;
    many whole rows as fit (useFitCount in dashboard.jsx). "contain: size"
    stops the list from making the card taller by itself. */
 @media (min-width: 1025px) {
+    .parent.db-grid > .regionalBreakdown-card {
+        min-height: 15rem;
+    }
+
+    .regionalBreakdown-card {
+        gap: 4px;
+    }
+
+    .db-order-list {
+        gap: 3px;
+    }
+
+    .db-order-row {
+        gap: 8px;
+        padding: 4px 8px;
+    }
+
+    .db-order-info {
+        gap: 1px;
+    }
+
+    .db-order-name { font-size: 11px; }
+    .db-order-meta { gap: 5px; font-size: 9.5px; }
+    .db-order-tag { padding: 1px 5px; font-size: 9px; }
+    .db-order-qty small { font-size: 8.5px; }
+    .db-order-qty strong { font-size: 15px; }
+
     .db-fit-box {
         flex: 1 1 0;
         min-height: 0;
@@ -1801,8 +1828,8 @@ grid-column: 5 / span 2;
     .db-fit-box > .db-fit-hidden { visibility: hidden; }
     /* Space left under the last whole row, shared out as extra height. */
     .db-fit-box > .db-order-row {
-        padding-top: calc(7px + var(--fit-extra, 0px) / 2);
-        padding-bottom: calc(7px + var(--fit-extra, 0px) / 2);
+        padding-top: calc(4px + var(--fit-extra, 0px) / 2);
+        padding-bottom: calc(4px + var(--fit-extra, 0px) / 2);
     }
     .db-fit-box.db-act-list > li {
         padding-top: calc(var(--fit-extra, 0px) / 2);

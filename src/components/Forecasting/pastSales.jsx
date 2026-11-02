@@ -18,7 +18,7 @@ import CustomSelect from './CustomSelect';
 
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const MAX_IMPORT_ROWS = 60000;
-const MAX_SALES_UNITS = 4294967295;
+const MAX_MANUAL_SALES_UNITS = 9999;
 
 const formatUnits = (value) => Number(value).toLocaleString(undefined, { maximumFractionDigits: 11 });
 
@@ -362,6 +362,14 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
       });
   const unitWord = isWeekly ? 'week' : 'month';
   const valueFor = (key) => (key in drafts ? drafts[key] : (saved[key] ?? ''));
+  const handleUnitsChange = (key, value) => {
+    if (value !== '' && Number(value) > MAX_MANUAL_SALES_UNITS) {
+      setError(`Enter a quantity from 0 to ${MAX_MANUAL_SALES_UNITS.toLocaleString()}.`);
+      return;
+    }
+    setError('');
+    setDrafts((current) => ({ ...current, [key]: value }));
+  };
   /* Monthly mode: the month totals worked out from the weekly entries. */
   const weekTotals = useMemo(
     () => (isWeekly ? {} : Object.fromEntries((data?.fromWeeks || []).map((row) => [row.month, row]))),
@@ -376,8 +384,8 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
       const text = String(drafts[key]).trim();
       if (text === String(saved[key] ?? '')) continue;
       const units = text === '' ? null : text;
-      if (units !== null && (!/^\d+(?:\.\d{1,11})?$/.test(units) || Number(units) > MAX_SALES_UNITS)) {
-        setError(`${title}: enter a quantity from 0 to ${MAX_SALES_UNITS.toLocaleString()} with up to 11 decimal places, or leave it blank.`);
+      if (units !== null && (!/^\d+(?:\.\d{1,11})?$/.test(units) || Number(units) > MAX_MANUAL_SALES_UNITS)) {
+        setError(`${title}: enter a quantity from 0 to ${MAX_MANUAL_SALES_UNITS.toLocaleString()} with up to 11 decimal places, or leave it blank.`);
         return;
       }
       records.push(isWeekly ? { week: key, unitsSold: units } : { month: key, unitsSold: units });
@@ -497,11 +505,12 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
                   <input
                     type="number"
                     min="0"
+                    max={MAX_MANUAL_SALES_UNITS}
                     step="any"
                     inputMode="decimal"
                     placeholder={auto ? String(weeks.unitsSold) : '—'}
                     value={valueFor(key)}
-                    onChange={(e) => setDrafts((current) => ({ ...current, [key]: e.target.value }))}
+                    onChange={(e) => handleUnitsChange(key, e.target.value)}
                     aria-label={`${title} units sold`}
                   />
                 )}

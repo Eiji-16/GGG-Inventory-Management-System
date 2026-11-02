@@ -1543,6 +1543,10 @@ body {
         display: inline-flex !important;
     }
 
+    .sidebar-body .sidebar-logo-row .sidebar-mode-toggle {
+        display: none !important;
+    }
+
     .sidebar-item .sidebar-close-btn,
     .sidebar-close-btn {
         display: inline-flex !important;

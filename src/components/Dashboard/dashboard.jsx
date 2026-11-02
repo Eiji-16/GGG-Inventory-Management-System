@@ -32,7 +32,7 @@ const categoryColors = {
 const fallbackCategoryColors = ['#A78BFA', '#FB7185', '#38BDF8', '#F97316', '#2DD4BF'];
 /* Reorder List and Stock Alerts show this many full rows, then a "View all" link
    (instead of cutting a row in half at the bottom of the card). */
-const LIST_LIMIT = 3;
+const LIST_LIMIT = 4;
 /* Recent Activity shows the newest stock entries (as many as fit, up to this many). */
 const ACTIVITY_LIMIT = 4;
 const ACTIVITY_MAX = 12;
@@ -312,6 +312,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
   const reorderBoxRef = useRef(null);
   const activityBoxRef = useRef(null);
   const reorderFit = useFitCount(reorderBoxRef, LIST_LIMIT, [summary, loading]);
+  const reorderVisible = Math.min(reorderFit, LIST_LIMIT);
   const activityFit = useFitCount(activityBoxRef, ACTIVITY_LIMIT, [summary, loading]);
 
   const loadSummary = ({ quiet = false } = {}) => {
@@ -993,9 +994,9 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                     <button
                       key={item.productId}
                       type="button"
-                      className={`db-order-row is-${tag.level}${index >= reorderFit ? ' db-fit-hidden' : ''}`}
-                      aria-hidden={index >= reorderFit || undefined}
-                      tabIndex={index >= reorderFit ? -1 : undefined}
+                      className={`db-order-row is-${tag.level}${index >= reorderVisible ? ' db-fit-hidden' : ''}`}
+                      aria-hidden={index >= reorderVisible || undefined}
+                      tabIndex={index >= reorderVisible ? -1 : undefined}
                       onClick={() => go('Stock', { highlightProductId: item.productId })}
                       title={item.reasons.join('\n')}
                     >
@@ -1016,7 +1017,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                   );
                 })}
               </div>
-              {summary.reorderSuggestions.length > reorderFit && (
+              {summary.reorderSuggestions.length > reorderVisible && (
                 <button type="button" className="db-list-more" onClick={() => go('Reorder-Alerts')}>
                   View all {fmt(summary.reorderSuggestions.length)} in the Reorder List →
                 </button>
