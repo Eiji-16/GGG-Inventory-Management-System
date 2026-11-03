@@ -1158,3 +1158,80 @@
 @media (max-width: 900px) {
     .ra-bulk-modal .ra-bulk-input.ra-bulk-owner { width: 100% !important; max-width: 150px; }
 }
+
+/* ==========RESTOCK REPORT — COMPACT (2026-11-03, round 4)==========
+   Laptop / PC: the whole table fits the window (no sideways scroll, also
+   when zoomed): fixed column widths, smaller boxes and labels, one-line
+   hints. Zoomed in further (window < 900px wide) it switches to the cards. */
+@media (min-width: 901px) {
+    .ra-bulk-modal { width: min(860px, 100%); padding: 12px 14px; gap: 8px; }
+    .ra-bulk-modal .ra-bulk-table {
+        min-width: 0 !important;
+        width: 100%;
+        table-layout: fixed;
+        font-size: 12px;
+    }
+    .ra-bulk-modal .ra-bulk-table th:nth-child(1) { width: 24%; }
+    .ra-bulk-modal .ra-bulk-table th:nth-child(2) { width: 7%; }
+    .ra-bulk-modal .ra-bulk-table th:nth-child(3) { width: 12%; }
+    .ra-bulk-modal .ra-bulk-table th:nth-child(4),
+    .ra-bulk-modal .ra-bulk-table th:nth-child(5) { width: 11%; }
+    .ra-bulk-modal .ra-bulk-table th:nth-child(6),
+    .ra-bulk-modal .ra-bulk-table th:nth-child(7) { width: 11%; }
+    .ra-bulk-modal .ra-bulk-table th:nth-child(8) { width: 10%; }
+    .ra-bulk-modal .ra-bulk-table th:nth-child(9) { width: 3%; }
+    .ra-bulk-modal .ra-bulk-table th:first-child,
+    .ra-bulk-modal .ra-bulk-table td[data-label="Product"] { min-width: 0 !important; }
+    .ra-bulk-modal .ra-bulk-table th {
+        padding: 6px 4px !important;
+        font-size: 9.5px;
+        letter-spacing: 0.03em;
+        line-height: 1.25;
+        white-space: normal;
+    }
+    .ra-bulk-modal .ra-bulk-table td { padding: 5px 4px !important; vertical-align: middle; }
+    .ra-bulk-modal .ra-bulk-table td[data-label="Product"] strong {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .ra-bulk-modal .ra-bulk-table .ra-product { gap: 1px; min-width: 0; }
+    .ra-bulk-modal .ra-bulk-table .ra-product small {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        font-size: 10px;
+        line-height: 1.25;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .ra-bulk-modal .ra-bulk-input {
+        width: 100% !important;
+        max-width: 92px;
+        height: 28px;
+        min-height: 28px;
+        padding: 0 6px !important;
+        box-sizing: border-box;
+        font-size: 12px;
+    }
+    .ra-bulk-modal .ra-bulk-qty { font-size: 15px; }
+    .ra-bulk-modal .ra-bulk-scroll { overflow-x: hidden; }
+    .ra-bulk-same { padding: 8px 10px !important; }
+    .ra-bulk-same input { height: 30px; min-height: 30px; }
+    .ra-bulk-same .ra-order-btn { height: 30px; }
+    .ra-bulk-totals { font-size: 11.5px; }
+    .ra-modal-actions.ra-save-report .ra-order-btn { height: 32px; }
+    .ra-bulk-modal .ra-help { margin: 0; font-size: 10.5px; }
+}
+/* Phones: even tighter cards. */
+@media (max-width: 640px) {
+    .ra-bulk-modal .ra-bulk-table tbody tr {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px 10px !important;
+        padding: 10px 12px !important;
+    }
+    .ra-bulk-modal .ra-bulk-input { height: 30px; min-height: 30px; }
+    .ra-bulk-modal .ra-bulk-qty { font-size: 16px; }
+    .ra-modal-actions.ra-save-report .ra-order-btn { height: 34px; }
+}

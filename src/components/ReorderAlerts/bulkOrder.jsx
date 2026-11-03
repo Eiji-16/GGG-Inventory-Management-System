@@ -250,8 +250,8 @@ export default function BulkOrder({ items, onClose, onSaved }) {
 
   const sourceLabel = (row) => ({
     forecast: 'Forecast × 12',
-    history: 'Last 12 months of sales',
-    none: 'No sales yet — type it in',
+    history: 'Last 12 months',
+    none: 'No sales — type it',
   }[row.demandSource]);
 
   const preparedOn = () => new Date().toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' });
@@ -375,7 +375,7 @@ export default function BulkOrder({ items, onClose, onSaved }) {
                           : row.suggestion.hint}
                       >
                         <strong className="ra-bulk-qty">{row.suggestedQty.toLocaleString('en-PH')}</strong>
-                        <small>{row.quantity !== null ? 'Economic Order Quantity' : 'Back above reorder point (no costs yet)'}</small>
+                        <small>{row.quantity !== null ? 'Economic Order Quantity' : 'No costs yet'}</small>
                         {savedIds.has(row.id) && <small>Saved to Reports</small>}
                       </span>
                     ) : <span className="ra-muted">Fill in all 3</span>}
@@ -394,7 +394,7 @@ export default function BulkOrder({ items, onClose, onSaved }) {
                         onChange={(e) => updateRow(row.id, 'ownerQty', e.target.value)}
                         aria-label={`Owner's quantity for ${row.name}`}
                       />
-                      <small>{!row.ownerValid ? '1 to 9,999' : row.custom ? 'Your own amount' : 'Same as suggested'}</small>
+                      <small>{!row.ownerValid ? '1 to 9,999' : row.custom ? 'Your own' : 'Same'}</small>
                     </span>
                   </td>
                   <td data-label="Estimated cost" className="ra-num">
