@@ -162,6 +162,8 @@ export default function Profile() {
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(Object.values(body?.errors || {}).flat()[0] || body?.message || 'The photo could not be saved.');
       setUser((prev) => ({ ...prev, avatarUrl: body.avatarUrl }));
+      // Tell the sidebar account row to show the new photo right away.
+      window.dispatchEvent(new CustomEvent('ggg-avatar-changed', { detail: body.avatarUrl || null }));
     } catch (e) {
       setPhotoError(e.message || 'The photo could not be saved.');
     } finally {
@@ -180,6 +182,7 @@ export default function Profile() {
       });
       if (!response.ok) throw new Error('The photo could not be removed.');
       setUser((prev) => ({ ...prev, avatarUrl: null }));
+      window.dispatchEvent(new CustomEvent('ggg-avatar-changed', { detail: null }));
     } catch (e) {
       setPhotoError(e.message || 'The photo could not be removed.');
     } finally {

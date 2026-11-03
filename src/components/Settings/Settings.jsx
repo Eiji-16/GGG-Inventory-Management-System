@@ -479,7 +479,7 @@ function Settings({
           <div className="s-policy-body" id="s-policy-body">
             {/* Toolbar: search + legend */}
             <div className="s-policy-toolbar">
-              <div className="s-search">
+              <div className="s-search xs-search">
                 <Search size={13} aria-hidden="true" />
                 <input
                   type="search"

@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   Users,
   Boxes,
-  Calculator,
   TrendingUp,
   BarChart3,
   LogOut,
@@ -32,7 +31,6 @@ import apiFetch from '../../apiFetch';
 import { SAFETY_STOCK_DEFAULTS, DEFAULT_SAFETY_STOCK, reorderPointFor, safetyPointFor, statusPointsFor } from '../../data/safetyStock'; /* ===== POLICY ===== */
 import Dashboard from '../Dashboard/dashboard'; /* ===== DASHBOARD ===== */
 import ProductSupplier from '../ProductSupplier/productSupplier'; /* ===== PRODUCTS ===== */
-import AutoCalculator from '../AutoCalculator/autoCal'; /* ===== CALCULATOR ===== */
 import SalesForecasting from '../Forecasting/forecasting'; /* ===== FORECASTING ===== */
 import ReportAnalytics from '../Reports/reports'; /* ===== REPORTS ===== */
 import StockManagement from '../StockControl/stockControl'; /* ===== STOCK ===== */
@@ -226,7 +224,8 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
   };
   const canAccess = (view) => {
     if (view === 'Dashboard' || view === 'Profile' || view === 'Setting') return true;
-    if (view === 'Staffs') return isSuperAdminRole;
+    // Super Admin, or an Admin with Role Access "Manage Staff" (Staff accounts only).
+    if (view === 'Staffs') return isSuperAdminRole || (role === 'admin' && can('staff.manage'));
     const key = VIEW_PERMISSION[view];
     return key ? can(key) : false;
   };
@@ -260,6 +259,13 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
      account then sees (saved on the server, see SystemLogoController). */
   const isSuperAdminUser = isSuperAdminRole;
   const [logoUrl, setLogoUrl] = useState(user?.logoUrl || null);
+  // Own profile photo in the sidebar account row (null = initials).
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || null);
+  useEffect(() => {
+    const onChange = (event) => setAvatarUrl(event.detail || null);
+    window.addEventListener('ggg-avatar-changed', onChange);
+    return () => window.removeEventListener('ggg-avatar-changed', onChange);
+  }, []);
   const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
   const [logoBusy, setLogoBusy] = useState(false);
   const [logoError, setLogoError] = useState('');
@@ -667,7 +673,12 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
   };
 
   /* ===== NAVIGATION ===== */
-  const handleNavigate = (view, payload = null) => {
+  const handleNavigate = (requestedView, payload = null) => {
+    // The calculator now lives inside Forecasting (Economic Order Quantity
+    // tab). "Order Now" and the Stock Control shortcut still ask for
+    // 'Auto-Calculator': open Forecasting with that product instead.
+    const view = requestedView === 'Auto-Calculator' ? 'Forecasting' : requestedView;
+    if (requestedView === 'Auto-Calculator' && !canAccess('Auto-Calculator')) return;
     if (!canAccess(view)) return; // role not permitted — ignore
     if (mainContentRef.current) {
       viewScrollPositions.current[activeView] = mainContentRef.current.scrollTop;
@@ -685,8 +696,6 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
           console.error('Could not persist the forecast EOQ handoff:', storageError);
         }
       }
-    } else if (view === 'Auto-Calculator') {
-      setHandoff((current) => current || readSavedEoqHandoff(user?.id));
     } else {
       setHandoff(null);
     }
@@ -802,7 +811,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
             </button>
           </li>
           )}
-          {(canAccess('Auto-Calculator') || canAccess('Forecasting')) && <li className="sidebar-section-label">Planning</li>}
+          {canAccess('Forecasting') && <li className="sidebar-section-label">Planning</li>}
           {canAccess('Forecasting') && (
           <li className={`sidebar-item ${activeView === 'Forecasting' ? 'active' : ''}`}>
             <button onClick={() => handleNavigate('Forecasting')}>
@@ -811,14 +820,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
             </button>
           </li>
           )}
-          {canAccess('Auto-Calculator') && (
-          <li className={`sidebar-item ${activeView === 'Auto-Calculator' ? 'active' : ''}`}>
-            <button onClick={() => handleNavigate('Auto-Calculator')}>
-              <Calculator className="sidebar-icon" />
-              <span className="sidebar-label">Economic Order Quantity Calculator</span>
-            </button>
-          </li>
-          )}
+          {/* Economic Order Quantity Calculator: now a tab inside Forecasting. */}
           {canAccess('Reports') && <li className="sidebar-section-label">Analytics</li>}
           {canAccess('Reports') && (
           <li className={`sidebar-item ${activeView === 'Reports' ? 'active' : ''}`}>
@@ -868,8 +870,8 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
             <div className = "sub-sidebar-footer-item-logout">
               {/* Signed-in person (open sidebar only); opens Profile. */}
               <button type="button" className="sidebar-user" onClick={() => handleNavigate('Profile')} title="Open your profile">
-                <span className="sidebar-user-avatar" aria-hidden="true">
-                  {String(user?.name || '?').trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '?'}
+                <span className={`sidebar-user-avatar${avatarUrl ? ' has-photo' : ''}`} aria-hidden="true">
+                  {avatarUrl ? <img src={avatarUrl} alt="" /> : String(user?.name || '?').trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '?'}
                 </span>
                 <span className="sidebar-user-text">
                   <strong>{user?.name || 'Account'}</strong>
@@ -1121,7 +1123,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     catalogRevision={policyRefreshKey}
                     onInventoryChanged={() => setPolicyRefreshKey((key) => key + 1)}
                     currentUserName={user?.name || ''}
-                    canComputeEoq={canAccess('Auto-Calculator')}
+                    canComputeEoq={canAccess('Auto-Calculator') && canAccess('Forecasting')}
                     canClearStock={can('stock.clear')}
                     canAddStock={can('stock.create')}
                     canEditStock={can('stock.edit')}
@@ -1146,23 +1148,6 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                   />
                 </div>
               )}
-              {visitedViews.has('Auto-Calculator') && canAccess('Auto-Calculator') && (
-                <div className="app-view-panel" hidden={activeView !== 'Auto-Calculator'}>
-                  <AutoCalculator
-                    onNavigate={handleNavigate}
-                    handoff={handoff}
-                    onClearHandoff={clearEoqHandoff}
-                    currentUser={user?.name || ''}
-                    currentUserId={user?.id || ''}
-                    safetyStock={safetyStock}
-                    catalogRevision={policyRefreshKey}
-                    allowSaveCosts={can('calculator.save_costs')}
-                    canViewHistory={can('calculator.history')}
-                    canExport={can('calculator.export')}
-                    canOpenForecasting={canAccess('Forecasting')}
-                  />
-                </div>
-              )}
               {visitedViews.has('Forecasting') && canAccess('Forecasting') && (
                 <div className="app-view-panel" hidden={activeView !== 'Forecasting'}>
                   <SalesForecasting
@@ -1174,19 +1159,26 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     canEditPastSales={can('forecast.past_sales')}
                     canManageEvents={can('forecast.events')}
                     canComputeEoq={canAccess('Auto-Calculator')}
+                    handoff={activeView === 'Forecasting' ? handoff : null}
+                    currentUser={user?.name || ''}
+                    currentUserId={user?.id || ''}
+                    safetyStock={safetyStock}
+                    canSaveEoqCosts={can('calculator.save_costs')}
+                    canViewEoqHistory={can('calculator.history')}
+                    canExportEoq={can('calculator.export')}
                   />
                 </div>
               )}
               {visitedViews.has('Staffs') && canAccess('Staffs') && (
                 <div className="app-view-panel" hidden={activeView !== 'Staffs'}>
-                  <Staffs isSuperAdmin={user?.isSuperAdmin === true} />
+                  <Staffs isSuperAdmin={user?.isSuperAdmin === true} canManageStaff={role === 'admin' && can('staff.manage')} />
                 </div>
               )}
               {visitedViews.has('Reports') && canAccess('Reports') && (
                 <div className="app-view-panel" hidden={activeView !== 'Reports'}>
                   <ReportAnalytics
                     safetyStock={safetyStock}
-                    refreshKey={policyRefreshKey}
+                    refreshKey={`${policyRefreshKey}-${dataRevision}`}
                     isActive={activeView === 'Reports'}
                     canTab={(key) => can(`reports.tab.${key}`)}
                     canExport={can('reports.export')}

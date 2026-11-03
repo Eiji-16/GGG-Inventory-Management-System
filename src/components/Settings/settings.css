@@ -1224,3 +1224,19 @@
 
 /* Olive: charcoal frame + cream page (dark / light split dot). */
 .s-theme-stop-olive .s-theme-stop-dot { border-color: #8a9a2b; background: linear-gradient(135deg, #ecebe3 0 50%, #151613 50% 100%); }
+
+/* Role Access: a feature that does not exist for this role (e.g. Manage Staff for Staff). */
+.s-roles-na { color: var(--text-muted); opacity: 0.6; font-weight: 600; }
+
+/* ==========PREFERENCE ROWS — never squeezed (2026-11-03)==========
+   At ~1024px the Preferences card is narrow: the theme dots covered the
+   "… theme is active" text. Now the text keeps at least ~10rem and the
+   control (theme dots, currency, font size) moves to its own line below
+   when there isn't room beside it. */
+.s-pref-row { flex-wrap: wrap; row-gap: 8px; }
+.s-pref-row .s-pref-text { flex: 1 1 10rem; }
+.s-pref-row .s-theme-selector {
+    width: calc(var(--theme-count, 7) * 36px);
+    max-width: 100%;
+    margin-left: auto;
+}

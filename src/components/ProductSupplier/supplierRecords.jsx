@@ -174,7 +174,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
             onPick={setQuery}
             label="Suppliers"
           >
-            <div className="ps-search-box">
+            <div className="ps-search-box xs-search">
               <Search size={13} className="ps-search-icon" />
               <input
                 type="search"

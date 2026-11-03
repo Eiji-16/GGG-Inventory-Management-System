@@ -6,7 +6,7 @@
 
 /*==========DOCUMENT==========*/
 html, body, #root {
-    font-family: 'Poppins', sans-serif;
+    font-family: var(--font-sans);
     height: 100%;
 }
 

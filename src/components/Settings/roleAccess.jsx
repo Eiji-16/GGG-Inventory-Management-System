@@ -180,6 +180,14 @@ export default function RoleAccess() {
                       <div className={`s-roles-row${item.parent ? ' is-child' : ''}`} role="row" key={item.key}>
                         <span role="cell" className="s-roles-label">{item.label}</span>
                         {ROLES.map((role) => {
+                          // Some features exist for one role only (e.g. Manage Staff = Admin).
+                          if (Array.isArray(item.roles) && !item.roles.includes(role.key)) {
+                            return (
+                              <span role="cell" className="s-roles-col" key={role.key}>
+                                <span className="s-roles-na" title={`Not available for ${role.label}`}>—</span>
+                              </span>
+                            );
+                          }
                           const ticked = Boolean(draft[role.key]?.[item.key]);
                           const blockedByParent = ticked && !isEffective(role.key, item.key);
                           return (

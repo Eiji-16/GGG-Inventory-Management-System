@@ -20,6 +20,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/staff', [StaffController::class, 'store']);
     Route::match(['put', 'patch'], '/staff/{user}', [StaffController::class, 'update']);
     Route::delete('/staff/{user}', [StaffController::class, 'destroy']);
+    // A staff account's profile photo (Super Admin, checked in the controller).
+    Route::get('/staff/{user}/avatar', [StaffController::class, 'avatar']);
+    Route::post('/staff/{user}/avatar', [StaffController::class, 'storeAvatar']);
+    Route::delete('/staff/{user}/avatar', [StaffController::class, 'destroyAvatar']);
 
     // The signed-in user's own profile, password, and activity feed.
     Route::get('/profile', [ProfileController::class, 'show']);

@@ -1526,7 +1526,7 @@ function StockControl({
             onPick={setQuery}
             label="Categories"
           >
-            <div className="sc-search-box">
+            <div className="sc-search-box xs-search">
               <Search size={13} className="sc-search-icon" />
               <input
                 type="search"

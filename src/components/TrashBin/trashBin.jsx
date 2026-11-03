@@ -17,7 +17,7 @@ import CustomSelect from '../Forecasting/CustomSelect';
    instead of being erased. Each item shows what it was, who deleted it and
    when. Allowed users can Restore (it comes back exactly as it was) or
    Permanently delete — one item, several ticked items, or everything
-   ("Empty Trash Bin"). Permanent deletion always asks for the password.
+   ("Empty Trash Bin").    Permanent deletion always asks for explicit confirmation.
    Role Access decides who sees which button; the server checks the same boxes.
 
    Safety checks:
@@ -81,7 +81,6 @@ function TrashBin({
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState(new Map());   // key → item
   const [confirm, setConfirm] = useState(null);           // { action, items } | { action: 'empty' }
-  const [currentPassword, setCurrentPassword] = useState('');
   const requestRef = useRef(0);
 
   const load = async () => {
@@ -165,7 +164,7 @@ function TrashBin({
     setError('');
     try {
       if (confirm.action === 'empty') {
-        const result = await send('/api/trash', 'DELETE', { current_password: currentPassword });
+        const result = await send('/api/trash', 'DELETE');
         await finish(`The Trash Bin was emptied — ${result.deleted} item${result.deleted === 1 ? '' : 's'} permanently deleted.`);
       } else if (confirm.items.length === 1) {
         const [item] = confirm.items;
@@ -177,14 +176,13 @@ function TrashBin({
           ].filter(Boolean).join(' ');
           await finish(`${item.productName} was restored${extra ? ` ${extra}` : ''}.`);
         } else {
-          await send(URL_BASE[item.kind](item.id), 'DELETE', { current_password: currentPassword });
+          await send(URL_BASE[item.kind](item.id), 'DELETE');
           await finish(`${item.productName} (${item.type}) was permanently deleted.`);
         }
       } else {
         const result = await send('/api/trash/bulk', 'POST', {
           action: confirm.action,
           items: confirm.items.map((item) => ({ kind: item.kind, id: item.id })),
-          ...(confirm.action === 'purge' ? { current_password: currentPassword } : {}),
         });
         const verb = confirm.action === 'restore' ? 'restored' : 'permanently deleted';
         const failedText = result.failed?.length
@@ -196,17 +194,15 @@ function TrashBin({
     } catch (actionError) {
       setError(actionError.message || "That didn't work.");
     } finally {
-      setCurrentPassword('');
       setBusy(false);
     }
   };
 
   const openConfirm = (action, items) => {
     setError('');
-    setCurrentPassword('');
     setConfirm({ action, items });
   };
-  const closeConfirm = () => { if (!busy) { setConfirm(null); setCurrentPassword(''); } };
+  const closeConfirm = () => { if (!busy) setConfirm(null); };
 
   const bulkRestorable = selectedItems.filter((item) => !restoreBlockedReason(item));
 
@@ -264,8 +260,8 @@ function TrashBin({
     ? 'Empty the Trash Bin?'
     : confirm.action === 'restore'
       ? (confirm.items.length === 1 ? 'Restore this item?' : `Restore ${confirm.items.length} items?`)
-      : (confirm.items.length === 1 ? 'Delete permanently?' : `Permanently delete ${confirm.items.length} items?`);
-  const needsPassword = confirm && confirm.action !== 'restore';
+      : (confirm.action === 'purge' ? 'Are you sure?' : confirm.items.length === 1 ? 'Delete permanently?' : `Permanently delete ${confirm.items.length} items?`);
+  const isPurge = confirm && confirm.action !== 'restore';
 
   return (
     <div className="sc-table-parent tb-page">
@@ -286,7 +282,7 @@ function TrashBin({
             </button>
           ))}
         </div>
-        <div className="sc-search-box tb-search">
+        <div className="sc-search-box tb-search xs-search">
           <Search size={13} className="sc-search-icon" />
           <input type="search" placeholder="Search the Trash Bin…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search the Trash Bin" />
         </div>
@@ -451,9 +447,9 @@ function TrashBin({
       {/* ===== CONFIRM ===== */}
       {confirm && createPortal(
         <div className="sc-modal-overlay sc-confirm-overlay" onClick={closeConfirm}>
-          <div className={`sc-modal sc-confirm-modal${needsPassword ? ' tb-purge-modal' : ''}`} onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true" aria-labelledby="tb-confirm-title" aria-describedby="tb-confirm-text">
-            <span className={`sc-confirm-icon ${needsPassword ? 'is-out' : 'is-safe'}`} aria-hidden="true">
-              {needsPassword ? <AlertTriangle size={22} /> : <RotateCcw size={22} />}
+          <div className={`sc-modal sc-confirm-modal${isPurge ? ' tb-purge-modal' : ''}`} onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true" aria-labelledby="tb-confirm-title" aria-describedby="tb-confirm-text">
+            <span className={`sc-confirm-icon ${isPurge ? 'is-out' : 'is-safe'}`} aria-hidden="true">
+              {isPurge ? <AlertTriangle size={22} /> : <RotateCcw size={22} />}
             </span>
             <h3 id="tb-confirm-title">{confirmTitle}</h3>
             <div id="tb-confirm-text" className="tb-confirm-text">
@@ -464,10 +460,11 @@ function TrashBin({
                   {' '}{counts.supplier} supplier{counts.supplier === 1 ? '' : 's'} and {counts.event} seasonal event{counts.event === 1 ? '' : 's'}.
                 </p>
               ) : confirm.items.length === 1 ? (
-                <p>
-                  <strong>{confirm.items[0].productName}</strong> · {confirm.items[0].type}
+                <div className="tb-confirm-item">
+                  <strong>{confirm.items[0].productName}</strong>
+                  <span className="tb-confirm-item-type">{confirm.items[0].type}</span>
                   <span className="sc-confirm-detail">{detailsText(confirm.items[0])}</span>
-                </p>
+                </div>
               ) : (
                 <ul className="tb-confirm-list">
                   {confirm.items.slice(0, 6).map((item) => <li key={keyOf(item)}>{item.productName} <small>({item.type})</small></li>)}
@@ -477,38 +474,23 @@ function TrashBin({
               {confirm.action === 'restore' && confirm.items.some((item) => item.kind === 'product') && (
                 <p className="tb-confirm-note">Products come back with the stock entries deleted with them (and their supplier, if it was deleted too).</p>
               )}
-              {needsPassword && (
-                <>
+              {isPurge && (
+                <div className="tb-purge-effects">
                   {(confirm.action === 'empty' ? purgeWarning([{ kind: 'product' }, { kind: 'entry' }, { kind: 'supplier' }, { kind: 'event' }]) : purgeWarning(confirm.items))
-                    .map((line) => <p key={line} className="tb-confirm-note">{line}</p>)}
-                  <p className="sc-confirm-detail">This can’t be undone. Enter your current password to confirm.</p>
-                </>
+                    .map((line) => <p key={line}>{line}</p>)}
+                </div>
               )}
             </div>
-            {needsPassword && (
-              <label className="tb-password-field">
-                Current password
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  value={currentPassword}
-                  onChange={(event) => setCurrentPassword(event.target.value)}
-                  onKeyDown={(event) => { if (event.key === 'Enter' && currentPassword) runConfirmed(); }}
-                  aria-label="Current password to confirm permanent deletion"
-                  autoFocus
-                  required
-                />
-              </label>
-            )}
+            {isPurge && <p className="tb-confirm-final">This action can’t be undone.</p>}
             {error && <p className="tb-confirm-error" role="alert">{error}</p>}
             <div className="sc-modal-actions">
-              <button type="button" className="sc-modal-cancel-btn" onClick={closeConfirm} disabled={busy} autoFocus={!needsPassword}>Cancel</button>
+              <button type="button" className="sc-modal-cancel-btn" onClick={closeConfirm} disabled={busy} autoFocus={isPurge}>Cancel</button>
               {confirm.action === 'restore' ? (
                 <button type="button" className="sc-modal-save-btn" onClick={runConfirmed} disabled={busy}>
                   {busy ? 'Restoring…' : 'Restore'}
                 </button>
               ) : (
-                <button type="button" className="sc-modal-save-btn sc-confirm-danger-btn" onClick={runConfirmed} disabled={!currentPassword || busy}>
+                <button type="button" className="sc-modal-save-btn sc-confirm-danger-btn" onClick={runConfirmed} disabled={busy}>
                   {busy ? 'Deleting…' : confirm.action === 'empty' ? 'Empty Trash Bin' : 'Delete permanently'}
                 </button>
               )}

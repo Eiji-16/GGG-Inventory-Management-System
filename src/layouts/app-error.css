@@ -8,7 +8,7 @@
         radial-gradient(ellipse at 50% 0%, rgba(232, 197, 71, 0.1), transparent 48%),
         var(--bg-main, #f1f5fa);
     color: var(--text-primary, #0b1b33);
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-sans);
 }
 
 .app-status-screen {

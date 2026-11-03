@@ -1,7 +1,7 @@
 /*==========ROOT==========*/
 
 .ac-root {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-family: var(--font-sans);
     color: var(--text-primary, #111);
     background: var(--bg-card, #fff);
     font-size: 14px;
@@ -1555,7 +1555,7 @@
     max-width: 560px;
     max-height: calc(90vh / var(--ui-zoom, 1));
     color: var(--text-primary, #111);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-family: var(--font-sans);
     font-size: 14px;
 }
 .eq-result-sub { margin: 2px 0 0; color: var(--text-muted); font-size: 11.5px; }

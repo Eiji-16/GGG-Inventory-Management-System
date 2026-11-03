@@ -27,7 +27,12 @@ class ReportController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $products = Product::with(['safetyStock', 'supplier'])->withoutPhoto()->orderBy('name')->get();
+        $products = Product::query()
+            ->whereNull('products.deleted_at')
+            ->with(['safetyStock', 'supplier'])
+            ->withoutPhoto()
+            ->orderBy('name')
+            ->get();
         // Speed: read every product's sales once instead of once per product.
         $this->reorderPoints->preload($products);
         $this->forecasts->preload($products);

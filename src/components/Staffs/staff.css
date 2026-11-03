@@ -732,6 +732,9 @@
     border: 1px solid var(--dropdown-menu-border);
     border-radius: 8px;
     box-shadow: var(--shadow-hover, 0 10px 28px rgba(0, 0, 0, 0.28));
+    /* The photo items made the menu taller: never past the bottom of the window. */
+    max-height: calc(100vh / var(--ui-zoom, 1) - 24px);
+    overflow-y: auto;
 }
 
 .st-menu-head {
@@ -870,4 +873,65 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+}
+
+/* ==========PROFILE PHOTO (2026-11-03)==========
+   Photo or initials (the default picture) beside each name. */
+.st-name-wrap { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.st-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.st-avatar {
+    flex: 0 0 auto;
+    display: inline-grid; place-items: center;
+    width: 32px; height: 32px; border-radius: 50%;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--accent, #E8C547) 18%, var(--bg-card));
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    font-size: 11.5px; font-weight: 800; letter-spacing: 0.02em;
+    transition: opacity 0.2s ease;
+}
+.st-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.st-avatar.is-busy { opacity: 0.45; }
+
+/* ==========PHONES: each account is a card (2026-11-03)==========
+   Was a sideways-scrolling table (Status, Last active and the ⋮ menu were
+   off-screen). Now: photo + name with the ⋮ menu beside it, the email under
+   it, then role, status and last active in one wrapped line. */
+@media (max-width: 640px) {
+    .st-table-scroll { overflow-x: visible; }
+    .st-table,
+    .st-table tbody { display: block; width: 100%; }
+    .st-table thead { display: none; }
+    .st-table tbody tr {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 8px;
+        padding: 12px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .st-table tbody tr:last-child { border-bottom: 0; }
+    .st-table tbody td {
+        display: block;
+        padding: 0;
+        border: 0;
+        text-align: left;
+    }
+    .st-table tbody td.st-cell-name { order: 1; flex: 1 1 0; min-width: 0; }
+    .st-table tbody td.st-cell-actions { width: auto !important; }
+    .st-table tbody td.st-cell-actions { order: 2; flex: 0 0 auto; margin-left: auto; }
+    .st-table tbody td.st-cell-email { order: 3; }
+    .st-table tbody td.st-cell-role { order: 4; }
+    .st-table tbody td.st-cell-status { order: 5; }
+    .st-table tbody td.st-cell-last { order: 6; text-align: right !important; }
+    .st-table tbody td.st-cell-email {
+        flex: 1 1 100%;
+        padding-left: 42px;           /* lines up under the name, past the photo */
+        overflow-wrap: anywhere;
+        font-size: 12px;
+    }
+    .st-table tbody td.st-cell-role { padding-left: 42px; }
+    .st-table tbody td.st-cell-last { margin-left: auto; font-size: 11.5px; }
+    .st-table tbody td.st-empty { flex: 1 1 100%; text-align: center; padding: 16px 0; }
+    .st-kebab { min-width: 36px; min-height: 36px; }  /* easy to tap */
 }

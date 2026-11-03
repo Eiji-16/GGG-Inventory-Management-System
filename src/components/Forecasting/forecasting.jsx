@@ -4,6 +4,7 @@ import './forecasting.css';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook, { printReportPdf } from '../../utils/exportReportWorkbook';
 import PastSalesPanel from './pastSales';
+import AutoCalculator from '../AutoCalculator/autoCal';
 
 const FORECAST_METHOD = 'Weighted Moving Average';
 const FORECAST_METHOD_NOTE = 'Uses the three most recent completed periods with weights 1, 2 and 3; the newest period receives the greatest weight.';
@@ -249,8 +250,20 @@ export default function DemandForecastDesign({
   canEditPastSales = true,
   canManageEvents = true,
   canComputeEoq = true,
+  /* Economic Order Quantity tab (the calculator lives here now, 2026-11-03).
+     handoff = "Order Now" (Reorder List) / Stock Control shortcut: opens this
+     tab with that product already selected. */
+  handoff = null,
+  currentUser = '',
+  currentUserId = '',
+  safetyStock,
+  canSaveEoqCosts = true,
+  canViewEoqHistory = true,
+  canExportEoq = true,
 }) {
   const [view, setView] = useState('forecast');
+  // What the Economic Order Quantity tab should fill in (forecast or Order Now).
+  const [eoqHandoff, setEoqHandoff] = useState(null);
   const [products, setProducts] = useState([]);
   const [productId, setProductId] = useState('');
   const [productSearch, setProductSearch] = useState('');
@@ -361,6 +374,20 @@ export default function DemandForecastDesign({
     return () => { active = false; };
   }, [productId, selectedPeriodType, refreshKey, catalogRevision]);
 
+  /* "Order Now" / Stock Control shortcut: select that product, open the tab. */
+  useEffect(() => {
+    if (!handoff?.productId || !canComputeEoq) return;
+    setProductId(String(handoff.productId));
+    setEoqHandoff(handoff);
+    setView('eoq');
+  }, [handoff, canComputeEoq]);
+
+  const chooseProduct = (value) => {
+    onClearEoqHandoff?.();
+    setEoqHandoff(null);
+    setProductId(value);
+  };
+
   const selectedProduct = products.find((product) => product.id === productId) || null;
   const historyRows = forecast?.history || history?.rows || [];
   const dataPoints = forecast?.dataPoints ?? history?.dataPoints ?? 0;
@@ -408,7 +435,8 @@ export default function DemandForecastDesign({
       return;
     }
 
-    onNavigate?.('Auto-Calculator', {
+    // Same page: open the Economic Order Quantity tab with this forecast.
+    setEoqHandoff({
       type: 'forecast-eoq',
       productId: selectedProduct.id,
       productName: selectedProduct.name,
@@ -426,6 +454,7 @@ export default function DemandForecastDesign({
       source: 'forecast',
       createdAt: new Date().toISOString(),
     });
+    setView('eoq');
   };
 
   /* ===== EXPORT ===== */
@@ -660,17 +689,69 @@ export default function DemandForecastDesign({
                 <span className="f-view-tab-count">{events.filter((event) => event.status === 'Active').length} active</span>
               )}
             </button>
+            {canComputeEoq && (
+            <button type="button" role="tab" aria-selected={view === 'eoq'} className={view === 'eoq' ? 'is-active' : ''} onClick={() => setView('eoq')}>
+              Economic Order Quantity
+            </button>
+            )}
           </div>
+
+          {/* ===== ECONOMIC ORDER QUANTITY (the former calculator page) =====
+              Same calculator, same formula; the product is picked here once. */}
+          {view === 'eoq' && canComputeEoq && (
+            <div className="fx-layout fx-eoq-layout">
+              <div className="fx-toolbar">
+                <div className="f-field f-search-wrap xs-search">
+                  <label htmlFor="eoq-product-search">Search product</label>
+                  <input
+                    id="eoq-product-search"
+                    type="text"
+                    aria-label="Search product"
+                    placeholder="Name, ID, brand, category or variant…"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                  />
+                  <SearchIcon />
+                </div>
+                <div className="f-field fx-product-field">
+                  <label htmlFor="eoq-product">Product</label>
+                  <ForecastProductSelect
+                    products={filteredProducts}
+                    allProducts={products}
+                    productId={productId}
+                    loading={loadingProducts}
+                    onChange={chooseProduct}
+                  />
+                </div>
+              </div>
+              <AutoCalculator
+                embedded
+                productId={productId}
+                onNavigate={onNavigate}
+                handoff={eoqHandoff}
+                onClearHandoff={() => { setEoqHandoff(null); onClearEoqHandoff?.(); }}
+                currentUser={currentUser}
+                currentUserId={currentUserId}
+                {...(safetyStock ? { safetyStock } : {})}
+                catalogRevision={catalogRevision}
+                allowSaveCosts={canSaveEoqCosts}
+                canViewHistory={canViewEoqHistory}
+                canExport={canExportEoq}
+                canOpenForecasting={false}
+              />
+            </div>
+          )}
 
           {view === 'forecast' && (
             <div className="fx-layout">
               {/* ===== TOOLBAR ===== */}
               <div className="fx-toolbar">
-                <div className="f-field f-grow f-search-wrap">
+                <div className="f-field f-search-wrap xs-search">
                   <label htmlFor="forecast-product-search">Search product</label>
                   <input
                     id="forecast-product-search"
                     type="text"
+                    aria-label="Search product"
                     placeholder="Name, ID, brand, category or variant…"
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
@@ -684,10 +765,7 @@ export default function DemandForecastDesign({
                     allProducts={products}
                     productId={productId}
                     loading={loadingProducts}
-                    onChange={(value) => {
-                      onClearEoqHandoff?.();
-                      setProductId(value);
-                    }}
+                    onChange={chooseProduct}
                   />
                 </div>
                 <div className="f-field">
@@ -863,7 +941,7 @@ export default function DemandForecastDesign({
                 </div>
                 {forecast && canComputeEoq && (
                   <p className="fx-handoff">
-                    Sends {annualDemand.toLocaleString()} units/year to the Economic Order Quantity Calculator as annual demand.
+                    Opens the Economic Order Quantity tab with {annualDemand.toLocaleString()} units/year as annual demand.
                   </p>
                 )}
               </section>
@@ -987,7 +1065,7 @@ export default function DemandForecastDesign({
             <PastSalesPanel
               products={products}
               productId={productId}
-              onProductChange={(value) => { onClearEoqHandoff?.(); setProductId(value); }}
+              onProductChange={chooseProduct}
               onChanged={() => setRefreshKey((key) => key + 1)}
             />
           )}

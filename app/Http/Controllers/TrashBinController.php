@@ -13,7 +13,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -33,7 +32,7 @@ use Illuminate\Validation\ValidationException;
  * POST   /api/trash/seasonal-events/{id}/restore     restore a seasonal event
  * DELETE /api/trash/seasonal-events/{id}             permanently delete a seasonal event
  * POST   /api/trash/bulk                             restore / delete several at once
- * DELETE /api/trash                                  empty the whole Trash Bin (password)
+ * DELETE /api/trash                                  empty the whole Trash Bin
  */
 class TrashBinController extends Controller
 {
@@ -214,9 +213,8 @@ class TrashBinController extends Controller
         return response()->json(['restored' => true]);
     }
 
-    public function forceDeleteSupplier(Request $request, int $id): JsonResponse
+    public function forceDeleteSupplier(int $id): JsonResponse
     {
-        $this->confirmPassword($request);
         $this->purgeSupplier(Supplier::onlyTrashed()->findOrFail($id));
 
         return response()->json(['deleted' => true]);
@@ -243,9 +241,8 @@ class TrashBinController extends Controller
         return response()->json(['restored' => true]);
     }
 
-    public function forceDeleteEvent(Request $request, int $id): JsonResponse
+    public function forceDeleteEvent(int $id): JsonResponse
     {
-        $this->confirmPassword($request);
         $this->purgeEvent(SeasonalEvent::onlyTrashed()->findOrFail($id));
 
         return response()->json(['deleted' => true]);
@@ -261,7 +258,7 @@ class TrashBinController extends Controller
     /* ===== Several at once ===== */
 
     /**
-     * POST /api/trash/bulk  { action: restore|purge, items: [{kind, id}], current_password? }
+     * POST /api/trash/bulk  { action: restore|purge, items: [{kind, id}] }
      * Restores parents first (suppliers → products → entries); deletes children
      * first. Each item is done on its own, so one refusal doesn't stop the rest.
      */
@@ -275,10 +272,6 @@ class TrashBinController extends Controller
         ]);
         $feature = $data['action'] === 'restore' ? 'trash.restore' : 'trash.purge';
         abort_unless(\App\Services\RoleAccessService::allows($request->user(), $feature), 403, 'Your role does not have access to this feature. Ask the Super Admin to turn it on in Settings → Role Access.');
-        if ($data['action'] === 'purge') {
-            $this->confirmPassword($request);
-        }
-
         $order = $data['action'] === 'restore'
             ? ['supplier' => 0, 'product' => 1, 'entry' => 2, 'event' => 3]
             : ['entry' => 0, 'product' => 1, 'supplier' => 2, 'event' => 3];
@@ -304,10 +297,9 @@ class TrashBinController extends Controller
         return response()->json(['done' => $done, 'failed' => $failed]);
     }
 
-    /** DELETE /api/trash  { current_password } — permanently delete EVERYTHING in the Trash Bin. */
-    public function empty(Request $request): JsonResponse
+    /** DELETE /api/trash — permanently delete EVERYTHING in the Trash Bin. */
+    public function empty(): JsonResponse
     {
-        $this->confirmPassword($request);
         $before = $this->allRecords()->count();
 
         foreach (StockMovement::onlyTrashed()->where('deleted_with_product', false)->pluck('id') as $id) {
@@ -398,9 +390,8 @@ class TrashBinController extends Controller
         return response()->json(['restored' => true, 'restoredEntries' => $entries, 'restoredSupplier' => $supplier?->name]);
     }
 
-    public function forceDeleteProduct(Request $request, string $code): JsonResponse
+    public function forceDeleteProduct(string $code): JsonResponse
     {
-        $this->confirmPassword($request);
         $product = Product::onlyTrashed()->where('code', $code)->firstOrFail();
         $image = $product->image;
         $entries = $this->stockMovements->forceDeleteProduct($product);
@@ -437,9 +428,8 @@ class TrashBinController extends Controller
         return response()->json(['restored' => true, 'movement' => $this->formatMovement($movement)]);
     }
 
-    public function forceDeleteMovement(Request $request, int $id): JsonResponse
+    public function forceDeleteMovement(int $id): JsonResponse
     {
-        $this->confirmPassword($request);
         $movement = $this->stockMovements->forceDelete($id);
         $movement->loadMissing('product');
 
@@ -473,19 +463,6 @@ class TrashBinController extends Controller
             'deletedAt' => $movement->deleted_at?->toIso8601String(),
             'deletedBy' => $movement->deleted_by_name,
         ];
-    }
-
-    private function confirmPassword(Request $request): void
-    {
-        $data = $request->validate([
-            'current_password' => ['required', 'string'],
-        ]);
-
-        if (! Hash::check($data['current_password'], $request->user()->password)) {
-            throw ValidationException::withMessages([
-                'current_password' => 'Your current password is incorrect.',
-            ]);
-        }
     }
 
     private function typeLabel(StockMovement $movement): string

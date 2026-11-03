@@ -78,6 +78,20 @@ class ReportsAccuracyTest extends TestCase
         $this->assertSame(1, $summary['kpis']['outOfStock']);
     }
 
+    public function test_stock_summary_excludes_products_in_the_trash_bin(): void
+    {
+        $active = $this->product('PRD-ACTIVE', 4);
+        $trashed = $this->product('PRD-TRASHED', 3);
+
+        $this->deleteJson("/api/products/{$trashed->code}")->assertOk();
+
+        $summary = $this->getJson('/api/reports')->assertOk()->json('stockSummary');
+
+        $this->assertSame([$active->code], collect($summary['rows'])->pluck('productId')->all());
+        $this->assertSame(1, $summary['kpis']['productCount']);
+        $this->assertSame(4, $summary['kpis']['totalStock']);
+    }
+
     public function test_top_moving_value_uses_the_selling_price_on_each_sale(): void
     {
         $p = $this->product('PRD-T', 0);

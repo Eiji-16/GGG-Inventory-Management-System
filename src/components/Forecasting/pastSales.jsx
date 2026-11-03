@@ -3,6 +3,13 @@ import apiFetch from '../../apiFetch';
 import { readSalesFile, downloadTemplate, monthLabel } from '../../utils/pastSalesImport';
 import CustomSelect from './CustomSelect';
 
+/* Same search icon as Forecasting (expandable search box). */
+const SearchIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+  </svg>
+);
+
 /* ==========================================================================
    PAST SALES
    Monthly or weekly sales from BEFORE a product's Stock Control records begin (e.g.
@@ -438,9 +445,10 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
       </header>
 
       <div className={`ps-manual-controls${isWeekly ? ' is-weekly' : ''}`}>
-        <div className="f-field f-grow ps-find-field">
+        <div className="f-field ps-find-field f-search-wrap xs-search">
           <label htmlFor="ps-search">Find product</label>
-          <input id="ps-search" type="text" placeholder="Name, ID or category…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input id="ps-search" type="text" aria-label="Find product" placeholder="Name, ID or category…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <SearchIcon />
         </div>
         <div className="f-field f-grow ps-product-field">
           <label htmlFor="ps-product">Product</label>

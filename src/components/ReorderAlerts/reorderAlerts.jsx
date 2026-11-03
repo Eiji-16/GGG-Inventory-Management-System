@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BellRing, Calculator, Check, ClipboardList, PackageCheck, PackageX, Search, ShoppingCart } from 'lucide-react';
+import { AlertTriangle, BellRing, Calculator, Check, ClipboardList, FileText, PackageCheck, PackageX, Search } from 'lucide-react';
 import apiFetch from '../../apiFetch';
 import './reorderAlerts.css';
 import { reorderPointFor, safetyPointFor, statusPointsFor, SAFETY_STOCK_DEFAULTS } from '../../data/safetyStock';
@@ -202,14 +202,12 @@ export default function ReorderAlerts({
     return next;
   });
   const columnCount = canComputeEoq ? 8 : 7;
-  /* Bulk order is for 2 or more products; one product uses "Order Now". */
-  const BULK_MIN = 2;
+  /* Restock Report (was "Bulk order"): 1 or more ticked products. */
+  const BULK_MIN = 1;
   const canBulk = selectedAlerts.length >= BULK_MIN;
   const bulkHint = selectedAlerts.length === 0
-    ? `Tick at least ${BULK_MIN} products in the table first`
-    : selectedAlerts.length < BULK_MIN
-      ? 'Bulk order needs at least 2 products — for one product, use “Order Now” on its row'
-      : 'Work out the order quantity for every ticked product';
+    ? 'Tick the products to restock in the table first'
+    : 'Work out the restock quantity for every ticked product and export the report';
 
   /* Order Now sends the product's forecast demand (WMA + seasonal, per month
      × 12) to the EOQ Calculator. If no forecast is possible yet, it falls back
@@ -282,7 +280,7 @@ export default function ReorderAlerts({
               onPick={setQuery}
               label="Categories"
             >
-              <div className="ra-search">
+              <div className="ra-search xs-search">
                 <Search size={13} aria-hidden="true" />
                 <input
                   type="search"
@@ -301,7 +299,7 @@ export default function ReorderAlerts({
                 disabled={!canBulk}
                 title={bulkHint}
               >
-                <ShoppingCart size={13} aria-hidden="true" className="ra-bulk-cart" /> Bulk order
+                <FileText size={13} aria-hidden="true" className="ra-bulk-cart" /> Restock Report
                 {/* key = count, so the number "pops" each time a product is ticked */}
                 {selectedAlerts.length > 0 && (
                   <span key={selectedAlerts.length} className="ra-bulk-count" aria-label={`${selectedAlerts.length} selected`}>
@@ -313,11 +311,6 @@ export default function ReorderAlerts({
           </div>
         </div>
 
-        {canComputeEoq && selectedAlerts.length === 1 && (
-          <p className="ra-bulk-hint" role="status">
-            1 product ticked. Bulk order needs at least {BULK_MIN} — tick another product, or use “Order Now” on its row.
-          </p>
-        )}
         {error && <p className="ra-error" role="alert">{error}</p>}
         {notice && (
           <p className="ra-notice" role="status">
@@ -341,7 +334,7 @@ export default function ReorderAlerts({
               <tr>
                 {canComputeEoq && (
                   <th className="ra-check">
-                    <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Select all alerts for bulk order" />
+                    <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Select all products for the restock report" />
                   </th>
                 )}
                 <th className="ra-left">Product</th>
@@ -367,8 +360,8 @@ export default function ReorderAlerts({
               ) : visible.map((item) => (
                 <tr key={item.id} className={selectedIds.has(item.id) ? 'is-selected' : ''}>
                   {canComputeEoq && (
-                    <td className="ra-check m-keep" data-label="Bulk order">
-                      <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} aria-label={`Select ${item.name} for bulk order`} />
+                    <td className="ra-check m-keep" data-label="Restock Report">
+                      <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} aria-label={`Select ${item.name} for the restock report`} />
                     </td>
                   )}
                   <td className="m-title" data-label="Product">
@@ -471,8 +464,9 @@ export default function ReorderAlerts({
             onSaved={() => setSelectedIds(new Set())}
           />
         )}
-        <p className="ra-help">Ordering happens outside the system. When a delivery arrives, press “Received”: it records a Stock In with the Economic Order Quantity and the last unit price filled in (both can be changed), and the product leaves this list once its stock is above the low-stock level.</p>
-        <p className="ra-help">Tick 2 or more products and press “Bulk order” to work out all their order quantities at once (same method as “Order Now”, for each product).</p>
+        <p className="ra-help">The system does not place orders. It works out how much to restock and produces a report you can give to the person who does the buying outside the system.</p>
+        <p className="ra-help">Tick products and press “Restock Report”: each product shows the system suggested quantity (same method as “Order Now”) and your own quantity, which you can change. Export it as Excel or PDF.</p>
+        <p className="ra-help">When the delivery arrives, press “Received” and choose “System suggested” or “Custom” (the amount you actually ordered). Only your final quantity is saved as a Stock In; the system suggestion is added to its note. The product leaves this list once its stock is above the low-stock level.</p>
         <p className="ra-help">“Order Now” opens the Economic Order Quantity Calculator with this product’s forecast annual demand (next month’s weighted moving average forecast, seasonal adjustment included, × 12). If there isn’t enough sales history to forecast yet, it uses the last 12 months of actual sales instead.</p>
       </div>
     </div>

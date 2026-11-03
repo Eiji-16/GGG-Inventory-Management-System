@@ -19,7 +19,7 @@
     align-items: center;
     justify-content: center;
     padding: 24px;
-    font-family: 'Poppins', system-ui, sans-serif;
+    font-family: var(--font-sans);
     background:
         radial-gradient(1200px 600px at 10% -10%, rgba(232, 197, 71, 0.10), transparent 60%),
         radial-gradient(900px 500px at 110% 110%, rgba(22, 41, 92, 0.12), transparent 60%),

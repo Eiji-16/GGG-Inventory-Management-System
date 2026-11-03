@@ -192,6 +192,11 @@ export default function AutoCalculatorDesign({
   canViewHistory = true,
   canExport = true,
   canOpenForecasting = true,
+  // Inside Forecasting (2026-11-03): the product comes from Forecasting's
+  // own searchable picker, so this calculator hides its product dropdown
+  // and its "Go to Forecasting" button and follows `productId`.
+  embedded = false,
+  productId: controlledProductId = '',
 }) {
   const { currency, currencySymbol, formatCurrency } = useCurrency();
   const [savedDraft] = useState(() => readCalculatorDraft(currentUserId));
@@ -362,6 +367,15 @@ export default function AutoCalculatorDesign({
     setErrors({});
     clearResult();
   }, [handoff, products, productsLoading]);
+
+  /* Embedded: follow the product chosen in Forecasting. Skipped while a
+     handoff for that same product is being applied (it fills its own values). */
+  useEffect(() => {
+    if (!embedded || productsLoading) return;
+    if (String(controlledProductId || '') === String(selectedProductId || '')) return;
+    if (handoff && String(handoff.productId) === String(controlledProductId)) return;
+    handleProductSelect({ target: { value: controlledProductId ? String(controlledProductId) : '' } });
+  }, [embedded, controlledProductId, productsLoading, products]); // handleProductSelect only reads current state
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -629,7 +643,7 @@ export default function AutoCalculatorDesign({
           {canViewHistory && (
           <button className="ac-icon-btn" type="button" onClick={() => setShowHistory(true)}><History size={13} /> History</button>
           )}
-          {canOpenForecasting && (
+          {canOpenForecasting && !embedded && (
           <button className="ac-icon-btn ac-icon-btn-link" type="button" onClick={() => onNavigate && onNavigate('Forecasting')}>
             <TrendingUp size={13} /> Go to Forecasting
           </button>
@@ -657,6 +671,7 @@ export default function AutoCalculatorDesign({
           <h2 id="eq-inputs-title">Inputs</h2>
 
           <div className="eq-form">
+            {!embedded && (
             <div className="eq-field eq-span-2">
               <label htmlFor="ac-product-select">Product</label>
               <select id="ac-product-select" className="eq-select" value={selectedProductId} onChange={handleProductSelect} disabled={productsLoading}>
@@ -669,6 +684,7 @@ export default function AutoCalculatorDesign({
                 <span className="eq-error" role="alert">{productsError} <button type="button" className="eq-link" onClick={() => setProductsRetry((r) => r + 1)}>Retry</button></span>
               )}
             </div>
+            )}
 
             <Field
               id="eq-demand" name="demand" label="Annual Demand (D)" suffix="units/yr"

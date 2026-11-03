@@ -73,30 +73,38 @@
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--accent-low) 22%, transparent);
 }
 
-.tb-password-field {
+.tb-confirm-item {
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+    padding: 9px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--static-bg-color);
+}
+.tb-confirm-item > strong { font-size: 13px; }
+.tb-confirm-item-type { color: var(--text-muted); font-size: 11px; }
+.tb-confirm-item .sc-confirm-detail { margin-top: 2px; }
+.tb-purge-effects {
     display: grid;
     gap: 6px;
-    margin: 0 0 16px;
-    color: var(--text-muted);
-    font-size: 11px;
-    font-weight: 700;
+    margin-top: 2px;
+    padding: 9px 11px;
     text-align: left;
+    border-left: 3px solid var(--accent-low);
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--accent-low) 8%, transparent);
 }
-
-.tb-password-field input {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 9px 10px;
-    color: var(--text-primary);
-    font: inherit;
-    background: var(--static-bg-color, var(--bg-card));
-    border: 1px solid var(--border-strong);
-    border-radius: 6px;
+.tb-confirm-text .tb-purge-effects p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 11.5px;
 }
-
-.tb-password-field input:focus {
-    outline: 2px solid var(--accent-ring);
-    border-color: var(--accent);
+.tb-confirm-final {
+    margin: 10px 0 14px !important;
+    font-size: 11.5px !important;
+    font-weight: 700;
+    color: var(--accent-low) !important;
 }
 
 .tb-confirm-error {

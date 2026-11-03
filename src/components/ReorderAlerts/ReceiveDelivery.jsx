@@ -13,10 +13,16 @@ import { useCurrency } from '../../CurrencyContext';
    normal Stock In (the same POST /api/stock-movements that Stock Control
    uses), so stock goes up and the product leaves the Reorder List by itself.
 
-   Pre-filled, both can be changed before saving:
-     Quantity   = Economic Order Quantity, worked out exactly like Bulk order
-                  (forecast annual demand + the product's saved ordering and
-                  holding costs). Left empty when it cannot be worked out.
+   Two quantity choices (2026-11-03):
+     System suggested = Economic Order Quantity, worked out exactly like the
+                        Restock Report (forecast annual demand + the product's
+                        saved ordering and holding costs). When there are no
+                        costs yet: back above the reorder point.
+     Custom           = the owner's own amount (e.g. the system suggests 3,
+                        the owner ordered 5).
+   Only the owner's final quantity is saved, as a normal Stock In. Its note
+   gets "System suggested: N" added, so Stock Control history shows both.
+   Pre-filled, can be changed before saving:
      Unit price = the product's last Stock In price (can also be edited later
                   in Stock Control). */
 
@@ -32,7 +38,7 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
   const [eoqNote, setEoqNote] = useState('');
   const [lastPrice, setLastPrice] = useState(null);
   const [monthlyDemand, setMonthlyDemand] = useState(null);   // for "Cover next month"
-  const [preset, setPreset] = useState('custom');            // which preset filled the box
+  const [preset, setPreset] = useState('custom');            // 'suggested' | 'custom'
   const [form, setForm] = useState({
     qty: '',
     unitPrice: '',
@@ -80,9 +86,11 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
       } else {
         setEoqNote('No ordering or holding cost is saved for this product, so the Economic Order Quantity cannot be worked out.');
       }
-      // Start from the Economic Order Quantity, else "Back above reorder point".
-      const first = orderPresets({ eoq: quantity, stock: item.stock, reorderPoint: item.reorderPoint, monthlyDemand: monthly })[0];
-      setPreset(first ? first.key : 'custom');
+      // Start from the system suggestion (Economic Order Quantity, else
+      // "Back above reorder point").
+      const first = orderPresets({ eoq: quantity, stock: item.stock, reorderPoint: item.reorderPoint, monthlyDemand: monthly })
+        .find((option) => option.key === 'eoq' || option.key === 'reorder');
+      setPreset(first ? 'suggested' : 'custom');
       setForm((prev) => ({
         ...prev,
         qty: first ? String(first.qty) : prev.qty,
@@ -97,15 +105,17 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
     if (field === 'qty') setPreset('custom');   // typed by hand
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
   };
-  const presets = orderPresets({
+  // The one system suggestion: Economic Order Quantity, else back above the reorder point.
+  const suggestion = orderPresets({
     eoq: eoq?.quantity ?? null,
     stock: item.stock,
     reorderPoint: item.reorderPoint,
     monthlyDemand,
-  });
-  const choosePreset = (option) => {
-    setPreset(option.key);
-    setForm((prev) => ({ ...prev, qty: String(option.qty) }));
+  }).find((option) => option.key === 'eoq' || option.key === 'reorder') || null;
+  const chooseSuggested = () => {
+    if (!suggestion) return;
+    setPreset('suggested');
+    setForm((prev) => ({ ...prev, qty: String(suggestion.qty) }));
   };
 
   const qtyNumber = Number(form.qty);
@@ -133,7 +143,10 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
           qty: qtyNumber,
           unitPrice: Number(form.unitPrice),
           date: form.date,
-          notes: form.notes.trim() || null,
+          // Keep the system suggestion next to the owner's decision.
+          notes: (suggestion
+            ? [form.notes.trim(), `System suggested: ${suggestion.qty}`].filter(Boolean).join('; ')
+            : form.notes.trim()).slice(0, 255) || null,
         }),
       });
       const result = await response.json().catch(() => ({}));
@@ -160,32 +173,31 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
           <p className="ra-modal-sub" role="status">Working out the Economic Order Quantity…</p>
         ) : (
           <>
-            {/* Preset quantities: one click fills the box (it can still be changed). */}
-            <div className="ra-presets" role="radiogroup" aria-label="Preset quantity">
-              {presets.map((option) => (
+            {/* Two choices: the system suggestion, or the owner's own amount. */}
+            <div className="ra-presets ra-presets-two" role="radiogroup" aria-label="Quantity received">
+              {suggestion && (
                 <button
-                  key={option.key}
                   type="button"
                   role="radio"
-                  aria-checked={preset === option.key}
-                  className={`ra-preset${preset === option.key ? ' is-active' : ''}`}
-                  onClick={() => choosePreset(option)}
-                  title={option.hint}
+                  aria-checked={preset === 'suggested'}
+                  className={`ra-preset${preset === 'suggested' ? ' is-active' : ''}`}
+                  onClick={chooseSuggested}
+                  title={suggestion.hint}
                 >
-                  <span>{option.label}</span>
-                  <strong>{option.qty}</strong>
+                  <span>System suggested</span>
+                  <strong>{suggestion.qty}</strong>
                 </button>
-              ))}
+              )}
               <button
                 type="button"
                 role="radio"
                 aria-checked={preset === 'custom'}
                 className={`ra-preset${preset === 'custom' ? ' is-active' : ''}`}
                 onClick={() => { setPreset('custom'); document.getElementById('ra-receive-qty')?.focus(); }}
-                title="Type the amount that actually arrived"
+                title="Type the amount you actually ordered and received"
               >
                 <span>Custom</span>
-                <strong>✎</strong>
+                <strong>{preset === 'custom' && form.qty ? form.qty : '✎'}</strong>
               </button>
             </div>
             <div className="ra-receive-grid">
@@ -193,9 +205,9 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
                 <label htmlFor="ra-receive-qty">Quantity received</label>
                 <input id="ra-receive-qty" type="number" min="1" max="9999" step="1" inputMode="numeric" value={form.qty} onChange={update('qty')} autoFocus required />
                 <small>
-                  {preset !== 'custom'
-                    ? `${presets.find((option) => option.key === preset)?.hint || ''}. Change it if a different amount arrived.`
-                    : 'Your own amount — type what actually arrived.'}
+                  {preset === 'suggested' && suggestion
+                    ? `${suggestion.label}: ${suggestion.hint}. Change it if a different amount arrived.`
+                    : `Your own amount — type what actually arrived${suggestion ? ` (the system suggested ${suggestion.qty})` : ''}.`}
                   {!eoq && eoqNote ? ` ${eoqNote}` : ''}
                 </small>
               </div>

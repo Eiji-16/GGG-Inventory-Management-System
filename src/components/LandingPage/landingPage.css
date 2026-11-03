@@ -1,12 +1,12 @@
 * {
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
 }
 
 :root {
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-sans);
 }
 
 * {
@@ -16,7 +16,7 @@
 }
 
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-sans);
     font-weight: 400;
     font-size: 14px;
     line-height: 1.5;
@@ -3103,3 +3103,69 @@ body {
         --ui-zoom: 1;
     }
 }
+
+/* ==========================================================================
+   SIDEBAR — ZOOM-SAFE (2026-11-03)
+   Browser zoom makes the window "shorter" in page pixels. Before, only the
+   page list shrank (with a hidden scrollbar), so pages such as Forecasting
+   and Reports disappeared under the bottom group at 125–150 % zoom.
+   Now (desktop, > 820 px):
+     - the page list never shrinks; the WHOLE sidebar scrolls as one column
+       when everything doesn't fit, with a thin visible scrollbar;
+     - short windows get slightly tighter spacing.
+   At 100 % zoom on a laptop everything fits, so nothing moves.
+   Phones (≤ 820 px) keep the slide-in drawer.
+   ========================================================================== */
+@media (min-width: 821px) {
+    .dashboard-container-parent .sidebar-body,
+    .dashboard-container-parent .sidebar-body.is-expanded {
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in srgb, var(--accent, #E8C547) 35%, transparent) transparent;
+    }
+    .dashboard-container-parent .sidebar-body::-webkit-scrollbar { width: 6px; }
+    .dashboard-container-parent .sidebar-body::-webkit-scrollbar-thumb {
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--accent, #E8C547) 35%, transparent);
+    }
+    .dashboard-container-parent .sidebar-body::-webkit-scrollbar-track { background: transparent; }
+
+    /* Page list: full height always (no inner scroll that hides pages). */
+    .dashboard-container-parent .sidebar-body .sidebar-menu,
+    .dashboard-container-parent .sidebar-body.is-expanded .sidebar-menu {
+        /* an older rule sets "flex: 0 1 auto !important" (shrink + hidden scroll) */
+        flex-shrink: 0 !important;
+        overflow: visible;
+    }
+    .dashboard-container-parent .sidebar-body .sidebar-footer-item,
+    .dashboard-container-parent .sidebar-body .sub-sidebar-footer-item {
+        flex-shrink: 0;
+    }
+
+    /* Nothing is pinned while scrolling (pinned rows covered the pages). */
+    .dashboard-container-parent .sidebar-body .sidebar-menu > .sidebar-logo-row,
+    .dashboard-container-parent .sidebar-body .sub-sidebar-footer-item-logout {
+        position: relative;
+        top: auto;
+        bottom: auto;
+    }}
+
+/* Short windows (zoomed in, small laptops): a little less space between items. */
+@media (min-width: 821px) and (max-height: 640px) {
+    .dashboard-container-parent .sidebar-body.is-expanded .sidebar-menu { padding-top: 0.6rem; }
+    .dashboard-container-parent .sidebar-body.is-expanded .sidebar-section-label {
+        margin-top: 0.35rem;
+        margin-bottom: 0.1rem;
+    }
+    .dashboard-container-parent .sidebar-body.is-expanded .sidebar-item:not(.sidebar-logo-row) button,
+    .dashboard-container-parent .sidebar-body.is-expanded .sidebar-footer-item .siderbar-item button {
+        padding-top: 0.32rem;
+        padding-bottom: 0.32rem;
+    }
+}
+
+/* Sidebar account row: own profile photo instead of initials (2026-11-03). */
+.sidebar-user-avatar.has-photo { overflow: hidden; padding: 0; }
+.sidebar-user-avatar.has-photo img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block; }

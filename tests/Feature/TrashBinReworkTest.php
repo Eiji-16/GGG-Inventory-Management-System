@@ -59,8 +59,7 @@ class TrashBinReworkTest extends TestCase
         $product = Product::create(['code' => 'PRD-2', 'name' => 'Item', 'supplier_id' => $supplier->id, 'stock_on_hand' => 0]);
         $supplier->delete();
 
-        $this->deleteJson("/api/trash/suppliers/{$supplier->id}", ['current_password' => 'wrong'])->assertJsonValidationErrors('current_password');
-        $this->deleteJson("/api/trash/suppliers/{$supplier->id}", ['current_password' => 'password'])->assertOk();
+        $this->deleteJson("/api/trash/suppliers/{$supplier->id}")->assertOk();
 
         $this->assertDatabaseMissing('suppliers', ['id' => $supplier->id]);
         $this->assertNull($product->fresh()->supplier_id);
@@ -132,8 +131,6 @@ class TrashBinReworkTest extends TestCase
         $this->assertNotSoftDeleted('seasonal_events', ['id' => $a->id]);
 
         $this->postJson('/api/trash/bulk', ['action' => 'purge', 'items' => [['kind' => 'event', 'id' => $b->id]]])
-            ->assertJsonValidationErrors('current_password');
-        $this->postJson('/api/trash/bulk', ['action' => 'purge', 'current_password' => 'password', 'items' => [['kind' => 'event', 'id' => $b->id]]])
             ->assertOk()->assertJsonPath('done', 1);
         $this->assertDatabaseMissing('seasonal_events', ['id' => $b->id]);
     }
@@ -148,8 +145,7 @@ class TrashBinReworkTest extends TestCase
         $supplier = Supplier::create(['name' => 'Old Co.']);
         $supplier->delete();
 
-        $this->deleteJson('/api/trash', ['current_password' => 'wrong'])->assertJsonValidationErrors('current_password');
-        $this->deleteJson('/api/trash', ['current_password' => 'password'])->assertOk()->assertJsonPath('deleted', 3);
+        $this->deleteJson('/api/trash')->assertOk()->assertJsonPath('deleted', 3);
 
         $this->getJson('/api/trash')->assertJsonPath('counts.all', 0);
         $this->assertNotNull(Product::find($keep->id));
@@ -160,7 +156,7 @@ class TrashBinReworkTest extends TestCase
     {
         $staff = User::factory()->create(['role' => User::ROLE_STAFF, 'status' => User::STATUS_ACTIVE]);
         $this->actingAs($staff);
-        $this->deleteJson('/api/trash', ['current_password' => 'password'])->assertForbidden();
-        $this->postJson('/api/trash/bulk', ['action' => 'purge', 'current_password' => 'password', 'items' => [['kind' => 'event', 'id' => 1]]])->assertForbidden();
+        $this->deleteJson('/api/trash')->assertForbidden();
+        $this->postJson('/api/trash/bulk', ['action' => 'purge', 'items' => [['kind' => 'event', 'id' => 1]]])->assertForbidden();
     }
 }

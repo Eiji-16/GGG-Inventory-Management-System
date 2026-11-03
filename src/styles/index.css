@@ -12,6 +12,11 @@
 }
 
 :root {
+    /* ONE font for the whole system (tech critique, 2026-11-03): Plus Jakarta
+       Sans — clean, slightly rounded, compact in tables. Loaded in
+       resources/views/welcome.blade.php. Every page uses var(--font-sans). */
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+
     --dropdown-menu-bg: var(--bg-card, #ffffff);
     --dropdown-menu-text: var(--text-primary, #0b1b33);
     --dropdown-menu-muted: var(--text-muted, #64748b);
@@ -69,6 +74,7 @@ body,
 
 body {
     margin: 0;
+    font-family: var(--font-sans);
     /* Theme tokens come from landingPage.css ([data-theme] on <html>). Fall
        back to a neutral light background before the React tree mounts so there
        is no flash of an unstyled black/white screen. */
@@ -439,4 +445,76 @@ html .dashboard-page-wrapper {
         radial-gradient(40% 24% at 50% -6%, color-mix(in srgb, var(--accent, #E8C547) 8%, transparent) 0%, transparent 70%);
     background-repeat: no-repeat;
     background-attachment: fixed;
+}
+
+/* ==========================================================================
+   EXPANDABLE SEARCH BARS (tech critique, 2026-11-03)
+   Any search box with the class "xs-search" (the box that holds the icon
+   and the <input>) starts small — just the search icon — and slides open
+   when clicked or reached with Tab, so typing starts right away. It stays
+   open while it has text and closes again when empty and not in use.
+   Pure CSS (no script): the input fills the small box, so a click on the
+   icon is already a click in the field. Each page keeps its own colours.
+   ========================================================================== */
+.xs-search {
+    --xs-closed: 2.25rem;
+    --xs-open: 16rem;
+    position: relative;
+    width: var(--xs-closed) !important;
+    min-width: var(--xs-closed) !important;
+    max-width: 100% !important;
+    flex: 0 0 auto !important;
+    overflow: hidden;
+    cursor: pointer;
+    transition: width 0.28s cubic-bezier(0.2, 0.7, 0.2, 1), min-width 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.xs-search input {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    cursor: pointer;
+}
+.xs-search > label { /* the field's label is read aloud from the input instead */
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+/* Closed: the typing area fills the small box and the icon sits on top of
+   it in the middle (clicks pass through the icon), so a click anywhere on
+   the box goes straight into the field. */
+.xs-search:not(:focus-within):not(:has(input:not(:placeholder-shown))) input {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    color: transparent;
+    caret-color: transparent;
+}
+.xs-search:not(:focus-within):not(:has(input:not(:placeholder-shown))) svg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+}
+.xs-search:not(:focus-within):not(:has(input:not(:placeholder-shown))) input::placeholder { color: transparent; }
+/* Open: clicked / typing / has text. */
+.xs-search:focus-within,
+.xs-search:has(input:not(:placeholder-shown)) {
+    width: min(var(--xs-open), 100%) !important;
+    min-width: min(12rem, 100%) !important;
+    cursor: auto;
+}
+.xs-search:focus-within input,
+.xs-search:has(input:not(:placeholder-shown)) input { cursor: text; }
+/* The search icon is never clicked "through": clicks go to the input. */
+.xs-search svg { pointer-events: none; }
+/* Phones: an open search bar takes the whole row instead of squeezing buttons. */
+@media (max-width: 640px) {
+    .xs-search:focus-within,
+    .xs-search:has(input:not(:placeholder-shown)) {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .xs-search { transition: none; }
 }

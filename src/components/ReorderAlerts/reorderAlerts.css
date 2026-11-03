@@ -764,3 +764,48 @@
 .ra-bulk-preset .ra-preset { grid-auto-flow: column; align-items: center; gap: 6px; padding: 5px 9px; }
 .ra-bulk-preset .ra-preset strong { font-size: 11px; }
 @media (prefers-reduced-motion: reduce) { .ra-preset { transition: none; } .ra-preset:hover { transform: none; } }
+
+/* ==========RESTOCK REPORT + RECEIVED (2026-11-03)==========
+   Owner's quantity box, remove (×) button, and the two-choice Received row. */
+.ra-sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.ra-bulk-owner { width: 84px; text-align: center; font-weight: 700; }
+.ra-bulk-input.is-invalid { border-color: var(--accent-low) !important; }
+.ra-bulk-remove {
+    display: inline-grid; place-items: center; width: 26px; height: 26px;
+    border: 1px solid transparent; border-radius: 7px; background: transparent;
+    color: var(--text-muted); cursor: pointer;
+}
+.ra-bulk-remove:hover:not(:disabled) { color: var(--accent-low); border-color: var(--border-color); background: rgba(196, 67, 46, 0.08); }
+.ra-bulk-remove:disabled { opacity: 0.4; cursor: not-allowed; }
+.ra-presets.ra-presets-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) {
+    .ra-bulk-owner { width: 100%; }
+}
+
+/* ==========RESTOCK REPORT ON PHONES (2026-11-03)==========
+   The product list was squeezed into a ~130px strip and the Excel / PDF
+   buttons were cut off. On phones the whole window scrolls instead, the
+   products show as full cards, and the buttons sit in a clear grid. */
+@media (max-width: 640px) {
+    .ra-bulk-modal {
+        max-height: calc(calc(100dvh / var(--ui-zoom, 1)) - 24px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+    .ra-bulk-modal .ra-bulk-scroll {
+        flex: 0 0 auto;
+        min-height: 0;
+        max-height: none;
+        overflow: visible;
+    }
+    .ra-bulk-modal .ra-modal-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+    .ra-bulk-modal .ra-modal-actions > button { min-height: 40px; justify-content: center; }
+    .ra-bulk-modal .ra-modal-actions > button:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}

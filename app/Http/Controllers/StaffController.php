@@ -15,8 +15,11 @@ use Illuminate\Validation\ValidationException;
 /**
  * StaffController — /staff
  *
- * Backs the Staffs tab. All actions are Super-Admin only (enforced here, not
- * just in the UI). Guards the last active Super Admin from being demoted,
+ * Backs the Staffs tab. The Super Admin can do everything. An Admin can use
+ * it only when Role Access → "Manage Staff" is on, and then only for STAFF
+ * accounts (create Staff, deactivate / reactivate / delete Staff, photos) —
+ * never Admins or Super Admins and never role changes. Enforced here, not
+ * just in the UI. Guards the last active Super Admin from being demoted,
  * deactivated, or deleted so the system can never lock everyone out.
  */
 class StaffController extends Controller
@@ -24,7 +27,7 @@ class StaffController extends Controller
     /** GET /staff?status=active|inactive (defaults to active accounts). */
     public function index(Request $request): JsonResponse
     {
-        $this->authorizeSuperAdmin($request);
+        $this->authorizeManager($request);
 
         $filters = $request->validate([
             'status' => ['sometimes', Rule::in([User::STATUS_ACTIVE, User::STATUS_INACTIVE])],
@@ -41,7 +44,7 @@ class StaffController extends Controller
     /** POST /staff — create an account with a chosen role. */
     public function store(Request $request): JsonResponse
     {
-        $this->authorizeSuperAdmin($request);
+        $this->authorizeManager($request);
 
         $data = $request->validate([
             'name'                  => ['required', 'string', 'max:255'],
@@ -49,6 +52,9 @@ class StaffController extends Controller
             'password'              => ['required', 'confirmed', Password::min(8)],
             'role'                  => ['required', Rule::in(User::ROLES)],
         ]);
+
+        // An Admin may only create Staff accounts.
+        abort_unless($this->isSuperAdminActor($request) || $data['role'] === User::ROLE_STAFF, 403, 'Admins can only create Staff accounts.');
 
         $user = User::create([
             'name'     => $data['name'],
@@ -66,12 +72,14 @@ class StaffController extends Controller
     /** PATCH /staff/{user} — change role and/or status. */
     public function update(Request $request, User $user): JsonResponse
     {
-        $this->authorizeSuperAdmin($request);
+        $this->authorizeManager($request, $user);
 
         $data = $request->validate([
             'role'   => ['sometimes', Rule::in(User::ROLES)],
             'status' => ['sometimes', Rule::in([User::STATUS_ACTIVE, User::STATUS_INACTIVE])],
         ]);
+        // Changing roles stays with the Super Admin.
+        abort_if(array_key_exists('role', $data) && ! $this->isSuperAdminActor($request), 403, 'Only the Super Admin can change roles.');
 
         // Protect the last active Super Admin from losing that status.
         if (array_key_exists('role', $data) && $user->isSuperAdmin() && $data['role'] !== User::ROLE_SUPER_ADMIN) {
@@ -89,7 +97,7 @@ class StaffController extends Controller
     /** DELETE /api/staff/{user} */
     public function destroy(Request $request, User $user): JsonResponse
     {
-        $this->authorizeSuperAdmin($request);
+        $this->authorizeManager($request, $user);
 
         if ($user->id === $request->user()->id) {
             throw ValidationException::withMessages([
@@ -128,6 +136,13 @@ class StaffController extends Controller
             DB::table('password_reset_tokens')->where('email', $account->email)->delete();
             DB::table('password_reset_otps')->where('email', $account->email)->delete();
 
+            // Their profile photo goes too (file + setting).
+            $photo = $account->avatarPath();
+            \App\Models\AppSetting::query()->whereKey($account->avatarSettingKey())->delete();
+            if ($photo) {
+                \Illuminate\Support\Facades\Storage::disk('local')->delete($photo);
+            }
+
             ActivityLog::create([
                 'user_id' => $request->user()->id,
                 'action' => 'staff.delete',
@@ -146,14 +161,88 @@ class StaffController extends Controller
         return response()->json(['deleted' => true]);
     }
 
-    private function authorizeSuperAdmin(Request $request): void
+    /*
+     * ===== STAFF PROFILE PHOTO (Manage Staff) =====
+     * The Super Admin can add, change or remove any account's photo. It is the
+     * SAME photo the person sets in their own Profile ("avatar.user.{id}"), so
+     * it shows in Staffs, their Profile and their sidebar. No photo = initials.
+     */
+
+    /** GET /staff/{user}/avatar */
+    public function avatar(Request $request, User $user)
+    {
+        $this->authorizeManager($request, $user);
+        $path = $user->avatarPath();
+        abort_unless($path && \Illuminate\Support\Facades\Storage::disk('local')->exists($path), 404);
+
+        return \Illuminate\Support\Facades\Storage::disk('local')->response($path, null, [
+            'Cache-Control' => 'private, max-age=31536000',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    /** POST /staff/{user}/avatar — new or changed photo (field "avatar"). */
+    public function storeAvatar(Request $request, User $user): JsonResponse
+    {
+        $this->authorizeManager($request, $user);
+        $request->validate([
+            'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:2048'],
+        ], [
+            'avatar.max' => 'The picture must be 2 MB or smaller.',
+            'avatar.image' => 'Please choose an image file (JPG, PNG, WEBP or GIF).',
+            'avatar.mimes' => 'Please choose a JPG, PNG, WEBP or GIF picture.',
+        ]);
+
+        $old = $user->avatarPath();
+        $path = $request->file('avatar')->store('avatars', 'local');
+        \App\Models\AppSetting::put($user->avatarSettingKey(), $path);
+        if ($old && $old !== $path) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($old);
+        }
+        ActivityLog::record('staff.photo', "Changed the profile photo of {$user->name}", 'user', ['userId' => $user->id]);
+
+        return response()->json($this->format($user, $this->lastActivityByUser()));
+    }
+
+    /** DELETE /staff/{user}/avatar — back to the default (initials). */
+    public function destroyAvatar(Request $request, User $user): JsonResponse
+    {
+        $this->authorizeManager($request, $user);
+        $old = $user->avatarPath();
+        \App\Models\AppSetting::query()->whereKey($user->avatarSettingKey())->delete();
+        if ($old) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($old);
+        }
+        ActivityLog::record('staff.photo', "Removed the profile photo of {$user->name}", 'user', ['userId' => $user->id]);
+
+        return response()->json($this->format($user, $this->lastActivityByUser()));
+    }
+
+    private function isSuperAdminActor(Request $request): bool
     {
         $actor = $request->user();
-        $isActiveSuperAdmin = $actor
+
+        return $actor
             && $actor->isSuperAdmin()
             && User::whereKey($actor->id)->value('status') === User::STATUS_ACTIVE;
+    }
 
-        abort_unless($isActiveSuperAdmin, 403, 'Active Super Admin only.');
+    /**
+     * Super Admin: always. Admin: only with Role Access "Manage Staff", and
+     * only for Staff accounts when a specific account is acted on.
+     */
+    private function authorizeManager(Request $request, ?User $target = null): void
+    {
+        if ($this->isSuperAdminActor($request)) {
+            return;
+        }
+        $actor = $request->user();
+        $isActiveAdmin = $actor
+            && $actor->role === User::ROLE_ADMIN
+            && User::whereKey($actor->id)->value('status') === User::STATUS_ACTIVE
+            && \App\Services\RoleAccessService::allows($actor, 'staff.manage');
+        abort_unless($isActiveAdmin, 403, 'You do not have access to Manage Staff.');
+        abort_if($target !== null && $target->role !== User::ROLE_STAFF, 403, 'Admins can only manage Staff accounts.');
     }
 
     /** Block the action if it would remove the last active Super Admin. */
@@ -220,6 +309,7 @@ class StaffController extends Controller
         ];
 
         $ts = $lastActivity[$u->id] ?? null;
+        $photo = $u->avatarPath();
 
         return [
             'id'         => $u->id,
@@ -228,6 +318,8 @@ class StaffController extends Controller
             'role'       => $roleLabels[$u->role] ?? 'Staff',
             'status'     => $u->status === User::STATUS_INACTIVE ? 'Inactive' : 'Active',
             'lastActive' => $ts ? $this->humanizeTimestamp((int) $ts) : 'Never',
+            // null = no photo; the screen shows initials (the default picture).
+            'avatarUrl'  => $photo ? "/staff/{$u->id}/avatar?v=".substr(md5($photo), 0, 10) : null,
         ];
     }
 

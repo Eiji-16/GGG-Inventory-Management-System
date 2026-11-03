@@ -54,6 +54,30 @@ class User extends Authenticatable
         return $this->role === self::ROLE_SUPER_ADMIN;
     }
 
+    /**
+     * Profile photo. The file is on the private "local" disk and its path is
+     * kept in app_settings under "avatar.user.{id}" (no users column). The
+     * person sets it in Profile; the Super Admin can also set it in Staffs.
+     * No photo = the screens show the person's initials instead.
+     */
+    public function avatarSettingKey(): string
+    {
+        return 'avatar.user.'.$this->id;
+    }
+
+    public function avatarPath(): ?string
+    {
+        return AppSetting::get($this->avatarSettingKey()) ?: null;
+    }
+
+    /** Link for the person's own screens (sidebar, Profile), or null. */
+    public function ownAvatarUrl(): ?string
+    {
+        $path = $this->avatarPath();
+
+        return $path ? '/profile/avatar?v='.substr(md5($path), 0, 10) : null;
+    }
+
     /** True for admin and super_admin (i.e. "admin or above"). */
     public function isAdminOrAbove(): bool
     {

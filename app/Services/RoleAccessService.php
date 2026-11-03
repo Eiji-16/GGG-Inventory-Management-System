@@ -75,7 +75,8 @@ class RoleAccessService
         'reorder.requests' => ['code' => 'rr', 'group' => 'Reorder List', 'label' => 'See and close restock requests (bell)', 'parent' => 'reorder.view'],
 
         // Order Quantity Calculator (also controls "Order Now" and the row calculator buttons)
-        'calculator.use'        => ['code' => 'cu', 'group' => 'Order Quantity Calculator', 'label' => 'Open and compute (also "Order Now")'],
+        // The calculator is now the "Economic Order Quantity" tab inside Forecasting (2026-11-03).
+        'calculator.use'        => ['code' => 'cu', 'group' => 'Order Quantity Calculator', 'label' => 'Economic Order Quantity tab in Forecasting (also "Order Now")'],
         'calculator.save_costs' => ['code' => 'cs', 'group' => 'Order Quantity Calculator', 'label' => 'Save ordering and holding cost defaults', 'parent' => 'calculator.use'],
         'calculator.history'    => ['code' => 'ch', 'group' => 'Order Quantity Calculator', 'label' => 'View and clear history', 'parent' => 'calculator.use'],
         'calculator.export'     => ['code' => 'cx', 'group' => 'Order Quantity Calculator', 'label' => 'Export Excel / PDF', 'parent' => 'calculator.use'],
@@ -102,6 +103,11 @@ class RoleAccessService
         'trash.view'    => ['code' => 'bv', 'group' => 'Trash Bin', 'label' => 'Open Trash Bin'],
         'trash.restore' => ['code' => 'br', 'group' => 'Trash Bin', 'label' => 'Restore deleted items', 'parent' => 'trash.view'],
         'trash.purge'   => ['code' => 'bp', 'group' => 'Trash Bin', 'label' => 'Permanently delete items', 'parent' => 'trash.view'],
+
+        // Manage Staff (2026-11-03): only for Admin — an Admin with this box
+        // can open Staffs and manage STAFF accounts only (never Admins or
+        // Super Admins, never roles). Staff can never get it.
+        'staff.manage' => ['code' => 'mm', 'group' => 'Manage Staff', 'label' => 'Open Manage Staff: add, deactivate, reactivate, delete and change photos of Staff accounts', 'roles' => [User::ROLE_ADMIN]],
 
         // Other
         'notifications.view' => ['code' => 'nv', 'group' => 'Other', 'label' => 'Notification bell'],
@@ -130,8 +136,9 @@ class RoleAccessService
         'notifications.view',
     ];
 
-    /** Admin defaults: every feature EXCEPT these (erasing for good stays with the Super Admin). */
-    private const ADMIN_OFF = ['trash.purge'];
+    /** Admin defaults: every feature EXCEPT these (erasing for good stays with the
+     *  Super Admin; Manage Staff starts off until the Super Admin turns it on). */
+    private const ADMIN_OFF = ['trash.purge', 'staff.manage'];
 
     /** @return array{admin: array<string,bool>, staff: array<string,bool>} */
     public static function defaults(): array
@@ -195,7 +202,7 @@ class RoleAccessService
         foreach (self::ROLES as $role) {
             foreach (array_keys(self::FEATURES) as $key) {
                 if (isset($input[$role][$key])) {
-                    $matrix[$role][$key] = (bool) $input[$role][$key];
+                    $matrix[$role][$key] = (bool) $input[$role][$key] && self::roleMayHave($role, $key);
                 }
             }
         }
@@ -256,10 +263,18 @@ class RoleAccessService
         $boxes = self::matrix()[$role];
 
         foreach (array_keys(self::FEATURES) as $key) {
-            $all[$key] = self::onWithParents($key, $boxes);
+            $all[$key] = self::onWithParents($key, $boxes) && self::roleMayHave($role, $key);
         }
 
         return $all;
+    }
+
+    /** Some features exist for one role only (e.g. Manage Staff = Admin). */
+    private static function roleMayHave(string $role, string $key): bool
+    {
+        $roles = self::FEATURES[$key]['roles'] ?? null;
+
+        return $roles === null || in_array($role, $roles, true);
     }
 
     public static function allows(?User $user, string $key): bool
@@ -291,6 +306,8 @@ class RoleAccessService
                 'group' => $feature['group'],
                 'label' => $feature['label'],
                 'parent' => $feature['parent'] ?? null,
+                // null = every role; else only these roles get a tick box.
+                'roles' => $feature['roles'] ?? null,
             ];
         }
 

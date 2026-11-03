@@ -11,7 +11,7 @@
     overflow-x: hidden;
 
     color: var(--text-primary);
-    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: var(--font-sans);
 
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -249,7 +249,8 @@
     padding: 0 12px;
 
     color: var(--dropdown-menu-text);
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
     font-size: 13px;
 
     cursor: pointer;
@@ -657,7 +658,8 @@
 .f-stat-box .f-val {
     color: var(--text-primary);
 
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
     font-size: 21px;
     font-weight: 800;
     line-height: 1.25;
@@ -666,7 +668,7 @@
 .f-stat-box .f-val small {
     color: var(--text-muted);
 
-    font-family: 'Manrope', sans-serif;
+    font-family: var(--font-sans);
     font-size: 11px;
     font-weight: 700;
 }
@@ -722,7 +724,8 @@
 
 .f-forecast-bar-value {
     color: var(--text-primary);
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
     text-align: right;
 }
 
@@ -800,7 +803,8 @@
 
     color: var(--text-primary);
 
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
 
     border-bottom: 1px solid var(--border-color);
 }
@@ -881,7 +885,8 @@
     padding: 6px 9px;
 
     color: var(--text-muted);
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
     font-size: 10.5px;
 
     background: var(--static-bg-color);
@@ -918,7 +923,8 @@
 .f-result-big .f-num {
     color: var(--text-primary);
 
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
     font-size: 42px;
     font-weight: 800;
     line-height: 1;
@@ -948,7 +954,8 @@
 .f-reorder-figure .f-num {
     color: var(--accent-high);
 
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
     font-size: 30px;
     font-weight: 800;
 }
@@ -1124,7 +1131,8 @@
 .f-summary-item .f-val {
     color: var(--text-primary);
 
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
     font-size: 18px;
     font-weight: 800;
     line-height: 1.35;
@@ -3483,3 +3491,20 @@
     .ps-manual-controls .cs-button { padding-inline: 9px 8px; }
     .ps-manual-controls .ps-product-field .cs-button .cs-sub { display: none; }
 }
+
+/* ==========ECONOMIC ORDER QUANTITY TAB (2026-11-03)==========
+   The calculator moved here from its own page: the tabs share one row
+   (however many the account can see) and wrap to 2 per row on phones. */
+.f-view-tabs { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+@media (max-width: 560px) {
+    .f-view-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.fx-eoq-layout { display: flex; flex-direction: column; gap: 12px; }
+
+/* Expandable search (Forecasting, Economic Order Quantity, Past Sales): the
+   label is hidden, so the icon sits in the middle of the box, not 65% down. */
+.f-search-wrap.xs-search { align-self: flex-end; }
+.f-search-wrap.xs-search svg { top: 50%; right: auto; left: 50%; transform: translate(-50%, -50%); z-index: 2; }
+.f-search-wrap.xs-search:focus-within svg,
+.f-search-wrap.xs-search:has(input:not(:placeholder-shown)) svg { left: 12px; transform: translateY(-50%); }
+.f-search-wrap.xs-search input { padding-left: 34px; padding-right: 10px; }

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Users,
@@ -14,6 +14,8 @@ import {
   Archive,
   UserRoundPlus,
   Trash2,
+  Camera,
+  ImageOff,
 } from 'lucide-react';
 import './staff.css';
 import { uiZoom } from '../../fontSize';
@@ -25,6 +27,10 @@ const ROLE_TO_API = { 'Super Admin': 'super_admin', Admin: 'admin', Staff: 'staf
 
 const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
 
+/* Default profile picture: the person's initials (same as Profile and the sidebar). */
+const initialsOf = (name) => String(name || '?').trim().split(/\s+/).filter(Boolean)
+  .slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '?';
+
 /* ===== ROLE VISUALS ===== */
 const ROLE_META = {
   'Super Admin': { Icon: ShieldCheck, cls: 'st-role-super' },
@@ -32,7 +38,13 @@ const ROLE_META = {
   Staff:         { Icon: Shield,      cls: 'st-role-staff' },
 };
 
-function Staffs({ isSuperAdmin = false }) {
+/* isSuperAdmin = everything. canManageStaff = an Admin with Role Access
+   "Manage Staff": Staff accounts only, no role changes (the server checks
+   the same rules). */
+function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
+  const canManage = isSuperAdmin || canManageStaff;
+  // An Admin can act only on Staff rows.
+  const canActOn = (account) => isSuperAdmin || (canManageStaff && account?.role === 'Staff');
   const [staff, setStaff] = useState([]);
   const [deactivatedStaff, setDeactivatedStaff] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -106,6 +118,83 @@ function Staffs({ isSuperAdmin = false }) {
     return options;
   };
 
+  /* ===== PROFILE PHOTO (Super Admin) =====
+     Same photo as the person's own Profile; no photo = initials. */
+  const photoInput = useRef(null);
+  const [photoTarget, setPhotoTarget] = useState(null);
+  const [photoBusyId, setPhotoBusyId] = useState(null);
+
+  const replaceAccount = (updated) => {
+    const swap = (list) => list.map((item) => (item.id === updated.id ? { ...item, ...updated } : item));
+    setStaff(swap);
+    setDeactivatedStaff(swap);
+  };
+
+  const choosePhoto = (account) => {
+    setMenu(null);
+    setPhotoTarget(account);
+    if (photoInput.current) {
+      photoInput.current.value = '';
+      photoInput.current.click();
+    }
+  };
+
+  const uploadPhoto = async (event) => {
+    const file = event.target.files?.[0];
+    const account = photoTarget;
+    if (!file || !account) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setActionMessage('');
+      setActionError('The picture must be 2 MB or smaller.');
+      return;
+    }
+    setPhotoBusyId(account.id);
+    try {
+      const form = new FormData();
+      form.append('avatar', file);
+      const response = await fetch(`/staff/${account.id}/avatar`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf() },
+        body: form,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = data.errors ? Object.values(data.errors).flat()[0] : data.message;
+        throw new Error(message || `Could not save the photo (${response.status}).`);
+      }
+      replaceAccount(data);
+      setActionError('');
+      setActionMessage(`${account.name}'s profile photo was updated.`);
+    } catch (error) {
+      setActionMessage('');
+      setActionError(error.message || 'Could not save the photo.');
+    } finally {
+      setPhotoBusyId(null);
+      setPhotoTarget(null);
+    }
+  };
+
+  const removePhoto = async (account) => {
+    setMenu(null);
+    setPhotoBusyId(account.id);
+    try {
+      const response = await fetch(`/staff/${account.id}/avatar`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf() },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || `Could not remove the photo (${response.status}).`);
+      replaceAccount(data);
+      setActionError('');
+      setActionMessage(`${account.name}'s profile photo was removed.`);
+    } catch (error) {
+      setActionMessage('');
+      setActionError(error.message || 'Could not remove the photo.');
+    } finally {
+      setPhotoBusyId(null);
+    }
+  };
+
   /* ===== MENU OPEN / CLOSE ===== */
   const openMenu = (e, s) => {
     e.stopPropagation();
@@ -121,7 +210,13 @@ function Staffs({ isSuperAdmin = false }) {
     /* Right-align the menu to the button, then clamp inside the viewport so
        it is never clipped on either edge (fixed-position avoids table overflow). */
     const left = Math.min(rect.right - MENU_W, window.innerWidth / zoom - MENU_W - 12);
-    setMenu({ id: s.id, top: rect.bottom + 6, left: Math.max(12, left) });
+    // Open upward when there isn't room below (the menu is about 330px tall).
+    const MENU_H = 330;
+    const below = rect.bottom + 6;
+    const top = below + MENU_H > window.innerHeight / zoom - 12
+      ? Math.max(12, box.top / zoom - MENU_H - 6)
+      : below;
+    setMenu({ id: s.id, top, left: Math.max(12, left) });
   };
 
   useEffect(() => {
@@ -384,7 +479,7 @@ function Staffs({ isSuperAdmin = false }) {
 
       {/* ===== SEARCH ===== */}
       <div className="st-controls-bar">
-        <div className="st-search-box">
+        <div className="st-search-box xs-search">
           <Search size={16} className="st-search-icon" />
           <input
             type="text"
@@ -395,7 +490,7 @@ function Staffs({ isSuperAdmin = false }) {
           />
         </div>
         <div className="st-controls-actions">
-          {isSuperAdmin && !showDeactivated && (
+          {canManage && !showDeactivated && (
             <button
               type="button"
               className="st-create-account-button"
@@ -408,7 +503,7 @@ function Staffs({ isSuperAdmin = false }) {
               Create Staff Account
             </button>
           )}
-          {isSuperAdmin && (
+          {canManage && (
             <button
               type="button"
               className="st-deactivated-button"
@@ -428,7 +523,7 @@ function Staffs({ isSuperAdmin = false }) {
         </div>
       </div>
 
-      {isSuperAdmin && showCreateModal && createPortal(
+      {canManage && showCreateModal && createPortal(
         <div className="st-modal-overlay" onClick={() => !isCreating && setShowCreateModal(false)}>
           <section
             className="st-modal"
@@ -477,8 +572,8 @@ function Staffs({ isSuperAdmin = false }) {
                   Role
                   <select name="role" defaultValue="staff">
                     <option value="staff">Staff</option>
-                    <option value="admin">Admin</option>
-                    <option value="super_admin">Super Admin</option>
+                    {isSuperAdmin && <option value="admin">Admin</option>}
+                    {isSuperAdmin && <option value="super_admin">Super Admin</option>}
                   </select>
                 </label>
               </div>
@@ -524,28 +619,35 @@ function Staffs({ isSuperAdmin = false }) {
                 <th>Role</th>
                 <th>Status</th>
                 <th>Last active</th>
-                {isSuperAdmin && <th className="st-th-actions">Actions</th>}
+                {canManage && <th className="st-th-actions">Actions</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={isSuperAdmin ? 6 : 5} className="st-empty">Loading staff…</td>
+                  <td colSpan={canManage ? 6 : 5} className="st-empty">Loading staff…</td>
                 </tr>
               ) : filtered.map((s) => {
                 const role = ROLE_META[s.role] || ROLE_META.Staff;
                 const RoleIcon = role.Icon;
                 return (
                   <tr key={s.id}>
-                    <td className="st-cell-name">{s.name}</td>
-                    <td className="st-cell-muted">{s.email}</td>
-                    <td>
+                    <td className="st-cell-name" data-label="Name">
+                      <span className="st-name-wrap">
+                        <span className={`st-avatar${photoBusyId === s.id ? ' is-busy' : ''}`} aria-hidden="true">
+                          {s.avatarUrl ? <img src={s.avatarUrl} alt="" /> : initialsOf(s.name)}
+                        </span>
+                        <span className="st-name-text">{s.name}</span>
+                      </span>
+                    </td>
+                    <td className="st-cell-muted st-cell-email" data-label="Email">{s.email}</td>
+                    <td className="st-cell-role" data-label="Role">
                       <span className={`st-role-badge ${role.cls}`}>
                         <RoleIcon size={12} />
                         {s.role}
                       </span>
                     </td>
-                    <td>
+                    <td className="st-cell-status" data-label="Status">
                       <span
                         className={`st-status ${
                           s.status === 'Active' ? 'st-status-on' : 'st-status-off'
@@ -554,9 +656,10 @@ function Staffs({ isSuperAdmin = false }) {
                         {showDeactivated ? 'Deactivated' : s.status}
                       </span>
                     </td>
-                    <td className="st-cell-muted">{s.lastActive}</td>
-                    {isSuperAdmin && (
+                    <td className="st-cell-muted st-cell-last" data-label="Last active">{s.lastActive}</td>
+                    {canManage && (
                       <td className="st-cell-actions">
+                        {canActOn(s) ? (
                         <button
                           type="button"
                           className="st-kebab"
@@ -565,6 +668,9 @@ function Staffs({ isSuperAdmin = false }) {
                         >
                           <MoreVertical size={16} />
                         </button>
+                        ) : (
+                          <span className="st-cell-muted" title="Only the Super Admin can manage Admin and Super Admin accounts">—</span>
+                        )}
                       </td>
                     )}
                   </tr>
@@ -573,7 +679,7 @@ function Staffs({ isSuperAdmin = false }) {
 
               {filtered.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={isSuperAdmin ? 6 : 5} className="st-empty">
+                  <td colSpan={canManage ? 6 : 5} className="st-empty">
                     {visibleAccounts.length === 0
                       ? (showDeactivated ? 'No deactivated accounts.' : 'No active staff accounts.')
                       : `No staff match “${query}”.`}
@@ -585,6 +691,17 @@ function Staffs({ isSuperAdmin = false }) {
         </div>
       </div>
 
+      {/* Hidden picker for "Add / Change photo" in the row menu. */}
+      {canManage && (
+        <input
+          ref={photoInput}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          onChange={uploadPhoto}
+          hidden
+        />
+      )}
+
       {/* ===== ROW ACTION MENU (Super Admin only, fixed-position) ===== */}
       {menu && menuRow && createPortal(
         <div
@@ -592,6 +709,31 @@ function Staffs({ isSuperAdmin = false }) {
           style={{ top: menu.top, left: Math.max(12, menu.left) }}
           role="menu"
         >
+          <p className="st-menu-head">Profile photo</p>
+          <button
+            type="button"
+            className="st-menu-item"
+            role="menuitem"
+            onClick={() => choosePhoto(menuRow)}
+          >
+            <Camera size={14} />
+            {menuRow.avatarUrl ? 'Change photo' : 'Add photo'}
+          </button>
+          {menuRow.avatarUrl && (
+            <button
+              type="button"
+              className="st-menu-item"
+              role="menuitem"
+              onClick={() => removePhoto(menuRow)}
+            >
+              <ImageOff size={14} />
+              Remove photo
+            </button>
+          )}
+
+          <div className="st-menu-divider" />
+
+          {isSuperAdmin && (<>
           <p className="st-menu-head">Change role</p>
 
           {roleOptionsFor(menuRow).map((r) => {
@@ -616,6 +758,7 @@ function Staffs({ isSuperAdmin = false }) {
               Last Super Admin — cannot demote
             </p>
           )}
+          </>)}
 
           <div className="st-menu-divider" />
 
