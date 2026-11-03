@@ -713,7 +713,7 @@ function ProductSupplier({
             label="Categories"
           >
             <div className="ps-search-box xs-search">
-              <Search size={13} className="ps-search-icon" />
+              <Search size={16} className="ps-search-icon" />
               <input
                 type="search"
                 placeholder="Search products…"

@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\SeasonalEvent;
 use App\Models\StockMovement;
 use App\Models\Supplier;
+use App\Models\User;
 use App\Services\ProductPhotoService;
 use App\Services\StockMovementService;
 use Illuminate\Http\JsonResponse;
@@ -16,23 +17,16 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Trash Bin — deleted products, stock entries, suppliers and seasonal events.
+ * Trash Bin and Archive — deleted products, accounts, stock entries,
+ * suppliers and seasonal events.
  *
  * Deleting never erases anything right away: it moves the item here
  * (soft delete) with who deleted it and when. From here an allowed user
- * can restore it, or (Super Admin by default) permanently delete it.
+ * can restore it or move it to the Archive. Only a Super Admin can access
+ * the Archive and permanently delete archived items.
  *
- * GET    /api/trash                                  list everything in the Trash Bin
- * POST   /api/trash/products/{code}/restore          restore a product (+ its entries)
- * DELETE /api/trash/products/{code}                  permanently delete a product
- * POST   /api/trash/stock-movements/{id}/restore     restore one stock entry
- * DELETE /api/trash/stock-movements/{id}             permanently delete one stock entry
- * POST   /api/trash/suppliers/{id}/restore           restore a supplier
- * DELETE /api/trash/suppliers/{id}                   permanently delete a supplier
- * POST   /api/trash/seasonal-events/{id}/restore     restore a seasonal event
- * DELETE /api/trash/seasonal-events/{id}             permanently delete a seasonal event
- * POST   /api/trash/bulk                             restore / delete several at once
- * DELETE /api/trash                                  empty the whole Trash Bin
+ * GET  /api/trash?space=trash|archive
+ * POST /api/trash/bulk { space, action: restore|archive|purge, items }
  */
 class TrashBinController extends Controller
 {
@@ -41,54 +35,55 @@ class TrashBinController extends Controller
     }
 
     /** The kinds of things that can be in the Trash Bin (tab order on screen). */
-    public const KINDS = ['product', 'entry', 'supplier', 'event'];
+    public const KINDS = ['product', 'account', 'entry', 'supplier', 'event'];
 
     public function index(Request $request): JsonResponse
     {
         $filters = $request->validate([
+            'space' => ['nullable', 'in:trash,archive'],
             'search' => ['nullable', 'string', 'max:200'],
             'kind' => ['nullable', 'string', 'in:all,'.implode(',', self::KINDS)],
             'deleted_by' => ['nullable', 'string', 'max:255'],
+            'archived_by' => ['nullable', 'string', 'max:255'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
         $search = mb_strtolower(trim($filters['search'] ?? ''));
+        $space = $filters['space'] ?? 'trash';
         $kind = $filters['kind'] ?? 'all';
-        $deletedBy = $filters['deleted_by'] ?? null;
+        $actorFilter = $space === 'archive'
+            ? ($filters['archived_by'] ?? null)
+            : ($filters['deleted_by'] ?? null);
         $perPage = (int) ($filters['per_page'] ?? 50);
 
-        $all = $this->allRecords();
-
-        // Counts per tab and the people who deleted things (for the filters),
-        // worked out before the tab/search filters so the tabs show totals.
+        $baseQueries = $this->recordQueries($space);
+        $matchingQueries = $this->recordQueries($space, $search, $actorFilter);
         $counts = array_fill_keys(self::KINDS, 0);
-        foreach ($all as $record) {
-            $counts[$record['kind']]++;
+        foreach ($baseQueries as $recordKind => $query) {
+            $counts[$recordKind] = (clone $query)->count();
         }
-        $deleters = $all->pluck('deletedBy')->filter()->unique()->sort()->values();
-
-        $filtered = $all
-            ->when($kind !== 'all', fn ($records) => $records->where('kind', $kind))
-            ->when($deletedBy, fn ($records) => $records->where('deletedBy', $deletedBy))
-            ->when($search !== '', fn ($records) => $records->filter(
-                fn (array $record) => str_contains($record['_search'], $search)
-            ))
-            ->sortByDesc(fn (array $record) => $record['deletedAt'].'|'.str_pad((string) $record['id'], 12, '0', STR_PAD_LEFT))
-            ->values();
-
-        $total = $filtered->count();
+        $total = 0;
+        foreach ($matchingQueries as $recordKind => $query) {
+            if ($kind === 'all' || $kind === $recordKind) {
+                $total += (clone $query)->count();
+            }
+        }
         $lastPage = max(1, (int) ceil($total / $perPage));
         $page = min((int) ($filters['page'] ?? 1), $lastPage);
+        $keys = $this->recordKeys($space, $search, $actorFilter, $kind, ($page - 1) * $perPage, $perPage);
+        $idsByKind = $keys->groupBy('kind')->map(fn ($rows) => $rows->pluck('row_id')->all())->all();
+        $recordMap = $this->allRecords($space, $search, $actorFilter, $idsByKind)
+            ->keyBy(fn (array $record) => $record['kind'].'|'.$record['id']);
+        $records = $keys->map(fn ($key) => $recordMap->get($key->kind.'|'.$key->public_id))
+            ->filter()
+            ->map(function (array $record): array {
+                return $record;
+            })->values();
 
         return response()->json([
-            'records' => $filtered->slice(($page - 1) * $perPage, $perPage)
-                ->map(function (array $record): array {
-                    unset($record['_search']);
-
-                    return $record;
-                })->values(),
+            'records' => $records,
             'counts' => $counts + ['all' => array_sum($counts)],
-            'deleters' => $deleters,
+            'deleters' => $this->actorNames($space),
             'pagination' => [
                 'page' => $page,
                 'perPage' => $perPage,
@@ -98,13 +93,53 @@ class TrashBinController extends Controller
         ])->header('Cache-Control', 'no-store');
     }
 
-    /** Everything in the Trash Bin, as one list of plain records. */
-    private function allRecords(): \Illuminate\Support\Collection
+    /** Fetch the globally ordered page keys before hydrating record details. */
+    private function recordKeys(
+        string $space,
+        string $search,
+        ?string $actorFilter,
+        string $kind,
+        int $offset,
+        int $limit
+    ): \Illuminate\Support\Collection {
+        $queries = $this->recordQueries($space, $search, $actorFilter);
+        $dateColumn = $space === 'archive' ? 'archived_at' : 'deleted_at';
+        $kinds = $kind === 'all' ? self::KINDS : [$kind];
+        $union = null;
+
+        foreach ($kinds as $recordKind) {
+            $source = (clone $queries[$recordKind])
+                ->select('id as row_id')
+                ->selectRaw(($recordKind === 'product' ? 'code' : 'id').' as public_id')
+                ->selectRaw('? as kind', [$recordKind])
+                ->selectRaw("{$dateColumn} as sort_at")
+                ->toBase();
+            $union = $union === null ? $source : $union->unionAll($source);
+        }
+
+        return DB::query()->fromSub($union, 'retention_records')
+            ->orderByDesc('sort_at')
+            ->orderByDesc('public_id')
+            ->orderBy('kind')
+            ->offset($offset)
+            ->limit($limit)
+            ->get(['kind', 'row_id', 'public_id']);
+    }
+
+    /** Hydrate only the requested page of record details. */
+    private function allRecords(
+        string $space = 'trash',
+        string $search = '',
+        ?string $actorFilter = null,
+        array $idsByKind = []
+    ): \Illuminate\Support\Collection
     {
         $records = collect();
+        $queries = $this->recordQueries($space, $search, $actorFilter);
         $now = now();
-        $base = function (string $kind, string $type, $id, $deletedAt, ?string $deletedBy, string $name) use ($now): array {
+        $base = function (string $kind, string $type, $id, $deletedAt, ?string $deletedBy, string $name, $archivedAt = null, ?string $archivedBy = null) use ($now): array {
             $at = Carbon::parse($deletedAt);
+            $archived = $archivedAt ? Carbon::parse($archivedAt) : null;
 
             return [
                 'kind' => $kind,
@@ -115,12 +150,15 @@ class TrashBinController extends Controller
                 'deletedBy' => $deletedBy,
                 'deletedAt' => $at->toIso8601String(),
                 'daysInTrash' => (int) $at->copy()->startOfDay()->diffInDays($now->copy()->startOfDay()),
+                'archivedAt' => $archived?->toIso8601String(),
+                'daysInArchive' => $archived ? (int) $archived->copy()->startOfDay()->diffInDays($now->copy()->startOfDay()) : null,
+                'archivedBy' => $archivedBy,
             ];
         };
-
-        Product::onlyTrashed()->withoutPhoto()->with(['supplier' => fn ($q) => $q->withTrashed()])->get()
+        if (!empty($idsByKind['product'])) {
+        (clone $queries['product'])->whereIn('id', $idsByKind['product'])->get()
             ->each(function (Product $product) use ($records, $base): void {
-                $records->push($base('product', 'Product', $product->code, $product->deleted_at, $product->deleted_by_name, $product->name) + [
+                $records->push($base('product', 'Product', $product->code, $product->deleted_at, $product->deleted_by_name, $product->name, $product->archived_at, $product->archived_by_name) + [
                     'productId' => $product->code,
                     'category' => $product->category,
                     'variantName' => null,
@@ -133,15 +171,16 @@ class TrashBinController extends Controller
                     'productInTrash' => true,
                     'productMissing' => false,
                     'withProduct' => false,
-                    '_search' => mb_strtolower(implode(' ', ['product', $product->name, $product->code, $product->category, $product->brand, $product->deleted_by_name])),
                 ]);
             });
+        }
 
-        StockMovement::onlyTrashed()->with(['product' => fn ($q) => $q->withTrashed()->withoutPhoto()])->get()
+        if (!empty($idsByKind['entry'])) {
+        (clone $queries['entry'])->whereIn('id', $idsByKind['entry'])->get()
             ->each(function (StockMovement $movement) use ($records, $base): void {
                 $label = $this->typeLabel($movement);
                 $name = $movement->product?->name ?? $movement->product_name;
-                $records->push($base('entry', 'Stock Entry', $movement->id, $movement->deleted_at, $movement->deleted_by_name, (string) $name) + [
+                $records->push($base('entry', 'Stock Entry', $movement->id, $movement->deleted_at, $movement->deleted_by_name, (string) $name, $movement->archived_at, $movement->archived_by_name) + [
                     'productId' => $movement->product?->code,
                     'category' => $movement->product?->category ?? $movement->product_category,
                     'variantName' => $movement->variant_name,
@@ -156,13 +195,14 @@ class TrashBinController extends Controller
                     'productInTrash' => (bool) $movement->product?->trashed(),
                     'productMissing' => $movement->product === null,
                     'withProduct' => (bool) $movement->deleted_with_product,
-                    '_search' => mb_strtolower(implode(' ', ['stock entry', $name, $movement->product?->code, $label, $movement->movement_type, $movement->qty, $movement->movement_date?->toDateString(), $movement->recorded_by, $movement->notes, $movement->deleted_by_name, $movement->variant_name])),
                 ]);
             });
+        }
 
-        Supplier::onlyTrashed()->withCount(['products' => fn ($q) => $q->withTrashed()])->get()
+        if (!empty($idsByKind['supplier'])) {
+        (clone $queries['supplier'])->whereIn('id', $idsByKind['supplier'])->get()
             ->each(function (Supplier $supplier) use ($records, $base): void {
-                $records->push($base('supplier', 'Supplier', $supplier->id, $supplier->deleted_at, $supplier->deleted_by_name, $supplier->name) + [
+                $records->push($base('supplier', 'Supplier', $supplier->id, $supplier->deleted_at, $supplier->deleted_by_name, $supplier->name, $supplier->archived_at, $supplier->archived_by_name) + [
                     'productId' => null,
                     'category' => null,
                     'variantName' => null,
@@ -175,13 +215,14 @@ class TrashBinController extends Controller
                     'productInTrash' => false,
                     'productMissing' => false,
                     'withProduct' => false,
-                    '_search' => mb_strtolower(implode(' ', ['supplier', $supplier->name, $supplier->company, $supplier->contact, $supplier->deleted_by_name])),
                 ]);
             });
+        }
 
-        SeasonalEvent::onlyTrashed()->get()
+        if (!empty($idsByKind['event'])) {
+        (clone $queries['event'])->whereIn('id', $idsByKind['event'])->get()
             ->each(function (SeasonalEvent $event) use ($records, $base): void {
-                $records->push($base('event', 'Seasonal Event', $event->id, $event->deleted_at, $event->deleted_by_name, $event->name) + [
+                $records->push($base('event', 'Seasonal Event', $event->id, $event->deleted_at, $event->deleted_by_name, $event->name, $event->archived_at, $event->archived_by_name) + [
                     'productId' => null,
                     'category' => null,
                     'variantName' => null,
@@ -194,11 +235,121 @@ class TrashBinController extends Controller
                     'productInTrash' => false,
                     'productMissing' => false,
                     'withProduct' => false,
-                    '_search' => mb_strtolower(implode(' ', ['seasonal event', $event->name, $event->start_date?->toDateString(), $event->end_date?->toDateString(), $event->deleted_by_name])),
                 ]);
             });
+        }
+
+        if (!empty($idsByKind['account'])) {
+        (clone $queries['account'])->whereIn('id', $idsByKind['account'])->get()
+            ->each(function (User $user) use ($records, $base): void {
+                $role = match ($user->role) {
+                    User::ROLE_SUPER_ADMIN => 'Super Admin',
+                    User::ROLE_ADMIN => 'Admin',
+                    default => 'Staff',
+                };
+                $records->push($base('account', 'Account', $user->id, $user->deleted_at, $user->deleted_by_name, $user->name, $user->archived_at, $user->archived_by_name) + [
+                    'productId' => null,
+                    'category' => null,
+                    'variantName' => null,
+                    'details' => [
+                        'email' => $user->email,
+                        'role' => $role,
+                        'status' => ucfirst($user->status),
+                        'department' => $user->department,
+                    ],
+                    'productInTrash' => false,
+                    'productMissing' => false,
+                    'withProduct' => false,
+                ]);
+            });
+        }
 
         return $records;
+    }
+
+    /**
+     * Build one SQL query per record type for counts and globally paged results.
+     */
+    private function recordQueries(string $space, string $search = '', ?string $actorFilter = null): array
+    {
+        $queries = [
+            'product' => Product::onlyTrashed()->withoutPhoto()->with(['supplier' => fn ($query) => $query->withTrashed()]),
+            'entry' => StockMovement::onlyTrashed()->with(['product' => fn ($query) => $query->withTrashed()->withoutPhoto()]),
+            'supplier' => Supplier::onlyTrashed()->withCount(['products' => fn ($query) => $query->withTrashed()]),
+            'event' => SeasonalEvent::onlyTrashed(),
+            'account' => User::onlyTrashed(),
+        ];
+
+        foreach ($queries as $kind => $query) {
+            $query->when($space === 'archive', fn ($builder) => $builder->whereNotNull('archived_at'), fn ($builder) => $builder->whereNull('archived_at'));
+            if ($actorFilter !== null && $actorFilter !== '') {
+                $query->where($space === 'archive' ? 'archived_by_name' : 'deleted_by_name', $actorFilter);
+            }
+            if ($search !== '') {
+                $this->applySearch($query, $kind, $search);
+            }
+        }
+
+        return $queries;
+    }
+
+    private function applySearch(\Illuminate\Database\Eloquent\Builder $query, string $kind, string $search): void
+    {
+        $like = '%'.mb_strtolower($search).'%';
+        $column = $kind === 'account' ? 'name' : match ($kind) {
+            'product' => 'name',
+            'entry' => 'product_name',
+            'supplier' => 'name',
+            default => 'name',
+        };
+        $query->where(function ($builder) use ($kind, $like, $column): void {
+            $builder->whereRaw("LOWER({$column}) LIKE ?", [$like]);
+            match ($kind) {
+                'product' => $builder
+                    ->orWhereRaw('LOWER(code) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(category) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(brand) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(model) LIKE ?', [$like]),
+                'entry' => $builder
+                    ->orWhereRaw('LOWER(product_category) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(movement_type) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(variant_name) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(recorded_by) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(notes) LIKE ?', [$like])
+                    ->orWhereHas('product', fn ($product) => $product
+                        ->whereRaw('LOWER(code) LIKE ?', [$like])
+                        ->orWhereRaw('LOWER(name) LIKE ?', [$like])),
+                'supplier' => $builder
+                    ->orWhereRaw('LOWER(company) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(contact) LIKE ?', [$like]),
+                'event' => $builder
+                    ->orWhereRaw('LOWER(start_date) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(end_date) LIKE ?', [$like]),
+                'account' => $builder
+                    ->orWhereRaw('LOWER(email) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(role) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(status) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(department) LIKE ?', [$like]),
+            };
+            $builder->orWhereRaw('LOWER(deleted_by_name) LIKE ?', [$like])
+                ->orWhereRaw('LOWER(archived_by_name) LIKE ?', [$like]);
+        });
+    }
+
+    private function actorNames(string $space): \Illuminate\Support\Collection
+    {
+        $column = $space === 'archive' ? 'archived_by_name' : 'deleted_by_name';
+        $names = collect();
+        foreach (['products', 'stock_movements', 'suppliers', 'seasonal_events', 'users'] as $table) {
+            $names = $names->merge(DB::table($table)
+                ->whereNotNull('deleted_at')
+                ->when($space === 'archive', fn ($query) => $query->whereNotNull('archived_at'), fn ($query) => $query->whereNull('archived_at'))
+                ->whereNotNull($column)
+                ->distinct()
+                ->pluck($column));
+        }
+
+        return $names->filter()->unique()->sort()->values();
     }
 
     /* ===== Suppliers ===== */
@@ -207,17 +358,10 @@ class TrashBinController extends Controller
     {
         $supplier = Supplier::onlyTrashed()->findOrFail($id);
         $supplier->restore();
-        $supplier->forceFill(['deleted_by' => null, 'deleted_by_name' => null])->save();
-        ActivityLog::record('trash.restore', "Restored supplier from the Trash Bin — {$supplier->name}", 'users', ['supplier' => $supplier->name]);
+        $supplier->forceFill(['deleted_by' => null, 'deleted_by_name' => null, 'archived_at' => null, 'archived_by_name' => null])->save();
+        ActivityLog::record('trash.restore', "Restored supplier to active records — {$supplier->name}", 'users', ['supplier' => $supplier->name]);
 
         return response()->json(['restored' => true]);
-    }
-
-    public function forceDeleteSupplier(int $id): JsonResponse
-    {
-        $this->purgeSupplier(Supplier::onlyTrashed()->findOrFail($id));
-
-        return response()->json(['deleted' => true]);
     }
 
     private function purgeSupplier(Supplier $supplier): void
@@ -235,17 +379,10 @@ class TrashBinController extends Controller
     {
         $event = SeasonalEvent::onlyTrashed()->findOrFail($id);
         $event->restore();
-        $event->forceFill(['deleted_by' => null, 'deleted_by_name' => null])->save();
-        ActivityLog::record('trash.restore', "Restored seasonal event from the Trash Bin — {$event->name}", 'calendar', ['event' => $event->name]);
+        $event->forceFill(['deleted_by' => null, 'deleted_by_name' => null, 'archived_at' => null, 'archived_by_name' => null])->save();
+        ActivityLog::record('trash.restore', "Restored seasonal event to active records — {$event->name}", 'calendar', ['event' => $event->name]);
 
         return response()->json(['restored' => true]);
-    }
-
-    public function forceDeleteEvent(int $id): JsonResponse
-    {
-        $this->purgeEvent(SeasonalEvent::onlyTrashed()->findOrFail($id));
-
-        return response()->json(['deleted' => true]);
     }
 
     private function purgeEvent(SeasonalEvent $event): void
@@ -258,23 +395,26 @@ class TrashBinController extends Controller
     /* ===== Several at once ===== */
 
     /**
-     * POST /api/trash/bulk  { action: restore|purge, items: [{kind, id}] }
-     * Restores parents first (suppliers → products → entries); deletes children
-     * first. Each item is done on its own, so one refusal doesn't stop the rest.
+     * POST /api/trash/bulk  { space: trash|archive, action: restore|archive|purge, items: [...] }
+     * Restores parents first and deletes children first. Each item is processed
+     * independently so one refusal doesn't stop the rest.
      */
     public function bulk(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'action' => ['required', 'in:restore,purge'],
+            'space' => ['required', 'in:trash,archive'],
+            'action' => ['required', 'in:restore,archive,purge'],
             'items' => ['required', 'array', 'min:1', 'max:500'],
             'items.*.kind' => ['required', 'in:'.implode(',', self::KINDS)],
             'items.*.id' => ['required'],
         ]);
-        $feature = $data['action'] === 'restore' ? 'trash.restore' : 'trash.purge';
-        abort_unless(\App\Services\RoleAccessService::allows($request->user(), $feature), 403, 'Your role does not have access to this feature. Ask the Super Admin to turn it on in Settings → Role Access.');
-        $order = $data['action'] === 'restore'
-            ? ['supplier' => 0, 'product' => 1, 'entry' => 2, 'event' => 3]
-            : ['entry' => 0, 'product' => 1, 'supplier' => 2, 'event' => 3];
+        abort_if($data['action'] === 'archive' && $data['space'] !== 'trash', 422, 'Only Trash Bin items can be archived.');
+        abort_if($data['action'] === 'purge' && $data['space'] !== 'archive', 422, 'Only archived items can be permanently deleted.');
+        $order = match ($data['action']) {
+            'restore' => ['supplier' => 0, 'account' => 0, 'product' => 1, 'entry' => 2, 'event' => 3],
+            'purge' => ['entry' => 0, 'product' => 1, 'supplier' => 2, 'event' => 3, 'account' => 4],
+            default => ['supplier' => 0, 'product' => 1, 'entry' => 2, 'event' => 3, 'account' => 4],
+        };
         $items = collect($data['items'])->sortBy(fn ($item) => $order[$item['kind']])->values();
 
         $done = 0;
@@ -283,9 +423,13 @@ class TrashBinController extends Controller
             try {
                 $this->applyOne($request, $data['action'], $item['kind'], (string) $item['id']);
                 $done++;
-            } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
-                // Already restored or deleted (e.g. an entry that came back with its product).
-                $done++;
+            } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $error) {
+                // Already processed (e.g. a movement archived/restored with its product).
+                if ($data['action'] === 'restore') {
+                    $done++;
+                } else {
+                    $failed[] = ['kind' => $item['kind'], 'id' => $item['id'], 'message' => $data['action'] === 'archive' ? 'The deleted item was not found.' : 'The archived item was not found.'];
+                }
             } catch (ValidationException $error) {
                 $failed[] = ['kind' => $item['kind'], 'id' => $item['id'], 'message' => collect($error->errors())->flatten()->first()];
             } catch (\Throwable $error) {
@@ -297,30 +441,6 @@ class TrashBinController extends Controller
         return response()->json(['done' => $done, 'failed' => $failed]);
     }
 
-    /** DELETE /api/trash — permanently delete EVERYTHING in the Trash Bin. */
-    public function empty(): JsonResponse
-    {
-        $before = $this->allRecords()->count();
-
-        foreach (StockMovement::onlyTrashed()->where('deleted_with_product', false)->pluck('id') as $id) {
-            $this->stockMovements->forceDelete((int) $id);
-        }
-        foreach (Product::onlyTrashed()->get() as $product) {
-            $image = $product->image;
-            $this->stockMovements->forceDeleteProduct($product);
-            app(ProductPhotoService::class)->deleteIfStored($image);
-        }
-        foreach (StockMovement::onlyTrashed()->pluck('id') as $id) {   // anything left over
-            $this->stockMovements->forceDelete((int) $id);
-        }
-        Supplier::onlyTrashed()->get()->each(fn (Supplier $supplier) => $this->purgeSupplier($supplier));
-        SeasonalEvent::onlyTrashed()->get()->each(fn (SeasonalEvent $event) => $this->purgeEvent($event));
-
-        ActivityLog::record('trash.empty', "Emptied the Trash Bin ({$before} items permanently deleted)", 'trash', ['items' => $before]);
-
-        return response()->json(['deleted' => $before]);
-    }
-
     private function applyOne(Request $request, string $action, string $kind, string $id): void
     {
         match ("{$action}:{$kind}") {
@@ -328,18 +448,116 @@ class TrashBinController extends Controller
             'restore:entry' => $this->restoreMovement((int) $id),
             'restore:supplier' => $this->restoreSupplier((int) $id),
             'restore:event' => $this->restoreEvent((int) $id),
+            'restore:account' => $this->restoreAccount((int) $id),
+            'archive:product' => $this->archiveProduct($id, $request->user()),
+            'archive:entry' => $this->archiveMovement((int) $id, $request->user()),
+            'archive:supplier' => $this->archiveRecord(Supplier::onlyTrashed()->whereNull('archived_at')->findOrFail((int) $id), $request->user(), 'supplier'),
+            'archive:event' => $this->archiveRecord(SeasonalEvent::onlyTrashed()->whereNull('archived_at')->findOrFail((int) $id), $request->user(), 'event'),
+            'archive:account' => $this->archiveRecord(User::onlyTrashed()->whereNull('archived_at')->findOrFail((int) $id), $request->user(), 'account'),
             'purge:product' => $this->purgeProductQuietly($id),
             'purge:entry' => $this->purgeMovementQuietly((int) $id),
-            'purge:supplier' => $this->purgeSupplier(Supplier::onlyTrashed()->findOrFail((int) $id)),
-            'purge:event' => $this->purgeEvent(SeasonalEvent::onlyTrashed()->findOrFail((int) $id)),
+            'purge:supplier' => $this->purgeSupplier(Supplier::onlyTrashed()->whereNotNull('archived_at')->findOrFail((int) $id)),
+            'purge:event' => $this->purgeEvent(SeasonalEvent::onlyTrashed()->whereNotNull('archived_at')->findOrFail((int) $id)),
+            'purge:account' => $this->purgeAccount((int) $id),
         };
     }
 
-    /* The single-item purge actions ask for the password themselves; in bulk
-       it was already checked once, so these skip that step. */
+    private function archiveRecord(Product|StockMovement|Supplier|SeasonalEvent|User $record, User $actor, string $kind): void
+    {
+        $record->forceFill([
+            'archived_at' => now(),
+            'archived_by_name' => $actor->name ?: $actor->email,
+        ])->save();
+        $name = $record instanceof StockMovement ? $record->product_name : $record->name;
+        ActivityLog::record('trash.archive', "Moved {$kind} to the Archive — {$name}", 'archive', ['kind' => $kind, 'id' => $record->getKey()]);
+    }
+
+    private function archiveProduct(string $code, User $actor): void
+    {
+        $product = Product::onlyTrashed()->whereNull('archived_at')->where('code', $code)->firstOrFail();
+        DB::transaction(function () use ($product, $actor): void {
+            $this->archiveRecord($product, $actor, 'product');
+            StockMovement::onlyTrashed()->where('product_id', $product->id)
+                ->where('deleted_with_product', true)
+                ->whereNull('archived_at')
+                ->update(['archived_at' => now(), 'archived_by_name' => $actor->name ?: $actor->email]);
+        });
+    }
+
+    private function archiveMovement(int $id, User $actor): void
+    {
+        $movement = StockMovement::onlyTrashed()->findOrFail($id);
+        if ($movement->archived_at !== null) {
+            return;
+        }
+        $this->archiveRecord($movement, $actor, 'stock entry');
+    }
+
+    private function restoreAccount(int $id): void
+    {
+        $account = User::onlyTrashed()->findOrFail($id);
+        $account->restore();
+        $account->forceFill([
+            'status' => User::STATUS_ACTIVE,
+            'deleted_by' => null,
+            'deleted_by_name' => null,
+            'archived_at' => null,
+            'archived_by_name' => null,
+        ])->save();
+        ActivityLog::record('trash.restore', "Restored account from retention — {$account->name}", 'user', ['userId' => $account->id]);
+    }
+
+    private function purgeAccount(int $id): void
+    {
+        $account = User::onlyTrashed()->whereNotNull('archived_at')->findOrFail($id);
+        $configuredSuperAdminEmail = config('auth.super_admin_email');
+        $isSuperAdminAccount = $account->role === User::ROLE_SUPER_ADMIN
+            || (is_string($configuredSuperAdminEmail)
+                && $configuredSuperAdminEmail !== ''
+                && hash_equals(strtolower($configuredSuperAdminEmail), strtolower($account->email)));
+        if ($isSuperAdminAccount) {
+            $anotherSuperAdminExists = User::query()
+                ->where('status', User::STATUS_ACTIVE)
+                ->where('id', '!=', $account->id)
+                ->where(function ($query) use ($configuredSuperAdminEmail): void {
+                    $query->where('role', User::ROLE_SUPER_ADMIN);
+                    if (is_string($configuredSuperAdminEmail) && $configuredSuperAdminEmail !== '') {
+                        $query->orWhereRaw('LOWER(email) = ?', [strtolower($configuredSuperAdminEmail)]);
+                    }
+                })
+                ->exists();
+            if (!$anotherSuperAdminExists) {
+                throw ValidationException::withMessages(['account' => 'The last active Super Admin account cannot be permanently deleted.']);
+            }
+        }
+
+        DB::transaction(function () use ($account): void {
+            $actor = request()->user();
+            $name = $account->name;
+            if (config('session.driver') === 'database') {
+                DB::table(config('session.table', 'sessions'))->where('user_id', $account->id)->delete();
+            }
+            DB::table('password_reset_tokens')->where('email', $account->email)->delete();
+            DB::table('password_reset_otps')->where('email', $account->email)->delete();
+            \App\Models\AppSetting::query()->whereKey($account->avatarSettingKey())->delete();
+            $photo = $account->avatarPath();
+            if ($photo) {
+                \Illuminate\Support\Facades\Storage::disk('local')->delete($photo);
+            }
+            $account->forceDelete();
+            ActivityLog::create([
+                'user_id' => $actor?->id,
+                'action' => 'staff.purge',
+                'description' => "Permanently deleted account {$name} from the Archive.",
+                'icon' => 'user',
+                'meta' => ['deleted_user_id' => $account->id, 'deleted_user_email' => $account->email],
+            ]);
+        });
+    }
+
     private function purgeProductQuietly(string $code): void
     {
-        $product = Product::onlyTrashed()->where('code', $code)->firstOrFail();
+        $product = Product::onlyTrashed()->whereNotNull('archived_at')->where('code', $code)->firstOrFail();
         $image = $product->image;
         $entries = $this->stockMovements->forceDeleteProduct($product);
         app(ProductPhotoService::class)->deleteIfStored($image);
@@ -350,9 +568,12 @@ class TrashBinController extends Controller
 
     private function purgeMovementQuietly(int $id): void
     {
+        StockMovement::onlyTrashed()->whereNotNull('archived_at')->findOrFail($id);
         $movement = $this->stockMovements->forceDelete($id);
         ActivityLog::record('trash.purge', "Permanently deleted {$this->typeLabel($movement)} {$this->changeText($movement)} for {$movement->product_name}", 'boxes', [
-            'product' => $movement->product_name, 'movementId' => $movement->id,
+            'productId' => $movement->product?->code,
+            'product' => $movement->product_name,
+            'movementId' => $movement->id,
         ]);
     }
 
@@ -370,41 +591,23 @@ class TrashBinController extends Controller
             'supplier_id' => $product->supplier_id,
         ], $product->id);
 
-        // Safety check: a product whose supplier is also in the Trash Bin gets
-        // its supplier back too, so it doesn't return without one.
+        // A removed supplier linked to this product returns with the product.
         $supplier = $product->supplier_id ? Supplier::onlyTrashed()->find($product->supplier_id) : null;
         if ($supplier) {
             $supplier->restore();
-            $supplier->forceFill(['deleted_by' => null, 'deleted_by_name' => null])->save();
-            ActivityLog::record('trash.restore', "Restored supplier from the Trash Bin (with product {$product->name}) — {$supplier->name}", 'users', ['supplier' => $supplier->name]);
+            $supplier->forceFill(['deleted_by' => null, 'deleted_by_name' => null, 'archived_at' => null, 'archived_by_name' => null])->save();
+            ActivityLog::record('trash.restore', "Restored supplier with product {$product->name} — {$supplier->name}", 'users', ['supplier' => $supplier->name]);
         }
 
         $entries = $this->stockMovements->restoreProduct($product);
 
-        ActivityLog::record('trash.restore', "Restored product from the Trash Bin — {$product->name}", 'boxes', [
+        ActivityLog::record('trash.restore', "Restored product to active records — {$product->name}", 'boxes', [
             'productId' => $product->code,
             'product' => $product->name,
             'restoredEntries' => $entries,
         ]);
 
         return response()->json(['restored' => true, 'restoredEntries' => $entries, 'restoredSupplier' => $supplier?->name]);
-    }
-
-    public function forceDeleteProduct(string $code): JsonResponse
-    {
-        $product = Product::onlyTrashed()->where('code', $code)->firstOrFail();
-        $image = $product->image;
-        $entries = $this->stockMovements->forceDeleteProduct($product);
-        // Remove a stored photo file too (links and old in-database photos need nothing).
-        app(ProductPhotoService::class)->deleteIfStored($image);
-
-        ActivityLog::record('trash.purge', "Permanently deleted product — {$product->name}; retained {$entries} historical stock entries", 'boxes', [
-            'productId' => $product->code,
-            'product' => $product->name,
-            'retainedEntries' => $entries,
-        ]);
-
-        return response()->json(['deleted' => true, 'retainedEntries' => $entries]);
     }
 
     public function restoreMovement(int $id): JsonResponse
@@ -426,21 +629,6 @@ class TrashBinController extends Controller
         ]);
 
         return response()->json(['restored' => true, 'movement' => $this->formatMovement($movement)]);
-    }
-
-    public function forceDeleteMovement(int $id): JsonResponse
-    {
-        $movement = $this->stockMovements->forceDelete($id);
-        $movement->loadMissing('product');
-
-        ActivityLog::record('trash.purge', "Permanently deleted {$this->typeLabel($movement)} {$this->changeText($movement)} for {$movement->product_name}", 'boxes', [
-            'productId' => $movement->product?->code,
-            'product' => $movement->product_name,
-            'movementId' => $movement->id,
-            'date' => $movement->movement_date?->toDateString(),
-        ]);
-
-        return response()->json(['deleted' => true]);
     }
 
     private function formatMovement(StockMovement $movement): array

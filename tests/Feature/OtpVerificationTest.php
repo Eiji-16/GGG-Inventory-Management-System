@@ -145,4 +145,44 @@ class OtpVerificationTest extends TestCase
         }
         $this->postJson('/auth/password/otp', ['email' => $user->email])->assertStatus(429);
     }
+
+    public function test_verify_step_checks_the_code_without_using_it_up(): void
+    {
+        Mail::fake();
+        $user = User::factory()->create();
+        $otp = $this->requestCode($user);
+
+        $this->postJson('/auth/password/otp/verify', ['email' => $user->email, 'otp' => $otp])->assertOk();
+        // The same code still resets the password afterwards (checked again there).
+        $this->reset($user, $otp)->assertOk();
+    }
+
+    public function test_verify_says_how_many_tries_are_left_and_when_the_code_expired(): void
+    {
+        Mail::fake();
+        $user = User::factory()->create();
+        $otp = $this->requestCode($user);
+        $wrong = $otp === '000000' ? '111111' : '000000';
+
+        $this->postJson('/auth/password/otp/verify', ['email' => $user->email, 'otp' => $wrong])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.otp.0', 'That code is incorrect. 4 tries left.');
+
+        $this->travel(11)->minutes();
+        $message = $this->postJson('/auth/password/otp/verify', ['email' => $user->email, 'otp' => $otp])
+            ->assertUnprocessable()
+            ->json('errors.otp.0');
+        $this->assertStringContainsString('expired', $message);
+    }
+
+    public function test_unknown_emails_answer_like_real_ones(): void
+    {
+        Mail::fake();
+        $this->postJson('/auth/password/otp', ['email' => 'nobody@example.com'])->assertOk();
+        $message = $this->postJson('/auth/password/otp/verify', ['email' => 'nobody@example.com', 'otp' => '123456'])
+            ->assertUnprocessable()
+            ->json('errors.otp.0');
+        $this->assertSame('That code is incorrect. 4 tries left.', $message);
+        Mail::assertNothingSent();
+    }
 }

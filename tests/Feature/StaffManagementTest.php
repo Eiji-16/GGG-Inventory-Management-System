@@ -80,6 +80,57 @@ class StaffManagementTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_deactivation_invalidates_existing_sessions_on_the_next_request(): void
+    {
+        $superAdmin = User::factory()->create(['role' => User::ROLE_SUPER_ADMIN]);
+        $target = User::factory()->create();
+
+        $this->actingAs($superAdmin)
+            ->patchJson("/staff/{$target->id}", ['status' => User::STATUS_INACTIVE])
+            ->assertOk()
+            ->assertJsonPath('status', 'Inactive');
+
+        $this->actingAs($target)
+            ->withSession(['_account_auth_version' => 0])
+            ->getJson('/auth/user')
+            ->assertUnauthorized()
+            ->assertJsonPath('code', 'account_deactivated')
+            ->assertJsonPath('message', 'Your account has been deactivated by a Super Admin. You have been signed out. Please contact the Super Admin if you think this is a mistake.');
+
+        $this->assertGuest();
+        $this->assertSame(1, (int) $target->fresh()->auth_version);
+    }
+
+    public function test_deactivation_clears_database_sessions_for_only_the_affected_account(): void
+    {
+        config(['session.driver' => 'database']);
+        $superAdmin = User::factory()->create(['role' => User::ROLE_SUPER_ADMIN]);
+        $target = User::factory()->create();
+        $other = User::factory()->create();
+
+        DB::table('sessions')->insert([
+            [
+                'id' => 'target-session',
+                'user_id' => $target->id,
+                'payload' => '',
+                'last_activity' => time(),
+            ],
+            [
+                'id' => 'other-session',
+                'user_id' => $other->id,
+                'payload' => '',
+                'last_activity' => time(),
+            ],
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->patchJson("/staff/{$target->id}", ['status' => User::STATUS_INACTIVE])
+            ->assertOk();
+
+        $this->assertDatabaseMissing('sessions', ['id' => 'target-session']);
+        $this->assertDatabaseHas('sessions', ['id' => 'other-session', 'user_id' => $other->id]);
+    }
+
     public function test_super_admin_can_create_active_staff_accounts(): void
     {
         $superAdmin = User::factory()->create(['role' => User::ROLE_SUPER_ADMIN]);
@@ -118,7 +169,7 @@ class StaffManagementTest extends TestCase
         ]);
         $this->actingAs($inactiveSuperAdmin)
             ->deleteJson("/staff/{$inactiveStaff->id}", ['confirmation' => 'DELETE'])
-            ->assertForbidden();
+            ->assertUnauthorized();
         $this->assertDatabaseHas('users', ['id' => $inactiveStaff->id]);
 
         $superAdmin = User::factory()->create(['role' => User::ROLE_SUPER_ADMIN]);
@@ -134,7 +185,7 @@ class StaffManagementTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $inactiveStaff->id]);
     }
 
-    public function test_permanent_deletion_removes_only_target_access_and_preserves_activity_history(): void
+    public function test_moving_account_to_trash_revokes_access_and_preserves_activity_history(): void
     {
         config(['session.driver' => 'database']);
         $superAdmin = User::factory()->create(['role' => User::ROLE_SUPER_ADMIN]);
@@ -180,23 +231,24 @@ class StaffManagementTest extends TestCase
         $this->actingAs($superAdmin)
             ->deleteJson("/staff/{$target->id}", ['confirmation' => 'DELETE'])
             ->assertOk()
-            ->assertJson(['deleted' => true]);
+            ->assertJson(['trashed' => true]);
 
-        $this->assertDatabaseMissing('users', ['id' => $target->id]);
+        $this->assertSoftDeleted('users', ['id' => $target->id, 'deleted_by' => $superAdmin->id]);
+        $this->assertSame(1, (int) User::withTrashed()->findOrFail($target->id)->auth_version);
         $this->assertDatabaseHas('users', ['id' => $other->id]);
         $this->assertDatabaseMissing('sessions', ['id' => 'target-session']);
         $this->assertDatabaseHas('sessions', ['id' => 'other-session', 'user_id' => $other->id]);
         $this->assertDatabaseMissing('password_reset_tokens', ['email' => $target->email]);
         $this->assertDatabaseMissing('password_reset_otps', ['email' => $target->email]);
         $this->assertDatabaseHas('activity_logs', [
-            'user_id' => null,
+            'user_id' => $target->id,
             'action' => 'stock.in',
             'description' => 'Historical stock activity',
         ]);
 
         $deletionLog = DB::table('activity_logs')
             ->where('user_id', $superAdmin->id)
-            ->where('action', 'staff.delete')
+            ->where('action', 'staff.trash')
             ->first();
         $this->assertNotNull($deletionLog);
         $this->assertSame(

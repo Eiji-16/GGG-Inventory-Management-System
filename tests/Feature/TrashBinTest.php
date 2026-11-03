@@ -13,9 +13,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Trash Bin: deleting moves products and stock entries to the Trash Bin
- * (soft delete) with who/when; they can be restored or permanently deleted,
- * and are left out of stock totals and lists meanwhile.
+ * Trash and Archive lifecycle for products and stock entries.
  */
 class TrashBinTest extends TestCase
 {
@@ -45,6 +43,15 @@ class TrashBinTest extends TestCase
             'productId' => $code, 'type' => $type, 'qty' => $qty, 'unitPrice' => 100,
             'date' => $date ?? now('Asia/Manila')->toDateString(),
         ])->assertCreated()->json();
+    }
+
+    private function retentionAction(string $action, string $kind, int|string $id, string $space = 'trash')
+    {
+        return $this->postJson('/api/trash/bulk', [
+            'space' => $space,
+            'action' => $action,
+            'items' => [['kind' => $kind, 'id' => $id]],
+        ]);
     }
 
     public function test_deleting_an_entry_moves_it_to_the_trash_bin_with_who_and_when(): void
@@ -103,7 +110,7 @@ class TrashBinTest extends TestCase
         $this->deleteJson("/api/stock-movements/{$out['id']}")->assertOk();
         $this->assertSame(10, $product->fresh()->stock_on_hand);
 
-        $this->postJson("/api/trash/stock-movements/{$out['id']}/restore")->assertOk();
+        $this->retentionAction('restore', 'entry', $out['id'])->assertOk()->assertJsonPath('done', 1);
 
         $this->assertSame(6, $product->fresh()->stock_on_hand);
         $this->assertNotSoftDeleted('stock_movements', ['id' => $out['id']]);
@@ -122,34 +129,34 @@ class TrashBinTest extends TestCase
         $this->entry($product->code, 'Stock Out', 5);                            // 0 left
 
         // Fine: restoring a Stock In only adds stock.
-        $this->postJson("/api/trash/stock-movements/{$in['id']}/restore")->assertOk();
+        $this->retentionAction('restore', 'entry', $in['id'])->assertOk()->assertJsonPath('done', 1);
         $this->assertSame(5, $product->fresh()->stock_on_hand);
 
         // A Stock Out that would push stock below zero cannot come back.
         $out = StockMovement::where('movement_type', 'out')->firstOrFail();
         $this->deleteJson("/api/stock-movements/{$out->id}")->assertOk();      // 10 again
         $this->entry($product->code, 'Stock Out', 8);                            // 2 left
-        $this->postJson("/api/trash/stock-movements/{$out->id}/restore")->assertStatus(422);
+        $this->retentionAction('restore', 'entry', $out->id)->assertOk()->assertJsonPath('failed.0.kind', 'entry');
         $this->assertSame(2, $product->fresh()->stock_on_hand);
         $this->assertSoftDeleted('stock_movements', ['id' => $out->id]);
     }
 
-    public function test_permanently_deleting_an_entry_does_not_change_stock(): void
+    public function test_archiving_then_permanently_deleting_an_entry_does_not_change_stock(): void
     {
         $product = $this->product();
         $this->entry($product->code, 'Stock In', 10, now('Asia/Manila')->subDay()->toDateString());
         $out = $this->entry($product->code, 'Stock Out', 3);
         $this->deleteJson("/api/stock-movements/{$out['id']}")->assertOk();
 
-        $url = "/api/trash/stock-movements/{$out['id']}";
         $this->assertSoftDeleted('stock_movements', ['id' => $out['id']]);
-        $this->deleteJson($url)->assertOk();
+        $this->retentionAction('archive', 'entry', $out['id'])->assertOk();
+        $this->retentionAction('purge', 'entry', $out['id'], 'archive')->assertOk()->assertJsonPath('done', 1);
 
         $this->assertDatabaseMissing('stock_movements', ['id' => $out['id']]);
         $this->assertSame(10, $product->fresh()->stock_on_hand);
         // Only trashed entries can be permanently deleted from here.
         $active = StockMovement::firstOrFail();
-        $this->deleteJson("/api/trash/stock-movements/{$active->id}")->assertNotFound();
+        $this->retentionAction('purge', 'entry', $active->id, 'archive')->assertOk()->assertJsonPath('failed.0.message', 'The archived item was not found.');
     }
 
     public function test_a_product_goes_to_the_trash_bin_with_its_entries_and_comes_back_with_them(): void
@@ -173,9 +180,9 @@ class TrashBinTest extends TestCase
             ]);
         // Entries of a product in the Trash Bin can't be restored on their own.
         $withProduct = StockMovement::onlyTrashed()->where('deleted_with_product', true)->firstOrFail();
-        $this->postJson("/api/trash/stock-movements/{$withProduct->id}/restore")->assertStatus(422);
+        $this->retentionAction('restore', 'entry', $withProduct->id)->assertOk()->assertJsonPath('failed.0.kind', 'entry');
 
-        $this->postJson("/api/trash/products/{$product->code}/restore")->assertOk()->assertJsonPath('restoredEntries', 2);
+        $this->retentionAction('restore', 'product', $product->code)->assertOk()->assertJsonPath('done', 1);
 
         $this->assertSame(7, $product->fresh()->stock_on_hand);
         $this->assertCount(2, $this->getJson('/api/stock-movements')->json());
@@ -190,7 +197,7 @@ class TrashBinTest extends TestCase
         $this->deleteJson("/api/products/{$product->code}")->assertOk();
         Product::create(['code' => 'PRD-AGAIN', 'name' => 'Trash Mouse', 'category' => 'Peripherals']);
 
-        $this->postJson("/api/trash/products/{$product->code}/restore")->assertStatus(422);
+        $this->retentionAction('restore', 'product', $product->code)->assertOk()->assertJsonPath('failed.0.kind', 'product');
         $this->assertSoftDeleted('products', ['id' => $product->id]);
     }
 
@@ -214,7 +221,7 @@ class TrashBinTest extends TestCase
         $this->assertSame(3, SalesHistory::where('product_id', $product->id)->value('units_sold'));
         $this->assertSame(2, StockMovement::onlyTrashed()->where('product_id', $product->id)->count());
 
-        $this->postJson("/api/trash/products/{$product->code}/restore")->assertOk();
+        $this->retentionAction('restore', 'product', $product->code)->assertOk()->assertJsonPath('done', 1);
 
         $this->getJson('/api/products')->assertJsonFragment(['id' => $product->code]);
         $this->assertSame($savedSales, SalesHistory::where('product_id', $product->id)->value('units_sold'));
@@ -239,9 +246,8 @@ class TrashBinTest extends TestCase
         ]);
         $this->deleteJson("/api/products/{$product->code}")->assertOk();
 
-        $this->deleteJson("/api/trash/products/{$product->code}")
-            ->assertOk()
-            ->assertJsonPath('retainedEntries', 1);
+        $this->retentionAction('archive', 'product', $product->code)->assertOk();
+        $this->retentionAction('purge', 'product', $product->code, 'archive')->assertOk()->assertJsonPath('done', 1);
 
         $this->assertDatabaseMissing('products', ['id' => $product->id]);
         $this->assertDatabaseHas('stock_movements', [
@@ -251,13 +257,13 @@ class TrashBinTest extends TestCase
         ]);
         $this->assertDatabaseHas('sales_history', ['product_id' => null, 'units_sold' => 6]);
         $this->assertDatabaseHas('past_sales', ['product_id' => null, 'units_sold' => 4]);
-        $this->getJson('/api/trash')
+        $this->getJson('/api/trash?space=archive')
             ->assertJsonPath('records.0.kind', 'entry')
             ->assertJsonPath('records.0.productMissing', true);
-        $this->postJson("/api/trash/stock-movements/{$entry['id']}/restore")->assertStatus(422);
-        // An active product can't be permanently deleted from the Trash Bin.
+        $this->retentionAction('restore', 'entry', $entry['id'])->assertOk()->assertJsonPath('failed.0.kind', 'entry');
+        // Permanent deletion is only accepted for records in the Archive.
         $active = $this->product('PRD-LIVE');
-        $this->deleteJson("/api/trash/products/{$active->code}")->assertNotFound();
+        $this->retentionAction('purge', 'product', $active->code, 'archive')->assertOk()->assertJsonPath('failed.0.message', 'The archived item was not found.');
     }
 
     public function test_clear_stock_moves_every_entry_to_the_trash_bin(): void
@@ -285,35 +291,36 @@ class TrashBinTest extends TestCase
         $this->assertSame(2, $product->fresh()->stock_on_hand);
     }
 
-    public function test_admin_can_restore_but_not_purge_and_staff_cannot_open_it_by_default(): void
+    public function test_only_super_admin_can_access_trash_and_archive(): void
     {
         $defaults = RoleAccessService::defaults();
-        $this->assertTrue($defaults['admin']['trash.view']);
-        $this->assertTrue($defaults['admin']['trash.restore']);
-        $this->assertFalse($defaults['admin']['trash.purge']);
-        $this->assertFalse($defaults['staff']['trash.view']);
+        $this->assertArrayNotHasKey('trash.view', $defaults['admin']);
+        $this->assertArrayNotHasKey('trash.restore', $defaults['admin']);
+        $this->assertArrayNotHasKey('trash.purge', $defaults['admin']);
 
         $product = $this->product();
         $in = $this->entry($product->code, 'Stock In', 4);
         $this->deleteJson("/api/stock-movements/{$in['id']}")->assertOk();
 
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'status' => User::STATUS_ACTIVE]);
-        $this->actingAs($admin)->getJson('/api/trash')->assertOk();
-        $this->actingAs($admin)->deleteJson("/api/trash/stock-movements/{$in['id']}")->assertForbidden();
-        $this->actingAs($admin)->postJson("/api/trash/stock-movements/{$in['id']}/restore")->assertOk();
+        $this->actingAs($admin)->getJson('/api/trash')->assertForbidden();
+        $this->actingAs($admin)->postJson('/api/trash/bulk', [
+            'space' => 'trash', 'action' => 'restore', 'items' => [['kind' => 'entry', 'id' => $in['id']]],
+        ])->assertForbidden();
 
         $staff = User::factory()->create(['role' => User::ROLE_STAFF, 'status' => User::STATUS_ACTIVE]);
-        $this->actingAs($staff)->getJson('/api/trash')->assertForbidden();
+        $this->actingAs($staff)->getJson('/api/trash?space=archive')->assertForbidden();
     }
 
-    public function test_permanent_deletion_is_allowed_without_a_password_for_authorized_users(): void
+    public function test_permanent_deletion_requires_the_record_to_be_archived(): void
     {
         $product = $this->product();
         $this->deleteJson("/api/products/{$product->code}")->assertOk();
 
-        $url = "/api/trash/products/{$product->code}";
         $this->assertSoftDeleted('products', ['id' => $product->id]);
-        $this->deleteJson($url)->assertOk();
+        $this->retentionAction('purge', 'product', $product->code, 'trash')->assertUnprocessable();
+        $this->retentionAction('archive', 'product', $product->code)->assertOk();
+        $this->retentionAction('purge', 'product', $product->code, 'archive')->assertOk();
         $this->assertDatabaseMissing('products', ['id' => $product->id]);
     }
 }

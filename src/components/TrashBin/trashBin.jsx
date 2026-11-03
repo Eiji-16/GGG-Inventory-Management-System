@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import useFillToBottom from '../../utils/fillToBottom';
 import {
-  AlertTriangle, CalendarDays, Package, RotateCcw, Search, Trash2, Truck, X, ArrowLeftRight,
+  Archive, AlertTriangle, CalendarDays, Package, RotateCcw, Search, Trash2, Truck, UserRound, X, ArrowLeftRight,
 } from 'lucide-react';
 
 /* Reuses Stock Control's table, button and popup styles so the page looks the same. */
@@ -12,33 +12,18 @@ import apiFetch from '../../apiFetch';
 import { useCurrency } from '../../CurrencyContext';
 import CustomSelect from '../Forecasting/CustomSelect';
 
-/* ===== TRASH BIN =====
-   Deleted products, stock entries, suppliers and seasonal events land here
-   instead of being erased. Each item shows what it was, who deleted it and
-   when. Allowed users can Restore (it comes back exactly as it was) or
-   Permanently delete — one item, several ticked items, or everything
-   ("Empty Trash Bin").    Permanent deletion always asks for explicit confirmation.
-   Role Access decides who sees which button; the server checks the same boxes.
-
-   Safety checks:
-   - a stock entry can't come back while its product is still in the Trash Bin
-   - restoring a product also brings back its supplier if that was deleted too
-   - restoring several at once does suppliers → products → entries in order */
+/* ===== TRASH BIN AND ARCHIVE =====
+   Trash items can be restored or archived. Archived items can be restored or
+   permanently deleted. The API is Super Admin-only. */
 
 const KINDS = [
   { key: 'all', label: 'All', Icon: Trash2 },
   { key: 'product', label: 'Products', Icon: Package },
+  { key: 'account', label: 'Accounts', Icon: UserRound },
   { key: 'entry', label: 'Stock entries', Icon: ArrowLeftRight },
   { key: 'supplier', label: 'Suppliers', Icon: Truck },
   { key: 'event', label: 'Seasonal events', Icon: CalendarDays },
 ];
-
-const URL_BASE = {
-  product: (id) => `/api/trash/products/${encodeURIComponent(id)}`,
-  entry: (id) => `/api/trash/stock-movements/${id}`,
-  supplier: (id) => `/api/trash/suppliers/${id}`,
-  event: (id) => `/api/trash/seasonal-events/${id}`,
-};
 
 const formatWhen = (iso) => {
   if (!iso) return '—';
@@ -57,18 +42,13 @@ const firstError = (result, fallback) => (
 const keyOf = (item) => `${item.kind}-${item.id}`;
 const signed = (n) => `${n >= 0 ? '+' : '−'}${Math.abs(n)}`;
 
-function TrashBin({
-  isActive = false,
-  refreshKey = 0,
-  onRestored,
-  canRestore = false,
-  canPurge = false,
-}) {
+function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = false }) {
   const { formatCurrency } = useCurrency();
   // The table stretches to the bottom of the page (no empty space under it).
   const fillTableToBottom = useFillToBottom(4, { shrink: true });   // full page fills the box; a short last page shrinks
   const [records, setRecords] = useState([]);
-  const [counts, setCounts] = useState({ all: 0, product: 0, entry: 0, supplier: 0, event: 0 });
+  const [space, setSpace] = useState('trash');
+  const [counts, setCounts] = useState({ all: 0, product: 0, account: 0, entry: 0, supplier: 0, event: 0 });
   const [deleters, setDeleters] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, perPage: 50, lastPage: 1, total: 0 });
   const [page, setPage] = useState(1);
@@ -83,14 +63,19 @@ function TrashBin({
   const [confirm, setConfirm] = useState(null);           // { action, items } | { action: 'empty' }
   const requestRef = useRef(0);
 
+  const changeSpace = (nextSpace) => {
+    setSpace(nextSpace);
+    setDeletedBy('');
+  };
+
   const load = async () => {
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), per_page: String(pagination.perPage), kind });
+      const params = new URLSearchParams({ space, page: String(page), per_page: String(pagination.perPage), kind });
       if (query.trim()) params.set('search', query.trim());
-      if (deletedBy) params.set('deleted_by', deletedBy);
+      if (deletedBy) params.set(space === 'trash' ? 'deleted_by' : 'archived_by', deletedBy);
       const response = await fetch(`/api/trash?${params}`, { cache: 'no-store', headers: { Accept: 'application/json' } });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(firstError(result, `Could not load the Trash Bin (${response.status}).`));
@@ -111,15 +96,15 @@ function TrashBin({
     if (!isActive) return undefined;
     const timeout = window.setTimeout(load, 200);
     return () => window.clearTimeout(timeout);
-  }, [isActive, refreshKey, page, query, kind, deletedBy]);
+  }, [isActive, refreshKey, page, query, kind, deletedBy, space]);
 
   // A new tab / filter / search starts at page 1 with nothing ticked.
-  useEffect(() => { setPage(1); setSelected(new Map()); }, [kind, deletedBy, query]);
+  useEffect(() => { setPage(1); setSelected(new Map());   }, [kind, deletedBy, query, space]);
 
   /* ----- what can be done with an item ----- */
   const restoreBlockedReason = (item) => {
     if (item.kind !== 'entry') return '';
-    if (item.productInTrash) return 'Restore its product first (it is also in the Trash Bin).';
+    if (item.productInTrash) return `Restore its product first (it is also in the ${space === 'trash' ? 'Trash Bin' : 'Archive'}).`;
     if (item.productMissing) return 'Its product was permanently deleted, so it can’t come back.';
     return '';
   };
@@ -163,33 +148,16 @@ function TrashBin({
     setBusy(true);
     setError('');
     try {
-      if (confirm.action === 'empty') {
-        const result = await send('/api/trash', 'DELETE');
-        await finish(`The Trash Bin was emptied — ${result.deleted} item${result.deleted === 1 ? '' : 's'} permanently deleted.`);
-      } else if (confirm.items.length === 1) {
-        const [item] = confirm.items;
-        if (confirm.action === 'restore') {
-          const result = await send(`${URL_BASE[item.kind](item.id)}/restore`, 'POST');
-          const extra = [
-            result.restoredEntries ? `with ${result.restoredEntries} stock entr${result.restoredEntries === 1 ? 'y' : 'ies'}` : '',
-            result.restoredSupplier ? `and its supplier ${result.restoredSupplier}` : '',
-          ].filter(Boolean).join(' ');
-          await finish(`${item.productName} was restored${extra ? ` ${extra}` : ''}.`);
-        } else {
-          await send(URL_BASE[item.kind](item.id), 'DELETE');
-          await finish(`${item.productName} (${item.type}) was permanently deleted.`);
-        }
-      } else {
-        const result = await send('/api/trash/bulk', 'POST', {
-          action: confirm.action,
-          items: confirm.items.map((item) => ({ kind: item.kind, id: item.id })),
-        });
-        const verb = confirm.action === 'restore' ? 'restored' : 'permanently deleted';
-        const failedText = result.failed?.length
-          ? ` ${result.failed.length} could not be ${verb}: ${result.failed.map((f) => f.message).filter(Boolean).slice(0, 2).join(' ')}`
-          : '';
-        await finish(`${result.done} item${result.done === 1 ? '' : 's'} ${verb}.${failedText}`);
-      }
+      const result = await send('/api/trash/bulk', 'POST', {
+        space,
+        action: confirm.action,
+        items: confirm.items.map((item) => ({ kind: item.kind, id: item.id })),
+      });
+      const verb = confirm.action === 'restore' ? 'restored' : confirm.action === 'archive' ? 'archived' : 'permanently deleted';
+      const failedText = result.failed?.length
+        ? ` ${result.failed.length} could not be ${verb}: ${result.failed.map((f) => f.message).filter(Boolean).slice(0, 2).join(' ')}`
+        : '';
+      await finish(`${result.done} item${result.done === 1 ? '' : 's'} ${verb}.${failedText}`);
       setConfirm(null);
     } catch (actionError) {
       setError(actionError.message || "That didn't work.");
@@ -209,6 +177,7 @@ function TrashBin({
   /* ----- display helpers ----- */
   const subtitle = (item) => {
     if (item.kind === 'product') return [item.productId, item.category].filter(Boolean).join(' · ');
+    if (item.kind === 'account') return item.details.email;
     if (item.kind === 'entry') return [item.productId, item.variantName].filter(Boolean).join(' · ');
     if (item.kind === 'supplier') return item.details.company && item.details.company !== item.productName ? item.details.company : 'Supplier';
     return 'Seasonal event';
@@ -237,6 +206,8 @@ function TrashBin({
           d.leadTimeDays != null ? `Lead time: ${d.leadTimeDays} days` : null,
           `${d.linkedProducts} linked product${d.linkedProducts === 1 ? '' : 's'}`,
         ].filter(Boolean).join(' · ');
+      case 'account':
+        return [d.role, d.status, d.department].filter(Boolean).join(' · ');
       default:
         return [
           `${d.startDate} → ${d.endDate}`,
@@ -246,26 +217,24 @@ function TrashBin({
     }
   };
 
-  const purgeWarning = (items) => {
-    const kinds = new Set(items.map((item) => item.kind));
-    const lines = [];
-    if (kinds.has('product')) lines.push('Products: their settings and restock requests are erased; past stock entries and sales stay as history.');
-    if (kinds.has('entry')) lines.push('Stock entries: the stock total does not change (it was already taken out when the entry was deleted).');
-    if (kinds.has('supplier')) lines.push('Suppliers: their products stay, but will have no supplier.');
-    if (kinds.has('event')) lines.push('Seasonal events: removed for good from forecasting.');
-    return lines;
-  };
-
-  const confirmTitle = !confirm ? '' : confirm.action === 'empty'
-    ? 'Empty the Trash Bin?'
-    : confirm.action === 'restore'
-      ? (confirm.items.length === 1 ? 'Restore this item?' : `Restore ${confirm.items.length} items?`)
-      : (confirm.action === 'purge' ? 'Are you sure?' : confirm.items.length === 1 ? 'Delete permanently?' : `Permanently delete ${confirm.items.length} items?`);
-  const isPurge = confirm && confirm.action !== 'restore';
+  const confirmTitle = !confirm ? '' : confirm.action === 'restore'
+    ? (confirm.items.length === 1 ? 'Restore this item?' : `Restore ${confirm.items.length} items?`)
+    : confirm.action === 'archive'
+      ? (confirm.items.length === 1 ? 'Move this item to Archive?' : `Move ${confirm.items.length} items to Archive?`)
+      : (confirm.items.length === 1 ? 'Delete permanently?' : `Permanently delete ${confirm.items.length} items?`);
+  const isPurge = confirm?.action === 'purge';
 
   return (
-    <div className="sc-table-parent tb-page">
-      {/* ===== ONE TOOLBAR ROW: tabs, then search bar, filter and button ===== */}
+    <div className={`sc-table-parent tb-page${embedded ? ' tb-page-embedded' : ''}`}>
+      <div className="tb-tabs tb-space-tabs" role="tablist" aria-label="Retention area">
+        <button type="button" role="tab" aria-selected={space === 'trash'} className={space === 'trash' ? 'is-active' : ''} onClick={() => changeSpace('trash')}>
+          <Trash2 size={13} aria-hidden="true" /> Trash Bin
+        </button>
+        <button type="button" role="tab" aria-selected={space === 'archive'} className={space === 'archive' ? 'is-active' : ''} onClick={() => changeSpace('archive')}>
+          <Archive size={13} aria-hidden="true" /> Archive
+        </button>
+      </div>
+
       <div className="tb-toolbar">
         <div className="tb-tabs" role="tablist" aria-label="What to show">
           {KINDS.map(({ key, label, Icon }) => (
@@ -282,40 +251,33 @@ function TrashBin({
             </button>
           ))}
         </div>
+        {/* Search + "Deleted by" stay together: when the row is full they
+            move to the next row as one group (search left, filter right). */}
+        <div className="tb-toolbar-tools">
         <div className="sc-search-box tb-search xs-search">
           <Search size={13} className="sc-search-icon" />
-          <input type="search" placeholder="Search the Trash Bin…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search the Trash Bin" />
+          <input type="search" placeholder={`Search ${space === 'trash' ? 'Trash Bin' : 'Archive'}…`} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={`Search ${space === 'trash' ? 'Trash Bin' : 'Archive'}`} />
         </div>
         <div className="tb-filter">
-          <span>Deleted by</span>
+          <span>{space === 'trash' ? 'Deleted by' : 'Archived by'}</span>
           <CustomSelect
             id="tb-deleted-by"
             className="tb-deleted-by-select"
             value={deletedBy}
             onChange={setDeletedBy}
-            ariaLabel="Filter by deleted by"
+            ariaLabel={`Filter by ${space === 'trash' ? 'deleted' : 'archived'} by`}
             options={[
               { value: '', label: 'Anyone' },
               ...deleters.map((name) => ({ value: name, label: name })),
             ]}
           />
         </div>
-        {canPurge && (
-          <button
-            type="button"
-            className="sc-add-btn tb-empty-btn"
-            onClick={() => openConfirm('empty', [])}
-            disabled={!counts.all || busy}
-            title="Permanently delete everything in the Trash Bin"
-          >
-            <Trash2 size={13} aria-hidden="true" /> Empty Trash Bin
-          </button>
-        )}
+        </div>
       </div>
 
       <p className="tb-hint">
         {pagination.total} {pagination.total === 1 ? 'item' : 'items'} shown.
-        <span className="hint-text"> Items in the Trash Bin are left out of stock totals, reports and forecasts until restored.</span>
+        <span className="hint-text"> {space === 'trash' ? 'Items can be restored or moved to Archive.' : 'Archived items can be restored or permanently deleted.'}</span>
       </p>
 
       {error && !confirm && (
@@ -332,16 +294,18 @@ function TrashBin({
       )}
 
       {/* ===== BULK BAR ===== */}
-      {selectedItems.length > 0 && (canRestore || canPurge) && (
+      {selectedItems.length > 0 && (
         <div className="tb-bulk-bar" role="region" aria-label="Selected items">
           <strong>{selectedItems.length} selected</strong>
-          {canRestore && (
-            <button type="button" className="sc-add-btn" onClick={() => openConfirm('restore', bulkRestorable)} disabled={!bulkRestorable.length || busy}
+          <button type="button" className="sc-add-btn" onClick={() => openConfirm('restore', bulkRestorable)} disabled={!bulkRestorable.length || busy}
               title={bulkRestorable.length < selectedItems.length ? 'Some ticked stock entries can’t be restored yet and will be skipped' : 'Restore every ticked item'}>
-              <RotateCcw size={13} aria-hidden="true" /> Restore{bulkRestorable.length !== selectedItems.length ? ` ${bulkRestorable.length}` : ''}
+            <RotateCcw size={13} aria-hidden="true" /> Restore{bulkRestorable.length !== selectedItems.length ? ` ${bulkRestorable.length}` : ''}
+          </button>
+          {space === 'trash' ? (
+            <button type="button" className="sc-add-btn" onClick={() => openConfirm('archive', selectedItems)} disabled={busy}>
+              <Archive size={13} aria-hidden="true" /> Archive
             </button>
-          )}
-          {canPurge && (
+          ) : (
             <button type="button" className="sc-add-btn tb-danger-outline" onClick={() => openConfirm('purge', selectedItems)} disabled={busy}>
               <Trash2 size={13} aria-hidden="true" /> Delete permanently
             </button>
@@ -351,28 +315,26 @@ function TrashBin({
       )}
 
       {/* ===== TABLE ===== */}
-      <div className="sc-table-scroll" ref={fillTableToBottom}>
+      <div className="sc-table-scroll" ref={embedded ? undefined : fillTableToBottom}>
         <table className="sc-table m-folders tb-unified-table">
           <thead>
             <tr>
-              {(canRestore || canPurge) && (
-                <th className="sc-th-check"><input type="checkbox" checked={allOnPageSelected} onChange={togglePage} aria-label="Select all on this page" /></th>
-              )}
+              <th className="sc-th-check"><input type="checkbox" checked={allOnPageSelected} onChange={togglePage} aria-label="Select all on this page" /></th>
               <th className="sc-th-left">Name</th>
               <th>Type</th>
               <th className="sc-th-left">Details</th>
-              <th>Deleted by</th>
-              <th>Deleted on</th>
+              <th>{space === 'trash' ? 'Deleted by' : 'Archived by'}</th>
+              <th>{space === 'trash' ? 'Deleted on' : 'Archived on'}</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading && records.length === 0 ? (
-              <tr><td colSpan={7} className="sc-empty-state">Loading the Trash Bin…</td></tr>
+              <tr><td colSpan={7} className="sc-empty-state">Loading {space === 'trash' ? 'Trash Bin' : 'Archive'}…</td></tr>
             ) : records.length === 0 ? (
               <tr>
                 <td colSpan={7} className="sc-empty-state">
-                  {query || deletedBy || kind !== 'all' ? 'Nothing in the Trash Bin matches.' : 'The Trash Bin is empty.'}
+                  {query || deletedBy || kind !== 'all' ? `Nothing in the ${space === 'trash' ? 'Trash Bin' : 'Archive'} matches.` : `The ${space === 'trash' ? 'Trash Bin' : 'Archive'} is empty.`}
                 </td>
               </tr>
             ) : records.map((item) => {
@@ -380,51 +342,53 @@ function TrashBin({
               const KindIcon = KINDS.find((k) => k.key === item.kind)?.Icon || Trash2;
               return (
                 <tr key={keyOf(item)} className={selected.has(keyOf(item)) ? 'is-selected' : ''}>
-                  {(canRestore || canPurge) && (
-                    <td className="sc-td-check m-keep">
-                      <input type="checkbox" checked={selected.has(keyOf(item))} onChange={() => toggle(item)} aria-label={`Select ${item.type}: ${item.productName}`} />
-                    </td>
-                  )}
+                  <td className="sc-td-check m-keep">
+                    <input type="checkbox" checked={selected.has(keyOf(item))} onChange={() => toggle(item)} aria-label={`Select ${item.type}: ${item.productName}`} />
+                  </td>
                   <td className="sc-td-left m-title" data-label="Name">
                     <span className="sc-name-cell">
                       <span className={`tb-kind-icon tb-kind-${item.kind}`} aria-hidden="true"><KindIcon size={13} /></span>
                       <span className="tb-name">
                         <strong>{item.productName}</strong>
                         <small>{subtitle(item)}</small>
-                        {blocked && <small className="sc-deleted-tag">{item.productInTrash ? 'Product is in the Trash Bin' : 'Product permanently deleted'}</small>}
+                        {blocked && <small className="sc-deleted-tag">{item.productInTrash ? `Product is in the ${space === 'trash' ? 'Trash Bin' : 'Archive'}` : 'Product permanently deleted'}</small>}
                       </span>
                     </span>
                   </td>
                   <td className="m-peek" data-label="Type"><span className={`tb-type tb-type-${item.kind}`}>{item.type}</span></td>
                   <td className="sc-td-left tb-details" data-label="Details" title={detailsText(item)}>{detailsText(item)}</td>
-                  <td className="sc-td-nowrap" data-label="Deleted by">{item.deletedBy || '—'}</td>
-                  <td className="sc-td-nowrap" data-label="Deleted on">
+                  <td className="sc-td-nowrap" data-label={space === 'trash' ? 'Deleted by' : 'Archived by'}>
+                    {space === 'trash' ? item.deletedBy || '—' : item.archivedBy || '—'}
+                  </td>
+                  <td className="sc-td-nowrap" data-label={space === 'trash' ? 'Deleted on' : 'Archived on'}>
                     <span className="tb-when">
-                      <span>{formatWhen(item.deletedAt)}</span>
-                      <small>{daysText(item.daysInTrash)}</small>
+                      <span>{formatWhen(space === 'trash' ? item.deletedAt : item.archivedAt)}</span>
+                      <small>{daysText(space === 'trash' ? item.daysInTrash : item.daysInArchive)}</small>
                     </span>
                   </td>
                   <td className="sc-td-actions" data-label="Actions">
                     <div className="sc-action-cell-container">
-                      {canRestore && (
-                        <button
-                          type="button"
-                          className="sc-table-action-btn sc-history-btn"
-                          onClick={() => openConfirm('restore', [item])}
-                          disabled={busy || Boolean(blocked)}
-                          title={blocked || `Restore this ${item.type.toLowerCase()}`}
-                          aria-label={`Restore ${item.type}: ${item.productName}`}
-                        >
-                          <RotateCcw size={14} />
+                      <button
+                        type="button"
+                        className="sc-table-action-btn sc-history-btn"
+                        onClick={() => openConfirm('restore', [item])}
+                        disabled={busy || Boolean(blocked)}
+                        title={blocked || `Restore this ${item.type.toLowerCase()}`}
+                        aria-label={`Restore ${item.type}: ${item.productName}`}
+                      >
+                        <RotateCcw size={14} />
+                      </button>
+                      {space === 'trash' ? (
+                        <button type="button" className="sc-table-action-btn sc-history-btn" onClick={() => openConfirm('archive', [item])} disabled={busy}
+                          title="Move to Archive" aria-label={`Archive ${item.type}: ${item.productName}`}>
+                          <Archive size={14} />
                         </button>
-                      )}
-                      {canPurge && (
+                      ) : (
                         <button type="button" className="sc-table-action-btn sc-delete-btn" onClick={() => openConfirm('purge', [item])} disabled={busy}
                           title="Delete permanently" aria-label={`Permanently delete ${item.type}: ${item.productName}`}>
                           <Trash2 size={14} />
                         </button>
                       )}
-                      {!canRestore && !canPurge && '—'}
                     </div>
                   </td>
                 </tr>
@@ -449,17 +413,11 @@ function TrashBin({
         <div className="sc-modal-overlay sc-confirm-overlay" onClick={closeConfirm}>
           <div className={`sc-modal sc-confirm-modal${isPurge ? ' tb-purge-modal' : ''}`} onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true" aria-labelledby="tb-confirm-title" aria-describedby="tb-confirm-text">
             <span className={`sc-confirm-icon ${isPurge ? 'is-out' : 'is-safe'}`} aria-hidden="true">
-              {isPurge ? <AlertTriangle size={22} /> : <RotateCcw size={22} />}
+              {isPurge ? <AlertTriangle size={22} /> : confirm.action === 'archive' ? <Archive size={22} /> : <RotateCcw size={22} />}
             </span>
             <h3 id="tb-confirm-title">{confirmTitle}</h3>
             <div id="tb-confirm-text" className="tb-confirm-text">
-              {confirm.action === 'empty' ? (
-                <p>
-                  All <strong>{counts.all}</strong> items will be erased for good:
-                  {' '}{counts.product} product{counts.product === 1 ? '' : 's'}, {counts.entry} stock entr{counts.entry === 1 ? 'y' : 'ies'},
-                  {' '}{counts.supplier} supplier{counts.supplier === 1 ? '' : 's'} and {counts.event} seasonal event{counts.event === 1 ? '' : 's'}.
-                </p>
-              ) : confirm.items.length === 1 ? (
+              {confirm.items.length === 1 ? (
                 <div className="tb-confirm-item">
                   <strong>{confirm.items[0].productName}</strong>
                   <span className="tb-confirm-item-type">{confirm.items[0].type}</span>
@@ -474,12 +432,8 @@ function TrashBin({
               {confirm.action === 'restore' && confirm.items.some((item) => item.kind === 'product') && (
                 <p className="tb-confirm-note">Products come back with the stock entries deleted with them (and their supplier, if it was deleted too).</p>
               )}
-              {isPurge && (
-                <div className="tb-purge-effects">
-                  {(confirm.action === 'empty' ? purgeWarning([{ kind: 'product' }, { kind: 'entry' }, { kind: 'supplier' }, { kind: 'event' }]) : purgeWarning(confirm.items))
-                    .map((line) => <p key={line}>{line}</p>)}
-                </div>
-              )}
+              {confirm.action === 'archive' && <p className="tb-confirm-note">Archived records are removed from active system queries and can be restored later.</p>}
+              {isPurge && <p className="tb-purge-effects">This permanently removes archived records. Historical sales and stock history are retained where they are linked to a product.</p>}
             </div>
             {isPurge && <p className="tb-confirm-final">This action can’t be undone.</p>}
             {error && <p className="tb-confirm-error" role="alert">{error}</p>}
@@ -489,9 +443,13 @@ function TrashBin({
                 <button type="button" className="sc-modal-save-btn" onClick={runConfirmed} disabled={busy}>
                   {busy ? 'Restoring…' : 'Restore'}
                 </button>
+              ) : confirm.action === 'archive' ? (
+                <button type="button" className="sc-modal-save-btn" onClick={runConfirmed} disabled={busy}>
+                  {busy ? 'Archiving…' : 'Move to Archive'}
+                </button>
               ) : (
                 <button type="button" className="sc-modal-save-btn sc-confirm-danger-btn" onClick={runConfirmed} disabled={busy}>
-                  {busy ? 'Deleting…' : confirm.action === 'empty' ? 'Empty Trash Bin' : 'Delete permanently'}
+                  {busy ? 'Deleting…' : 'Delete permanently'}
                 </button>
               )}
             </div>

@@ -81,17 +81,34 @@ class StaffController extends Controller
         // Changing roles stays with the Super Admin.
         abort_if(array_key_exists('role', $data) && ! $this->isSuperAdminActor($request), 403, 'Only the Super Admin can change roles.');
 
-        // Protect the last active Super Admin from losing that status.
-        if (array_key_exists('role', $data) && $user->isSuperAdmin() && $data['role'] !== User::ROLE_SUPER_ADMIN) {
-            $this->ensureNotLastSuperAdmin($user, 'demote');
-        }
-        if (array_key_exists('status', $data) && $user->isSuperAdmin() && $data['status'] === User::STATUS_INACTIVE) {
-            $this->ensureNotLastSuperAdmin($user, 'deactivate');
-        }
+        $deactivated = DB::transaction(function () use ($data, $user): bool {
+            $account = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
 
-        $user->fill($data)->save();
+            // Protect the last active Super Admin from losing that status.
+            if (array_key_exists('role', $data) && $account->isSuperAdmin() && $data['role'] !== User::ROLE_SUPER_ADMIN) {
+                $this->ensureNotLastSuperAdmin($account, 'demote');
+            }
+            if (array_key_exists('status', $data) && $account->isSuperAdmin() && $data['status'] === User::STATUS_INACTIVE) {
+                $this->ensureNotLastSuperAdmin($account, 'deactivate');
+            }
 
-        return response()->json($this->format($user->fresh(), $this->lastActivityByUser()));
+            $isDeactivation = $account->status === User::STATUS_ACTIVE
+                && ($data['status'] ?? User::STATUS_ACTIVE) === User::STATUS_INACTIVE;
+            $account->fill($data);
+            if ($isDeactivation) {
+                $account->auth_version = (int) $account->auth_version + 1;
+            }
+            $account->save();
+            if ($isDeactivation) {
+                $this->revokeDatabaseSessions($account, \App\Support\AccountSignout::DEACTIVATED);
+            }
+
+            return $isDeactivation;
+        });
+
+        return response()->json($this->format($user->fresh(), $this->lastActivityByUser()) + [
+            'sessionRevoked' => $deactivated && $user->id === $request->user()->id,
+        ]);
     }
 
     /** DELETE /api/staff/{user} */
@@ -119,7 +136,7 @@ class StaffController extends Controller
             }
             if ($account->status !== User::STATUS_INACTIVE) {
                 throw ValidationException::withMessages([
-                    'user' => 'Only deactivated accounts can be permanently deleted.',
+                    'user' => 'Only deactivated accounts can be moved to the Trash Bin.',
                 ]);
             }
 
@@ -127,26 +144,16 @@ class StaffController extends Controller
                 $this->ensureNotLastSuperAdmin($account, 'delete');
             }
 
-            if (config('session.driver') === 'database') {
-                DB::table(config('session.table', 'sessions'))
-                    ->where('user_id', $account->id)
-                    ->delete();
-            }
+            $this->revokeDatabaseSessions($account, \App\Support\AccountSignout::DELETED);
 
             DB::table('password_reset_tokens')->where('email', $account->email)->delete();
             DB::table('password_reset_otps')->where('email', $account->email)->delete();
-
-            // Their profile photo goes too (file + setting).
-            $photo = $account->avatarPath();
-            \App\Models\AppSetting::query()->whereKey($account->avatarSettingKey())->delete();
-            if ($photo) {
-                \Illuminate\Support\Facades\Storage::disk('local')->delete($photo);
-            }
+            $account->auth_version = (int) $account->auth_version + 1;
 
             ActivityLog::create([
                 'user_id' => $request->user()->id,
-                'action' => 'staff.delete',
-                'description' => 'Permanently deleted a staff account.',
+                'action' => 'staff.trash',
+                'description' => "Moved account {$account->name} to the Trash Bin.",
                 'icon' => 'user',
                 'meta' => [
                     'deleted_user_id' => $account->id,
@@ -155,10 +162,51 @@ class StaffController extends Controller
                 ],
             ]);
 
+            $account->forceFill([
+                'deleted_by' => $request->user()->id,
+                'deleted_by_name' => $request->user()->name ?: $request->user()->email,
+            ])->save();
             $account->delete();
         });
 
-        return response()->json(['deleted' => true]);
+        return response()->json(['trashed' => true]);
+    }
+
+    /**
+     * DELETE /staff/{user}/two-factor (Super Admin) — turn off the
+     * authenticator app for someone who lost their phone. They can sign in
+     * with the password only until 2FA is set up again.
+     */
+    public function resetTwoFactor(Request $request, User $user): JsonResponse
+    {
+        abort_unless($user->hasTwoFactor(), 422, 'This account does not use an authenticator app.');
+        $user->forceFill(['two_factor_secret' => null, 'two_factor_confirmed_at' => null])->save();
+        ActivityLog::record('staff.2fa_reset', "Turned off the authenticator app (2FA) for {$user->name}", 'key', [
+            'userId' => $user->id,
+            'email' => $user->email,
+        ]);
+
+        return response()->json($this->format($user->fresh(), $this->lastActivityByUser()));
+    }
+
+    /**
+     * Sign the account out everywhere right away. Each removed session gets
+     * a short note saying why (see App\Support\AccountSignout), so that
+     * browser shows the "You've been signed out" pop-up instead of just
+     * landing on the login page.
+     */
+    private function revokeDatabaseSessions(User $account, string $reason): void
+    {
+        if (config('session.driver') !== 'database') {
+            return;
+        }
+
+        $sessions = DB::table(config('session.table', 'sessions'))
+            ->where('user_id', $account->id);
+        foreach ((clone $sessions)->pluck('id') as $sessionId) {
+            \App\Support\AccountSignout::remember((string) $sessionId, $reason);
+        }
+        $sessions->delete();
     }
 
     /*
@@ -320,6 +368,8 @@ class StaffController extends Controller
             'lastActive' => $ts ? $this->humanizeTimestamp((int) $ts) : 'Never',
             // null = no photo; the screen shows initials (the default picture).
             'avatarUrl'  => $photo ? "/staff/{$u->id}/avatar?v=".substr(md5($photo), 0, 10) : null,
+            // Authenticator app (2FA) is on for this account.
+            'twoFactor'  => $u->hasTwoFactor(),
         ];
     }
 

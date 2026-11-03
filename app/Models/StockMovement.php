@@ -13,7 +13,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *
  * Trash Bin: deleting an entry only sets deleted_at (soft delete), so every
  * normal query (Stock Control, balances, reports, forecasts) skips it
- * automatically. It can be restored or permanently deleted from the Trash Bin.
+ * automatically. It can be restored or moved to Archive; permanent deletion
+ * is only available after archiving.
  */
 class StockMovement extends Model
 {

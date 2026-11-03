@@ -1,0 +1,448 @@
+/* ==========================================================================
+   SIGN-IN POP-UPS (2026-11-03) — "Forgot password?", the authenticator
+   code at sign-in, "Request account access", and the account setup page.
+   Same navy-and-gold look as the login page, in every theme (these show
+   before the account's own theme is known). Class prefix: am-
+   ========================================================================== */
+.am-overlay,
+.am-page {
+    --am-navy-900: #0a1530;
+    --am-navy-800: #0f1f45;
+    --am-navy-700: #16295c;
+    --am-gold: #e8c547;
+    --am-gold-strong: #d4ac2b;
+    --am-ink: #13203f;
+    --am-muted: #5b6785;
+    --am-line: #dfe4ee;
+    --am-soft: #f4f6fb;
+    --am-red: #c4432e;
+    --am-green: #1f8a5b;
+    --am-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+    font-family: var(--font-sans);
+    color: var(--am-ink);
+}
+
+.am-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1500;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    overflow-y: auto;
+    background: rgba(8, 15, 34, 0.62);
+    backdrop-filter: blur(6px);
+    animation: am-fade 0.2s ease both;
+}
+
+.am-modal {
+    position: relative;
+    width: min(100%, 26.5rem);
+    margin: auto;
+    padding: 26px 28px 24px;
+    background: #fff;
+    border: 1px solid rgba(19, 32, 63, 0.08);
+    border-top: 4px solid var(--am-gold);
+    border-radius: 20px;
+    box-shadow: 0 30px 80px -24px rgba(10, 21, 48, 0.55);
+    animation: am-pop 0.28s var(--am-ease) both;
+}
+.am-modal.is-wide { width: min(100%, 32rem); }
+
+.am-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    color: var(--am-muted);
+    background: transparent;
+    border: 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.am-close:hover:not(:disabled) { color: var(--am-ink); background: var(--am-soft); }
+.am-close:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ----- Step indicator: 1 Email — 2 Code — 3 New password ----- */
+.am-steps {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 36px 18px 0;
+    padding: 0;
+    list-style: none;
+}
+.am-steps li {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--am-muted);
+    font-size: 11px;
+    font-weight: 600;
+}
+.am-steps li + li::before {
+    content: '';
+    flex: 1 1 10px;
+    min-width: 10px;
+    height: 2px;
+    margin-right: 2px;
+    background: var(--am-line);
+    border-radius: 2px;
+}
+.am-steps li.is-done + li::before,
+.am-steps li.is-current + li::before { background: var(--am-line); }
+.am-steps li.is-done + li.is-current::before,
+.am-steps li.is-done + li.is-done::before { background: var(--am-gold); }
+.am-step-dot {
+    display: grid;
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    place-items: center;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--am-muted);
+    background: var(--am-soft);
+    border: 1px solid var(--am-line);
+    border-radius: 50%;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+.am-steps li.is-current { color: var(--am-ink); }
+.am-steps li.is-current .am-step-dot { color: var(--am-navy-900); background: var(--am-gold); border-color: var(--am-gold); }
+.am-steps li.is-done .am-step-dot { color: #fff; background: var(--am-navy-700); border-color: var(--am-navy-700); }
+.am-step-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ----- Heading ----- */
+.am-body { animation: am-slide 0.3s var(--am-ease) both; }
+.am-icon {
+    display: grid;
+    width: 52px;
+    height: 52px;
+    margin-bottom: 14px;
+    place-items: center;
+    color: var(--am-gold);
+    background: linear-gradient(160deg, var(--am-navy-700), var(--am-navy-900));
+    border-radius: 16px;
+    box-shadow: 0 10px 24px -10px rgba(10, 21, 48, 0.6);
+}
+.am-icon.is-success { color: #fff; background: linear-gradient(160deg, #27a36d, var(--am-green)); }
+.am-icon.is-danger { color: #fff; background: linear-gradient(160deg, #d9573f, var(--am-red)); }
+.am-title {
+    margin: 0 0 6px;
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+}
+.am-text {
+    margin: 0 0 16px;
+    color: var(--am-muted);
+    font-size: 13.5px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+.am-text strong { color: var(--am-ink); }
+
+/* ----- Messages ----- */
+.am-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0 0 14px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    border-radius: 10px;
+    animation: am-slide 0.25s var(--am-ease) both;
+}
+.am-alert svg { flex: 0 0 auto; margin-top: 2px; }
+.am-alert.is-info { color: #23407e; background: #eef3ff; border: 1px solid #d6e1fb; }
+.am-alert.is-error { color: #9d2f1c; background: #fdf0ed; border: 1px solid #f6d3cb; animation: am-shake 0.35s ease; }
+.am-alert.is-success { color: #13623f; background: #ebf8f1; border: 1px solid #c9ebd8; }
+
+/* ----- Form ----- */
+.am-form { display: grid; gap: 10px; }
+.am-label { margin-top: 2px; font-size: 12.5px; font-weight: 700; }
+.am-input {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 46px;
+    padding: 0 12px;
+    color: var(--am-muted);
+    background: var(--am-soft);
+    border: 1.5px solid var(--am-line);
+    border-radius: 12px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.am-input:focus-within {
+    background: #fff;
+    border-color: var(--am-gold-strong);
+    box-shadow: 0 0 0 4px rgba(232, 197, 71, 0.22);
+}
+.am-input.is-invalid { border-color: var(--am-red); }
+.am-input input,
+.am-input select,
+.am-input textarea {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 44px;
+    padding: 0;
+    color: var(--am-ink);
+    font: inherit;
+    font-size: 14px;
+    background: transparent;
+    border: 0;
+    outline: none;
+}
+.am-input select { cursor: pointer; }
+/* The global input styles (polish.css) must not draw a second box here. */
+.am-input input,
+.am-input input:focus,
+.am-input input:hover {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+    padding-left: 0 !important;
+}
+.am-input input::placeholder { color: #9aa3b8; }
+.am-eye {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    color: var(--am-muted);
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.am-eye:hover { color: var(--am-ink); background: rgba(19, 32, 63, 0.06); }
+
+.am-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 46px;
+    margin-top: 6px;
+    padding: 0 18px;
+    color: var(--am-navy-900);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    background: linear-gradient(180deg, #f0d264, var(--am-gold));
+    border: 1px solid var(--am-gold-strong);
+    border-radius: 12px;
+    box-shadow: 0 10px 22px -12px rgba(212, 172, 43, 0.9);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.am-primary:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.03); }
+.am-primary:active:not(:disabled) { transform: translateY(0); }
+.am-primary:disabled { cursor: not-allowed; opacity: 0.55; box-shadow: none; }
+.am-primary.is-navy {
+    color: #fff;
+    background: linear-gradient(180deg, var(--am-navy-700), var(--am-navy-800));
+    border-color: var(--am-navy-800);
+    box-shadow: 0 10px 22px -12px rgba(10, 21, 48, 0.8);
+}
+
+.am-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 4px;
+    color: var(--am-navy-700);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.am-link:hover:not(:disabled) { text-decoration: underline; }
+.am-link:disabled { color: var(--am-muted); cursor: not-allowed; opacity: 0.8; }
+.am-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; }
+.am-help { margin: 2px 0 0; color: var(--am-muted); font-size: 11.5px; line-height: 1.5; text-align: center; }
+
+/* ----- 6 code boxes ----- */
+.am-otp {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+}
+.am-otp-box {
+    width: 100%;
+    min-width: 0;
+    height: 54px;
+    padding: 0;
+    color: var(--am-ink);
+    font: inherit;
+    font-size: 24px;
+    font-weight: 800;
+    text-align: center;
+    background: var(--am-soft);
+    border: 1.5px solid var(--am-line);
+    border-radius: 12px;
+    outline: none;
+    caret-color: var(--am-gold-strong);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+.am-otp-box:nth-child(3) { margin-right: 6px; }
+.am-otp-box:focus {
+    background: #fff;
+    border-color: var(--am-gold-strong);
+    box-shadow: 0 0 0 4px rgba(232, 197, 71, 0.22);
+    transform: translateY(-1px);
+}
+.am-otp-box.is-filled { background: #fff; border-color: var(--am-navy-700); }
+.am-otp.is-invalid .am-otp-box { border-color: var(--am-red); animation: am-shake 0.35s ease; }
+.am-otp-box:disabled { opacity: 0.6; }
+
+.am-timer { margin: 2px 0 0; color: var(--am-muted); font-size: 12px; text-align: center; }
+.am-timer strong { color: var(--am-ink); font-variant-numeric: tabular-nums; }
+.am-timer.is-warning strong { color: #b7791f; }
+.am-timer.is-expired { color: var(--am-red); font-weight: 700; }
+
+/* ----- Password rules ----- */
+.am-checks { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 0; list-style: none; }
+.am-checks li { display: inline-flex; align-items: center; gap: 5px; color: var(--am-muted); font-size: 11.5px; }
+.am-checks li svg { padding: 1px; color: #fff; background: #c3c9d6; border-radius: 50%; }
+.am-checks li.is-ok { color: var(--am-green); }
+.am-checks li.is-ok svg { background: var(--am-green); }
+.am-match { margin: -2px 0 0; font-size: 11.5px; font-weight: 600; }
+.am-match.is-ok { color: var(--am-green); }
+.am-match.is-bad { color: var(--am-red); }
+
+/* ----- 2FA set-up: QR code + key ----- */
+.am-qr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 16px;
+    align-items: center;
+    padding: 14px;
+    background: var(--am-soft);
+    border: 1px solid var(--am-line);
+    border-radius: 14px;
+}
+.am-qr-image {
+    display: grid;
+    width: 150px;
+    height: 150px;
+    place-items: center;
+    padding: 6px;
+    background: #fff;
+    border: 1px solid var(--am-line);
+    border-radius: 12px;
+}
+.am-qr-image img, .am-qr-image canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+.am-qr ol { margin: 0; padding-left: 18px; color: var(--am-muted); font-size: 12.5px; line-height: 1.6; }
+.am-qr ol strong { color: var(--am-ink); }
+.am-key {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 8px 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    word-break: break-all;
+    background: #fff;
+    border: 1px dashed var(--am-line);
+    border-radius: 10px;
+}
+
+/* ----- Full page (account setup link) ----- */
+.am-page {
+    display: grid;
+    min-height: calc(100vh / var(--ui-zoom, 1));
+    place-items: center;
+    padding: 24px 16px;
+    background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(232, 197, 71, 0.12), transparent 60%),
+        radial-gradient(900px 500px at 110% 110%, rgba(22, 41, 92, 0.14), transparent 60%),
+        #eef1f7;
+}
+.am-page .am-modal { animation: am-rise 0.4s var(--am-ease) both; }
+.am-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    font-size: 12px;
+    color: var(--am-muted);
+}
+.am-brand strong { display: block; color: var(--am-ink); font-size: 13.5px; }
+.am-brand-mark {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    color: var(--am-gold);
+    background: var(--am-navy-800);
+    border-radius: 10px;
+}
+
+.am-spinner {
+    width: 15px;
+    height: 15px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: am-spin 0.7s linear infinite;
+}
+
+@keyframes am-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes am-pop { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes am-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes am-slide { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+@keyframes am-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
+@keyframes am-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 480px) {
+    .am-modal { padding: 22px 18px 18px; border-radius: 16px; }
+    .am-title { font-size: 19px; }
+    .am-otp { gap: 5px; }
+    .am-otp-box { height: 48px; font-size: 20px; border-radius: 10px; }
+    .am-otp-box:nth-child(3) { margin-right: 3px; }
+    .am-step-label { display: none; }
+    .am-steps li.is-current .am-step-label { display: inline; }
+    .am-qr { grid-template-columns: 1fr; justify-items: center; text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .am-overlay, .am-modal, .am-body, .am-alert, .am-page .am-modal, .am-otp.is-invalid .am-otp-box { animation: none !important; }
+    .am-primary, .am-otp-box { transition: none; }
+}
+
+/* "Request sent": what happens next. */
+.am-next {
+    display: grid;
+    gap: 8px;
+    margin: 0 0 6px;
+    padding: 12px 14px 12px 32px;
+    color: var(--am-muted);
+    font-size: 12.5px;
+    line-height: 1.5;
+    background: var(--am-soft);
+    border-radius: 12px;
+}
+.am-next strong { color: var(--am-ink); }
+.am-body > .am-primary { width: 100%; }

@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Supplier extends Model
 {
-    // Deleting moves it to the Trash Bin (restore or delete for good there).
+    // Deleting moves it to Trash, then Archive, before permanent deletion.
     use SoftDeletes;
 
     protected $fillable = [

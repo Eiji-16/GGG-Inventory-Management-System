@@ -9,9 +9,10 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable(['name', 'email', 'password', 'role', 'status', 'department', 'currency'])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'remember_token', 'two_factor_secret'])]
 class User extends Authenticatable
 {
     protected $attributes = [
@@ -19,7 +20,7 @@ class User extends Authenticatable
     ];
 
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
 
     /** Role constants — the single source of truth for role names. */
     public const ROLE_SUPER_ADMIN = 'super_admin';
@@ -46,6 +47,9 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            // Authenticator-app secret (2FA), stored encrypted with APP_KEY.
+            'two_factor_secret' => 'encrypted',
+            'two_factor_confirmed_at' => 'datetime',
         ];
     }
 
@@ -76,6 +80,12 @@ class User extends Authenticatable
         $path = $this->avatarPath();
 
         return $path ? '/profile/avatar?v='.substr(md5($path), 0, 10) : null;
+    }
+
+    /** 2FA is on: signing in also needs the authenticator-app code. */
+    public function hasTwoFactor(): bool
+    {
+        return $this->two_factor_confirmed_at !== null && ! empty($this->two_factor_secret);
     }
 
     /** True for admin and super_admin (i.e. "admin or above"). */

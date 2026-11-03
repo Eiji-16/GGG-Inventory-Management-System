@@ -282,9 +282,6 @@
     transition: background 0.15s ease;
 }
 
-.sc-reorder-table tbody tr:hover {
-    background: rgba(128, 128, 128, 0.055);
-}
 
 .sc-reorder-table tbody tr.is-reorder-due {
     background: rgba(248, 113, 113, 0.035);
@@ -752,9 +749,6 @@
     transition: background-color 0.15s ease;
 }
 
-.sc-table tbody tr:hover {
-    background-color: var(--background-icon-active-color-theme) !important;
-}
 
 .sc-table tbody tr.is-selected {
     background-color: var(--background-icon-active-color-theme) !important;
@@ -2365,15 +2359,12 @@
    tint, hover, selected) so the row still reads as one line. */
 @media (min-width: 901px) {
     .sc-stock-table tbody td { transition: background-color 0.15s ease; }
-    .sc-stock-table tbody tr:hover,
     .sc-stock-table tbody tr.is-selected {
         background-color: transparent !important;
     }
-    .sc-stock-table tbody tr:hover > td,
     .sc-stock-table tbody tr.is-selected > td {
         background-color: var(--background-icon-active-color-theme) !important;
     }
-    .sc-stock-table tbody tr:hover > td.sc-td-actions,
     .sc-stock-table tbody tr.is-selected > td.sc-td-actions {
         background-color: var(--background-icon-active-color-theme) !important;
     }
@@ -2409,4 +2400,55 @@
         margin: 0 auto;
         row-gap: 0;
     }
+}
+
+/* Proof photo link on Stock In rows recorded with "Received" (2026-11-03). */
+.sc-proof-link {
+    display: inline-block;
+    margin-left: 6px;
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.sc-proof-link:hover { filter: brightness(1.15); }
+
+/* Round 2 (2026-11-03): phones keep the search icon on the SAME row as the
+   other buttons; opening it fills the free space on that row. */
+@media (max-width: 640px) {
+    .sc-navigation-bar { flex-wrap: wrap; row-gap: 8px; }
+    .sc-search-wrapper { flex: 1 1 0; min-width: 32px; margin-right: 0; }
+    .sc-search-wrapper .sc-search-box.xs-search { width: 32px !important; }
+    .sc-search-wrapper .sc-search-box.xs-search:focus-within,
+    .sc-search-wrapper .sc-search-box.xs-search:has(input:not(:placeholder-shown)) { width: 100% !important; flex: none !important; }
+}
+
+/* Closed Stock card on phones/tablets: picture · name · "Added/Sold" on ONE
+   line (the badge used to sit on a second line). */
+@media (max-width: 900px) {
+    table.m-folders.sc-stock-table > tbody > tr:has(> td.m-keep):has(> td.m-title):not([data-m-open]) {
+        grid-template-columns: auto minmax(0, max-content) max-content minmax(16px, 1fr);
+    }
+    table.m-folders.sc-stock-table > tbody > tr:has(> td.m-keep):not([data-m-open]) > td.m-title { grid-column: 2; grid-row: 1; min-width: 0; max-width: 100%; justify-self: stretch; width: auto !important; }
+    table.m-folders.sc-stock-table > tbody > tr:has(> td.m-keep):not([data-m-open]) > td.m-peek { grid-column: 3; grid-row: 1; justify-self: start; }
+    table.m-folders.sc-stock-table > tbody > tr:has(> td.m-keep):not([data-m-open]) > td.m-keep { grid-row: 1; }
+    table.sc-stock-table > tbody > tr:has(> td.m-title):not([data-m-open])::after { grid-row: 1; grid-column: 4; justify-self: end; margin-top: -4px; }
+    table.m-folders.sc-stock-table > tbody > tr:not([data-m-open]) > td.m-title { overflow: hidden; }
+    table.m-folders.sc-stock-table > tbody > tr:not([data-m-open]) > td.m-title .sc-name-cell { display: flex !important; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+    table.m-folders.sc-stock-table > tbody > tr:not([data-m-open]) > td.m-title .sc-thumb { flex: 0 0 auto; }
+    table.m-folders.sc-stock-table > tbody > tr:not([data-m-open]) > td.m-title .sc-product-link {
+        display: block !important;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap !important;
+    }
+}
+
+/* Cards: the proof photo link sits on its own line under the note. */
+@media (max-width: 900px) {
+    .sc-table tbody td[data-label="Notes"] { flex-wrap: wrap; }
+    .sc-table tbody td[data-label="Notes"] .sc-proof-link { display: block; flex-basis: 100%; margin: 4px 0 0; text-align: right; }
 }

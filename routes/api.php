@@ -69,24 +69,21 @@ Route::middleware(['web', 'auth', 'active'])->group(function (): void {
     Route::put('/past-sales', [PastSalesController::class, 'save'])->middleware('feature:forecast.past_sales');
     Route::post('/past-sales/import', [PastSalesController::class, 'import'])->middleware('feature:forecast.past_sales');
 
+    // Reorder List → Received (proof photo + Stock In) and saved Restock
+    // Report quantities (2026-11-03).
+    Route::post('/reorder/receive', [StockMovementController::class, 'receive'])->middleware('feature:reorder.receive');
+    Route::get('/stock-movements/{stockMovement}/proof', [StockMovementController::class, 'proof'])->middleware('feature:stock.view|reorder.receive');
+    Route::get('/restock-report', [StockMovementController::class, 'restockReport'])->middleware('feature:reorder.view');
+    Route::post('/restock-report', [StockMovementController::class, 'saveRestockReport'])->middleware('feature:calculator.use');
+
     // Restock requests (Staff "Notify" in Reorder Alerts).
     Route::get('/restock-requests', [RestockRequestController::class, 'index'])->middleware('feature:reorder.notify|reorder.requests');
     Route::post('/restock-requests', [RestockRequestController::class, 'store'])->middleware('feature:reorder.notify');
     Route::put('/restock-requests/{restockRequest}/done', [RestockRequestController::class, 'done'])->middleware('feature:reorder.requests');
 
-    // Trash Bin: deleted products and stock entries (soft deletes).
-    Route::get('/trash', [TrashBinController::class, 'index'])->middleware('feature:trash.view');
-    Route::post('/trash/products/{code}/restore', [TrashBinController::class, 'restoreProduct'])->middleware('feature:trash.restore');
-    Route::delete('/trash/products/{code}', [TrashBinController::class, 'forceDeleteProduct'])->middleware('feature:trash.purge');
-    Route::post('/trash/stock-movements/{id}/restore', [TrashBinController::class, 'restoreMovement'])->whereNumber('id')->middleware('feature:trash.restore');
-    Route::delete('/trash/stock-movements/{id}', [TrashBinController::class, 'forceDeleteMovement'])->whereNumber('id')->middleware('feature:trash.purge');
-    Route::post('/trash/suppliers/{id}/restore', [TrashBinController::class, 'restoreSupplier'])->whereNumber('id')->middleware('feature:trash.restore');
-    Route::delete('/trash/suppliers/{id}', [TrashBinController::class, 'forceDeleteSupplier'])->whereNumber('id')->middleware('feature:trash.purge');
-    Route::post('/trash/seasonal-events/{id}/restore', [TrashBinController::class, 'restoreEvent'])->whereNumber('id')->middleware('feature:trash.restore');
-    Route::delete('/trash/seasonal-events/{id}', [TrashBinController::class, 'forceDeleteEvent'])->whereNumber('id')->middleware('feature:trash.purge');
-    // Several at once (the controller checks restore vs. delete permission) and Empty Trash.
-    Route::post('/trash/bulk', [TrashBinController::class, 'bulk'])->middleware('feature:trash.restore|trash.purge');
-    Route::delete('/trash', [TrashBinController::class, 'empty'])->middleware('feature:trash.purge');
+    // Trash and Archive management is exclusively available to the Super Admin.
+    Route::get('/trash', [TrashBinController::class, 'index'])->middleware('role:super_admin');
+    Route::post('/trash/bulk', [TrashBinController::class, 'bulk'])->middleware('role:super_admin');
 
     // Safety Stock Policy stays Super Admin only (not in Role Access).
     Route::put('/safety-stock', [SafetyStockController::class, 'update'])

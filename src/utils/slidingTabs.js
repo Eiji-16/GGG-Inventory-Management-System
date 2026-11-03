@@ -15,6 +15,11 @@
 
 const ACTIVE = '[role="tab"][aria-selected="true"], [role="tab"].is-active, [role="tab"].active';
 const attached = new WeakMap();
+// Last highlight position per tab group name (aria-label). When a page
+// rebuilds its tab group on a switch (Product & Supplier rebuilds its
+// Products | Suppliers tabs), the new highlight starts where the old one
+// was and slides to the new tab, the same as Stock | History.
+const lastPlace = new Map();
 
 function readActiveLook(tablist, active) {
     // Read the tab's real look with the slider turned off for a moment. This
@@ -45,6 +50,9 @@ function attach(tablist) {
     slider.className = 'ui-tab-slider no-anim';
     slider.setAttribute('aria-hidden', 'true');
     tablist.prepend(slider);
+    const name = tablist.getAttribute('aria-label') || '';
+    const previous = name ? lastPlace.get(name) : null;
+    let slideFromPrevious = Boolean(previous && Date.now() - previous.at < 2000);
 
     const update = () => {
         const active = tablist.querySelector(ACTIVE);
@@ -61,6 +69,20 @@ function attach(tablist) {
             tablist.classList.remove('ui-has-slider');
             return;
         }
+        if (slideFromPrevious) {
+            // Start on the old tab's spot (no animation), then slide.
+            slideFromPrevious = false;
+            slider.style.width = previous.width;
+            slider.style.height = previous.height;
+            slider.style.transform = previous.transform;
+            slider.style.backgroundColor = look.background;
+            slider.style.borderRadius = look.radius;
+            slider.classList.add('is-ready');
+            void slider.offsetWidth;
+            slider.classList.remove('no-anim');
+            requestAnimationFrame(update);
+            return;
+        }
         slider.style.width = `${active.offsetWidth}px`;
         slider.style.height = `${active.offsetHeight}px`;
         slider.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`;
@@ -69,6 +91,7 @@ function attach(tablist) {
         slider.style.borderRadius = look.radius;
         slider.style.boxShadow = look.shadow;
         slider.classList.add('is-ready');
+        if (name) lastPlace.set(name, { width: slider.style.width, height: slider.style.height, transform: slider.style.transform, at: Date.now() });
         // First placement is instant; after that every change slides.
         if (slider.classList.contains('no-anim')) {
             requestAnimationFrame(() => slider.classList.remove('no-anim'));

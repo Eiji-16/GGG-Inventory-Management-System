@@ -275,8 +275,54 @@ html[data-field-hints="hidden"] :is(
     /* Titles that stack a name over a code (Reorder List) line up on the left. */
     table.m-folders > tbody > tr > td.m-title .ra-product { justify-items: start !important; }
 
+    /* ---- Folder cards: size + motion (fix 2026-11-03) ----
+       Two cards side by side used to share one height, so a CLOSED card
+       next to an OPEN one stretched tall with its name floating in the
+       middle. Now every card keeps its own height (closed ones stay short
+       and sit at the top of their row), and opening/closing is animated:
+       the details slide down one after another, the card lifts slightly. */
+    table.m-folders > tbody { align-items: start !important; }
+    table.m-folders > tbody > tr:has(> td.m-title) {
+        align-self: start;
+        height: auto !important;
+        transition: border-color 0.2s ease, box-shadow 0.25s ease, transform 0.2s ease;
+    }
+    table.m-folders > tbody > tr:has(> td.m-title):not([data-m-open]):active { transform: scale(0.985); }
+    table.m-folders > tbody > tr:has(> td.m-title)[data-m-open] {
+        box-shadow: 0 0 0 1px var(--accent, #E8C547), 0 10px 26px rgba(0, 0, 0, 0.22) !important;
+        animation: mf-card-open 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+    table.m-folders > tbody > tr[data-m-open] > td:not(.m-title):not(.m-keep) {
+        animation: mf-detail-in 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    }
+    table.m-folders > tbody > tr[data-m-open] > td:nth-child(3) { animation-delay: 0.02s; }
+    table.m-folders > tbody > tr[data-m-open] > td:nth-child(4) { animation-delay: 0.04s; }
+    table.m-folders > tbody > tr[data-m-open] > td:nth-child(5) { animation-delay: 0.06s; }
+    table.m-folders > tbody > tr[data-m-open] > td:nth-child(6) { animation-delay: 0.08s; }
+    table.m-folders > tbody > tr[data-m-open] > td:nth-child(7) { animation-delay: 0.10s; }
+    table.m-folders > tbody > tr[data-m-open] > td:nth-child(n+8) { animation-delay: 0.12s; }
+    /* Closing: the short card settles back in. */
+    table.m-folders > tbody > tr:has(> td.m-title):not([data-m-open]) > td.m-title,
+    table.m-folders > tbody > tr:has(> td.m-title):not([data-m-open]) > td.m-peek {
+        animation: mf-fold-in 0.24s ease both;
+    }
+    @keyframes mf-card-open {
+        from { transform: scale(0.985); }
+        to { transform: none; }
+    }
+    @keyframes mf-detail-in {
+        from { opacity: 0; transform: translateY(-6px); }
+        to { opacity: 1; transform: none; }
+    }
+    @keyframes mf-fold-in {
+        from { opacity: 0.4; transform: translateY(3px); }
+        to { opacity: 1; transform: none; }
+    }
+
     @media (prefers-reduced-motion: reduce) {
         table.m-folders > tbody > tr::after { transition: none; }
+        table.m-folders > tbody > tr,
+        table.m-folders > tbody > tr > td { animation: none !important; transition: none !important; }
     }
 }
 
@@ -468,10 +514,35 @@ html .dashboard-page-wrapper {
     cursor: pointer;
     transition: width 0.28s cubic-bezier(0.2, 0.7, 0.2, 1), min-width 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
+.ps-search-box.xs-search,
+.sc-search-box.xs-search {
+    --xs-closed: 30px;
+    height: 30px;
+}
+/* Product and stock search fields sit inside an extra flex wrapper. Let that
+   wrapper grow too, or it can constrain the input's own expand animation. */
+@media (min-width: 641px) {
+    .ps-search-wrapper,
+    .sc-search-wrapper {
+        width: 30px;
+        transition: width 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+    .ps-search-wrapper > .search-suggest,
+    .sc-search-wrapper > .search-suggest { width: 100%; }
+    .ps-search-wrapper:focus-within,
+    .ps-search-wrapper:has(input:not(:placeholder-shown)),
+    .sc-search-wrapper:focus-within,
+    .sc-search-wrapper:has(input:not(:placeholder-shown)) {
+        width: min(16rem, 100%);
+    }
+}
 .xs-search input {
-    width: 100% !important;
-    min-width: 0 !important;
+    position: absolute;
+    inset: 0;
+    width: auto !important;
+    height: 100%;
     box-sizing: border-box !important;
+    z-index: 1;
     cursor: pointer;
 }
 .xs-search > label { /* the field's label is read aloud from the input instead */
@@ -503,8 +574,21 @@ html .dashboard-page-wrapper {
     min-width: min(12rem, 100%) !important;
     cursor: auto;
 }
+.xs-search:focus-within > svg,
+.xs-search:has(input:not(:placeholder-shown)) > svg {
+    position: absolute;
+    top: 50%;
+    right: auto;
+    left: 12px;
+    z-index: 2;
+    transform: translateY(-50%);
+}
 .xs-search:focus-within input,
-.xs-search:has(input:not(:placeholder-shown)) input { cursor: text; }
+.xs-search:has(input:not(:placeholder-shown)) input {
+    padding-left: 34px !important;
+    padding-right: 10px !important;
+    cursor: text;
+}
 /* The search icon is never clicked "through": clicks go to the input. */
 .xs-search svg { pointer-events: none; }
 /* Phones: an open search bar takes the whole row instead of squeezing buttons. */
@@ -517,4 +601,37 @@ html .dashboard-page-wrapper {
 }
 @media (prefers-reduced-motion: reduce) {
     .xs-search { transition: none; }
+    .ps-search-wrapper,
+    .sc-search-wrapper { transition: none; }
+}
+
+/* ==========================================================================
+   TAB SWITCH ANIMATION (2026-11-03, round 2)
+   Products ↔ Suppliers now moves like Stock ↔ History: the toolbar stays
+   put and only the list slides in (the tab highlight slides too, see
+   utils/slidingTabs.js).
+   ========================================================================== */
+.ps-section-root > .ps-table-parent { animation: none; }
+.ps-section-root .ps-table-scroll,
+.sc-table-parent .sc-table-scroll {
+    animation: tab-swap-in 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+@keyframes tab-swap-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ps-section-root .ps-table-scroll,
+    .sc-table-parent .sc-table-scroll { animation: none; }
+}
+
+/* Sticking card list (masonry) — see startStickingCards in
+   utils/mobileFolders.js. 4px rows; each card spans its own height. */
+@media (max-width: 900px) {
+    table.m-folders > tbody[data-masonry] {
+        grid-auto-rows: 4px !important;
+        row-gap: 0 !important;
+        align-items: start !important;
+    }
+    table.m-folders > tbody[data-masonry] > tr { margin-bottom: 0 !important; }
 }

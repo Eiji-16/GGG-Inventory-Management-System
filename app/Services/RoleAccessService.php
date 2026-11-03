@@ -71,8 +71,11 @@ class RoleAccessService
 
         // Reorder List (was "Auto Reorder Alerts"; the keys and codes stay the same)
         'reorder.view' => ['code' => 'rv', 'group' => 'Reorder List', 'label' => 'Open Reorder List'],
-        'reorder.notify'   => ['code' => 'rn', 'group' => 'Reorder List', 'label' => 'Send restock requests (Notify button)', 'parent' => 'reorder.view'],
+        'reorder.notify'   => ['code' => 'rn', 'group' => 'Reorder List', 'label' => 'Send restock requests (Request button, also emailed to Admins)', 'parent' => 'reorder.view'],
         'reorder.requests' => ['code' => 'rr', 'group' => 'Reorder List', 'label' => 'See and close restock requests (bell)', 'parent' => 'reorder.view'],
+        // 2026-11-03: Received (with a proof photo) has its own box. Before,
+        // it followed "Add Stock In / Stock Out".
+        'reorder.receive'  => ['code' => 'rc', 'group' => 'Reorder List', 'label' => 'Received: record a delivery with a proof photo (adds a Stock In)', 'parent' => 'reorder.view'],
 
         // Order Quantity Calculator (also controls "Order Now" and the row calculator buttons)
         // The calculator is now the "Economic Order Quantity" tab inside Forecasting (2026-11-03).
@@ -99,15 +102,10 @@ class RoleAccessService
         'reports.tab.reorder_point'   => ['code' => 't8', 'group' => 'Reports', 'label' => 'Reorder Point Report section', 'parent' => 'reports.view'],
         'reports.export'              => ['code' => 'tx', 'group' => 'Reports', 'label' => 'Export PDF / Excel', 'parent' => 'reports.view'],
 
-        // Trash Bin (deleted products and stock entries)
-        'trash.view'    => ['code' => 'bv', 'group' => 'Trash Bin', 'label' => 'Open Trash Bin'],
-        'trash.restore' => ['code' => 'br', 'group' => 'Trash Bin', 'label' => 'Restore deleted items', 'parent' => 'trash.view'],
-        'trash.purge'   => ['code' => 'bp', 'group' => 'Trash Bin', 'label' => 'Permanently delete items', 'parent' => 'trash.view'],
-
         // Manage Staff (2026-11-03): only for Admin — an Admin with this box
         // can open Staffs and manage STAFF accounts only (never Admins or
         // Super Admins, never roles). Staff can never get it.
-        'staff.manage' => ['code' => 'mm', 'group' => 'Manage Staff', 'label' => 'Open Manage Staff: add, deactivate, reactivate, delete and change photos of Staff accounts', 'roles' => [User::ROLE_ADMIN]],
+        'staff.manage' => ['code' => 'mm', 'group' => 'Manage Staff', 'label' => 'Open Manage Staff: add, deactivate, reactivate, move Staff accounts to Trash, and change photos', 'roles' => [User::ROLE_ADMIN]],
 
         // Other
         'notifications.view' => ['code' => 'nv', 'group' => 'Other', 'label' => 'Notification bell'],
@@ -129,16 +127,15 @@ class RoleAccessService
     /** Staff defaults = what Staff could do before Role Access existed. */
     private const STAFF_ON = [
         'stock.view', 'stock.create', 'stock.edit', 'stock.delete', 'stock.export', 'stock.history',
-        'reorder.view', 'reorder.notify',
+        'reorder.view', 'reorder.notify', 'reorder.receive',
         'reports.view', 'reports.tab.stock_summary', 'reports.tab.stock_movement', 'reports.tab.top_moving',
         'reports.tab.fast_slow', 'reports.tab.demand_forecast', 'reports.tab.order_quantity',
         'reports.tab.inventory_aging', 'reports.tab.reorder_point', 'reports.export',
         'notifications.view',
     ];
 
-    /** Admin defaults: every feature EXCEPT these (erasing for good stays with the
-     *  Super Admin; Manage Staff starts off until the Super Admin turns it on). */
-    private const ADMIN_OFF = ['trash.purge', 'staff.manage'];
+    /** Manage Staff starts off until the Super Admin turns it on. */
+    private const ADMIN_OFF = ['staff.manage'];
 
     /** @return array{admin: array<string,bool>, staff: array<string,bool>} */
     public static function defaults(): array

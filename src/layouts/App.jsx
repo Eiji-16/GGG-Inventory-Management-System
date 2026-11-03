@@ -2,12 +2,13 @@ import React, { useEffect, useLayoutEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { CircleAlert, RefreshCw } from 'lucide-react';
 import Login from '../components/Login/Login';
+import AccountSetup from '../components/Login/AccountSetup';
 import LandingPage from '../components/LandingPage/landingPage';
 import './app-error.css';
 import '../styles/motion.css'; /* subtle shared animations (hover, fades, pop-ups) */
 import '../styles/polish.css'; /* finishing layer: focus, inputs, main buttons, cards, tables */
 import { startSlidingTabs } from '../utils/slidingTabs';
-import { startMobileFolders } from '../utils/mobileFolders';
+import { startMobileFolders, startStickingCards } from '../utils/mobileFolders';
 import { startLoadingBar } from '../utils/loadingBar';
 import { DEFAULT_THEME, normalizeTheme, readSavedTheme, readUserTheme, saveTheme, saveUserTheme } from '../theme';
 import apiFetch from '../apiFetch';
@@ -32,18 +33,33 @@ startSidebarSlider();    // one sidebar highlight that slides to the opened page
 startSlidingTabs();
 // Phones: list cards open/close on tap (see utils/mobileFolders.js).
 startMobileFolders();
+startStickingCards();   // 2-column cards stick under each other (no gaps)
 startLoadingBar();   // thin top bar whenever the system waits for the server
 
 // Each account has its own theme: the one saved on the account first, then
 // this browser's copy for that same account, else the default theme.
 const themeOf = (account) => normalizeTheme(account?.theme) || readUserTheme(account?.id) || DEFAULT_THEME;
 
+/* The emailed account setup link (/account/setup?token=…) opens its own
+   page, without signing in (see components/Login/AccountSetup.jsx). */
 function App() {
+    if (window.location.pathname.replace(/\/+$/, '') === '/account/setup') {
+        const token = new URLSearchParams(window.location.search).get('token') || '';
+        return <AccountSetup token={token} />;
+    }
+    return <MainApp />;
+}
+
+function MainApp() {
     const [authStatus, setAuthStatus] = useState('checking');
     const [user, setUser] = useState(null);
     const [error, setError] = useState('');
     const [retryKey, setRetryKey] = useState(0);
     const [theme, setTheme] = useState(readSavedTheme);
+    // Pop-up after a Super Admin deactivates or deletes this account:
+    // null, 'account_deactivated' or 'account_deleted'.
+    const [deactivationNotice, setDeactivationNotice] = useState(null);
+    const [deactivationCountdown, setDeactivationCountdown] = useState(5);
 
     useLayoutEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
@@ -58,6 +74,8 @@ function App() {
                 });
 
                 if (response.status === 401) {
+                    const data = await response.json().catch(() => ({}));
+                    showSignedOutNotice(data.code);
                     setAuthStatus('guest');
                     return;
                 }
@@ -78,6 +96,71 @@ function App() {
 
         checkSession();
     }, [retryKey]);
+
+    useEffect(() => {
+        if (!deactivationNotice) return undefined;
+        const countdown = window.setInterval(() => {
+            setDeactivationCountdown((remaining) => Math.max(remaining - 1, 0));
+        }, 1000);
+        return () => window.clearInterval(countdown);
+    }, [deactivationNotice]);
+
+    useEffect(() => {
+        if (authStatus !== 'authenticated' || !user) return undefined;
+
+        let checking = false;
+        let disposed = false;
+        const verifySession = async () => {
+            if (checking || document.visibilityState === 'hidden') return;
+            checking = true;
+            try {
+                const response = await fetch('/auth/user', {
+                    headers: { Accept: 'application/json' },
+                    cache: 'no-store',
+                });
+                if (disposed) return;
+                if (response.status === 401 || response.status === 403) {
+                    const data = await response.json().catch(() => ({}));
+                    showSignedOutNotice(data.code);
+                    setUser(null);
+                    setError('');
+                    setAuthStatus('guest');
+                    return;
+                }
+                if (!response.ok) {
+                    throw new Error(`Session check failed (${response.status}).`);
+                }
+            } catch (requestError) {
+                if (!disposed) console.error('Could not verify the active session:', requestError);
+            } finally {
+                checking = false;
+            }
+        };
+        const interval = window.setInterval(verifySession, 3000);
+        window.addEventListener('focus', verifySession);
+        document.addEventListener('visibilitychange', verifySession);
+
+        return () => {
+            disposed = true;
+            window.clearInterval(interval);
+            window.removeEventListener('focus', verifySession);
+            document.removeEventListener('visibilitychange', verifySession);
+        };
+    }, [authStatus, user?.id]);
+
+    // The account was deactivated or deleted while signed in: show the pop-up
+    // (its "Okay" button unlocks after 5 seconds).
+    function showSignedOutNotice(code) {
+        if (code !== 'account_deactivated' && code !== 'account_deleted') return;
+        setDeactivationCountdown(5);
+        setDeactivationNotice(code);
+    }
+
+    function handleSessionRevoked() {
+        setUser(null);
+        setError('');
+        setAuthStatus('guest');
+    }
 
     // Settings → Appearance: show the new theme now, then save it on THIS
     // account only, so other users keep their own theme.
@@ -174,6 +257,45 @@ function App() {
                     }}
                 />
             )}
+            {deactivationNotice && (
+                <div className="app-deactivation-overlay">
+                    <section
+                        className="app-deactivation-dialog"
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-labelledby="app-deactivation-title"
+                        aria-describedby="app-deactivation-message"
+                    >
+                        <div className="app-error-icon" aria-hidden="true">
+                            <CircleAlert size={30} strokeWidth={1.8} />
+                        </div>
+                        <p className="app-error-eyebrow">
+                            {deactivationNotice === 'account_deleted' ? 'ACCOUNT DELETED' : 'ACCOUNT DEACTIVATED'}
+                        </p>
+                        <h1 id="app-deactivation-title">You’ve been signed out</h1>
+                        <p id="app-deactivation-message" className="app-error-message">
+                            {deactivationNotice === 'account_deleted'
+                                ? 'Your account has been deleted by a Super Admin, so this session has ended and the account can no longer be used.'
+                                : 'Your account has been deactivated by a Super Admin, so this session has ended.'}
+                            {' '}Please contact the Super Admin if you think this is a mistake.
+                        </p>
+                        <button
+                            className="app-error-retry app-deactivation-ok"
+                            type="button"
+                            disabled={deactivationCountdown > 0}
+                            onClick={() => setDeactivationNotice(null)}
+                            style={{ '--countdown-progress': `${((5 - deactivationCountdown) / 5) * 100}%` }}
+                        >
+                            {deactivationCountdown > 0 ? `Okay (${deactivationCountdown})` : 'Okay'}
+                        </button>
+                        <p className="app-error-footnote">
+                            {deactivationCountdown > 0
+                                ? `Please read this message. The button unlocks in ${deactivationCountdown} second${deactivationCountdown === 1 ? '' : 's'}.`
+                                : 'You can close this message now.'}
+                        </p>
+                    </section>
+                </div>
+            )}
             {authStatus === 'authenticated' && (
                 <>
                     {error && <p role="alert">{error}</p>}
@@ -181,6 +303,7 @@ function App() {
                         <LandingPage
                             user={user}
                             onLogout={handleLogout}
+                            onSessionRevoked={handleSessionRevoked}
                             theme={theme}
                             onThemeChange={handleThemeChange}
                         />

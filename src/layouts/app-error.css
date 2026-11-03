@@ -108,6 +108,65 @@
     line-height: 1.5;
 }
 
+.app-deactivation-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background: rgba(5, 12, 24, 0.72);
+    backdrop-filter: blur(6px);
+}
+
+.app-deactivation-dialog {
+    width: min(100%, 31rem);
+    padding: clamp(2rem, calc(7vw / var(--ui-zoom, 1)), 3.25rem);
+    border: 1px solid var(--border-color, rgba(11, 27, 51, 0.12));
+    border-radius: 1.25rem;
+    background: var(--bg-card, #fff);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+    color: var(--text-primary, #0b1b33);
+    text-align: center;
+    animation: app-deactivation-enter 180ms ease-out;
+}
+
+.app-deactivation-dialog .app-error-message {
+    margin-bottom: 1.75rem;
+}
+
+.app-error-retry:disabled {
+    cursor: not-allowed;
+    filter: grayscale(0.35);
+    opacity: 0.68;
+    transform: none;
+}
+
+/* "Okay (5)": a thin bar fills along the bottom of the button while the
+   5-second wait counts down. */
+.app-deactivation-ok {
+    position: relative;
+    overflow: hidden;
+}
+.app-deactivation-ok::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    width: var(--countdown-progress, 0%);
+    background: currentColor;
+    opacity: 0.55;
+    transition: width 1s linear;
+}
+.app-deactivation-ok:not(:disabled)::after { opacity: 0; }
+.app-deactivation-dialog .app-error-footnote { margin-top: 1rem; }
+
+@keyframes app-deactivation-enter {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 @keyframes app-status-spin {
     to {
         transform: rotate(360deg);
@@ -121,5 +180,9 @@
 
     .app-error-retry {
         transition: none;
+    }
+
+    .app-deactivation-dialog {
+        animation: none;
     }
 }

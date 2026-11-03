@@ -2,9 +2,11 @@ import './index.css';
 import './login.css';
 import { useState } from 'react';
 import {
-    ArrowRight, Boxes, Eye, EyeOff, LineChart, Lock, Mail, PackageCheck, ShieldCheck, TriangleAlert,
+    ArrowRight, Boxes, Eye, EyeOff, LineChart, Lock, Mail, PackageCheck, ShieldCheck, TriangleAlert, UserPlus,
 } from 'lucide-react';
 import ResetPass from './ResetPass/resetPass';
+import TwoFactorPrompt from './TwoFactorPrompt';
+import RequestAccess from './RequestAccess';
 
 /* ===== LOGIN =====
    Same sign-in as before (POST /auth/login, then onLogin(user)); only the
@@ -22,6 +24,9 @@ function Login({ onLogin }) {
     const [showPasswordReset, setShowPasswordReset] = useState(false);
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [capsLockOn, setCapsLockOn] = useState(false);
+    // 2FA: email waiting for its authenticator code (null = not needed).
+    const [twoFactorEmail, setTwoFactorEmail] = useState(null);
+    const [showRequestAccess, setShowRequestAccess] = useState(false);
 
     async function handleSubmit(e) {
         e.preventDefault();
@@ -58,6 +63,12 @@ function Login({ onLogin }) {
             const csrfMeta = document.querySelector('meta[name="csrf-token"]');
             if (csrfMeta && data.csrfToken) {
                 csrfMeta.content = data.csrfToken;
+            }
+
+            // Password OK, but this account also needs its authenticator code.
+            if (data.twoFactorRequired) {
+                setTwoFactorEmail(String(email));
+                return;
             }
 
             onLogin(data.user);
@@ -183,14 +194,27 @@ function Login({ onLogin }) {
                             </button>
                         </form>
 
-                        <p className="lg-help">
-                            No account yet? Ask your Super Admin to create one in <b>Staffs</b>.
-                        </p>
+                        <div className="lg-request">
+                            <span>No account yet?</span>
+                            <button type="button" className="lg-request-btn" onClick={() => setShowRequestAccess(true)}>
+                                <UserPlus size={15} aria-hidden="true" /> Request Account Access
+                            </button>
+                        </div>
                     </div>
                 </main>
             </div>
             {showPasswordReset && (
                 <ResetPass onBack={() => setShowPasswordReset(false)} />
+            )}
+            {showRequestAccess && (
+                <RequestAccess onClose={() => setShowRequestAccess(false)} />
+            )}
+            {twoFactorEmail && (
+                <TwoFactorPrompt
+                    email={twoFactorEmail}
+                    onSuccess={(user) => { setTwoFactorEmail(null); onLogin(user); }}
+                    onCancel={(message) => { setTwoFactorEmail(null); setError(message || ''); }}
+                />
             )}
         </div>
     );

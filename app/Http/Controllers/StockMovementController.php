@@ -30,7 +30,11 @@ class StockMovementController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        return response()->json($movements->map(fn (StockMovement $movement) => $this->format($movement)));
+        $withProof = $this->movementIdsWithProof();
+
+        return response()->json($movements->map(fn (StockMovement $movement) => $this->format($movement) + [
+            'hasProof' => isset($withProof[$movement->id]),
+        ]));
     }
 
     /** GET /api/stock-activities */
@@ -90,6 +94,151 @@ class StockMovementController extends Controller
         }
 
         return response()->json($body, 201);
+    }
+
+    /*
+     * ===== RECEIVED (Reorder List, 2026-11-03) =====
+     * POST /api/reorder/receive — multipart form:
+     *   productId, qty, unitPrice, date, notes, photo (required),
+     *   choice = suggested | custom | report, suggestedQty (optional)
+     * The delivery is saved as a normal Stock In (same rules as Stock
+     * Control, including the same-day merge) and the proof photo is kept on
+     * the private disk in delivery-proofs/{movement id}/. Admins see it in
+     * Recent Activity; the product's saved Restock Report quantity is done.
+     */
+    public function receive(Request $request): JsonResponse
+    {
+        $request->validate([
+            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+            'choice' => ['nullable', 'in:suggested,custom,report'],
+            'suggestedQty' => ['nullable', 'integer', 'min:0', 'max:9999'],
+        ], [
+            'photo.required' => 'Add a photo of the delivery as proof that it arrived.',
+            'photo.image' => 'The proof must be a picture (JPG, PNG, WEBP or GIF).',
+            'photo.mimes' => 'The proof must be a picture (JPG, PNG, WEBP or GIF).',
+            'photo.max' => 'The photo is too large. Use a picture up to 5 MB.',
+        ]);
+        $request->merge(['type' => 'Stock In', 'mergeSameDay' => true]);
+
+        $choice = $request->input('choice', 'custom');
+        $suggested = $request->filled('suggestedQty') ? (int) $request->input('suggestedQty') : null;
+        $note = trim((string) $request->input('notes', ''));
+        $extra = array_filter([
+            $suggested !== null ? "System suggested: {$suggested}" : null,
+            match ($choice) {
+                'suggested' => 'Used the system suggestion',
+                'report' => 'Used the saved Restock Report quantity',
+                default => 'Custom quantity',
+            },
+            'Proof photo attached',
+        ]);
+        $request->merge(['notes' => mb_substr(implode('; ', array_filter([$note, ...$extra])), 0, 255)]);
+
+        $response = $this->store($request);
+        $body = $response->getData(true);
+        $movementId = (int) ($body['id'] ?? 0);
+
+        $file = $request->file('photo');
+        $extension = strtolower($file->guessExtension() ?: $file->getClientOriginalExtension() ?: 'jpg');
+        $path = $file->storeAs(
+            'delivery-proofs/'.$movementId,
+            now()->format('Ymd-His').'-'.\Illuminate\Support\Str::random(6).'.'.$extension,
+            'local'
+        );
+
+        $product = Product::where('code', $request->input('productId'))->first();
+        if ($product) {
+            \App\Models\AppSetting::query()->whereKey(self::restockReportKey($product->code))->delete();
+        }
+        ActivityLog::record('stock.received', "Received {$request->input('qty')} × ".($product?->name ?? 'a product').' (proof photo attached)', 'boxes', [
+            'productId' => $product?->code,
+            'product' => $product?->name,
+            'movementId' => $movementId,
+            'qty' => (int) $request->input('qty'),
+            'suggestedQty' => $suggested,
+            'choice' => $choice,
+        ]);
+
+        return response()->json($body + ['hasProof' => (bool) $path], 201);
+    }
+
+    /** GET /api/stock-movements/{stockMovement}/proof — newest proof photo. */
+    public function proof(StockMovement $stockMovement)
+    {
+        $disk = \Illuminate\Support\Facades\Storage::disk('local');
+        $files = collect($disk->files('delivery-proofs/'.$stockMovement->id))->sort()->values();
+        abort_if($files->isEmpty(), 404, 'No proof photo for this entry.');
+
+        return $disk->response($files->last(), null, [
+            'Cache-Control' => 'private, max-age=600',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    /*
+     * ===== SAVED RESTOCK REPORT QUANTITIES =====
+     * "Save Report" keeps each product's final quantity (the owner's number)
+     * in app_settings ("restock_report.{product code}"), so the Received
+     * window can offer it. Received clears it again.
+     */
+    public static function restockReportKey(string $code): string
+    {
+        return 'restock_report.'.$code;
+    }
+
+    /** GET /api/restock-report — { "P-001": { qty, suggested, savedAt, savedBy } } */
+    public function restockReport(): JsonResponse
+    {
+        $rows = \App\Models\AppSetting::query()->where('key', 'like', 'restock_report.%')->get(['key', 'value']);
+        $saved = [];
+        foreach ($rows as $row) {
+            $value = json_decode((string) $row->value, true);
+            if (is_array($value)) {
+                $saved[substr($row->key, strlen('restock_report.'))] = $value;
+            }
+        }
+
+        return response()->json($saved)->header('Cache-Control', 'no-store');
+    }
+
+    /** POST /api/restock-report — items: [{ productId, qty, suggested }] */
+    public function saveRestockReport(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'items' => ['required', 'array', 'min:1', 'max:200'],
+            'items.*.productId' => ['required', 'string', Rule::exists('products', 'code')->whereNull('deleted_at')],
+            'items.*.qty' => ['required', 'integer', 'min:1', 'max:9999'],
+            'items.*.suggested' => ['nullable', 'integer', 'min:0', 'max:9999'],
+        ]);
+        $by = mb_substr((string) ($request->user()?->name ?: $request->user()?->email), 0, 60);
+        foreach ($data['items'] as $item) {
+            \App\Models\AppSetting::put(self::restockReportKey($item['productId']), json_encode([
+                'qty' => (int) $item['qty'],
+                'suggested' => isset($item['suggested']) ? (int) $item['suggested'] : null,
+                'savedAt' => now()->toDateString(),
+                'savedBy' => $by,
+            ]));
+        }
+        ActivityLog::record('restock.report', 'Saved a Restock Report for '.count($data['items']).' product'.(count($data['items']) === 1 ? '' : 's'), 'boxes', [
+            'products' => array_column($data['items'], 'productId'),
+        ]);
+
+        return response()->json(['saved' => count($data['items'])]);
+    }
+
+    /** Movement ids that have a proof photo folder (one disk listing). */
+    private function movementIdsWithProof(): array
+    {
+        try {
+            $ids = [];
+            foreach (\Illuminate\Support\Facades\Storage::disk('local')->directories('delivery-proofs') as $dir) {
+                $ids[(int) basename($dir)] = true;
+            }
+
+            return $ids;
+        } catch (\Throwable) {
+            return [];
+        }
     }
 
     /** PUT/PATCH /api/stock-movements/{stockMovement} */

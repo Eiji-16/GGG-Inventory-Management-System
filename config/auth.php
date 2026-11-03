@@ -6,6 +6,14 @@ return [
 
     'super_admin_email' => env('SUPER_ADMIN_EMAIL'),
 
+    // "Request Account Access" (login page): which email domains may ask
+    // for an account, comma separated, e.g. "globalgrowthguide.com". Empty =
+    // any email may ask (the Super Admin still has to approve every request).
+    'account_request_domains' => array_values(array_filter(array_map(
+        fn ($domain) => strtolower(trim(ltrim(trim($domain), '@'))),
+        explode(',', (string) env('ACCOUNT_REQUEST_DOMAINS', ''))
+    ))),
+
     /*
     |--------------------------------------------------------------------------
     | Authentication Defaults

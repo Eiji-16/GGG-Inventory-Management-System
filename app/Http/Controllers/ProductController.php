@@ -327,12 +327,23 @@ class ProductController extends Controller
             return null;
         }
 
+        if (Supplier::onlyTrashed()->where('name', $name)->whereNotNull('archived_at')->exists()) {
+            throw ValidationException::withMessages([
+                'supplierName' => 'This supplier is in the Archive. Restore it from Settings before linking it to a product.',
+            ]);
+        }
+
         // Typing the name of a supplier that is in the Trash Bin brings it
         // back instead of failing on the duplicate name.
-        $trashed = Supplier::onlyTrashed()->where('name', $name)->first();
+        $trashed = Supplier::onlyTrashed()->whereNull('archived_at')->where('name', $name)->first();
         if ($trashed) {
             $trashed->restore();
-            $trashed->forceFill(['deleted_by' => null, 'deleted_by_name' => null])->save();
+            $trashed->forceFill([
+                'deleted_by' => null,
+                'deleted_by_name' => null,
+                'archived_at' => null,
+                'archived_by_name' => null,
+            ])->save();
             \App\Models\ActivityLog::record('trash.restore', "Restored supplier from the Trash Bin (used on a product) — {$name}", 'users', ['supplier' => $name]);
 
             return $trashed;

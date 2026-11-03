@@ -813,9 +813,6 @@
     transition: background 0.15s ease;
 }
 
-.f-hist tbody tr:hover {
-    background: var(--background-icon-active-color-theme);
-}
 
 .f-hist tbody tr:last-child td {
     border-bottom: none;
@@ -3491,6 +3488,9 @@
     .ps-manual-controls .cs-button { padding-inline: 9px 8px; }
     .ps-manual-controls .ps-product-field .cs-button .cs-sub { display: none; }
 }
+@media (max-width: 400px) {
+    .ps-manual-controls .ps-product-field { flex: 1 1 100%; }
+}
 
 /* ==========ECONOMIC ORDER QUANTITY TAB (2026-11-03)==========
    The calculator moved here from its own page: the tabs share one row
@@ -3503,8 +3503,26 @@
 
 /* Expandable search (Forecasting, Economic Order Quantity, Past Sales): the
    label is hidden, so the icon sits in the middle of the box, not 65% down. */
-.f-search-wrap.xs-search { align-self: flex-end; }
+.f-search-wrap.xs-search { align-self: flex-end; min-height: 40px; }
 .f-search-wrap.xs-search svg { top: 50%; right: auto; left: 50%; transform: translate(-50%, -50%); z-index: 2; }
 .f-search-wrap.xs-search:focus-within svg,
 .f-search-wrap.xs-search:has(input:not(:placeholder-shown)) svg { left: 12px; transform: translateY(-50%); }
 .f-search-wrap.xs-search input { padding-left: 34px; padding-right: 10px; }
+
+/* Round 3 (2026-11-03): tablets and phones keep the search and the Product
+   dropdown on ONE row. Closed, the search is just its icon; open (or with
+   text), search and Product share the row 50/50. */
+@media (max-width: 980px) {
+    .fx-toolbar .f-search-wrap.xs-search {
+        flex: 0 0 40px !important;
+        width: 40px !important;
+        min-width: 40px !important;
+    }
+    .fx-toolbar .fx-product-field { flex: 1 1 0 !important; min-width: 0; }
+    .fx-toolbar .f-search-wrap.xs-search:focus-within,
+    .fx-toolbar .f-search-wrap.xs-search:has(input:not(:placeholder-shown)) {
+        flex: 1 1 0 !important;
+        width: auto !important;
+        min-width: 0 !important;
+    }
+}

@@ -305,15 +305,31 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
-  const filtered = useMemo(() => {
+  const matches = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const list = !q ? products : products.filter((p) => [p.name, p.id, p.category].some((v) => String(v || '').toLowerCase().includes(q)));
+    return !q ? products : products.filter((p) =>
+      [p.name, p.id, p.brand, p.category, ...(p.variants || [])]
+        .some((v) => String(v || '').toLowerCase().includes(q)));
+  }, [products, search]);
+
+  const filtered = useMemo(() => {
+    const list = matches;
     if (productId && !list.some((p) => p.id === productId)) {
       const selected = products.find((p) => p.id === productId);
       return selected ? [selected, ...list] : list;
     }
     return list;
-  }, [products, search, productId]);
+  }, [products, matches, productId]);
+
+  useEffect(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return;
+    const exactMatches = matches.filter((p) =>
+      [p.name, p.id].some((value) => String(value || '').trim().toLowerCase() === query));
+    const match = exactMatches.length === 1 ? exactMatches[0]
+      : matches.length === 1 ? matches[0] : null;
+    if (match && String(match.id) !== String(productId)) onProductChange(String(match.id));
+  }, [search, matches, onProductChange]);
 
   useEffect(() => {
     setData(null);

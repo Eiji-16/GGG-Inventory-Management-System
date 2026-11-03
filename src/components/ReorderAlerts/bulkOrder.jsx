@@ -1,15 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Calculator, Download, FileText, X } from 'lucide-react';
+import { Save, X } from 'lucide-react';
 import apiFetch from '../../apiFetch';
-import exportReportWorkbook from '../../utils/exportReportWorkbook';
+import { buildTablePdf, downloadBlob } from '../../utils/simplePdf';
 import { buildForecastHandoff } from '../../utils/forecastHandoff';
 import { useCurrency } from '../../CurrencyContext';
 import { orderPresets, PRESET_LABELS } from '../../utils/orderPresets';
 
 /* ===== RESTOCK REPORT (Reorder List; was "Bulk order") =====
    The system does not buy anything. This window works out how many units to
-   restock for the ticked products and produces a report (Excel / PDF) to give
+   restock for the ticked products and produces a report (PDF) to give
    to the person who does the buying outside the system.
 
    Each product shows two numbers:
@@ -30,8 +30,10 @@ import { orderPresets, PRESET_LABELS } from '../../utils/orderPresets';
    Ordering cost  = cost of placing one order       } from the product's saved
    Holding cost   = cost of keeping 1 unit for 1 yr } costs, or typed here.
 
-   Saving stores each row as a normal calculation, so it appears in
-   Reports → Economic Order Quantity Calculator Summary. Nothing here changes
+   "Save Report" (one button) keeps each product's final quantity for the
+   Received window, stores each row as a normal calculation (so it appears
+   in Reports → Economic Order Quantity Calculator Summary) and downloads
+   the report as a PDF. Nothing here changes
    stock or marks anything as ordered: stock changes only when the delivery
    arrives and a Stock In is recorded. */
 
@@ -153,11 +155,10 @@ export default function BulkOrder({ items, onClose, onSaved }) {
   const totalCost = listed.reduce((sum, row) => sum + (row.estimatedCost || 0), 0);
   const anyWithoutPrice = listed.some((row) => row.estimatedCost === null);
 
-  /* Save each ready row exactly like the calculator does (POST /calculations). */
-  const saveAll = async () => {
-    if (!ready.length || saving) return;
-    setSaving(true);
-    setMessage({ type: '', text: '' });
+  /* Save each ready row exactly like the calculator does (POST /calculations),
+     so it shows in Reports → Economic Order Quantity Calculator Summary.
+     Returns the list of problems (empty = all saved). */
+  const saveCalculations = async () => {
     const failed = [];
     const saved = new Set(savedIds);
     for (const row of ready) {
@@ -202,12 +203,49 @@ export default function BulkOrder({ items, onClose, onSaved }) {
       }
     }
     setSavedIds(saved);
+    return failed;
+  };
+
+  /* ===== SAVE REPORT (one button, 2026-11-03) =====
+     1. keeps each product's final quantity (owner's number) so the
+        "Received" window can offer it later,
+     2. saves the Economic Order Quantity results to Reports,
+     3. downloads the Restock Report as a PDF file. */
+  const saveReport = async () => {
+    if (!listed.length || saving) return;
+    setSaving(true);
+    setMessage({ type: '', text: '' });
+    const problems = [];
+    try {
+      const response = await apiFetch('/api/restock-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: listed.map((row) => ({ productId: row.id, qty: row.listQty, suggested: row.suggestedQty })),
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((body.errors ? Object.values(body.errors).flat()[0] : body.message) || `Error ${response.status}`);
+      }
+    } catch (error) {
+      problems.push(`Quantities not kept for Received: ${error.message}`);
+    }
+    problems.push(...await saveCalculations());
+
+    let downloaded = false;
+    try {
+      downloadBlob(buildReportPdf(), `restock-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+      downloaded = true;
+    } catch (error) {
+      console.error('Could not build the Restock Report PDF:', error);
+      problems.push('The PDF could not be created.');
+    }
     setSaving(false);
-    const savedCount = ready.filter((row) => saved.has(row.id)).length;
-    setMessage(failed.length
-      ? { type: 'error', text: `Saved ${savedCount} of ${ready.length}. Not saved — ${failed.join(' · ')}` }
-      : { type: 'ok', text: `Saved ${savedCount} calculation${savedCount === 1 ? '' : 's'} to Reports → Economic Order Quantity Calculator Summary.` });
-    if (savedCount) onSaved?.();
+    setMessage(problems.length
+      ? { type: 'error', text: `${downloaded ? 'The PDF was downloaded, but ' : ''}some parts were not saved — ${problems.join(' · ')}` }
+      : { type: 'ok', text: `Report saved and downloaded. The quantities are ready in “Received”, and ${ready.length} Economic Order Quantity result${ready.length === 1 ? ' is' : 's are'} in Reports.` });
+    onSaved?.();
   };
 
   const sourceLabel = (row) => ({
@@ -216,88 +254,40 @@ export default function BulkOrder({ items, onClose, onSaved }) {
     none: 'No sales yet — type it in',
   }[row.demandSource]);
 
-  const exportRows = () => listed.map((row) => [
-    row.name,
-    row.supplierName || '—',
-    row.stock,
-    row.reorderPoint,
-    Number(row.annualDemand),
-    sourceLabel(row),
-    Number(row.orderingCost),
-    Number(row.holdingCost),
-    row.suggestedQty ?? '—',
-    row.listQty,
-    row.estimatedCost !== null ? Number(row.estimatedCost.toFixed(2)) : '—',
-  ]);
-  const exportHeaders = ['Product', 'Supplier', 'Current stock', 'Reorder point', 'Annual demand', 'Demand from',
-    `Ordering cost (${currencySymbol})`, `Holding cost (${currencySymbol})`, 'System suggested', 'Owner\u2019s quantity', `Estimated cost (${currencySymbol})`];
   const preparedOn = () => new Date().toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' });
 
-  const exportExcel = async () => {
-    if (!listed.length) return;
-    try {
-      await exportReportWorkbook({
-        title: 'Restock Report',
-        subtitle: `Restock quantities for ${listed.length} product${listed.length === 1 ? '' : 's'} · prepared ${preparedOn()}`,
-        fileName: `restock-report-${new Date().toISOString().slice(0, 10)}`,
-        summary: [
-          { label: 'Date prepared', value: preparedOn() },
-          { label: 'Products', value: listed.length },
-          { label: 'System suggested (units)', value: totalSuggested },
-          { label: 'Owner\u2019s total (units)', value: totalUnits },
-          { label: 'Estimated total cost', value: formatCurrency(totalCost) },
-        ],
-        sections: [{ title: 'Products to restock', headers: exportHeaders, rows: exportRows() }],
-        scope: `System suggested = ${PRESET_LABELS.eoq}, √(2 × annual demand × ordering cost ÷ holding cost); without costs it is ${PRESET_LABELS.reorder.toLowerCase()} (reorder point + 1 − stock). Owner\u2019s quantity = the amount the owner decided.`,
-        note: 'The system does not place orders. Give this report to the person responsible for buying; stock is only updated when the delivery is received. Estimated cost uses each product\u2019s last Stock In price.',
-        columnWidths: [26, 20, 12, 12, 14, 22, 14, 14, 14, 14, 16],
-      });
-    } catch (error) {
-      console.error('Could not export the bulk order list:', error);
-      setMessage({ type: 'error', text: 'The Excel file could not be exported. Please try again.' });
-    }
-  };
-
-  const exportPdf = () => {
-    if (!listed.length) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      setMessage({ type: 'error', text: 'The list could not be opened. Allow pop-ups, then try again.' });
-      return;
-    }
-    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    const body = listed.map((row) => `<tr>
-      <td>${esc(row.name)}</td><td>${esc(row.supplierName || '—')}</td><td class="n">${esc(row.stock)}</td>
-      <td class="n">${esc(Number(row.annualDemand).toLocaleString('en-PH'))}</td>
-      <td class="n">${esc(formatCurrency(Number(row.orderingCost)))}</td><td class="n">${esc(formatCurrency(Number(row.holdingCost)))}</td>
-      <td class="n">${esc(row.suggestedQty !== null ? row.suggestedQty.toLocaleString('en-PH') : '—')}</td>
-      <td class="n"><b>${esc(row.listQty.toLocaleString('en-PH'))}</b></td>
-      <td class="n">${esc(row.estimatedCost !== null ? formatCurrency(row.estimatedCost) : '—')}</td></tr>`).join('');
-    printWindow.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8">
-      <title>Restock Report</title>
-      <style>
-        * { box-sizing: border-box; } body { margin: 0; padding: 32px; color: #172033; font: 12px/1.5 Arial, sans-serif; }
-        header { padding-bottom: 12px; border-bottom: 3px solid #176b57; margin-bottom: 16px; }
-        .brand { color: #176b57; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-        h1 { margin: 4px 0 2px; font-size: 22px; } .muted { color: #667085; font-size: 11px; }
-        table { width: 100%; border-collapse: collapse; } th, td { padding: 6px 5px; border-bottom: 1px solid #e5e9ed; text-align: left; }
-        th { color: #667085; font-weight: 600; font-size: 11px; } .n { text-align: right; }
-        tfoot td { font-weight: 700; border-top: 2px solid #176b57; }
-        .formula { margin-top: 14px; padding: 8px 10px; border: 1px solid #e5e9ed; border-radius: 8px; background: #fafbfc; }
-        @media print { body { padding: 12mm; } }
-      </style></head><body>
-      <header><div class="brand">GGG Inventory Management System</div><h1>Restock Report</h1>
-      <div class="muted">Date prepared: ${esc(preparedOn())}</div></header>
-      <table><thead><tr><th>Product</th><th>Supplier</th><th class="n">Stock</th><th class="n">Annual demand</th>
-      <th class="n">Ordering cost</th><th class="n">Holding cost</th><th class="n">System suggested</th><th class="n">Owner's quantity</th><th class="n">Estimated cost</th></tr></thead>
-      <tbody>${body}</tbody>
-      <tfoot><tr><td colspan="6">Total</td><td class="n">${esc(totalSuggested.toLocaleString('en-PH'))}</td><td class="n">${esc(totalUnits.toLocaleString('en-PH'))}</td><td class="n">${esc(formatCurrency(totalCost))}</td></tr></tfoot></table>
-      <div class="formula">System suggested = Economic Order Quantity, √(2 × annual demand × ordering cost ÷ holding cost); without costs it is reorder point + 1 − stock.
-      Owner's quantity = the amount the owner decided. Estimated cost uses each product's last Stock In price.
-      The system does not place orders — give this report to the person responsible for buying.</div>
-      <script>window.addEventListener('load', () => { window.focus(); window.print(); });</script></body></html>`);
-    printWindow.document.close();
-  };
+  /* The Restock Report as a PDF file (src/utils/simplePdf.js). */
+  const buildReportPdf = () => buildTablePdf({
+    title: 'Restock Report',
+    subtitle: `Restock quantities for ${listed.length} product${listed.length === 1 ? '' : 's'} · prepared ${preparedOn()}`,
+    summary: [
+      { label: 'Date prepared', value: new Date().toLocaleDateString('en-PH', { dateStyle: 'long' }) },
+      { label: 'Products', value: String(listed.length) },
+      { label: 'System suggested (units)', value: totalSuggested.toLocaleString('en-PH') },
+      { label: 'Owner\u2019s total (units)', value: totalUnits.toLocaleString('en-PH') },
+      { label: 'Estimated total cost', value: formatCurrency(totalCost) },
+    ],
+    headers: ['Product', 'Supplier', 'Stock', 'Annual demand', 'Demand from', `Ordering cost (${currencySymbol})`, `Holding cost (${currencySymbol})`, 'System suggested', 'Owner\u2019s quantity', 'Estimated cost'],
+    widths: [2.8, 1.8, 0.8, 1.1, 2, 1.3, 1.3, 1.2, 1.2, 1.4],
+    align: ['left', 'left', 'right', 'right', 'left', 'right', 'right', 'right', 'right', 'right'],
+    rows: listed.map((row) => [
+      row.name,
+      row.supplierName || '\u2014',
+      String(row.stock),
+      Number(row.annualDemand || 0).toLocaleString('en-PH'),
+      sourceLabel(row),
+      positive(row.orderingCost) ? formatCurrency(Number(row.orderingCost)) : '\u2014',
+      positive(row.holdingCost) ? formatCurrency(Number(row.holdingCost)) : '\u2014',
+      row.suggestedQty !== null ? row.suggestedQty.toLocaleString('en-PH') : '\u2014',
+      row.listQty.toLocaleString('en-PH'),
+      row.estimatedCost !== null ? formatCurrency(row.estimatedCost) : '\u2014',
+    ]),
+    totals: ['Total', '', '', '', '', '', '', totalSuggested.toLocaleString('en-PH'), totalUnits.toLocaleString('en-PH'), formatCurrency(totalCost)],
+    notes: [
+      `System suggested = ${PRESET_LABELS.eoq}, \u221a(2 \u00d7 annual demand \u00d7 ordering cost \u00f7 holding cost); without costs it is ${PRESET_LABELS.reorder.toLowerCase()} (reorder point + 1 \u2212 stock). Owner\u2019s quantity = the amount the owner decided.`,
+      'Estimated cost uses each product\u2019s last Stock In price. The system does not place orders: give this report to the person responsible for buying. Stock only changes when the delivery is marked as Received.',
+    ],
+  });
 
   return createPortal(
     <div className="ra-modal-overlay" onClick={() => !saving && onClose()}>
@@ -306,7 +296,7 @@ export default function BulkOrder({ items, onClose, onSaved }) {
           <div>
             <h3 id="ra-bulk-title">Restock Report — {computed.length} product{computed.length === 1 ? '' : 's'}</h3>
             <p className="ra-modal-sub hint-text">
-              System suggested = √(2 × annual demand × ordering cost ÷ holding cost), the same as “Order Now”. Type your own amount in Owner’s quantity if you want more or fewer. The system does not place orders — export the report and give it to the person who buys.
+              System suggested = √(2 × annual demand × ordering cost ÷ holding cost), the same as “Order Now”. Type your own amount in Owner’s quantity if you want more or fewer. “Save Report” keeps the result for “Received” and downloads the PDF to give to the person who buys.
             </p>
           </div>
           <button type="button" className="ra-bulk-close" onClick={onClose} disabled={saving} aria-label="Close"><X size={16} /></button>
@@ -433,18 +423,21 @@ export default function BulkOrder({ items, onClose, onSaved }) {
 
         {message.text && <p className={message.type === 'error' ? 'ra-error' : 'ra-notice'} role="status">{message.text}</p>}
 
-        <div className="ra-modal-actions">
-          <button type="button" className="ra-order-btn" onClick={exportExcel} disabled={!listed.length || loading}>
-            <Download size={13} aria-hidden="true" /> Excel
-          </button>
-          <button type="button" className="ra-order-btn" onClick={exportPdf} disabled={!listed.length || loading}>
-            <FileText size={13} aria-hidden="true" /> PDF
-          </button>
-          <button type="button" className="ra-order-btn is-urgent" onClick={saveAll} disabled={!ready.length || loading || saving}>
-            <Calculator size={13} aria-hidden="true" /> {saving ? 'Saving…' : `Save ${ready.length} Economic Order Quantity result${ready.length === 1 ? '' : 's'} to Reports`}
+        <div className="ra-modal-actions ra-save-report">
+          <button type="button" className="ra-order-btn" onClick={onClose} disabled={saving}>Close</button>
+          <button
+            type="button"
+            className="ra-order-btn is-urgent ra-save-report-btn"
+            onClick={saveReport}
+            disabled={!listed.length || loading || saving}
+            title="Save Report: saves the result (quantities for Received + Economic Order Quantity results in Reports) and downloads the PDF"
+            aria-label="Save Report: saves the result and downloads the PDF"
+          >
+            <Save size={14} aria-hidden="true" />
+            <span className="ra-save-report-text">{saving ? 'Saving…' : 'Save Report'}</span>
           </button>
         </div>
-        <p className="ra-help">Report only: this does not change stock or place any order. Buying happens outside the system; when the delivery arrives, press “Received” on the product and enter what actually arrived.</p>
+        <p className="ra-help">“Save Report” saves the result and downloads the PDF. Report only: this does not change stock or place any order. Buying happens outside the system; when the delivery arrives, press “Received” on the product and enter what actually arrived.</p>
       </div>
     </div>,
     document.body,

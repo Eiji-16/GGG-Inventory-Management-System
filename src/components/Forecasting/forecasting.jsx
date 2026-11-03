@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './forecasting.css';
 import apiFetch from '../../apiFetch';
@@ -382,11 +382,11 @@ export default function DemandForecastDesign({
     setView('eoq');
   }, [handoff, canComputeEoq]);
 
-  const chooseProduct = (value) => {
+  const chooseProduct = useCallback((value) => {
     onClearEoqHandoff?.();
     setEoqHandoff(null);
     setProductId(value);
-  };
+  }, [onClearEoqHandoff]);
 
   const selectedProduct = products.find((product) => product.id === productId) || null;
   const historyRows = forecast?.history || history?.rows || [];
@@ -410,11 +410,22 @@ export default function DemandForecastDesign({
   const visibleRows = showAllRows ? historyRows : historyRows.slice(-TABLE_PREVIEW_ROWS);
   const hiddenRowCount = historyRows.length - visibleRows.length;
 
-  const filteredProducts = products.filter((product) => {
+  const filteredProducts = useMemo(() => {
     const query = productSearch.trim().toLowerCase();
-    return !query || [product.name, product.id, product.brand, product.category, ...(product.variants || [])]
-      .some((value) => String(value || '').toLowerCase().includes(query));
-  });
+    return products.filter((product) => !query
+      || [product.name, product.id, product.brand, product.category, ...(product.variants || [])]
+        .some((value) => String(value || '').toLowerCase().includes(query)));
+  }, [products, productSearch]);
+
+  useEffect(() => {
+    const query = productSearch.trim().toLowerCase();
+    if (!query) return;
+    const exactMatches = filteredProducts.filter((product) =>
+      [product.name, product.id].some((value) => String(value || '').trim().toLowerCase() === query));
+    const match = exactMatches.length === 1 ? exactMatches[0]
+      : filteredProducts.length === 1 ? filteredProducts[0] : null;
+    if (match && String(match.id) !== String(productId)) chooseProduct(String(match.id));
+  }, [productSearch, filteredProducts, chooseProduct]);
   const categories = useMemo(
     () => [...new Set(products.map((product) => product.category).filter(Boolean))].sort(),
     [products]
@@ -683,17 +694,17 @@ export default function DemandForecastDesign({
               Past Sales
             </button>
             )}
+            {canComputeEoq && (
+            <button type="button" role="tab" aria-selected={view === 'eoq'} className={view === 'eoq' ? 'is-active' : ''} onClick={() => setView('eoq')}>
+              Economic Order Quantity
+            </button>
+            )}
             <button type="button" role="tab" aria-selected={view === 'seasonal'} className={view === 'seasonal' ? 'is-active' : ''} onClick={() => setView('seasonal')}>
               Seasonal Adjustments
               {events.filter((event) => event.status === 'Active').length > 0 && (
                 <span className="f-view-tab-count">{events.filter((event) => event.status === 'Active').length} active</span>
               )}
             </button>
-            {canComputeEoq && (
-            <button type="button" role="tab" aria-selected={view === 'eoq'} className={view === 'eoq' ? 'is-active' : ''} onClick={() => setView('eoq')}>
-              Economic Order Quantity
-            </button>
-            )}
           </div>
 
           {/* ===== ECONOMIC ORDER QUANTITY (the former calculator page) =====

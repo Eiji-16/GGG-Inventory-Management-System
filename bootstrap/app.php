@@ -22,5 +22,17 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // A browser whose account was just deactivated or deleted gets the
+        // reason with its "not signed in" answer, so the screen can show the
+        // "You've been signed out" pop-up (see App\Support\AccountSignout).
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $exception, \Illuminate\Http\Request $request) {
+            if (! $request->expectsJson() || ! $request->hasSession()) {
+                return null;
+            }
+            $reason = \App\Support\AccountSignout::reasonFor($request->session()->getId());
+
+            return $reason
+                ? response()->json(\App\Support\AccountSignout::payload($reason), 401)
+                : null;
+        });
     })->create();

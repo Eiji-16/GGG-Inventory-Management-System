@@ -263,7 +263,7 @@
     white-space: nowrap;
 }
 .r-table tbody tr:last-child td { border-bottom: none; }
-.r-table tbody tr:hover { background: var(--background-icon-active-color-theme); }
+
 
 .r-trend-up { color: var(--accent-high); font-weight: 700; }
 .r-trend-down { color: var(--accent-low); font-weight: 700; }
@@ -1077,4 +1077,17 @@
     .r-mini-chart { gap: 4px; padding-inline: 2px; }
     .r-mini-col { min-width: 0; }
     .r-mini-label { font-size: 9.5px; white-space: nowrap; }
+}
+
+/* Round 3 (2026-11-03): phones use the space — the six small number cards
+   sit two per row (compact); charts and Stock Health stay full width. */
+@media (max-width: 640px) {
+    .r-bento { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px; }
+    .r-bento > * { grid-column: 1 / -1 !important; }
+    .r-bento > .r-kpi-tile:not(.r-health-tile) { grid-column: auto !important; }
+    .r-bento .r-export-tile { grid-column: auto !important; }
+    .r-bento .r-kpi-card { padding: 0.55rem 0.7rem; }
+    .r-bento .r-kpi-card .r-kpi-value { font-size: 18px; }
+    .r-bento .r-kpi-card .r-kpi-sub { font-size: 10px; line-height: 1.3; }
+    .r-bento .r-kpi-tile-icon { width: 24px; height: 24px; }
 }

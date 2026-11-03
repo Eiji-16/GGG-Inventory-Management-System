@@ -94,7 +94,7 @@ export default function ReorderAlerts({
       if (!response.ok) throw new Error(Object.values(body?.errors || {}).flat()[0] || body?.message || `Could not send (${response.status}).`);
       setNotice(body.alreadyOpen
         ? `${notifyTarget.name} was already requested — the note was updated.`
-        : `Sent. Admins will see the request for ${notifyTarget.name} in their notifications.`);
+        : `Request sent. Admins will get an email${body.emailed === 0 ? ' (if the system email is working)' : ''} and see ${notifyTarget.name} in their notifications.`);
       setNotifyTarget(null);
       await loadRequests();
       onRequestsChanged?.();
@@ -138,8 +138,8 @@ export default function ReorderAlerts({
   const handleReceived = ({ id, name, qty, merged }) => {
     setReceiveItem(null);
     setNotice(merged
-      ? `Received ${qty} × ${name}. It was added to today's Stock In entry in Stock Control.`
-      : `Received ${qty} × ${name}. A Stock In was recorded in Stock Control.`);
+      ? `Accomplished: ${qty} × ${name} received with a proof photo. It was added to today's Stock In entry in Stock Control.`
+      : `Accomplished: ${qty} × ${name} received with a proof photo. A Stock In was recorded in Stock Control.`);
     setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
     // The app-wide refresh also reloads this list; reload here only when
     // this page is used on its own.
@@ -260,7 +260,7 @@ export default function ReorderAlerts({
           <div className="ra-tools">
             {/* Filter buttons first, then the search bar (one toolbar row). */}
             <div className="ra-filter" role="tablist" aria-label="Filter by status">
-              {[['all', 'All'], ['out', 'Out of stock'], ['low', 'Low stock']].map(([value, label]) => (
+              {[['all', 'All', 'All'], ['out', 'Out of stock', 'Out'], ['low', 'Low stock', 'Low']].map(([value, label, short]) => (
                 <button
                   key={value}
                   type="button"
@@ -269,7 +269,8 @@ export default function ReorderAlerts({
                   className={statusFilter === value ? 'is-active' : ''}
                   onClick={() => setStatusFilter(value)}
                 >
-                  {label}
+                  <span className="ra-label-long">{label}</span>
+                  <span className="ra-label-short" aria-hidden="true">{short}</span>
                 </button>
               ))}
             </div>
@@ -299,7 +300,7 @@ export default function ReorderAlerts({
                 disabled={!canBulk}
                 title={bulkHint}
               >
-                <FileText size={13} aria-hidden="true" className="ra-bulk-cart" /> Restock Report
+                <FileText size={13} aria-hidden="true" className="ra-bulk-cart" /> <span className="ra-bulk-label">Restock Report</span>
                 {/* key = count, so the number "pops" each time a product is ticked */}
                 {selectedAlerts.length > 0 && (
                   <span key={selectedAlerts.length} className="ra-bulk-count" aria-label={`${selectedAlerts.length} selected`}>
@@ -397,25 +398,25 @@ export default function ReorderAlerts({
                   <td data-label="Action">
                     <span className="ra-actions">
                       {canComputeEoq && (
-                        <button type="button" className={`ra-order-btn ${item.status !== 'Low Stock' ? 'is-urgent' : ''}`} onClick={() => orderNow(item)} disabled={orderingId !== null}>
-                          <Calculator size={13} aria-hidden="true" /> {orderingId === item.id ? 'Loading forecast…' : 'Order Now'}
+                        <button type="button" className={`ra-order-btn ${item.status !== 'Low Stock' ? 'is-urgent' : ''}`} onClick={() => orderNow(item)} disabled={orderingId !== null} aria-label={`Order Now: ${item.name}`} title="Order Now: work out the Economic Order Quantity">
+                          <Calculator size={13} aria-hidden="true" /> <span className="ra-btn-label">{orderingId === item.id ? 'Loading forecast…' : 'Order Now'}</span>
                         </button>
                       )}
                       {canReceive && (
-                        <button type="button" className="ra-order-btn ra-receive-btn" onClick={() => setReceiveItem(item)} title="The delivery arrived: record it as a Stock In">
-                          <PackageCheck size={13} aria-hidden="true" /> Received
+                        <button type="button" className="ra-order-btn ra-receive-btn" onClick={() => setReceiveItem(item)} aria-label={`Received: ${item.name}`} title="The delivery arrived: add a proof photo and record it as a Stock In">
+                          <PackageCheck size={13} aria-hidden="true" /> <span className="ra-btn-label">Received</span>
                         </button>
                       )}
                       {canManageRequests && requestByProduct[item.id] && (
                         <button type="button" className="ra-order-btn" onClick={() => markDone(requestByProduct[item.id])} title="Close this restock request">
-                          <Check size={13} aria-hidden="true" /> Mark done
+                          <Check size={13} aria-hidden="true" /> <span className="ra-btn-label">Mark done</span>
                         </button>
                       )}
                       {canNotify && !canManageRequests && (requestByProduct[item.id] ? (
-                        <span className="ra-notified"><Check size={12} aria-hidden="true" /> Notified</span>
+                        <span className="ra-notified"><Check size={12} aria-hidden="true" /> Requested</span>
                       ) : (
-                        <button type="button" className="ra-order-btn" onClick={() => openNotify(item)}>
-                          <BellRing size={13} aria-hidden="true" /> Notify
+                        <button type="button" className="ra-order-btn" onClick={() => openNotify(item)} aria-label={`Request restock: ${item.name}`} title="Ask the Admins to restock this product (email + notification)">
+                          <BellRing size={13} aria-hidden="true" /> <span className="ra-btn-label">Request</span>
                         </button>
                       ))}
                       {!canComputeEoq && !canNotify && !canManageRequests && !canReceive && <span className="ra-muted">—</span>}
@@ -429,8 +430,8 @@ export default function ReorderAlerts({
         {notifyTarget && createPortal(
           <div className="ra-modal-overlay" onClick={() => !notifyBusy && setNotifyTarget(null)}>
             <form className="ra-modal" onClick={(event) => event.stopPropagation()} onSubmit={sendNotify} role="dialog" aria-modal="true" aria-labelledby="ra-notify-title">
-              <h3 id="ra-notify-title">Notify about {notifyTarget.name}</h3>
-              <p className="ra-modal-sub">Admins will see this in their notifications. {notifyTarget.stock} on hand · {notifyTarget.status}.</p>
+              <h3 id="ra-notify-title">Request restock: {notifyTarget.name}</h3>
+              <p className="ra-modal-sub">Admins and the Super Admin get an email and see it in their notifications. {notifyTarget.stock} on hand · {notifyTarget.status}.</p>
               <label htmlFor="ra-notify-note">Note (optional)</label>
               <textarea
                 id="ra-notify-note"
@@ -444,7 +445,7 @@ export default function ReorderAlerts({
               {notifyError && <p className="ra-error" role="alert">{notifyError}</p>}
               <div className="ra-modal-actions">
                 <button type="button" className="ra-order-btn" onClick={() => setNotifyTarget(null)} disabled={notifyBusy}>Cancel</button>
-                <button type="submit" className="ra-order-btn is-urgent" disabled={notifyBusy}>{notifyBusy ? 'Sending…' : 'Send'}</button>
+                <button type="submit" className="ra-order-btn is-urgent" disabled={notifyBusy}>{notifyBusy ? 'Sending…' : 'Send request'}</button>
               </div>
             </form>
           </div>,
@@ -464,10 +465,6 @@ export default function ReorderAlerts({
             onSaved={() => setSelectedIds(new Set())}
           />
         )}
-        <p className="ra-help">The system does not place orders. It works out how much to restock and produces a report you can give to the person who does the buying outside the system.</p>
-        <p className="ra-help">Tick products and press “Restock Report”: each product shows the system suggested quantity (same method as “Order Now”) and your own quantity, which you can change. Export it as Excel or PDF.</p>
-        <p className="ra-help">When the delivery arrives, press “Received” and choose “System suggested” or “Custom” (the amount you actually ordered). Only your final quantity is saved as a Stock In; the system suggestion is added to its note. The product leaves this list once its stock is above the low-stock level.</p>
-        <p className="ra-help">“Order Now” opens the Economic Order Quantity Calculator with this product’s forecast annual demand (next month’s weighted moving average forecast, seasonal adjustment included, × 12). If there isn’t enough sales history to forecast yet, it uses the last 12 months of actual sales instead.</p>
       </div>
     </div>
   );

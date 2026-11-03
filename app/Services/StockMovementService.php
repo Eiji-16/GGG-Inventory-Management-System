@@ -251,7 +251,13 @@ class StockMovementService
             }
 
             $movement->restore();
-            $movement->forceFill(['deleted_by' => null, 'deleted_by_name' => null, 'deleted_with_product' => false])->save();
+            $movement->forceFill([
+                'deleted_by' => null,
+                'deleted_by_name' => null,
+                'deleted_with_product' => false,
+                'archived_at' => null,
+                'archived_by_name' => null,
+            ])->save();
             $product->update(['stock_on_hand' => $newStock]);
             $this->assertHistoryNotNegative($product, $this->reconcileMovementBalances($product), $lowestBefore);
             $this->syncSalesFromMovements($product);
@@ -306,7 +312,12 @@ class StockMovementService
             $product = Product::onlyTrashed()->lockForUpdate()->findOrFail($trashedProduct->id);
 
             $product->restore();
-            $product->forceFill(['deleted_by' => null, 'deleted_by_name' => null])->save();
+            $product->forceFill([
+                'deleted_by' => null,
+                'deleted_by_name' => null,
+                'archived_at' => null,
+                'archived_by_name' => null,
+            ])->save();
 
             $entryCount = StockMovement::onlyTrashed()
                 ->where('product_id', $product->id)
@@ -316,6 +327,8 @@ class StockMovementService
                     'deleted_by' => null,
                     'deleted_by_name' => null,
                     'deleted_with_product' => false,
+                    'archived_at' => null,
+                    'archived_by_name' => null,
                 ]);
 
             $this->reconcileMovementBalances($product);

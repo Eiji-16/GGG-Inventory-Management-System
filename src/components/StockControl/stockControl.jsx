@@ -1527,7 +1527,7 @@ function StockControl({
             label="Categories"
           >
             <div className="sc-search-box xs-search">
-              <Search size={13} className="sc-search-icon" />
+              <Search size={16} className="sc-search-icon" />
               <input
                 type="search"
                 placeholder="Search movements…"
@@ -1856,7 +1856,15 @@ function StockControl({
                       </span>
                     ) : '—'}
                   </td>
-                  <td className="sc-td-left sc-td-muted" data-label="Notes" title={stock.notes}><span className="sc-notes-text">{stock.notes || '—'}</span></td>
+                  <td className="sc-td-left sc-td-muted" data-label="Notes" title={stock.notes}>
+                    <span className="sc-notes-text">{stock.notes || '—'}</span>
+                    {/* Received in the Reorder List with a proof photo (2026-11-03). */}
+                    {stock.hasProof && (
+                      <a className="sc-proof-link" href={`/api/stock-movements/${stock.id}/proof`} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}>
+                        View proof photo
+                      </a>
+                    )}
+                  </td>
                   <td className="sc-td-nowrap" data-label="Recorded by" title={stock.recordedBy || ''}>{stock.recordedBy || '—'}</td>
                   <td className="sc-td-actions" data-label="Actions">
                     <div className="sc-action-cell-container">

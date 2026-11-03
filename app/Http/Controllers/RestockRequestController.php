@@ -69,7 +69,9 @@ class RestockRequestController extends Controller
             'note'      => $note,
         ]);
 
-        return response()->json($this->format($restock->load(['product', 'requester'])), 201);
+        $emailed = $this->emailAdmins($product, $request->user(), $note);
+
+        return response()->json($this->format($restock->load(['product', 'requester'])) + ['emailed' => $emailed], 201);
     }
 
     public function done(Request $request, RestockRequest $restockRequest): JsonResponse
@@ -88,6 +90,42 @@ class RestockRequestController extends Controller
         }
 
         return response()->json($this->format($restockRequest->fresh(['product', 'requester'])));
+    }
+
+    /**
+     * Email every active Admin and Super Admin about a new request (the bell
+     * shows it too). A mail problem never blocks the request itself; it is
+     * written to the log instead. Returns how many emails were sent.
+     */
+    private function emailAdmins(Product $product, ?\App\Models\User $requester, ?string $note): int
+    {
+        $admins = \App\Models\User::query()
+            ->whereIn('role', [\App\Models\User::ROLE_ADMIN, \App\Models\User::ROLE_SUPER_ADMIN])
+            ->where('status', \App\Models\User::STATUS_ACTIVE)
+            ->when($requester, fn ($query) => $query->whereKeyNot($requester->id))
+            ->pluck('email')
+            ->filter()
+            ->unique();
+
+        $sent = 0;
+        foreach ($admins as $email) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\RestockRequestMail(
+                    $product->name,
+                    $product->code,
+                    $product->stock_on_hand !== null ? (int) $product->stock_on_hand : null,
+                    $requester?->name ?: 'A staff member',
+                    $note,
+                ));
+                $sent++;
+            } catch (\Throwable $exception) {
+                \Illuminate\Support\Facades\Log::warning('Restock request email could not be sent to an Admin. Check the MAIL_* settings in .env.', [
+                    'exception' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        return $sent;
     }
 
     private function format(RestockRequest $r): array

@@ -113,7 +113,7 @@ class LoginTest extends TestCase
         $this->postJson('/auth/password/otp', ['email' => 'unknown@example.com'])
             ->assertOk()
             ->assertJson([
-                'message' => 'If an account exists for that email, a one-time code will be sent.',
+                'message' => 'If an account exists for that email, a 6-digit code has been sent. Check your inbox and spam folder.',
             ]);
 
         Mail::assertNothingSent();
@@ -144,13 +144,13 @@ class LoginTest extends TestCase
         // The fix-it hint goes to the developer's log ...
         \Illuminate\Support\Facades\Log::shouldReceive('error')
             ->once()
-            ->withArgs(fn ($message) => str_contains($message, 'Update MAIL_PASSWORD'));
+            ->withArgs(fn ($message) => str_contains($message, 'Gmail App Password'));
 
         // ... and the login screen only gets a plain message (no settings names).
         $message = $this->postJson('/auth/password/otp', ['email' => $user->email])
             ->assertServiceUnavailable()
             ->json('message');
-        $this->assertSame('We could not send the email right now. Please try again later or contact the Super Admin.', $message);
+        $this->assertSame('The code could not be emailed because the system\'s email settings are not working. Please tell the Super Admin.', $message);
         $this->assertStringNotContainsString('MAIL_', $message);
 
         $this->assertDatabaseMissing('password_reset_otps', ['email' => $user->email]);

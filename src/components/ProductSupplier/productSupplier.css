@@ -290,9 +290,6 @@
     cursor: pointer;
 }
 
-.ps-row-clickable:hover {
-    background-color: var(--background-icon-active-color-theme) !important;
-}
 
 .ps-row-clickable.is-selected {
     background-color: var(--background-icon-active-color-theme) !important;
@@ -307,7 +304,7 @@
     font-weight: 600;
 }
 
-.ps-row-clickable:hover .ps-cell-name {
+.ps-row-clickable:focus-visible .ps-cell-name {
     text-decoration: underline;
     text-underline-offset: 2px;
 }
@@ -1327,22 +1324,6 @@
     border-radius: 10px;
 }
 
-.ps-section-tabs.has-suppliers-tab::before {
-    position: absolute;
-    top: 4px;
-    bottom: 4px;
-    left: 4px;
-    width: calc((100% - 12px) / 2);
-    border-radius: 7px;
-    background: var(--btn-fill-bg, var(--background-icon-active-color));
-    content: '';
-    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.ps-section-tabs.has-suppliers-tab.is-suppliers-active::before {
-    transform: translateX(calc(100% + 4px));
-}
-
 .ps-section-tabs button {
     position: relative;
     z-index: 1;
@@ -1370,13 +1351,10 @@
 
 .ps-section-tabs button.is-active {
     color: var(--btn-fill-text, var(--icon-active-color));
+    background: var(--btn-fill-bg, var(--background-icon-active-color));
 }
 
 .ps-section-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-@media (prefers-reduced-motion: reduce) {
-    .ps-section-tabs.has-suppliers-tab::before { transition: none; }
-}
 
 .ps-navigation-bar { align-items: center; }
 
@@ -1638,11 +1616,9 @@
 @media (min-width: 901px) {
     .ps-table tbody tr { --ps-cell: var(--bg-card); }
     .ps-table tbody td { transition: background-color 0.15s ease; }
-    .ps-table tbody tr.ps-row-clickable:hover,
     .ps-table tbody tr.ps-row-clickable.is-selected {
         background-color: transparent !important;
     }
-    .ps-table tbody tr.ps-row-clickable:hover > td,
     .ps-table tbody tr.ps-row-clickable.is-selected > td {
         background-color: var(--background-icon-active-color-theme) !important;
     }
@@ -1704,3 +1680,14 @@
     white-space: nowrap;
 }
 @media (prefers-reduced-motion: reduce) { .ps-filter-chip { animation: none; } }
+
+/* Round 2 (2026-11-03): phones keep the search icon on the SAME row as the
+   download / sort / Add buttons (no row of its own). Opening the search
+   fills the free space on that row. */
+@media (max-width: 640px) {
+    .ps-navigation-bar { flex-wrap: wrap; row-gap: 8px; }
+    .ps-search-wrapper { flex: 1 1 0; min-width: 32px; margin-right: 0; }
+    .ps-search-wrapper .ps-search-box.xs-search { width: 32px !important; }
+    .ps-search-wrapper .ps-search-box.xs-search:focus-within,
+    .ps-search-wrapper .ps-search-box.xs-search:has(input:not(:placeholder-shown)) { width: 100% !important; flex: none !important; }
+}

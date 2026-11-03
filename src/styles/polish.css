@@ -163,12 +163,8 @@ select:not([multiple]):focus-visible {
 }
 
 /* ===== 6. TABLES =====
-   Rows get a soft tint on hover (no movement); numbers line up. */
-@media (hover: hover) {
-    :where(table tbody tr:not(:has(td[colspan]))):hover > :where(td) {
-        background-color: color-mix(in srgb, var(--accent, #E8C547) 5%, transparent);
-    }
-}
+   Numbers line up. (The row hover tint was removed on 2026-11-03: it only
+   lit part of some rows and flickered.) */
 :where(table td, table th) {
     font-variant-numeric: tabular-nums;
 }

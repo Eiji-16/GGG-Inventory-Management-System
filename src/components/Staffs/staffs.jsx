@@ -16,8 +16,10 @@ import {
   Trash2,
   Camera,
   ImageOff,
+  KeyRound,
 } from 'lucide-react';
 import './staff.css';
+import AccountRequests from './AccountRequests';
 import { uiZoom } from '../../fontSize';
 
 const ALL_ROLES = ['Staff', 'Admin', 'Super Admin'];
@@ -41,7 +43,7 @@ const ROLE_META = {
 /* isSuperAdmin = everything. canManageStaff = an Admin with Role Access
    "Manage Staff": Staff accounts only, no role changes (the server checks
    the same rules). */
-function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
+function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked }) {
   const canManage = isSuperAdmin || canManageStaff;
   // An Admin can act only on Staff rows.
   const canActOn = (account) => isSuperAdmin || (canManageStaff && account?.role === 'Staff');
@@ -86,6 +88,12 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
       .catch((err) => setLoadError(err.message || 'Could not load staff.'))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!actionMessage) return undefined;
+    const timeout = window.setTimeout(() => setActionMessage(''), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [actionMessage]);
 
   const visibleAccounts = showDeactivated ? deactivatedStaff : staff;
   const filtered = useMemo(() => {
@@ -195,6 +203,27 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
     }
   };
 
+  /* Super Admin: turn off the authenticator app (2FA) for someone who lost
+     their phone. They then sign in with the password only. */
+  const resetTwoFactor = async (account) => {
+    setMenu(null);
+    if (!window.confirm(`Turn off the authenticator app for ${account.name}? They will sign in with their password only.`)) return;
+    try {
+      const response = await fetch(`/staff/${account.id}/two-factor`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf() },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || `Could not turn off the authenticator (${response.status}).`);
+      replaceAccount(data);
+      setActionError('');
+      setActionMessage(`The authenticator app is off for ${account.name}.`);
+    } catch (error) {
+      setActionMessage('');
+      setActionError(error.message || 'Could not turn off the authenticator.');
+    }
+  };
+
   /* ===== MENU OPEN / CLOSE ===== */
   const openMenu = (e, s) => {
     e.stopPropagation();
@@ -210,14 +239,22 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
     /* Right-align the menu to the button, then clamp inside the viewport so
        it is never clipped on either edge (fixed-position avoids table overflow). */
     const left = Math.min(rect.right - MENU_W, window.innerWidth / zoom - MENU_W - 12);
-    // Open upward when there isn't room below (the menu is about 330px tall).
-    const MENU_H = 330;
-    const below = rect.bottom + 6;
-    const top = below + MENU_H > window.innerHeight / zoom - 12
-      ? Math.max(12, box.top / zoom - MENU_H - 6)
-      : below;
-    setMenu({ id: s.id, top, left: Math.max(12, left) });
+    // First placed under the button; the effect below measures the real
+    // menu height and opens it upward only when it would not fit below.
+    setMenu({ id: s.id, top: rect.bottom + 6, left: Math.max(12, left), anchorTop: box.top / zoom, anchorBottom: rect.bottom });
   };
+
+  // Keep the row menu fully on screen, using its real (measured) height.
+  React.useLayoutEffect(() => {
+    if (!menu || menu.measured) return;
+    const element = document.querySelector('.st-action-menu');
+    if (!element) return;
+    const height = element.offsetHeight;
+    const viewport = window.innerHeight / uiZoom();
+    let top = menu.anchorBottom + 6;
+    if (top + height > viewport - 12) top = Math.max(12, menu.anchorTop - height - 6);
+    setMenu((current) => (current && current.id === menu.id ? { ...current, top, measured: true } : current));
+  }, [menu]);
 
   useEffect(() => {
     if (!menu) return;
@@ -257,6 +294,10 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
         const msg = data.errors ? Object.values(data.errors).flat()[0] : data.message;
         throw new Error(msg || `Update failed (${response.status}).`);
       }
+      if (data.sessionRevoked) {
+        onSessionRevoked?.();
+        return;
+      }
       if (data.status === 'Active' && deactivatedStaff.some((account) => account.id === id)) {
         setShowDeactivated(false);
       }
@@ -272,6 +313,9 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
           : [...previous.filter((account) => account.id !== id), data]
             .sort((a, b) => a.name.localeCompare(b.name))
       ));
+      if (body.status === 'inactive') {
+        setActionMessage(`${data.name}'s account has been deactivated.`);
+      }
     } catch (err) {
       setActionError(err.message || 'Could not update the account.');
     }
@@ -350,7 +394,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
     }
   };
 
-  const confirmPermanentDelete = async () => {
+  const confirmMoveToTrash = async () => {
     if (
       !accountDialog ||
       accountDialog.step !== 'delete-final' ||
@@ -374,15 +418,15 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         const message = data.errors ? Object.values(data.errors).flat()[0] : data.message;
-        throw new Error(message || `Could not delete account (${response.status}).`);
+        throw new Error(message || `Could not move account to Trash Bin (${response.status}).`);
       }
 
       setDeactivatedStaff((previous) => previous.filter((item) => item.id !== account.id));
       setActionError('');
-      setActionMessage(`${account.name}'s account has been permanently deleted.`);
+      setActionMessage(`${account.name}'s account was moved to the Trash Bin.`);
       closeAccountDialog();
     } catch (error) {
-      setAccountActionError(error.message || 'Could not permanently delete the account.');
+      setAccountActionError(error.message || 'Could not move the account to the Trash Bin.');
     } finally {
       setIsAccountActionLoading(false);
     }
@@ -444,12 +488,15 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
         </div>
       )}
       {actionMessage && (
-        <div className="st-action-success" role="status">
-          {actionMessage}
-          <button type="button" aria-label="Dismiss message" onClick={() => setActionMessage('')}>
-            <X size={14} />
-          </button>
-        </div>
+        createPortal(
+          <div className="st-action-success st-action-toast" role="status" aria-live="polite">
+            {actionMessage}
+            <button type="button" aria-label="Dismiss message" onClick={() => setActionMessage('')}>
+              <X size={14} />
+            </button>
+          </div>,
+          document.body,
+        )
       )}
 
       {/* ===== KPI CARDS ===== */}
@@ -500,7 +547,8 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
               }}
             >
               <UserRoundPlus size={15} />
-              Create Staff Account
+              <span className="st-label-long">Create Staff Account</span>
+              <span className="st-label-short">New</span>
             </button>
           )}
           {canManage && (
@@ -514,7 +562,8 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
               }}
             >
               {showDeactivated ? <Users size={15} /> : <Archive size={15} />}
-              {showDeactivated ? 'Active Accounts' : 'Deactivated Accounts'}
+              <span className="st-label-long">{showDeactivated ? 'Active Accounts' : 'Deactivated Accounts'}</span>
+              <span className="st-label-short">{showDeactivated ? 'Active' : 'Deactivated'}</span>
               {!showDeactivated && deactivatedStaff.length > 0 && (
                 <span className="st-deactivated-count">{deactivatedStaff.length}</span>
               )}
@@ -596,6 +645,9 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
         </div>,
         document.body
       )}
+
+      {/* ===== ACCOUNT REQUESTS (Super Admin) ===== */}
+      {isSuperAdmin && !showDeactivated && <AccountRequests onChanged={() => window.dispatchEvent(new Event('ggg-account-requests-changed'))} />}
 
       {/* ===== STAFF TABLE ===== */}
       <div
@@ -709,29 +761,19 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
           style={{ top: menu.top, left: Math.max(12, menu.left) }}
           role="menu"
         >
-          <p className="st-menu-head">Profile photo</p>
-          <button
-            type="button"
-            className="st-menu-item"
-            role="menuitem"
-            onClick={() => choosePhoto(menuRow)}
-          >
-            <Camera size={14} />
-            {menuRow.avatarUrl ? 'Change photo' : 'Add photo'}
-          </button>
-          {menuRow.avatarUrl && (
+          {isSuperAdmin && menuRow.twoFactor && (<>
+            <p className="st-menu-head">Sign-in security</p>
             <button
               type="button"
               className="st-menu-item"
               role="menuitem"
-              onClick={() => removePhoto(menuRow)}
+              onClick={() => resetTwoFactor(menuRow)}
             >
-              <ImageOff size={14} />
-              Remove photo
+              <KeyRound size={14} />
+              Turn off authenticator (lost phone)
             </button>
-          )}
-
-          <div className="st-menu-divider" />
+            <div className="st-menu-divider" />
+          </>)}
 
           {isSuperAdmin && (<>
           <p className="st-menu-head">Change role</p>
@@ -758,9 +800,8 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
               Last Super Admin — cannot demote
             </p>
           )}
-          </>)}
-
           <div className="st-menu-divider" />
+          </>)}
 
           {menuRow.status === 'Active' ? (
             menuRow.role === 'Super Admin' && activeSuperAdmins <= 1 ? (
@@ -831,7 +872,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
                   {accountDialog.step === 'reactivate'
                     ? 'Reactivate Account?'
                     : accountDialog.step === 'delete-initial'
-                      ? 'Delete Account Permanently?'
+                      ? 'Move Account to Trash Bin?'
                       : 'Final Confirmation'}
                 </h2>
               </div>
@@ -850,8 +891,8 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
                 {accountDialog.step === 'reactivate'
                   ? `Are you sure you want to reactivate ${accountDialog.account.name}'s account?`
                   : accountDialog.step === 'delete-initial'
-                    ? `Are you sure you want to permanently delete ${accountDialog.account.name}'s account? This action cannot be undone.`
-                    : 'You are about to permanently delete this account and its associated account access. This action cannot be undone.'}
+                    ? `Move ${accountDialog.account.name}'s deactivated account to the Trash Bin? It can be restored by a Super Admin.`
+                    : 'This account will be moved to the Trash Bin and its active sessions will be revoked.'}
               </p>
               <div className="st-account-confirm-identity">
                 <span>{accountDialog.account.name}</span>
@@ -866,7 +907,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
                     autoFocus
                     value={deleteConfirmation}
                     onChange={(event) => setDeleteConfirmation(event.target.value)}
-                    aria-label="Type DELETE to confirm permanent deletion"
+                    aria-label="Type DELETE to confirm moving the account to Trash Bin"
                   />
                 </label>
               )}
@@ -911,7 +952,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false }) {
                 <button
                   type="button"
                   className="st-confirm-danger"
-                  onClick={confirmPermanentDelete}
+                  onClick={confirmMoveToTrash}
                   disabled={isAccountActionLoading || deleteConfirmation !== 'DELETE'}
                 >
                   {isAccountActionLoading ? 'Deleting…' : 'Permanently Delete Account'}

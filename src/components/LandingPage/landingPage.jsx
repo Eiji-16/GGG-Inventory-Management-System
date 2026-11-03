@@ -38,7 +38,7 @@ import ReorderAlerts from '../ReorderAlerts/reorderAlerts'; /* ===== REORDER ALE
 import Settings from '../Settings/Settings'; /* ===== SETTINGS ===== */
 import Profile from '../Profile/profile'; /* ===== PROFILE ===== */
 import Staffs from '../Staffs/staffs'; /* ===== STAFFS ===== */
-import TrashBin from '../TrashBin/trashBin'; /* ===== TRASH BIN ===== */
+import TrashBin from '../TrashBin/trashBin'; /* ===== TRASH BIN & ARCHIVE ===== */
 
 /* ===== NOTIFICATION ICONS ===== */
 const NOTIF_ICONS = {
@@ -181,7 +181,7 @@ function loadNotificationPreference(key) {
   }
 }
 
-function LandingPage({onLogout, user, theme, onThemeChange}) {
+function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
   /* ===== ROLE ACCESS =====
      Which pages and buttons this account may use. The Super Admin sets the
      boxes in Settings → Role Access; the server sends the result as
@@ -220,12 +220,12 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
     'Auto-Calculator':  'calculator.use',
     Forecasting:        'forecast.view',
     Reports:            'reports.view',
-    'Trash-Bin':        'trash.view',
   };
   const canAccess = (view) => {
     if (view === 'Dashboard' || view === 'Profile' || view === 'Setting') return true;
     // Super Admin, or an Admin with Role Access "Manage Staff" (Staff accounts only).
     if (view === 'Staffs') return isSuperAdminRole || (role === 'admin' && can('staff.manage'));
+    if (view === 'Trash-Archive') return isSuperAdminRole;
     const key = VIEW_PERMISSION[view];
     return key ? can(key) : false;
   };
@@ -368,7 +368,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
   /* Red number on the bell = every current reorder alert (read or not, so it
      always matches the Dashboard card and Reorder Alerts) + unread restock
      requests from Staff. */
-  const unreadRequestCount = notifications.filter((n) => n.id.startsWith('request-') && !n.read).length;
+  const unreadRequestCount = notifications.filter((n) => (n.id.startsWith('request-') || n.id.startsWith('account-')) && !n.read).length;
   const bellCount = reorderAlertCount + unreadRequestCount;
 
   useEffect(() => {
@@ -449,7 +449,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
           .map((notification) => ({ ...notification, read: readIds.has(notification.id) }));
         // Keep restock requests (loaded separately below) at the top.
         setNotifications((previous) => [
-          ...previous.filter((notification) => notification.id.startsWith('request-')),
+          ...previous.filter((notification) => notification.id.startsWith('request-') || notification.id.startsWith('account-')),
           ...stockItems,
         ]);
       })
@@ -522,6 +522,54 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
       window.clearInterval(timer);
     };
   }, [canSeeRequests, requestsVersion, notificationPreferenceKey]); // saveNotificationPreferences/ref are stable for this key
+
+  /* ===== ACCOUNT REQUESTS IN THE BELL (Super Admin, 2026-11-03) =====
+     "Request Account Access" from the login page. Checked every 30 seconds,
+     and right away when the Staffs page approves or rejects one. Clicking
+     opens Staffs, where the request is approved or rejected. */
+  const canSeeAccountRequests = isSuperAdminRole && can('notifications.view');
+  useEffect(() => {
+    if (!canSeeAccountRequests) {
+      setNotifications((previous) => previous.filter((notification) => !notification.id.startsWith('account-')));
+      return undefined;
+    }
+    let active = true;
+    const loadAccountRequests = async () => {
+      try {
+        const response = await fetch('/staff/account-requests', { headers: { Accept: 'application/json' }, cache: 'no-store' });
+        if (!response.ok || !active) return;
+        const requests = await response.json();
+        if (!active || !Array.isArray(requests)) return;
+        const items = requests.filter((request) => request.status === 'pending').map((request) => ({
+          id: `account-${request.id}`,
+          type: 'info',
+          title: `Account request: ${request.name}`,
+          meta: `${request.email} · ${request.department || 'No department'} · Approve & Invite in Staffs`,
+          time: formatNotificationTime(request.createdAt),
+          view: 'Staffs',
+          read: false,
+          kind: 'account',
+        }));
+        const prefs = notificationPreferencesRef.current;
+        const readIds = new Set(prefs.readIds);
+        const dismissedIds = new Set(prefs.dismissedIds);
+        setNotifications((previous) => [
+          ...items.filter((item) => !dismissedIds.has(item.id)).map((item) => ({ ...item, read: readIds.has(item.id) })),
+          ...previous.filter((notification) => !notification.id.startsWith('account-')),
+        ]);
+      } catch {
+        /* offline for a moment — try again on the next tick */
+      }
+    };
+    loadAccountRequests();
+    const timer = window.setInterval(loadAccountRequests, 30000);
+    window.addEventListener('ggg-account-requests-changed', loadAccountRequests);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener('ggg-account-requests-changed', loadAccountRequests);
+    };
+  }, [canSeeAccountRequests, notificationPreferenceKey]); // the preferences ref is stable for this key
 
   /* ===== AUTO-REFRESH =====
      Every 5 seconds while the browser tab is visible, ask the server for a
@@ -845,11 +893,11 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                 </button>
               </div>
               )}
-              {canAccess('Trash-Bin') && (
-              <div className={`siderbar-item ${activeView === 'Trash-Bin' ? 'active' : ''}`}>
-                <button onClick={() => handleNavigate('Trash-Bin')} title="Deleted products and stock entries">
+              {canAccess('Trash-Archive') && (
+              <div className={`siderbar-item ${activeView === 'Trash-Archive' ? 'active' : ''}`}>
+                <button onClick={() => handleNavigate('Trash-Archive')} title="Trash Bin and Archive">
                   <Trash2 className="sidebar-icon"/>
-                  <span className="sidebar-label">Trash Bin</span>
+                  <span className="sidebar-label">Trash &amp; Archive</span>
                 </button>
               </div>
               )}
@@ -916,7 +964,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                   {activeView === 'Reports' && 'Reports & Analytics'}
 
                   {activeView === 'Staffs' && 'Staffs'}
-                  {activeView === 'Trash-Bin' && 'Trash Bin'}
+                  {activeView === 'Trash-Archive' && 'Trash Bin & Archive'}
                   {activeView === 'Setting' && 'Settings'}
                   {activeView === 'Profile' && 'User Profile'}
                 </p>
@@ -931,7 +979,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                   {activeView === 'Reports' && 'Review inventory performance, optimization metrics, and forecasting trends'}
 
                   {activeView === 'Staffs' && 'Manage staffs'}
-                  {activeView === 'Trash-Bin' && 'Deleted products and stock entries — restore or delete permanently'}
+                  {activeView === 'Trash-Archive' && 'Restore, archive, or permanently delete records'}
                   {activeView === 'Setting' && 'Manage your workspace preferences'}
                   {activeView === 'Profile' && 'View and manage your accounts details'}
                 </p>
@@ -975,7 +1023,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
 
                     {notifications.length > 0 && (() => {
                       const counts = notifications.reduce((total, n) => {
-                        const key = n.kind === 'request' ? 'request' : n.level === 'low' ? 'low' : 'out';
+                        const key = n.kind === 'request' || n.kind === 'account' ? n.kind : n.level === 'low' ? 'low' : 'out';
                         total[key] = (total[key] || 0) + 1;
                         return total;
                       }, {});
@@ -984,6 +1032,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                           {counts.out > 0 && <span className="notif-chip is-out"><i />{counts.out} Out / critical</span>}
                           {counts.low > 0 && <span className="notif-chip is-low"><i />{counts.low} Low</span>}
                           {counts.request > 0 && <span className="notif-chip is-request"><i />{counts.request} Request{counts.request === 1 ? '' : 's'}</span>}
+                          {counts.account > 0 && <span className="notif-chip is-request"><i />{counts.account} Account request{counts.account === 1 ? '' : 's'}</span>}
                         </div>
                       );
                     })()}
@@ -1142,7 +1191,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                     canComputeEoq={canAccess('Auto-Calculator')}
                     canNotify={can('reorder.notify')}
                     canManageRequests={can('reorder.requests')}
-                    canReceive={can('stock.create')}
+                    canReceive={can('reorder.receive')}
                     onRequestsChanged={() => setRequestsVersion((version) => version + 1)}
                     onStockChanged={() => setPolicyRefreshKey((key) => key + 1)}
                   />
@@ -1171,7 +1220,7 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
               )}
               {visitedViews.has('Staffs') && canAccess('Staffs') && (
                 <div className="app-view-panel" hidden={activeView !== 'Staffs'}>
-                  <Staffs isSuperAdmin={user?.isSuperAdmin === true} canManageStaff={role === 'admin' && can('staff.manage')} />
+                  <Staffs isSuperAdmin={user?.isSuperAdmin === true} canManageStaff={role === 'admin' && can('staff.manage')} onSessionRevoked={onSessionRevoked} />
                 </div>
               )}
               {visitedViews.has('Reports') && canAccess('Reports') && (
@@ -1185,14 +1234,12 @@ function LandingPage({onLogout, user, theme, onThemeChange}) {
                   />
                 </div>
               )}
-              {visitedViews.has('Trash-Bin') && canAccess('Trash-Bin') && (
-                <div className="app-view-panel" hidden={activeView !== 'Trash-Bin'}>
+              {visitedViews.has('Trash-Archive') && canAccess('Trash-Archive') && (
+                <div className="app-view-panel" hidden={activeView !== 'Trash-Archive'}>
                   <TrashBin
-                    isActive={activeView === 'Trash-Bin'}
+                    isActive={activeView === 'Trash-Archive'}
                     refreshKey={`${policyRefreshKey}-${dataRevision}`}
                     onRestored={() => setPolicyRefreshKey((key) => key + 1)}
-                    canRestore={can('trash.restore')}
-                    canPurge={can('trash.purge')}
                   />
                 </div>
               )}

@@ -120,6 +120,11 @@
     transform: none;
 }
 
+.tb-page-embedded .sc-table-scroll {
+    height: min(60vh, 620px);
+    min-height: 180px;
+}
+
 /* ===== Trash Bin rework: tabs, toolbar, bulk bar ===== */
 .tb-tabs {
     display: flex;
@@ -163,9 +168,23 @@
 .tb-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 5px 8px; }
 /* Tabs sit first in the toolbar row, so they lose their own bottom gap. */
 .tb-toolbar .tb-tabs { margin: 0; flex-shrink: 0; }
-.tb-search { flex: 1 1 200px; max-width: 320px; }
+.tb-toolbar .tb-search.xs-search {
+    --xs-closed: 30px;
+    --xs-open: 16rem;
+    flex: 0 0 auto !important;
+    transition:
+        width 0.28s cubic-bezier(0.2, 0.7, 0.2, 1),
+        min-width 0.28s cubic-bezier(0.2, 0.7, 0.2, 1),
+        border-color 0.18s ease,
+        box-shadow 0.18s ease;
+}
+.tb-toolbar .tb-search.xs-search:focus-within {
+    border-color: var(--accent, #E8C547);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #E8C547) 18%, transparent);
+}
+.tb-search { max-width: 320px; }
 /* "Deleted by" label sits beside its dropdown so the row stays one line. */
-.tb-filter { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.tb-filter { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-size: 10px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
 .tb-deleted-by-select { width: 140px; }
 .tb-deleted-by-select .cs-button {
     min-height: 30px;
@@ -173,10 +192,6 @@
     font-size: 11px;
     border-radius: 7px;
 }
-.tb-empty-btn { margin-left: auto; color: var(--accent-low); border-color: color-mix(in srgb, var(--accent-low) 50%, var(--border-strong)); }
-.tb-empty-btn:hover:not(:disabled) { background: var(--accent-low-soft); }
-.tb-empty-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-
 .tb-bulk-bar {
     display: flex;
     flex-wrap: wrap;
@@ -221,6 +236,58 @@
 @media (max-width: 640px) {
     .tb-tabs { width: 100%; }
     .tb-tabs button { flex: 1 1 auto; justify-content: center; }
-    .tb-empty-btn { margin-left: 0; }
     .tb-search { max-width: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tb-toolbar .tb-search.xs-search { transition: none; }
+}
+
+/* Round 2 (2026-11-03): on phones the search and the "Deleted by /
+   Archived by" filter always share ONE row; the open search only fills the
+   space that is left (it no longer pushes the filter to a new line). */
+@media (max-width: 640px) {
+    .tb-toolbar { gap: 8px; }
+    .tb-toolbar .tb-filter { margin-left: auto; flex: 0 0 auto; }
+    .tb-toolbar .tb-filter > span { display: none; }   /* the dropdown says "Anyone" / a name */
+    .tb-deleted-by-select { width: 120px; }
+    .tb-toolbar .tb-search.xs-search:focus-within,
+    .tb-toolbar .tb-search.xs-search:has(input:not(:placeholder-shown)) {
+        flex: 1 1 0 !important;
+        width: auto !important;
+        min-width: 0 !important;
+    }
+}
+
+/* ==========ROUND 3 (2026-11-03)==========
+   Toolbar: [kind tabs] [search ……… Deleted by ▾]. The search and the
+   filter are one group; when the row is full they wrap to the second row
+   together (search on the left, filter on the right). */
+.tb-toolbar-tools {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1 1 320px;
+    min-width: 0;
+}
+.tb-toolbar-tools .tb-filter { margin-left: auto; }
+@media (min-width: 641px) {
+    /* The six kind tabs stay on ONE tidy row (scroll sideways if the window
+       is very narrow) instead of breaking 5 + 1. */
+    .tb-toolbar .tb-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .tb-toolbar .tb-tabs::-webkit-scrollbar { display: none; }
+    .tb-toolbar .tb-tabs button { flex: 0 0 auto; white-space: nowrap; }
+}
+@media (min-width: 641px) and (max-width: 1100px) {
+    .tb-toolbar .tb-tabs button { padding-inline: 8px; gap: 5px; }
+    .tb-toolbar { row-gap: 8px; }
+    .tb-toolbar .tb-tabs { flex: 1 1 100%; width: auto; }
+    .tb-toolbar-tools { flex-basis: 100%; }
+}
+@media (max-width: 640px) {
+    .tb-toolbar-tools { flex: 1 1 100%; gap: 8px; }
 }
