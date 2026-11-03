@@ -707,6 +707,11 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
                       >
                         {showDeactivated ? 'Deactivated' : s.status}
                       </span>
+                      {s.waitingVerification && !showDeactivated && (
+                        <span className="st-status st-status-unverified" title="Created by Approve & Invite. Can sign in after clicking the email link.">
+                          Not verified
+                        </span>
+                      )}
                     </td>
                     <td className="st-cell-muted st-cell-last" data-label="Last active">{s.lastActive}</td>
                     {canManage && (

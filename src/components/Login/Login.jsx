@@ -20,6 +20,9 @@ const FEATURES = [
 
 function Login({ onLogin }) {
     const [error, setError] = useState('');
+    // Account made by "Approve & Invite" but the email link not clicked yet.
+    const [unverifiedEmail, setUnverifiedEmail] = useState('');
+    const [resendState, setResendState] = useState({ busy: false, message: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showPasswordReset, setShowPasswordReset] = useState(false);
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -54,6 +57,8 @@ function Login({ onLogin }) {
                 const validationMessage = data.errors
                     ? Object.values(data.errors).flat()[0]
                     : null;
+                setUnverifiedEmail(data.code === 'verify_email_first' ? String(email) : '');
+                setResendState({ busy: false, message: '' });
                 setError(validationMessage || data.message || 'Login failed.');
                 return;
             }
@@ -77,6 +82,25 @@ function Login({ onLogin }) {
             setError('Can’t reach the server. Check that Laragon is running, then try again.');
         } finally {
             setIsSubmitting(false);
+        }
+    }
+
+    async function resendVerification() {
+        setResendState({ busy: true, message: '' });
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const response = await fetch('/auth/account-setup/resend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': csrfToken || '' },
+                body: JSON.stringify({ email: unverifiedEmail }),
+            });
+            const data = await response.json().catch(() => ({}));
+            const message = response.status === 429
+                ? 'Too many tries. Please wait a few minutes.'
+                : (data.message || (response.ok ? 'A new link was sent.' : 'The link could not be sent.'));
+            setResendState({ busy: false, message });
+        } catch {
+            setResendState({ busy: false, message: 'Can’t reach the server. Check that Laragon is running.' });
         }
     }
 
@@ -183,6 +207,14 @@ function Login({ onLogin }) {
 
                             {error && (
                                 <p className="lg-error" role="alert"><TriangleAlert size={14} aria-hidden="true" /> {error}</p>
+                            )}
+                            {error && unverifiedEmail && (
+                                <div className="lg-verify">
+                                    <button type="button" className="lg-link" onClick={resendVerification} disabled={resendState.busy}>
+                                        {resendState.busy ? 'Sending…' : 'Send the verification link again'}
+                                    </button>
+                                    {resendState.message && <small role="status">{resendState.message}</small>}
+                                </div>
                             )}
 
                             <button type="submit" className="lg-submit" disabled={isSubmitting}>

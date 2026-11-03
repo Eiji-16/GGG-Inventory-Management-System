@@ -11,8 +11,8 @@ const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content ||
 
 const STATUS = {
   pending: { label: 'Waiting for you', cls: 'is-pending', Icon: Clock3 },
-  approved: { label: 'Link sent', cls: 'is-approved', Icon: MailCheck },
-  completed: { label: 'Account ready', cls: 'is-completed', Icon: CheckCircle2 },
+  approved: { label: 'Account created · not verified', cls: 'is-approved', Icon: MailCheck },
+  completed: { label: 'Verified', cls: 'is-completed', Icon: CheckCircle2 },
   rejected: { label: 'Rejected', cls: 'is-rejected', Icon: XCircle },
 };
 
@@ -58,7 +58,9 @@ export default function AccountRequests({ onChanged }) {
   }, [load]);
 
   const act = async (request, action) => {
-    if (action === 'reject' && !window.confirm(`Reject the account request of ${request.name}?`)) return;
+    if (action === 'reject' && !window.confirm(request.status === 'approved'
+      ? `Cancel ${request.name}'s account? It was never verified, so it moves to the Trash Bin.`
+      : `Reject the account request of ${request.name}?`)) return;
     setBusyId(request.id);
     setNotice(null);
     try {
@@ -98,7 +100,7 @@ export default function AccountRequests({ onChanged }) {
             Account requests
             {pendingCount > 0 && <span className="st-requests-badge">{pendingCount} new</span>}
           </h3>
-          <p className="hint-text">From “Request Account Access” on the login page. Approving emails a one-time setup link (valid 24 hours) where the person sets a password and an authenticator app.</p>
+          <p className="hint-text">From “Request Account Access” on the login page. Approve & Invite creates the account at once and emails a verification link (valid 24 hours). The person can sign in after verifying their email, setting a password and an authenticator app.</p>
         </div>
         <button type="button" className="st-requests-refresh" onClick={load} aria-label="Refresh account requests" title="Refresh"><RefreshCw size={14} /></button>
       </div>
@@ -142,12 +144,12 @@ export default function AccountRequests({ onChanged }) {
                 ) : (
                   <div className="st-request-actions">
                     <small className="st-request-link">
-                      As {request.role === 'admin' ? 'Admin' : 'Staff'} · {left === 'expired' ? 'link expired' : `link ${left}`}{request.linkOpened ? ' · opened' : ''}
+                      As {request.role === 'admin' ? 'Admin' : 'Staff'} · {left === 'expired' ? 'verification link expired' : `verification link ${left}`}{request.linkOpened ? ' · opened' : ''}
                     </small>
                     <button type="button" className="st-deactivated-button" onClick={() => act(request, 'resend')} disabled={busyId === request.id}>
                       <RefreshCw size={14} aria-hidden="true" /> Send link again
                     </button>
-                    <button type="button" className="st-request-reject" onClick={() => act(request, 'reject')} disabled={busyId === request.id}>Cancel</button>
+                    <button type="button" className="st-request-reject" onClick={() => act(request, 'reject')} disabled={busyId === request.id} title="Cancel: the unverified account moves to the Trash Bin">Cancel</button>
                   </div>
                 )}
               </li>

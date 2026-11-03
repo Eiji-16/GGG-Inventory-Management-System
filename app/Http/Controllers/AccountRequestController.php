@@ -62,12 +62,6 @@ class AccountRequestController extends Controller
             ]);
         }
 
-        if (User::withTrashed()->whereRaw('LOWER(email) = ?', [$email])->exists()) {
-            throw ValidationException::withMessages([
-                'email' => 'This email already has an account. Sign in, or use "Forgot password?".',
-            ]);
-        }
-
         $open = AccountRequest::whereRaw('LOWER(email) = ?', [$email])
             ->whereIn('status', [AccountRequest::PENDING, AccountRequest::APPROVED])
             ->first();
@@ -75,7 +69,13 @@ class AccountRequestController extends Controller
             throw ValidationException::withMessages([
                 'email' => $open->status === AccountRequest::PENDING
                     ? 'A request for this email is already waiting for the Super Admin.'
-                    : 'This request was already approved. Check your email for the setup link.',
+                    : 'Your account was already created. Check your email for the verification link.',
+            ]);
+        }
+
+        if (User::withTrashed()->whereRaw('LOWER(email) = ?', [$email])->exists()) {
+            throw ValidationException::withMessages([
+                'email' => 'This email already has an account. Sign in, or use "Forgot password?".',
             ]);
         }
 
@@ -124,15 +124,34 @@ class AccountRequestController extends Controller
         $data = $request->validate([
             'role' => ['required', Rule::in([User::ROLE_STAFF, User::ROLE_ADMIN])],
         ]);
-        abort_unless(in_array($accountRequest->status, [AccountRequest::PENDING, AccountRequest::APPROVED], true), 422, 'This request was already finished or rejected.');
-        if (User::withTrashed()->whereRaw('LOWER(email) = ?', [strtolower($accountRequest->email)])->exists()) {
-            abort(422, 'This email already has an account.');
-        }
+        abort_unless($accountRequest->status === AccountRequest::PENDING, 422, 'This request was already approved, finished or rejected.');
+        $existing = User::withTrashed()->whereRaw('LOWER(email) = ?', [strtolower($accountRequest->email)])->first();
+        abort_if($existing !== null, 422, 'This email already has an account.');
+
+        // 2026-11-03: approving CREATES the account at once (it shows in
+        // Staffs). It cannot be used yet: it has a random password nobody
+        // knows, and sign-in is blocked until the email link is clicked
+        // (the link verifies the email, then sets the password + 2FA).
+        $user = DB::transaction(function () use ($accountRequest, $data) {
+            $user = new User([
+                'name' => $accountRequest->name,
+                'email' => $accountRequest->email,
+                'password' => Str::random(48),
+                'role' => $data['role'],
+                'status' => User::STATUS_ACTIVE,
+                'department' => $accountRequest->department,
+            ]);
+            $user->save();
+            $accountRequest->forceFill(['user_id' => $user->id])->save();
+
+            return $user;
+        });
 
         $token = $this->issueToken($accountRequest, $request->user(), $data['role']);
         $sent = $this->sendInvite($accountRequest, $token);
-        ActivityLog::record('account.approve', "Approved the account request of {$accountRequest->name} as ".($data['role'] === User::ROLE_ADMIN ? 'Admin' : 'Staff'), 'user', [
+        ActivityLog::record('account.approve', "Approved {$accountRequest->name} and created the account as ".($data['role'] === User::ROLE_ADMIN ? 'Admin' : 'Staff').' (waiting for email verification)', 'user', [
             'accountRequestId' => $accountRequest->id,
+            'userId' => $user->id,
             'email' => $accountRequest->email,
             'emailed' => $sent,
         ]);
@@ -140,8 +159,8 @@ class AccountRequestController extends Controller
         return response()->json($this->format($accountRequest->fresh()) + [
             'emailed' => $sent,
             'message' => $sent
-                ? "Approved. A setup link was emailed to {$accountRequest->email} (valid for ".AccountRequest::LINK_HOURS.' hours).'
-                : 'Approved, but the email could not be sent. Fix the mail settings, then click "Send link again".',
+                ? "Account created for {$accountRequest->name}. A verification link was emailed to {$accountRequest->email} (valid for ".AccountRequest::LINK_HOURS.' hours). They can sign in after clicking it.'
+                : 'Account created, but the verification email could not be sent. Fix the mail settings (.env), then click "Send link again".',
         ]);
     }
 
@@ -155,8 +174,8 @@ class AccountRequestController extends Controller
         return response()->json($this->format($accountRequest->fresh()) + [
             'emailed' => $sent,
             'message' => $sent
-                ? "A new setup link was emailed to {$accountRequest->email}. The old link no longer works."
-                : 'The email could not be sent. Check the mail settings and try again.',
+                ? "A new verification link was emailed to {$accountRequest->email}. The old link no longer works."
+                : 'The email could not be sent. Check the mail settings in .env (Gmail needs a 16-letter App Password) and try again.',
         ]);
     }
 
@@ -164,6 +183,19 @@ class AccountRequestController extends Controller
     public function reject(Request $request, AccountRequest $accountRequest): JsonResponse
     {
         abort_if($accountRequest->status === AccountRequest::COMPLETED, 422, 'This account was already set up.');
+        // Cancelled after approval: the account that was made but never
+        // verified is moved to the Trash Bin (it was never used).
+        if ($accountRequest->status === AccountRequest::APPROVED && $accountRequest->user_id) {
+            $created = User::find($accountRequest->user_id);
+            if ($created) {
+                $created->forceFill([
+                    'status' => User::STATUS_INACTIVE,
+                    'deleted_by' => $request->user()->id,
+                    'deleted_by_name' => $request->user()->name ?: $request->user()->email,
+                ])->save();
+                $created->delete();
+            }
+        }
         $accountRequest->forceFill([
             'status' => AccountRequest::REJECTED,
             'token_hash' => null,
@@ -233,18 +265,25 @@ class AccountRequestController extends Controller
                     'code' => 'That code is incorrect. Make sure you scanned the QR code on this page, then type the newest 6-digit code.',
                 ]);
             }
-            if (User::withTrashed()->whereRaw('LOWER(email) = ?', [strtolower($accountRequest->email)])->exists()) {
-                throw ValidationException::withMessages(['token' => 'This email already has an account. Sign in instead.']);
+            // The account was made on approval; older approvals (before this
+            // change) have none yet, so it is made here instead.
+            $user = $accountRequest->user_id ? User::find($accountRequest->user_id) : null;
+            if (! $user) {
+                if (User::withTrashed()->whereRaw('LOWER(email) = ?', [strtolower($accountRequest->email)])->exists()) {
+                    throw ValidationException::withMessages(['token' => 'This account is no longer available. Ask the Super Admin.']);
+                }
+                $user = new User([
+                    'name' => $accountRequest->name,
+                    'email' => $accountRequest->email,
+                    'role' => $accountRequest->role ?: User::ROLE_STAFF,
+                    'status' => User::STATUS_ACTIVE,
+                    'department' => $accountRequest->department,
+                ]);
             }
-
-            $user = new User([
-                'name' => $accountRequest->name,
-                'email' => $accountRequest->email,
-                'password' => $data['password'],
-                'role' => $accountRequest->role ?: User::ROLE_STAFF,
-                'status' => User::STATUS_ACTIVE,
-                'department' => $accountRequest->department,
-            ]);
+            if ($user->status !== User::STATUS_ACTIVE) {
+                throw ValidationException::withMessages(['token' => 'This account was deactivated. Ask the Super Admin.']);
+            }
+            $user->password = $data['password'];
             $user->forceFill([
                 'email_verified_at' => now(),           // the link proved the email is theirs
                 'two_factor_secret' => $secret,
@@ -273,6 +312,54 @@ class AccountRequestController extends Controller
         return response()->json([
             'message' => 'Your account is ready. Sign in with your email, your new password and the code from your authenticator app.',
         ]);
+    }
+
+    /**
+     * POST /auth/account-setup/resend  { email } — "Send the link again" on
+     * the login page, for an account that is still waiting for email
+     * verification. Same answer whether or not the email exists.
+     */
+    public function resendFromLogin(Request $request): JsonResponse
+    {
+        $data = $request->validate(['email' => ['required', 'email', 'max:255']]);
+        $accountRequest = AccountRequest::whereRaw('LOWER(email) = ?', [strtolower(trim($data['email']))])
+            ->where('status', AccountRequest::APPROVED)
+            ->latest()
+            ->first();
+        $answer = ['message' => 'If this account is waiting for verification, a new link has been emailed. Check your inbox and spam folder.'];
+        if (! $accountRequest) {
+            return response()->json($answer);
+        }
+
+        $reviewer = $accountRequest->reviewed_by ? User::find($accountRequest->reviewed_by) : null;
+        $token = Str::random(64);
+        $accountRequest->forceFill([
+            'token_hash' => AccountRequest::hashToken($token),
+            'token_expires_at' => now()->addHours(AccountRequest::LINK_HOURS),
+            'claimed_session_hash' => null,
+            'claimed_at' => null,
+            'two_factor_secret' => null,
+        ])->save();
+        if (! $this->sendInvite($accountRequest, $token)) {
+            return response()->json(['message' => 'The email could not be sent right now. Please tell the Super Admin.'], 503);
+        }
+        ActivityLog::record('account.resend', "Sent a new verification link to {$accountRequest->email} (asked from the login page)", 'user', [
+            'accountRequestId' => $accountRequest->id,
+        ], $reviewer?->id);
+
+        return response()->json($answer);
+    }
+
+    /** True while an account made on approval has not been verified yet. */
+    public static function isWaitingForVerification(User $user): bool
+    {
+        try {
+            return AccountRequest::where('user_id', $user->id)
+                ->where('status', AccountRequest::APPROVED)
+                ->exists();
+        } catch (\Throwable) {
+            return false;   // table missing (migration not run): never block
+        }
     }
 
     /* ---------- helpers ---------- */
@@ -349,6 +436,7 @@ class AccountRequestController extends Controller
             'role' => $r->role,
             'linkExpiresAt' => $r->status === AccountRequest::APPROVED ? $r->token_expires_at?->toIso8601String() : null,
             'linkOpened' => $r->claimed_at !== null,
+            'accountCreated' => $r->user_id !== null,
             'reviewedBy' => $r->reviewed_by_name,
             'reviewedAt' => $r->reviewed_at?->toIso8601String(),
             'completedAt' => $r->completed_at?->toIso8601String(),

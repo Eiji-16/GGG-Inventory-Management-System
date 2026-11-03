@@ -23,6 +23,7 @@ Route::post('/auth/two-factor', [AuthController::class, 'verifyTwoFactor'])->mid
 // Account registration: request (login page) and the emailed setup link.
 Route::post('/auth/account-request', [\App\Http\Controllers\AccountRequestController::class, 'store'])->middleware('throttle:5,10,account-request');
 Route::post('/auth/account-setup/check', [\App\Http\Controllers\AccountRequestController::class, 'check'])->middleware('throttle:20,1,account-setup');
+Route::post('/auth/account-setup/resend', [\App\Http\Controllers\AccountRequestController::class, 'resendFromLogin'])->middleware('throttle:3,10,account-setup-resend');
 Route::post('/auth/account-setup/complete', [\App\Http\Controllers\AccountRequestController::class, 'complete'])->middleware('throttle:10,1,account-setup-done');
 
 // Staff management (Staffs tab) — session-authed, Super-Admin enforced in-controller.

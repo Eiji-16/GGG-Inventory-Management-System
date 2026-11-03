@@ -109,11 +109,19 @@ class AccountRegistrationTest extends TestCase
             ->assertJsonPath('role', 'Admin');
         $secret = str_replace(' ', '', $check->json('twoFactor.secret'));
 
-        // Wrong authenticator code: no account yet.
+        // The account already exists (made on approval) but cannot sign in yet.
+        $created = User::where('email', 'juan@example.com')->first();
+        $this->assertNotNull($created);
+        $this->assertNull($created->email_verified_at);
+        $this->postJson('/auth/login', ['email' => 'juan@example.com', 'password' => 'anything'])
+            ->assertForbidden()
+            ->assertJsonPath('code', 'verify_email_first');
+
+        // Wrong authenticator code: still not verified.
         $this->postJson('/auth/account-setup/complete', [
             'token' => $token, 'password' => 'Strong123', 'password_confirmation' => 'Strong123', 'code' => '000000',
         ])->assertUnprocessable()->assertJsonValidationErrors('code');
-        $this->assertDatabaseMissing('users', ['email' => 'juan@example.com']);
+        $this->assertNull($created->fresh()->email_verified_at);
 
         $this->postJson('/auth/account-setup/complete', [
             'token' => $token, 'password' => 'Strong123', 'password_confirmation' => 'Strong123',
@@ -121,13 +129,17 @@ class AccountRegistrationTest extends TestCase
         ])->assertOk();
 
         $user = User::where('email', 'juan@example.com')->first();
-        $this->assertNotNull($user);
+        $this->assertSame($created->id, $user->id, 'the same account is verified, no second one');
         $this->assertSame(User::ROLE_ADMIN, $user->role);
         $this->assertTrue($user->hasTwoFactor());
         $this->assertNotNull($user->email_verified_at);
         $this->assertTrue(Hash::check('Strong123', $user->password));
         $this->assertSame('completed', $request->fresh()->status);
         $this->assertNull($request->fresh()->token_hash);
+
+        // Verified: signing in works now (password + authenticator code).
+        $this->postJson('/auth/login', ['email' => 'juan@example.com', 'password' => 'Strong123'])
+            ->assertOk()->assertJsonPath('twoFactorRequired', true);
 
         // One-time: the same link no longer works.
         $this->postJson('/auth/account-setup/check', ['token' => $token])->assertUnprocessable();
@@ -166,6 +178,41 @@ class AccountRegistrationTest extends TestCase
         $this->flushSession();
 
         $this->postJson('/auth/account-setup/check', ['token' => $old])->assertUnprocessable();
+    }
+
+    public function test_approving_creates_the_account_and_staffs_shows_it_as_not_verified(): void
+    {
+        $this->requestAccount()->assertCreated();
+        $this->approve(AccountRequest::first());
+
+        $this->actingAs($this->superAdmin)->getJson('/staff')->assertOk()
+            ->assertJsonFragment(['email' => 'juan@example.com', 'waitingVerification' => true]);
+    }
+
+    public function test_login_page_can_send_the_verification_link_again(): void
+    {
+        $this->requestAccount()->assertCreated();
+        $old = $this->approve(AccountRequest::first());
+
+        Mail::fake();
+        $this->postJson('/auth/account-setup/resend', ['email' => 'juan@example.com'])->assertOk();
+        Mail::assertSent(AccountInviteMail::class, 1);
+        $this->postJson('/auth/account-setup/check', ['token' => $old])->assertUnprocessable();
+
+        // Unknown emails get the same answer and no email.
+        Mail::fake();
+        $this->postJson('/auth/account-setup/resend', ['email' => 'nobody@example.com'])->assertOk();
+        Mail::assertNothingSent();
+    }
+
+    public function test_cancelling_an_approved_request_moves_the_unverified_account_to_trash(): void
+    {
+        $this->requestAccount()->assertCreated();
+        $request = AccountRequest::first();
+        $this->approve($request);
+
+        $this->actingAs($this->superAdmin)->postJson("/staff/account-requests/{$request->id}/reject")->assertOk();
+        $this->assertSoftDeleted('users', ['email' => 'juan@example.com']);
     }
 
     public function test_rejected_requests_get_no_link(): void

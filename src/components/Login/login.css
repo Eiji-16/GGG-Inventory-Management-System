@@ -381,3 +381,8 @@
 @media (prefers-reduced-motion: reduce) {
     .lg-page::before { animation: none; }
 }
+
+/* "Verify your email first" — resend the verification link (2026-11-03). */
+.lg-verify { display: grid; gap: 4px; justify-items: start; margin-top: -4px; }
+.lg-verify small { color: var(--lg-muted); font-size: 12px; line-height: 1.45; }
+.lg-verify .lg-link:disabled { opacity: 0.6; cursor: wait; }

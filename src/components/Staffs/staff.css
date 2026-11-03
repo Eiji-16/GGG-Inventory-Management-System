@@ -1122,3 +1122,11 @@
     .st-table tbody td.st-cell-role .st-role-badge,
     .st-table tbody td.st-cell-status > * { font-size: 10.5px; }
 }
+
+/* Account made by Approve & Invite, email link not clicked yet. */
+.st-status-unverified {
+    margin-left: 4px;
+    color: #b7791f;
+    background: rgba(232, 197, 71, 0.16);
+    border-color: rgba(232, 197, 71, 0.35);
+}

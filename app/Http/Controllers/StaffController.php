@@ -370,6 +370,8 @@ class StaffController extends Controller
             'avatarUrl'  => $photo ? "/staff/{$u->id}/avatar?v=".substr(md5($photo), 0, 10) : null,
             // Authenticator app (2FA) is on for this account.
             'twoFactor'  => $u->hasTwoFactor(),
+            // Made by "Approve & Invite"; the email link has not been clicked yet.
+            'waitingVerification' => AccountRequestController::isWaitingForVerification($u),
         ];
     }
 

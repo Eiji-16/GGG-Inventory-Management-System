@@ -24,6 +24,16 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        // Accounts made by "Approve & Invite" cannot sign in until the email
+        // verification link is clicked (it also sets their password).
+        $pending = User::whereRaw('LOWER(email) = ?', [strtolower(trim($credentials['email']))])->first();
+        if ($pending && AccountRequestController::isWaitingForVerification($pending)) {
+            return response()->json([
+                'code' => 'verify_email_first',
+                'message' => 'Verify your email first: open the link we emailed you to finish your account setup.',
+            ], 403);
+        }
+
         // Check the password WITHOUT signing in yet (2FA may still be needed).
         if (! Auth::validate($credentials)) {
             return response()->json(['message' => 'Invalid email or password.'], 401);

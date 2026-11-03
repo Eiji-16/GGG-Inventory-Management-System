@@ -19,7 +19,7 @@ class AccountInviteMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Your inventory account request has been approved');
+        return new Envelope(subject: 'Verify your email to activate your inventory account');
     }
 
     public function content(): Content
