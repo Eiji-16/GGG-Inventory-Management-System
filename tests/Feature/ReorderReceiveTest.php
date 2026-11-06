@@ -55,10 +55,11 @@ class ReorderReceiveTest extends TestCase
         $this->actingAs($this->admin)->getJson('/api/stock-movements')->assertOk()->assertJsonPath('0.hasProof', true);
     }
 
-    public function test_the_photo_is_required(): void
+    public function test_the_photo_is_optional(): void
     {
-        $this->receive($this->staff, ['photo' => null])->assertUnprocessable()->assertJsonValidationErrors('photo');
-        $this->assertSame(1, (int) Product::where('code', 'PRD-R1')->value('stock_on_hand'));
+        // 2026-11-06: the proof photo is optional; the delivery is still recorded.
+        $this->receive($this->staff, ['photo' => null])->assertCreated()->assertJsonPath('hasProof', false);
+        $this->assertSame(7, (int) Product::where('code', 'PRD-R1')->value('stock_on_hand'));
     }
 
     public function test_only_pictures_are_accepted(): void

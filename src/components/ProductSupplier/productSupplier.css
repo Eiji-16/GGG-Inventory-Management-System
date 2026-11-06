@@ -290,7 +290,6 @@
     cursor: pointer;
 }
 
-
 .ps-row-clickable.is-selected {
     background-color: var(--background-icon-active-color-theme) !important;
 }
@@ -493,7 +492,7 @@
 .ps-modal-idtag {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 6px;
     align-self: flex-start;
     padding: 0.35rem 0.7rem;
     border: 1px dashed var(--border-color);
@@ -735,8 +734,6 @@
     background: var(--static-bg-color);
 }
 
-
-
 .ps-detail-label {
     font-size: 0.62rem;
     font-weight: 700;
@@ -770,7 +767,7 @@
 .ps-name-cell {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
 }
 .ps-th-pic { width: 64px; text-align: center; }
@@ -867,7 +864,7 @@
 
 .ps-detail-photo-empty {
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     min-height: 120px;
     padding: 24px 0;
     border-style: dashed;
@@ -1434,21 +1431,6 @@
 }
 
 /* In-app messages (replace the old browser pop-ups) */
-.ps-page-message {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-}
-.ps-page-message-close {
-    border: none;
-    background: transparent;
-    color: inherit;
-    font-size: 16px;
-    line-height: 1;
-    cursor: pointer;
-    padding: 0 4px;
-}
 .ps-form-error { margin: 4px 0 0; }
 
 /* Delete window: extra warning when the product still has stock. */
@@ -1459,7 +1441,6 @@
     border-radius: 8px;
     background: rgba(232, 197, 71, 0.08);
 }
-
 
 /*==========TOOLBAR BUTTONS ON SMALL SCREENS==========
    Labels never wrap onto two lines; on very small phones the Add / Update /
@@ -1556,7 +1537,6 @@
 .ps-detail-grid .ps-detail-item-full { grid-column: 1 / -1; }
 .ps-detail-variants { max-width: none; margin-top: 2px; }
 
-
 /*==========FIT THE PRODUCTS TABLE ON LAPTOP SCREENS (2026-10-30)==========
    At 100% browser zoom on a laptop (and more so with Large font) the table
    was wider than its box and the Supplier / Actions columns were cut off.
@@ -1608,7 +1588,6 @@
     :root[data-font-size="large"] .ps-variant-row > .ps-variant-more-short { display: none; }
 }
 
-
 /*==========ACTIONS COLUMN ALWAYS VISIBLE (2026-10-30)==========
    Same as Stock Control: on desktop the Actions column stays pinned to the
    right edge of the table box (solid background, soft shadow on its left),
@@ -1641,7 +1620,6 @@
         background-image: none;
     }
 }
-
 
 /*==========SUPPLIER FILTER CHIP (2026-10-30)==========
    Shown when the Dashboard's Supplier Coverage card opened a filtered list
@@ -1685,7 +1663,7 @@
    download / sort / Add buttons (no row of its own). Opening the search
    fills the free space on that row. */
 @media (max-width: 640px) {
-    .ps-navigation-bar { flex-wrap: wrap; row-gap: 8px; }
+    .ps-navigation-bar { flex-wrap: wrap; row-gap: 6px; }
     .ps-search-wrapper { flex: 1 1 0; min-width: 32px; margin-right: 0; }
     .ps-search-wrapper .ps-search-box.xs-search { width: 32px !important; }
     .ps-search-wrapper .ps-search-box.xs-search:focus-within,

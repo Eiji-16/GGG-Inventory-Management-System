@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import { Save, X } from 'lucide-react';
 import apiFetch from '../../apiFetch';
@@ -296,7 +297,7 @@ export default function BulkOrder({ items, onClose, onSaved }) {
           <div>
             <h3 id="ra-bulk-title">Restock Report — {computed.length} product{computed.length === 1 ? '' : 's'}</h3>
             <p className="ra-modal-sub hint-text">
-              System suggested = √(2 × annual demand × ordering cost ÷ holding cost), the same as “Order Now”. Type your own amount in Owner’s quantity if you want more or fewer. “Save Report” keeps the result for “Received” and downloads the PDF to give to the person who buys.
+              System suggested = √(2 × annual demand × ordering cost ÷ holding cost), the same as “Calculate Now”. Type your own amount in Owner’s quantity if you want more or fewer. “Save Report” keeps the result for “Received” and downloads the PDF to give to the person who buys.
             </p>
           </div>
           <button type="button" className="ra-bulk-close" onClick={onClose} disabled={saving} aria-label="Close"><X size={16} /></button>
@@ -421,7 +422,7 @@ export default function BulkOrder({ items, onClose, onSaved }) {
           </div>
         )}
 
-        {message.text && <p className={message.type === 'error' ? 'ra-error' : 'ra-notice'} role="status">{message.text}</p>}
+        <PageToast message={message.text} type={message.type === 'error' ? 'error' : 'success'} onShown={() => setMessage({ type: '', text: '' })} />
 
         <div className="ra-modal-actions ra-save-report">
           <button type="button" className="ra-order-btn" onClick={onClose} disabled={saving}>Close</button>

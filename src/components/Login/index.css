@@ -505,106 +505,106 @@ body {
 
     /* The login page remains unchanged in Midnight Blue and White, but follows
        the selected neutral surfaces when Graphite is active. */
-    [data-theme="graphite"] .Login-page-wrapper {
+    :is([data-theme="graphite"], [data-theme="noir"]) .Login-page-wrapper {
         background: var(--bg-main);
     }
 
-    [data-theme="graphite"] .Login-box {
+    :is([data-theme="graphite"], [data-theme="noir"]) .Login-box {
         background: var(--bg-card);
         border-color: var(--border-color);
         box-shadow: var(--shadow-hover);
     }
 
-    [data-theme="graphite"] .Design-side {
+    :is([data-theme="graphite"], [data-theme="noir"]) .Design-side {
         background: linear-gradient(180deg, #303036 0%, #18181B 100%);
     }
 
-    [data-theme="graphite"] .Login-side {
+    :is([data-theme="graphite"], [data-theme="noir"]) .Login-side {
         background: var(--bg-card);
     }
 
-    [data-theme="graphite"] .WelcomeText h2,
-    [data-theme="graphite"] .input-icon input,
-    [data-theme="graphite"] .Login-button {
+    :is([data-theme="graphite"], [data-theme="noir"]) .WelcomeText h2,
+    :is([data-theme="graphite"], [data-theme="noir"]) .input-icon input,
+    :is([data-theme="graphite"], [data-theme="noir"]) .Login-button {
         color: var(--text-primary);
     }
 
-    [data-theme="graphite"] .WelcomeText p,
-    [data-theme="graphite"] .input-group label,
-    [data-theme="graphite"] .input-icon i {
+    :is([data-theme="graphite"], [data-theme="noir"]) .WelcomeText p,
+    :is([data-theme="graphite"], [data-theme="noir"]) .input-group label,
+    :is([data-theme="graphite"], [data-theme="noir"]) .input-icon i {
         color: var(--text-muted);
     }
 
-    [data-theme="graphite"] .input-icon {
+    :is([data-theme="graphite"], [data-theme="noir"]) .input-icon {
         background: var(--input-bg);
         border-color: var(--border-color);
     }
 
-    [data-theme="graphite"] .input-icon:hover,
-    [data-theme="graphite"] .input-icon:focus-within {
+    :is([data-theme="graphite"], [data-theme="noir"]) .input-icon:hover,
+    :is([data-theme="graphite"], [data-theme="noir"]) .input-icon:focus-within {
         background: var(--input-bg);
         border-color: var(--accent);
     }
 
-    [data-theme="graphite"] .input-icon input::placeholder {
+    :is([data-theme="graphite"], [data-theme="noir"]) .input-icon input::placeholder {
         color: var(--text-muted);
     }
 
-    [data-theme="graphite"] .Password-visibility-toggle,
-    [data-theme="graphite"] .Login-button:hover {
+    :is([data-theme="graphite"], [data-theme="noir"]) .Password-visibility-toggle,
+    :is([data-theme="graphite"], [data-theme="noir"]) .Login-button:hover {
         color: var(--accent);
     }
 
-    [data-theme="graphite"] .ForgetPassword,
-    [data-theme="graphite"] .ForgetPassword:hover {
+    :is([data-theme="graphite"], [data-theme="noir"]) .ForgetPassword,
+    :is([data-theme="graphite"], [data-theme="noir"]) .ForgetPassword:hover {
         color: var(--accent);
     }
 
-    [data-theme="graphite"] .ResetPass-modal {
+    :is([data-theme="graphite"], [data-theme="noir"]) .ResetPass-modal {
         color: var(--text-primary);
         background: var(--bg-card);
         border-color: var(--border-color);
     }
 
-    [data-theme="graphite"] .ResetPass-close {
+    :is([data-theme="graphite"], [data-theme="noir"]) .ResetPass-close {
         color: var(--text-muted);
         background: var(--static-bg-color);
     }
 
-    [data-theme="graphite"] .ResetPass-close:hover:not(:disabled) {
+    :is([data-theme="graphite"], [data-theme="noir"]) .ResetPass-close:hover:not(:disabled) {
         color: var(--text-primary);
         background: var(--overlay-medium);
     }
 
-    [data-theme="graphite"] .ResetPass-icon {
+    :is([data-theme="graphite"], [data-theme="noir"]) .ResetPass-icon {
         color: var(--accent);
         background: var(--background-icon-active-color-theme);
     }
 
-    [data-theme="graphite"] .ResetPass-heading h2,
-    [data-theme="graphite"] .ResetPass-back {
+    :is([data-theme="graphite"], [data-theme="noir"]) .ResetPass-heading h2,
+    :is([data-theme="graphite"], [data-theme="noir"]) .ResetPass-back {
         color: var(--text-primary);
     }
 
-    [data-theme="graphite"] .ResetPass-heading p {
+    :is([data-theme="graphite"], [data-theme="noir"]) .ResetPass-heading p {
         color: var(--text-muted);
     }
 
-    [data-theme="graphite"] .ResetPass-submit {
+    :is([data-theme="graphite"], [data-theme="noir"]) .ResetPass-submit {
         color: var(--btn-fill-text);
         background: var(--btn-fill-bg);
         box-shadow: var(--shadow-card);
     }
 
-    [data-theme="graphite"] .ResetPass-submit:hover:not(:disabled) {
+    :is([data-theme="graphite"], [data-theme="noir"]) .ResetPass-submit:hover:not(:disabled) {
         box-shadow: var(--shadow-hover);
     }
 
-    [data-theme="graphite"] .Login-error {
+    :is([data-theme="graphite"], [data-theme="noir"]) .Login-error {
         color: var(--accent-low);
     }
 
-    [data-theme="graphite"] .ResetPass-message {
+    :is([data-theme="graphite"], [data-theme="noir"]) .ResetPass-message {
         color: var(--accent-high);
     }
 
@@ -633,9 +633,9 @@ body {
     transition: background-color 9999s ease-out 0s;
 }
 
-[data-theme="graphite"] .input-icon input:-webkit-autofill,
-[data-theme="graphite"] .input-icon input:-webkit-autofill:hover,
-[data-theme="graphite"] .input-icon input:-webkit-autofill:focus {
+:is([data-theme="graphite"], [data-theme="noir"]) .input-icon input:-webkit-autofill,
+:is([data-theme="graphite"], [data-theme="noir"]) .input-icon input:-webkit-autofill:hover,
+:is([data-theme="graphite"], [data-theme="noir"]) .input-icon input:-webkit-autofill:focus {
     -webkit-text-fill-color: var(--text-primary);
     caret-color: var(--text-primary);
 }

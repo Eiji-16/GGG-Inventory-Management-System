@@ -93,14 +93,14 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 6px;
     flex-shrink: 0;
 }
 
 .st-search-box {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 
     width: 100%;
     max-width: 340px;
@@ -228,55 +228,9 @@
     font-size: 13px;
 }
 
-.st-action-success {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 12px;
-    color: var(--accent-high, #15803d);
-    font-size: 13px;
-    background: var(--accent-high-soft, rgba(21, 128, 61, 0.1));
-    border: 1px solid var(--accent-high, #15803d);
-    border-radius: 8px;
-}
-
-.st-action-toast {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1200;
-    width: min(420px, calc(100vw - 32px));
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
-    animation: st-toast-enter 180ms ease-out;
-}
-
 @keyframes st-toast-enter {
     from { opacity: 0; transform: translateY(-8px); }
     to { opacity: 1; transform: translateY(0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .st-action-toast {
-        animation: none;
-    }
-}
-
-.st-action-success button {
-    display: grid;
-    place-items: center;
-    width: 26px;
-    height: 26px;
-    flex: 0 0 auto;
-    color: inherit;
-    background: transparent;
-    border: 0;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.st-action-success button:hover {
-    background: rgba(21, 128, 61, 0.12);
 }
 
 .st-modal-overlay {
@@ -381,7 +335,7 @@
 .st-modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 6px;
 }
 
 .st-modal-cancel {
@@ -512,7 +466,7 @@
     display: flex;
     justify-content: flex-end;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     padding: 14px 20px 18px;
     border-top: 1px solid var(--border-color);
 }
@@ -870,14 +824,14 @@
 @media (max-width: 640px) {
     .st-kpi-row {
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 8px;
+        gap: 6px;
     }
     .st-kpi-card {
         display: grid;
         grid-template-columns: auto 1fr;
         grid-template-rows: auto auto;
         align-items: center;
-        column-gap: 8px;
+        column-gap: 6px;
         row-gap: 4px;
         padding: 10px;
     }
@@ -959,26 +913,6 @@
 
 /* ==========ACCOUNT REQUESTS (Super Admin, 2026-11-03)==========
    "Request Account Access" from the login page: Approve & Invite / Reject. */
-.st-requests {
-    display: grid;
-    gap: 10px;
-    margin-bottom: 14px;
-    padding: 14px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-left: 3px solid var(--accent, #E8C547);
-    border-radius: 12px;
-    box-shadow: var(--shadow-card);
-    animation: st-requests-in 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-.st-requests-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; }
-.st-requests-head h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 2px; font-size: 14px; color: var(--text-primary); }
-.st-requests-head p { margin: 0; color: var(--text-muted); font-size: 11.5px; line-height: 1.45; }
-.st-requests-icon {
-    display: grid; width: 32px; height: 32px; place-items: center;
-    color: var(--staff-primary-text, #0a1530); background: var(--staff-primary-bg, var(--accent));
-    border-radius: 9px;
-}
 .st-requests-badge {
     padding: 2px 8px; color: #fff; font-size: 10.5px; font-weight: 800;
     background: var(--accent-low, #c4432e); border-radius: 999px;
@@ -989,20 +923,6 @@
     color: var(--text-muted); background: transparent; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer;
 }
 .st-requests-refresh:hover { color: var(--text-primary); }
-.st-requests-ok { margin: 0; padding: 8px 10px; color: var(--accent-high); font-size: 12px; background: var(--accent-high-soft, rgba(74, 222, 155, 0.12)); border-radius: 8px; }
-.st-requests-empty { margin: 0; color: var(--text-muted); font-size: 12px; }
-.st-requests-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.st-request {
-    display: grid;
-    grid-template-columns: minmax(0, 1.4fr) auto minmax(0, 2fr);
-    gap: 10px 14px;
-    align-items: center;
-    padding: 10px 12px;
-    background: var(--static-bg-color, transparent);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-}
-.st-request.is-pending { border-color: var(--accent, #E8C547); }
 .st-request-who { display: grid; gap: 1px; min-width: 0; }
 .st-request-who strong { color: var(--text-primary); font-size: 13px; }
 .st-request-who span, .st-request-who small { overflow: hidden; color: var(--text-muted); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
@@ -1014,7 +934,7 @@
 .st-request-status.is-approved { color: #3b82f6; background: rgba(59, 130, 246, 0.14); }
 .st-request-status.is-completed { color: var(--accent-high, #1f8a5b); background: var(--accent-high-soft, rgba(74, 222, 155, 0.14)); }
 .st-request-status.is-rejected { color: var(--accent-low, #c4432e); background: rgba(196, 67, 46, 0.12); }
-.st-request-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.st-request-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
 .st-request-role { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 11px; font-weight: 700; }
 .st-request-role select {
     min-height: 36px; padding: 0 8px; color: var(--text-primary); font: inherit; font-size: 12px;
@@ -1026,18 +946,9 @@
 }
 .st-request-reject:hover { border-color: var(--accent-low, #c4432e); }
 .st-request-link { color: var(--text-muted); font-size: 11.5px; }
-.st-requests-toggle {
-    display: inline-flex; align-items: center; gap: 6px; padding: 4px 0;
-    color: var(--text-muted); font: inherit; font-size: 12px; font-weight: 700;
-    background: transparent; border: 0; cursor: pointer;
-}
-.st-requests-toggle svg { transition: transform 0.2s ease; }
-.st-requests-toggle svg.is-open { transform: rotate(180deg); }
-.st-requests-list.is-compact .st-request { grid-template-columns: minmax(0, 1.4fr) auto minmax(0, 1fr); padding: 8px 10px; }
 @keyframes st-requests-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 @keyframes st-requests-pulse { 50% { opacity: 0.65; } }
 @media (max-width: 900px) {
-    .st-request, .st-requests-list.is-compact .st-request { grid-template-columns: minmax(0, 1fr) auto; }
     .st-request-actions, .st-request-link { grid-column: 1 / -1; justify-content: flex-start; }
 }
 @media (max-width: 480px) {
@@ -1047,7 +958,7 @@
     .st-request-role select { flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .st-requests, .st-requests-badge { animation: none; }
+    .st-requests-badge { animation: none; }
 }
 
 /* ==========ROUND 2 (2026-11-03): compact toolbar + cards========== */
@@ -1129,4 +1040,87 @@
     color: #b7791f;
     background: rgba(232, 197, 71, 0.16);
     border-color: rgba(232, 197, 71, 0.35);
+}
+
+/* ==========STAFFS TABS: Accounts | Account requests (2026-11-06)==========
+   Same look as Stock Control's "Stock | History" tabs. Only the Super Admin
+   sees them (Account requests is Super Admin only). */
+.st-view-tabs {
+    display: inline-flex;
+    flex: 0 0 auto;
+    gap: 4px;
+    padding: 4px;
+    background: var(--static-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+.st-view-tabs button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 12px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: transparent;
+    border: 0;
+    border-radius: 7px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+.st-view-tabs button:hover { color: var(--text-primary); }
+.st-view-tabs button.is-active { color: var(--btn-fill-text, #0B1426); background: var(--btn-fill-bg, var(--accent)); }
+.st-view-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.st-view-tab-count {
+    min-width: 18px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--accent-low, #c4432e);
+    color: #fff;
+    font-size: 10.5px;
+    line-height: 1.5;
+    text-align: center;
+}
+/* Tabs left, then search, buttons pushed to the right. */
+.st-controls-bar:has(.st-view-tabs) { justify-content: flex-start; }
+.st-controls-bar:has(.st-view-tabs) .st-controls-actions { margin-left: auto; }
+
+/* Account requests table (its own tab). */
+.st-requests-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+.st-requests-heading h3 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+.st-requests-view > .st-create-account-error { margin: 12px 16px 0; }
+.st-requests-table .st-request-who { display: grid; gap: 1px; min-width: 0; }
+.st-requests-table td.st-cell-actions .st-request-actions { justify-content: center; }
+.st-requests-table tr.is-pending td { background: rgba(232, 197, 71, 0.05); }
+
+@media (max-width: 640px) {
+    /* Tabs take their own row above the search and buttons. */
+    .st-controls-bar:has(.st-view-tabs) { flex-wrap: wrap; }
+    .st-controls-bar .st-view-tabs { flex: 1 1 100%; }
+    .st-controls-bar .st-view-tabs button { flex: 1 1 0; padding: 6px 8px; }
+
+    /* Request cards: name · status, then department · asked, then actions. */
+    .st-requests-table tbody td.st-cell-name { order: 1; flex: 1 1 0; }
+    .st-requests-table tbody td.st-cell-status { order: 2; flex: 0 0 auto; margin-left: auto; }
+    .st-requests-table tbody td.st-cell-muted { order: 3; flex: 0 1 auto; font-size: 11.5px; }
+    .st-requests-table tbody td.st-cell-actions {
+        order: 4;
+        flex: 1 1 100%;
+        margin-left: 0;
+        width: 100% !important;
+    }
+    .st-requests-table td.st-cell-actions .st-request-actions { justify-content: flex-start; }
 }

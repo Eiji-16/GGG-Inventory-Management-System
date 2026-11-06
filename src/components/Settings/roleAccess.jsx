@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { PageToast } from '../../utils/toast';
 import { Check, ChevronDown, KeyRound, RotateCcw } from 'lucide-react';
 import apiFetch from '../../apiFetch';
 
@@ -212,7 +213,7 @@ export default function RoleAccess() {
 
               <footer className="s-policy-footer">
                 <span className="s-policy-footer-status">
-                  {saveError && <span className="s-policy-error" role="alert">{saveError}</span>}
+                  <PageToast message={saveError} type="error" onShown={() => setSaveError('')} />
                   {!saveError && dirty && <span className="s-unsaved"><i aria-hidden="true" /> {changeCount} unsaved {changeCount === 1 ? 'change' : 'changes'}</span>}
                   {!saveError && justSaved && !dirty && <span className="s-saved-flag"><Check size={12} /> Role Access saved</span>}
                 </span>

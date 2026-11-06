@@ -1,3 +1,4 @@
+import { getSystemName } from '../systemName';
 /* ==========================================================================
    SIMPLE PDF FILE (2026-11-03) — no library.
    Builds a real .pdf file (A4, landscape) with a title, summary boxes and a
@@ -83,7 +84,7 @@ const rgb = (hex) => {
  * Returns a Blob (application/pdf).
  */
 export function buildTablePdf({
-  title, brand = 'GGG Inventory Management System', subtitle = '', summary = [],
+  title, brand = getSystemName(), subtitle = '', summary = [],
   headers = [], rows = [], widths = [], align = [], totals = null, notes = [],
 }) {
   const PAGE_W = 842; const PAGE_H = 595; const M = 36;
@@ -211,7 +212,7 @@ export function buildTablePdf({
   });
   objects[catalogId - 1] = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
   objects[pagesId - 1] = `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(' ')}] /Count ${pageIds.length} >>`;
-  const infoId = add(`<< /Title ${pdfString(toCodes(title))} /Producer (GGG Inventory Management System) >>`);
+  const infoId = add(`<< /Title ${pdfString(toCodes(title))} /Producer ${pdfString(toCodes(getSystemName()))} >>`);
 
   let out = '%PDF-1.4\n';
   const offsets = [];

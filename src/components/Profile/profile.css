@@ -92,7 +92,7 @@
 }
 
 .pf-skeleton-avatar { width: 3.5rem; height: 3.5rem; flex: 0 0 auto; border-radius: 50%; }
-.pf-skeleton-identity { display: flex; flex: 1; flex-direction: column; gap: 8px; }
+.pf-skeleton-identity { display: flex; flex: 1; flex-direction: column; gap: 6px; }
 .pf-skeleton-name { width: 34%; height: 18px; }
 .pf-skeleton-detail { width: 48%; height: 11px; }
 .pf-skeleton-role { width: 72px; height: 20px; border-radius: 999px; }
@@ -171,7 +171,7 @@
 
 .pf-edit-actions {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     flex-shrink: 0;
 }
 
@@ -249,7 +249,7 @@
 .pf-modal-header h3 {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     margin: 0;
     font-size: 15px;
 }
@@ -276,7 +276,7 @@
 .pf-modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 6px;
     margin-top: 4px;
 }
 
@@ -351,7 +351,7 @@
 .pf-perm-list li {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: 6px;
     font-size: 12.5px;
     line-height: 1.45;
     color: var(--text-primary);

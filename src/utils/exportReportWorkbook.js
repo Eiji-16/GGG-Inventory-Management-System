@@ -1,4 +1,7 @@
-const BRAND = 'GGG INVENTORY MANAGEMENT SYSTEM';
+import { getSystemName } from '../systemName';
+
+// The system's name (Settings → System name), read each time a report is made.
+const brand = () => getSystemName().toUpperCase();
 const GREEN = '176B57';
 const DARK_GREEN = '123B32';
 const BORDER = { bottom: { style: 'thin', color: { rgb: 'D9E2EC' } } };
@@ -82,7 +85,7 @@ export default async function exportReportWorkbook({
   const lastColumn = XLSX.utils.encode_col(columnCount - 1);
   const summaryEntries = summary.slice(0, columnCount);
   const rows = [
-    [BRAND],
+    [brand()],
     [title],
     [subtitle],
     [`Generated: ${new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}`],
@@ -256,7 +259,7 @@ export default async function exportReportWorkbook({
   workbook.Props = {
     Title: title,
     Subject: subtitle,
-    Author: BRAND,
+    Author: getSystemName(),
     CreatedDate: new Date(),
   };
   const date = new Date().toISOString().slice(0, 10);
@@ -334,7 +337,7 @@ export function printReportPdf({
       <body>
         <main>
           <header>
-            <div class="brand">GGG Inventory Management System</div>
+            <div class="brand">${escapeHtml(getSystemName())}</div>
             <h1>${escapeHtml(title)}</h1>
             <div class="subtitle">${escapeHtml(subtitle)}</div>
             <div class="generated">Generated: ${escapeHtml(generatedAt)}</div>

@@ -282,7 +282,6 @@
     transition: background 0.15s ease;
 }
 
-
 .sc-reorder-table tbody tr.is-reorder-due {
     background: rgba(248, 113, 113, 0.035);
 }
@@ -350,7 +349,7 @@
 .sc-reorder-top-up {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     border: 1px solid rgba(248, 113, 113, 0.25);
     border-radius: 8px;
     padding: 6px 9px;
@@ -445,7 +444,7 @@
     }
 
     .sc-reorder-overview {
-        gap: 8px;
+        gap: 6px;
         margin-bottom: 12px;
     }
 
@@ -749,7 +748,6 @@
     transition: background-color 0.15s ease;
 }
 
-
 .sc-table tbody tr.is-selected {
     background-color: var(--background-icon-active-color-theme) !important;
 }
@@ -935,7 +933,7 @@
 .sc-name-cell {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
 }
 
@@ -960,7 +958,7 @@
 .sc-status-preview {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     margin-top: 0.5rem;
     padding: 0.5rem 0.65rem;
     border: 1px solid var(--border-color);
@@ -1139,7 +1137,8 @@
     grid-row: 1;
 }
 
-.product-variant-Name > select:nth-of-type(1) {
+.product-variant-Name > select:nth-of-type(1),
+.product-variant-Name > .cs-wrap:nth-of-type(1) {
     grid-column: 1;
     grid-row: 2;
 }
@@ -1154,7 +1153,8 @@
     grid-row: 1;
 }
 
-.product-variant-Name > select:nth-of-type(2) {
+.product-variant-Name > select:nth-of-type(2),
+.product-variant-Name > .cs-wrap:nth-of-type(2) {
     grid-column: 2;
     grid-row: 2;
 }
@@ -1477,7 +1477,7 @@
 .sc-history-top {
     display: flex;
     align-items: baseline;
-    gap: 0.5rem;
+    gap: 6px;
     flex-wrap: wrap;
 }
 
@@ -1525,6 +1525,10 @@
     backdrop-filter: blur(3px);
     display: flex;
     justify-content: flex-end;
+    /* Floating drawer (2026-11-06): a gap at the top, bottom and right, like
+       the phone menu, instead of a full-height panel stuck to the edge. */
+    padding: 12px;
+    box-sizing: border-box;
     z-index: 1000;
     animation: sc-fade-in 0.15s ease;
 }
@@ -1534,15 +1538,17 @@
     height: 100%;
     background-color: var(--bg-card, #ffffff);
     color: var(--text-primary);
-    border-left: 1px solid var(--border-color);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    overflow: hidden;            /* keeps the header/footer inside the rounded corners */
     display: flex;
     flex-direction: column;
-    box-shadow: -1.5rem 0 3.5rem rgba(0, 0, 0, 0.35);
+    box-shadow: 0 1.5rem 3.5rem rgba(0, 0, 0, 0.35);
     animation: sc-drawer-in 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes sc-drawer-in {
-    from { transform: translateX(100%); }
+    from { transform: translateX(calc(100% + 12px)); }
     to { transform: translateX(0); }
 }
 
@@ -1613,7 +1619,7 @@
 .sc-activity-top {
     display: flex;
     align-items: baseline;
-    gap: 0.5rem;
+    gap: 6px;
     flex-wrap: wrap;
 }
 
@@ -1667,10 +1673,17 @@
     color: var(--text-muted);
 }
 
+/* Phones: the floating drawer fills the width (inside small gaps). */
 @media (max-width: 640px) {
+    .sc-drawer-overlay { padding: 8px; }
     .sc-activity-drawer {
         width: 100%;
+        min-width: 0;
+        border-radius: 14px;
     }
+    .sc-activity-drawer .sc-drawer-header,
+    .sc-activity-drawer .sc-drawer-body,
+    .sc-activity-drawer .sc-drawer-footer { padding-left: 0.85rem; padding-right: 0.85rem; }
 }
 
 /*==========RESPONSIVENESS==========*/
@@ -1871,7 +1884,8 @@
     .product-variant-Name > select:nth-of-type(1),
     .product-variant-Name > input,
     .product-variant-Name > label:nth-of-type(2),
-    .product-variant-Name > select:nth-of-type(2) {
+    .product-variant-Name > select:nth-of-type(2),
+    .product-variant-Name > .cs-wrap {
         grid-column: 1;
         grid-row: auto;
     }
@@ -1891,7 +1905,7 @@
     .sc-computed-field {
         flex-direction: column;
         align-items: flex-start;
-        gap: 0.5rem;
+        gap: 6px;
     }
 }
 
@@ -1907,7 +1921,7 @@
 .sc-safety-warning {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: 6px;
     margin: 0 0 10px;
     padding: 9px 12px;
     border-radius: 8px;
@@ -1923,53 +1937,6 @@
 .sc-safety-warning.is-out svg { color: var(--accent-low); }
 
 /* Banner above the table right after such a sale is saved. */
-.sc-safety-alert {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 0 0 10px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid color-mix(in srgb, var(--accent-med) 55%, transparent);
-    border-left: 4px solid var(--accent-med);
-    background: color-mix(in srgb, var(--accent-med) 12%, var(--bg-card));
-    color: var(--text-primary);
-    font-size: 12.5px;
-}
-
-.sc-safety-alert > svg { flex-shrink: 0; color: var(--accent-med); }
-.sc-safety-alert > span { flex: 1; }
-.sc-safety-alert.is-out { border-color: color-mix(in srgb, var(--accent-low) 60%, transparent); border-left-color: var(--accent-low); background: color-mix(in srgb, var(--accent-low) 12%, var(--bg-card)); }
-.sc-safety-alert.is-out > svg { color: var(--accent-low); }
-
-.sc-safety-alert-order {
-    flex-shrink: 0;
-    padding: 6px 12px;
-    border: 0;
-    border-radius: 8px;
-    background: var(--background-icon-active-color);
-    color: var(--icon-active-color);
-    font: inherit;
-    font-weight: 700;
-    font-size: 12px;
-    cursor: pointer;
-}
-
-.sc-safety-alert-order:disabled { opacity: 0.6; cursor: wait; }
-
-.sc-safety-alert-close {
-    display: inline-flex;
-    flex-shrink: 0;
-    padding: 4px;
-    border: 0;
-    background: none;
-    color: var(--text-muted);
-    cursor: pointer;
-}
-
-@media (max-width: 640px) {
-    .sc-safety-alert { flex-wrap: wrap; }
-}
 
 /* Safety stock confirmation ("Do you still want to proceed with this sale?") */
 .sc-confirm-overlay { z-index: 1100; }
@@ -2037,20 +2004,6 @@
 }
 
 /* "Added to today's entry" message after saving */
-.sc-merge-notice {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin: 0 0 10px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-    border-left: 4px solid var(--accent, #E8C547);
-    background: var(--bg-card);
-    color: var(--text-primary);
-    font-size: 12.5px;
-}
 
 /* Row of a product that was deleted: kept as history, not editable. */
 .sc-deleted-tag {
@@ -2076,7 +2029,7 @@
 .sc-pager-buttons {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .sc-pager .sc-add-btn:disabled {
@@ -2123,7 +2076,6 @@
 }
 .sc-pager-arrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .sc-pager-arrow:disabled { opacity: 0.35; cursor: default; }
-
 
 /*==========TOOLBAR BUTTONS ON SMALL SCREENS==========
    Labels never wrap onto two lines; on very small phones the Add / Update /
@@ -2349,7 +2301,6 @@
     .sc-stock-table .sc-qty-input { width: 2.4rem; }
 }
 
-
 /*==========ACTION COLUMN ALWAYS VISIBLE (2026-10-30)==========
    With real data (long names, notes, big numbers) the table can still be a
    little wider than its box, and the last column (Action) was cut off.
@@ -2418,7 +2369,7 @@
 /* Round 2 (2026-11-03): phones keep the search icon on the SAME row as the
    other buttons; opening it fills the free space on that row. */
 @media (max-width: 640px) {
-    .sc-navigation-bar { flex-wrap: wrap; row-gap: 8px; }
+    .sc-navigation-bar { flex-wrap: wrap; row-gap: 6px; }
     .sc-search-wrapper { flex: 1 1 0; min-width: 32px; margin-right: 0; }
     .sc-search-wrapper .sc-search-box.xs-search { width: 32px !important; }
     .sc-search-wrapper .sc-search-box.xs-search:focus-within,
@@ -2436,7 +2387,7 @@
     table.m-folders.sc-stock-table > tbody > tr:has(> td.m-keep):not([data-m-open]) > td.m-keep { grid-row: 1; }
     table.sc-stock-table > tbody > tr:has(> td.m-title):not([data-m-open])::after { grid-row: 1; grid-column: 4; justify-self: end; margin-top: -4px; }
     table.m-folders.sc-stock-table > tbody > tr:not([data-m-open]) > td.m-title { overflow: hidden; }
-    table.m-folders.sc-stock-table > tbody > tr:not([data-m-open]) > td.m-title .sc-name-cell { display: flex !important; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+    table.m-folders.sc-stock-table > tbody > tr:not([data-m-open]) > td.m-title .sc-name-cell { display: flex !important; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
     table.m-folders.sc-stock-table > tbody > tr:not([data-m-open]) > td.m-title .sc-thumb { flex: 0 0 auto; }
     table.m-folders.sc-stock-table > tbody > tr:not([data-m-open]) > td.m-title .sc-product-link {
         display: block !important;
@@ -2451,4 +2402,25 @@
 @media (max-width: 900px) {
     .sc-table tbody td[data-label="Notes"] { flex-wrap: wrap; }
     .sc-table tbody td[data-label="Notes"] .sc-proof-link { display: block; flex-basis: 100%; margin: 4px 0 0; text-align: right; }
+}
+
+/* ==========THEMED DROPDOWNS IN THE STOCK FORM (2026-11-06)==========
+   Product, Variant and Type use the themed dropdown (CustomSelect) instead
+   of the browser's plain list. Same height and text size as the other
+   boxes; the search box inside the list keeps its own plain look. */
+.sc-form-group .sc-form-select .cs-button {
+    min-height: 2.6rem;
+    padding: 0.55rem 0.8rem;
+    font-size: 0.85rem;
+}
+.sc-form-group .sc-form-select .cs-option { font-size: 0.85rem; }
+.sc-form-group .cs-search input,
+.sc-form-group .cs-search input:hover,
+.sc-form-group .cs-search input:focus {
+    width: auto;
+    padding: 4px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
 }

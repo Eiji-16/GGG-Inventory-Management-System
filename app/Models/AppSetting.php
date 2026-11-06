@@ -12,6 +12,9 @@ class AppSetting extends Model
 {
     public const CURRENCIES = ['USD', 'PHP', 'EUR', 'GBP', 'JPY'];
     public const DEFAULT_CURRENCY = 'PHP';
+    /** Name used until the Super Admin chooses another (Settings → System name). */
+    public const DEFAULT_SYSTEM_NAME = 'GGG Inventory Management System';
+    public const SYSTEM_NAME_MAX = 60;
 
     protected $primaryKey = 'key';
     public $incrementing = false;
@@ -47,6 +50,18 @@ class AppSetting extends Model
         $path = static::get('logo');
 
         return $path ? '/branding/logo?v='.substr(md5($path), 0, 10) : null;
+    }
+
+    /**
+     * The system's name (2026-11-06): browser tab, sidebar, login page,
+     * reports, emails and the authenticator app label. Saved in app_settings
+     * under "system_name"; empty means the default name.
+     */
+    public static function systemName(): string
+    {
+        $name = trim((string) static::get('system_name', ''));
+
+        return $name !== '' ? mb_substr($name, 0, self::SYSTEM_NAME_MAX) : self::DEFAULT_SYSTEM_NAME;
     }
 
     /** The currency every screen and report displays amounts in. */

@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import { X, History, Download, TrendingUp, Calculator, Info, Lock } from 'lucide-react';
 import './autoCal.css';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
+import { getSystemName } from '../../systemName';
 import { useCurrency } from '../../CurrencyContext';
 import {
   DEFAULT_SAFETY_STOCK,
@@ -172,7 +174,9 @@ function Field({ id, label, hint, prefix, suffix, error, tag, children, ...input
         <input id={id} type="number" min="0" step="any" inputMode="decimal" {...inputProps} />
         {suffix && <span className="eq-affix eq-suffix">{suffix}</span>}
       </div>
-      {error ? <span className="eq-error" role="alert">{error}</span> : hint && <span className="eq-hint">{hint}</span>}
+      {/* Field errors show as a bottom-right pop-up; the box stays red. */}
+      <PageToast message={error} type="error" />
+      {!error && hint && <span className="eq-hint">{hint}</span>}
       {children}
     </div>
   );
@@ -609,7 +613,7 @@ export default function AutoCalculatorDesign({
         .formula { margin-top: 16px; padding: 10px 12px; border: 1px solid #e5e9ed; border-radius: 8px; background: #fafbfc; }
         @media print { body { padding: 16mm; } }
       </style></head><body><main>
-      <header><div class="brand">GGG Inventory Management System</div><h1>Economic Order Quantity Report</h1>
+      <header><div class="brand">${esc(getSystemName())}</div><h1>Economic Order Quantity Report</h1>
       <div class="muted">${esc(selectedProduct?.name || 'Manual calculation')}</div></header>
       <div class="hero"><span class="muted">Recommended order quantity</span><b>${esc(fmt(result.recommendedOrder))} units per order</b>
       <span>When stock drops to <strong>${esc(fmt(result.reorderPoint))} units</strong>, reorder ${esc(fmt(result.recommendedOrder))} units.</span></div>
@@ -651,19 +655,22 @@ export default function AutoCalculatorDesign({
         </div>
       </div>
 
-      {!activeForecastContext && demandSource === 'history' && forecastFallback && (
-        <div className="eq-banner" role="status">
-          <TrendingUp size={15} />
-          <span><strong>No forecast yet — using actual sales.</strong> {forecastFallback} Annual demand below is the last 12 months of recorded sales, not a forecast.</span>
-        </div>
-      )}
-
-      {activeForecastContext && (
-        <div className="eq-banner" role="status">
-          <TrendingUp size={15} />
-          <span><strong>Annual demand from forecast</strong> ({selectedProduct?.name}, {activeForecastContext.forecastPeriod?.slice(0, 7)}): {forecastLine}</span>
-        </div>
-      )}
+      {/* Forecast notes show as a bottom-right pop-up (2026-11-06). They show
+          again when another product is chosen (the text changes). */}
+      <PageToast
+        type="warning"
+        title="No forecast yet — using actual sales."
+        message={!activeForecastContext && demandSource === 'history' && forecastFallback
+          ? `${forecastFallback} Annual demand below is the last 12 months of recorded sales, not a forecast.`
+          : ''}
+      />
+      <PageToast
+        type="info"
+        title="Annual demand from forecast"
+        message={activeForecastContext
+          ? `${selectedProduct?.name || 'This product'}, ${activeForecastContext.forecastPeriod?.slice(0, 7) || ''}: ${forecastLine}`
+          : ''}
+      />
 
       <div className="eq-grid eq-grid-single">
         {/* ===== INPUTS ===== */}
@@ -734,6 +741,7 @@ export default function AutoCalculatorDesign({
             </div>
             {selectedProduct && allowSaveCosts && (
               <div className="eq-cost-save eq-span-2">
+                <PageToast message={costSave.state === 'error' ? costSave.text : ''} type="error" />
                 {savedCosts ? (
                   <span className="eq-cost-save-ok">✓ These are {selectedProduct.name}’s saved costs</span>
                 ) : (
@@ -741,8 +749,8 @@ export default function AutoCalculatorDesign({
                     {costSave.state === 'saving' ? 'Saving…' : `Save these costs as default for ${selectedProduct.name}`}
                   </button>
                 )}
-                {costSave.text && costSave.state !== 'saved' && (
-                  <span className={costSave.state === 'error' ? 'eq-error' : 'eq-cost-save-ok'} role="status">{costSave.text}</span>
+                {costSave.text && costSave.state !== 'saved' && costSave.state !== 'error' && (
+                  <span className="eq-cost-save-ok" role="status">{costSave.text}</span>
                 )}
               </div>
             )}

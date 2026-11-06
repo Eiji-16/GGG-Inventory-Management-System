@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import { Search, Plus, Edit, Trash2, X, Package, Info, Download, AlertTriangle, Upload, Image as ImageIcon, ArrowUpDown, Truck } from 'lucide-react';
 
@@ -694,19 +695,16 @@ function ProductSupplier({
         />
       ) : (
     <div className="ps-table-parent">
-      {exportError && <p className="ps-export-error" role="alert">{exportError}</p>}
-      {pageMessage && (
-        <p className="ps-export-error ps-page-message" role="alert">
-          {pageMessage}
-          <button type="button" className="ps-page-message-close" onClick={() => setPageMessage('')} aria-label="Dismiss message">×</button>
-        </p>
-      )}
+      <PageToast message={exportError} type="error" onShown={() => setExportError('')} />
+      {/* Page messages show as a bottom-right pop-up (2026-11-06). */}
+      <PageToast message={pageMessage} type="warning" onShown={() => setPageMessage('')} />
       {/* ===== ONE TOOLBAR ROW: tabs, then search bar, then buttons ===== */}
       <div className="ps-navigation-bar">
         {sectionTabs}
         <div className="ps-search-wrapper">
           {/* Preset searches: the categories your products already use. */}
           <SearchSuggestions
+            recentKey="products"
             query={query}
             suggestions={productsFromDatabase.map((product) => product.category)}
             onPick={setQuery}
@@ -715,6 +713,7 @@ function ProductSupplier({
             <div className="ps-search-box xs-search">
               <Search size={16} className="ps-search-icon" />
               <input
+                autoComplete="off"
                 type="search"
                 placeholder="Search products…"
                 value={query}
@@ -1332,7 +1331,7 @@ function ProductSupplier({
                 </section>
               </div>
 
-              {formError && <p className="ps-export-error ps-form-error" role="alert">{formError}</p>}
+              <PageToast message={formError} type="error" onShown={() => setFormError('')} />
               <div className="ps-modal-actions">
                 <button type="button" className="ps-modal-cancel-btn" onClick={closeModal}>
                   Cancel

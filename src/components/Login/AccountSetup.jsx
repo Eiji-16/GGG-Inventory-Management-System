@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { PageToast } from '../../utils/toast';
 import {
     ArrowRight, Boxes, Check, CircleAlert, Copy, Eye, EyeOff, LinkIcon, LockKeyhole, ShieldCheck, Smartphone, UserCheck,
 } from 'lucide-react';
 import OtpInput from './OtpInput';
+import { useSystemName } from '../../systemName';
 import { qrDataUrl } from '../../utils/qrCode';
 import './authModal.css';
 
@@ -45,6 +47,7 @@ async function postJson(url, payload) {
 }
 
 export default function AccountSetup({ token }) {
+    const systemName = useSystemName();   // Settings → System name
     const [status, setStatus] = useState('checking');   // checking | invalid | ready
     const [linkError, setLinkError] = useState('');
     const [info, setInfo] = useState(null);
@@ -130,7 +133,7 @@ export default function AccountSetup({ token }) {
             <section className={`am-modal${step === 'authenticator' ? ' is-wide' : ''}`} aria-labelledby="am-setup-title">
                 <div className="am-brand">
                     <span className="am-brand-mark" aria-hidden="true"><Boxes size={17} /></span>
-                    <span><strong>Global Growth Guide</strong>Inventory Management System</span>
+                    <span><strong>Global Growth Guide</strong>{systemName}</span>
                 </div>
 
                 {status === 'checking' && (
@@ -169,7 +172,7 @@ export default function AccountSetup({ token }) {
                                 <div className="am-icon is-success" aria-hidden="true"><UserCheck size={24} /></div>
                                 <h1 id="am-setup-title" className="am-title">Welcome, {info.name}</h1>
                                 <p className="am-text">Your identity is confirmed for <strong>{info.email}</strong> ({info.role}). Choose the password you’ll use to sign in.</p>
-                                {error && <p className="am-alert is-error" role="alert"><CircleAlert size={14} aria-hidden="true" /> {error}</p>}
+                                <PageToast message={error} type="error" onShown={() => setError('')} />
                                 <form className="am-form" onSubmit={toAuthenticator}>
                                     <label className="am-label" htmlFor="am-setup-pass">New password</label>
                                     <div className="am-input">
@@ -218,7 +221,7 @@ export default function AccountSetup({ token }) {
                                         </div>
                                     </div>
                                 </div>
-                                {error && <p className="am-alert is-error" role="alert" style={{ marginTop: 14 }}><CircleAlert size={14} aria-hidden="true" /> {error}</p>}
+                                <PageToast message={error} type="error" onShown={() => setError('')} />
                                 <form className="am-form" style={{ marginTop: 14 }} onSubmit={(event) => { event.preventDefault(); finish(); }}>
                                     <label className="am-label" htmlFor="am-setup-code-0">Code from the app</label>
                                     <OtpInput

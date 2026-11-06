@@ -128,7 +128,7 @@
 /* ===== Form side ===== */
 .lg-form-side { min-width: 0; display: flex; align-items: center; justify-content: center; padding: 48px 52px; background: #fff; }
 .lg-form-wrap { width: 100%; max-width: 23rem; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 26px; }
-.lg-heading { display: grid; gap: 8px; }
+.lg-heading { display: grid; gap: 6px; }
 .lg-eyebrow {
     display: inline-flex;
     align-items: center;
@@ -224,7 +224,7 @@
 .lg-error {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: 6px;
     margin: 0;
     padding: 10px 12px;
     font-size: 12.5px;
@@ -241,7 +241,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     height: 50px;
     margin-top: 4px;
     font: inherit;

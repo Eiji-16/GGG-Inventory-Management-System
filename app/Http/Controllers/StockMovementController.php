@@ -77,6 +77,13 @@ class StockMovementController extends Controller
         // product is answered, so close it.
         if ($movement->movement_type === 'in' && ! $movement->is_adjustment) {
             \App\Models\RestockRequest::closeForProduct($movement->product_id, $request->user()?->id);
+            // The delivery arrived, so the product is no longer "In Restock
+            // Report, waiting for delivery" (Reorder List). Received already
+            // did this; a Stock In from Stock Control now does it too.
+            $code = Product::whereKey($movement->product_id)->value('code');
+            if ($code) {
+                \App\Models\AppSetting::query()->whereKey(self::restockReportKey($code))->delete();
+            }
         }
         $this->recordMovementActivity(
             $movement->mergedFromQty !== null ? 'merge' : 'add',
@@ -99,7 +106,7 @@ class StockMovementController extends Controller
     /*
      * ===== RECEIVED (Reorder List, 2026-11-03) =====
      * POST /api/reorder/receive — multipart form:
-     *   productId, qty, unitPrice, date, notes, photo (required),
+     *   productId, qty, unitPrice, date, notes, photo (optional),
      *   choice = suggested | custom | report, suggestedQty (optional)
      * The delivery is saved as a normal Stock In (same rules as Stock
      * Control, including the same-day merge) and the proof photo is kept on
@@ -109,11 +116,11 @@ class StockMovementController extends Controller
     public function receive(Request $request): JsonResponse
     {
         $request->validate([
-            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+            // Optional since 2026-11-06: a delivery can be recorded without a picture.
+            'photo' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
             'choice' => ['nullable', 'in:suggested,custom,report'],
             'suggestedQty' => ['nullable', 'integer', 'min:0', 'max:9999'],
         ], [
-            'photo.required' => 'Add a photo of the delivery as proof that it arrived.',
             'photo.image' => 'The proof must be a picture (JPG, PNG, WEBP or GIF).',
             'photo.mimes' => 'The proof must be a picture (JPG, PNG, WEBP or GIF).',
             'photo.max' => 'The photo is too large. Use a picture up to 5 MB.',
@@ -130,7 +137,7 @@ class StockMovementController extends Controller
                 'report' => 'Used the saved Restock Report quantity',
                 default => 'Custom quantity',
             },
-            'Proof photo attached',
+            $request->hasFile('photo') ? 'Proof photo attached' : null,
         ]);
         $request->merge(['notes' => mb_substr(implode('; ', array_filter([$note, ...$extra])), 0, 255)]);
 
@@ -138,19 +145,22 @@ class StockMovementController extends Controller
         $body = $response->getData(true);
         $movementId = (int) ($body['id'] ?? 0);
 
+        $path = null;
         $file = $request->file('photo');
-        $extension = strtolower($file->guessExtension() ?: $file->getClientOriginalExtension() ?: 'jpg');
-        $path = $file->storeAs(
-            'delivery-proofs/'.$movementId,
-            now()->format('Ymd-His').'-'.\Illuminate\Support\Str::random(6).'.'.$extension,
-            'local'
-        );
+        if ($file) {
+            $extension = strtolower($file->guessExtension() ?: $file->getClientOriginalExtension() ?: 'jpg');
+            $path = $file->storeAs(
+                'delivery-proofs/'.$movementId,
+                now()->format('Ymd-His').'-'.\Illuminate\Support\Str::random(6).'.'.$extension,
+                'local'
+            );
+        }
 
         $product = Product::where('code', $request->input('productId'))->first();
         if ($product) {
             \App\Models\AppSetting::query()->whereKey(self::restockReportKey($product->code))->delete();
         }
-        ActivityLog::record('stock.received', "Received {$request->input('qty')} × ".($product?->name ?? 'a product').' (proof photo attached)', 'boxes', [
+        ActivityLog::record('stock.received', "Received {$request->input('qty')} × ".($product?->name ?? 'a product').($path ? ' (proof photo attached)' : ''), 'boxes', [
             'productId' => $product?->code,
             'product' => $product?->name,
             'movementId' => $movementId,

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import { CircleAlert, Smartphone, X } from 'lucide-react';
 import OtpInput from './OtpInput';
@@ -67,7 +68,7 @@ export default function TwoFactorPrompt({ email, onSuccess, onCancel }) {
                     <p className="am-text">
                         Open <strong>Google Authenticator</strong> or <strong>Microsoft Authenticator</strong> on your phone and type the 6-digit code for <strong>{email}</strong>.
                     </p>
-                    {error && <p className="am-alert is-error" role="alert"><CircleAlert size={14} aria-hidden="true" /> {error}</p>}
+                    <PageToast message={error} type="error" onShown={() => setError('')} />
                     <form className="am-form" onSubmit={(event) => { event.preventDefault(); submit(); }}>
                         <OtpInput
                             idPrefix="am-2fa"

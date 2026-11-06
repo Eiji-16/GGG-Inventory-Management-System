@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Briefcase, CircleAlert, Mail, MailCheck, UserPlus, UserRound, X } from 'lucide-react';
 import './authModal.css';
@@ -73,7 +74,7 @@ export default function RequestAccess({ onClose }) {
                         <div className="am-icon" aria-hidden="true"><UserPlus size={24} /></div>
                         <h2 id="am-request-title" className="am-title">Request account access</h2>
                         <p className="am-text">No account yet? Send a request. Once the Super Admin approves it, you’ll get an email to finish your setup.</p>
-                        {error && <p className="am-alert is-error" role="alert"><CircleAlert size={14} aria-hidden="true" /> {error}</p>}
+                        <PageToast message={error} type="error" onShown={() => setError('')} />
                         <form className="am-form" onSubmit={submit}>
                             <label className="am-label" htmlFor="am-req-name">Full name</label>
                             <div className="am-input">

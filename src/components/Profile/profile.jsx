@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { PageToast } from '../../utils/toast';
 import {
   User,
   Mail,
@@ -311,7 +312,7 @@ export default function Profile() {
                 Remove photo
               </button>
             )}
-            {photoError && <p className="pf-inline-error" role="alert">{photoError}</p>}
+            <PageToast message={photoError} type="error" onShown={() => setPhotoError('')} />
             <span className={`pf-role-pill pf-role-${(user.role || '').replace(/\s+/g, '')}`}>
               <Shield size={12} />
               {user.role}
@@ -339,7 +340,7 @@ export default function Profile() {
           <h3>Account Details</h3>
           <p className="pf-sub">Contact information tied to this account</p>
 
-          {saveError && <p className="pf-inline-error" role="alert">{saveError}</p>}
+          <PageToast message={saveError} type="error" onShown={() => setSaveError('')} />
 
           <div className="pf-field-grid">
             <div className="pf-field">
@@ -476,8 +477,8 @@ export default function Profile() {
                 Confirm new password
                 <input name="password_confirmation" type="password" autoComplete="new-password" minLength={8} required />
               </label>
-              {pwdError && <p className="pf-inline-error" role="alert">{pwdError}</p>}
-              {pwdSuccess && <p className="pf-inline-success" role="status">{pwdSuccess}</p>}
+              <PageToast message={pwdError} type="error" onShown={() => setPwdError('')} />
+              <PageToast message={pwdSuccess} type="success" onShown={() => setPwdSuccess('')} />
               <div className="pf-modal-actions">
                 <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" onClick={() => setShowPwd(false)}>Cancel</button>
                 <button type="submit" className="pf-btn pf-btn-primary pf-btn-sm" disabled={pwdSaving}>

@@ -170,7 +170,7 @@ select:not([multiple]):focus-visible {
 }
 
 /* ===== 7. DARK THEMES: card surfaces get a faint top light edge ===== */
-:root:is([data-theme="midnight-blue"], [data-theme="graphite"], [data-theme="emerald"], [data-theme="magenta"], [data-theme="ember"])
+:root:is([data-theme="midnight-blue"], [data-theme="graphite"], [data-theme="emerald"], [data-theme="magenta"], [data-theme="ember"], [data-theme="noir"])
     .parent.db-grid > .card:not(.db-tone):not(:hover) {
     box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }

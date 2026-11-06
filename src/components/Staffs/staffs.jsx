@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import {
   Users,
@@ -14,9 +15,8 @@ import {
   Archive,
   UserRoundPlus,
   Trash2,
-  Camera,
-  ImageOff,
   KeyRound,
+  UserPlus,
 } from 'lucide-react';
 import './staff.css';
 import AccountRequests from './AccountRequests';
@@ -61,6 +61,10 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
   const [isAccountActionLoading, setIsAccountActionLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeactivated, setShowDeactivated] = useState(false);
+  // Tabs (Super Admin, 2026-11-06): 'accounts' | 'requests' — same style as Stock | History.
+  const [staffView, setStaffView] = useState('accounts');
+  const [requestCount, setRequestCount] = useState(0);
+  const showRequests = isSuperAdmin && staffView === 'requests';
   const [createError, setCreateError] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
@@ -482,22 +486,14 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
 
   return (
     <div className="st-root">
-      {(loadError || actionError) && (
+      {loadError && (
         <div className="st-create-account-error" role="alert" style={{ marginBottom: 12 }}>
-          {loadError || actionError}
+          {loadError}
         </div>
       )}
-      {actionMessage && (
-        createPortal(
-          <div className="st-action-success st-action-toast" role="status" aria-live="polite">
-            {actionMessage}
-            <button type="button" aria-label="Dismiss message" onClick={() => setActionMessage('')}>
-              <X size={14} />
-            </button>
-          </div>,
-          document.body,
-        )
-      )}
+      <PageToast message={actionError} type="error" onShown={() => setActionError('')} />
+      {/* Page messages show as a bottom-right pop-up (2026-11-06). */}
+      <PageToast message={actionMessage} type="success" onShown={() => setActionMessage('')} />
 
       {/* ===== KPI CARDS ===== */}
       <div className="st-kpi-row">
@@ -524,11 +520,24 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
         </div>
       </div>
 
-      {/* ===== SEARCH ===== */}
+      {/* ===== TABS + SEARCH ===== */}
       <div className="st-controls-bar">
+        {isSuperAdmin && (
+          <div className="st-view-tabs" role="tablist" aria-label="Staffs view">
+            <button type="button" role="tab" aria-selected={!showRequests} className={!showRequests ? 'is-active' : ''} onClick={() => setStaffView('accounts')}>
+              <Users size={13} aria-hidden="true" /> Accounts
+            </button>
+            <button type="button" role="tab" aria-selected={showRequests} className={showRequests ? 'is-active' : ''} onClick={() => { setMenu(null); setStaffView('requests'); }}>
+              <UserPlus size={13} aria-hidden="true" /> Account requests
+              {requestCount > 0 && <span className="st-view-tab-count">{requestCount}</span>}
+            </button>
+          </div>
+        )}
+        {!showRequests && (<>
         <div className="st-search-box xs-search">
           <Search size={16} className="st-search-icon" />
           <input
+            autoComplete="off"
             type="text"
             className="st-search-input"
             placeholder={`Search ${showDeactivated ? 'deactivated ' : ''}staff by name, email or role…`}
@@ -570,6 +579,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
             </button>
           )}
         </div>
+        </>)}
       </div>
 
       {canManage && showCreateModal && createPortal(
@@ -626,7 +636,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
                   </select>
                 </label>
               </div>
-              {createError && <p className="st-create-account-error" role="alert">{createError}</p>}
+              <PageToast message={createError} type="error" onShown={() => setCreateError('')} />
               <div className="st-modal-actions">
                 <button
                   type="button"
@@ -646,10 +656,19 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
         document.body
       )}
 
-      {/* ===== ACCOUNT REQUESTS (Super Admin) ===== */}
-      {isSuperAdmin && !showDeactivated && <AccountRequests onChanged={() => window.dispatchEvent(new Event('ggg-account-requests-changed'))} />}
+      {/* ===== ACCOUNT REQUESTS TAB (Super Admin) =====
+          Stays mounted while the Accounts tab is open so the tab badge keeps
+          counting new requests; it only draws its table on its own tab. */}
+      {isSuperAdmin && (
+        <AccountRequests
+          hidden={!showRequests}
+          onCount={setRequestCount}
+          onChanged={() => window.dispatchEvent(new Event('ggg-account-requests-changed'))}
+        />
+      )}
 
       {/* ===== STAFF TABLE ===== */}
+      {!showRequests && (
       <div
         key={showDeactivated ? 'deactivated-accounts' : 'active-accounts'}
         className="st-table-card st-accounts-view"
@@ -747,6 +766,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
           </table>
         </div>
       </div>
+      )}
 
       {/* Hidden picker for "Add / Change photo" in the row menu. */}
       {canManage && (
@@ -917,11 +937,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
                 </label>
               )}
 
-              {accountActionError && (
-                <div className="st-create-account-error" role="alert">
-                  {accountActionError}
-                </div>
-              )}
+              <PageToast message={accountActionError} type="error" onShown={() => setAccountActionError('')} />
             </div>
             <footer className="st-account-confirm-actions">
               <button

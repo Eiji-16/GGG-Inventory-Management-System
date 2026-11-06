@@ -2,7 +2,7 @@
 .cs-button {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
     min-height: 38px;
     padding: 7px 10px 7px 11px;
@@ -56,7 +56,7 @@
 .cs-option {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     min-height: 34px;
     padding: 6px 10px;
     color: var(--dropdown-menu-text);
@@ -70,6 +70,43 @@
 .cs-check { width: 14px; height: 14px; flex-shrink: 0; fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .cs-empty { padding: 10px; color: var(--text-muted); font-size: 12px; }
 .cs-align-right .cs-menu { left: auto; right: 0; }
+
+/* Search box at the top of long lists (searchable, 2026-11-06). It stays
+   visible while the list scrolls under it. */
+.cs-menu.has-search { padding-top: 0; }
+.cs-search {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 -4px 4px;
+    padding: 8px 10px;
+    background: var(--dropdown-menu-bg);
+    border-bottom: 1px solid var(--dropdown-menu-border);
+}
+.cs-search svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: var(--text-muted);
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+.cs-search input {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12.5px;
+}
+.cs-search input::placeholder { color: var(--text-muted); }
 
 @media (prefers-reduced-motion: reduce) {
     .cs-menu { animation: none; }

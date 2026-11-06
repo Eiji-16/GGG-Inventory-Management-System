@@ -1,4 +1,5 @@
 import './index.css';
+import { PageToast } from '../../utils/toast';
 import './login.css';
 import { useState } from 'react';
 import {
@@ -7,6 +8,7 @@ import {
 import ResetPass from './ResetPass/resetPass';
 import TwoFactorPrompt from './TwoFactorPrompt';
 import RequestAccess from './RequestAccess';
+import { useSystemName } from '../../systemName';
 
 /* ===== LOGIN =====
    Same sign-in as before (POST /auth/login, then onLogin(user)); only the
@@ -19,6 +21,8 @@ const FEATURES = [
 ];
 
 function Login({ onLogin }) {
+    // The system's name chosen by the Super Admin (Settings → System name).
+    const systemName = useSystemName();
     const [error, setError] = useState('');
     // Account made by "Approve & Invite" but the email link not clicked yet.
     const [unverifiedEmail, setUnverifiedEmail] = useState('');
@@ -120,7 +124,7 @@ function Login({ onLogin }) {
                         <span className="lg-mark" aria-hidden="true"><Boxes size={20} strokeWidth={2} /></span>
                         <span className="lg-brand-name">
                             <strong>Global Growth Guide</strong>
-                            <small>Inventory Management System</small>
+                            <small>{systemName}</small>
                         </span>
                     </div>
 
@@ -205,9 +209,8 @@ function Login({ onLogin }) {
                                 )}
                             </div>
 
-                            {error && (
-                                <p className="lg-error" role="alert"><TriangleAlert size={14} aria-hidden="true" /> {error}</p>
-                            )}
+                            {/* Error shows as a bottom-right pop-up (2026-11-06). */}
+                            <PageToast message={error} type="error" />
                             {error && unverifiedEmail && (
                                 <div className="lg-verify">
                                     <button type="button" className="lg-link" onClick={resendVerification} disabled={resendState.busy}>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import {
   Download, FileText, X, ChevronRight, ArrowUpRight, Package, Wallet,
@@ -496,7 +497,7 @@ function ReportModal({ section, canExport, onClose }) {
           <div className="r-panel-title">
             <h2 id="r-modal-title">{section.title}</h2>
             <p>{section.note}</p>
-            {exportError && <p role="alert" className="r-modal-error">{exportError}</p>}
+            <PageToast message={exportError} type="error" onShown={() => setExportError('')} />
           </div>
           <div className="r-modal-actions">
             {canExport && (
@@ -629,7 +630,7 @@ export default function ReportsAnalyticsDesign({ safetyStock, refreshKey = 0, is
         </span>
         <Download size={15} className="r-export-tile-go" aria-hidden="true" />
       </button>
-      {exportError && <p role="alert" className="r-modal-error">{exportError}</p>}
+      <PageToast message={exportError} type="error" onShown={() => setExportError('')} />
     </div>
   ) : null;
 

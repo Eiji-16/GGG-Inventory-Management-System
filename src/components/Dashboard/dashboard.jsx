@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { PageToast } from '../../utils/toast';
 import { Package, Boxes, ShieldCheck, ShoppingBag, TrendingUp, TrendingDown, Minus, ArrowUpRight, ChevronRight, RefreshCw, Download } from 'lucide-react';
 import './dashboard.css';
 import { statusPointsFor } from '../../data/safetyStock';
@@ -141,22 +142,28 @@ const KPI_SKELETON = [
   { key: 'sold', label: 'Units Sold This Month', Icon: ShoppingBag, tone: 'violet' },
 ];
 
-/* One KPI card. It is a button because every card opens the related page. */
-function KpiTile({ tone, Icon, label, value, unit, onClick, openLabel, children }) {
+/* One KPI card. It is a button that opens the related page — but only when
+   this role may open that page (Role Access). Otherwise it is a plain card:
+   no arrow, no hover lift, nothing to click (2026-11-06). */
+function KpiTile({ tone, Icon, label, value, unit, onClick, openLabel, canGo = true, children }) {
+  const Tag = canGo ? 'button' : 'div';
   return (
-    <button type="button" className={`db-kpi-tile db-kpi-tile--${tone}`} onClick={onClick} title={openLabel}>
+    <Tag
+      {...(canGo ? { type: 'button', onClick, title: openLabel } : {})}
+      className={`db-kpi-tile db-kpi-tile--${tone}${canGo ? '' : ' is-static'}`}
+    >
       <span className="db-kpi-tile-head">
         <span className="db-kpi-tile-icon" aria-hidden="true"><Icon size={16} strokeWidth={1.9} /></span>
         <span className="db-kpi-tile-label">{label}</span>
-        <span className="db-kpi-tile-go" aria-hidden="true"><ArrowUpRight size={14} strokeWidth={2.2} /></span>
+        {canGo && <span className="db-kpi-tile-go" aria-hidden="true"><ArrowUpRight size={14} strokeWidth={2.2} /></span>}
       </span>
       <span className="db-kpi-tile-value">
         {value}
         {unit && <small>{unit}</small>}
       </span>
       <span className="db-kpi-tile-foot">{children}</span>
-      <span className="db-sr-only">{openLabel}</span>
-    </button>
+      {canGo && <span className="db-sr-only">{openLabel}</span>}
+    </Tag>
   );
 }
 
@@ -278,7 +285,7 @@ const defaultFetchSummary = () => fetch('/api/dashboard/summary', { headers: { A
     return response.json();
   });
 
-function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = true, fetchSummary = defaultFetchSummary, dataRevision = 0 }) {
+function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, safetyStock, isActive = true, fetchSummary = defaultFetchSummary, dataRevision = 0 }) {
   // The other cards (Top Products Sold, units this month) look at the last 12 months.
   const range = 12;
   const [activeCategory, setActiveCategory] = useState(null);
@@ -357,7 +364,14 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
     if (dataRevision > 0 && isActive) loadSummary({ quiet: true });
   }, [dataRevision]);
 
-  const go = (tab, payload = null) => { if (onNavigate) onNavigate(tab, payload); };
+  // Arrows, cards and rows only open pages this role may open (Role Access).
+  const go = (tab, payload = null) => { if (onNavigate && canOpen(tab)) onNavigate(tab, payload); };
+  const canProducts = canOpen('Product-Supplier');
+  const canStock = canOpen('Stock');
+  const canReorder = canOpen('Reorder-Alerts');
+  const canForecast = canOpen('Forecasting');
+  // Props for a row button that opens a page: clickable, or a plain row.
+  const rowLink = (allowed) => (allowed ? {} : { tabIndex: -1, 'aria-disabled': true });
   const derived = useMemo(() => {
     if (!summary) return null;
     const products = summary.products || [];
@@ -718,7 +732,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
   return (
     <main className="dashboard-content-view">
       <div className="dashboard-scroll-container">
-        {error && <p role="alert">{error} Showing the last data loaded.</p>}
+        <PageToast type="warning" message={error ? `${error} Showing the last data loaded.` : ''} />
         <section className="db-kpi-row" aria-label="Inventory summary">
           {/* 1. Products — the size of the catalogue */}
           <KpiTile
@@ -729,6 +743,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             unit={kpi.total === 1 ? 'product' : 'products'}
             onClick={() => go('Product-Supplier', { section: 'products' })}
             openLabel="Open the Products list"
+            canGo={canProducts}
           >
             {kpi.total ? (
               <>
@@ -747,6 +762,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             unit="units"
             onClick={() => go('Stock', { view: 'stock' })}
             openLabel="Open Stock Control"
+            canGo={canStock}
           >
             {kpi.hasEntriesThisMonth ? (
               <>
@@ -772,6 +788,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             unit={kpi.healthyPct == null ? '' : 'in stock'}
             onClick={() => go('Reorder-Alerts')}
             openLabel="Open Reorder List"
+            canGo={canReorder}
           >
             {kpi.total ? (
               <>
@@ -807,6 +824,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
             unit="units"
             onClick={() => go('Forecasting')}
             openLabel="Open Forecasting"
+            canGo={canForecast}
           >
             {kpi.shareOfLastMonth != null ? (
               <>
@@ -983,7 +1001,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                   {(summary.reorderSuggestions || []).length ? ` · ${fmt(summary.reorderSuggestions.length)} product${summary.reorderSuggestions.length === 1 ? '' : 's'}` : ''}
                 </span>
               </div>
-              <button className="db-open-arrow-btn" onClick={() => go('Reorder-Alerts')} aria-label="Open Reorder List" type="button"><OpenArrow /></button>
+              {canReorder && <button className="db-open-arrow-btn" onClick={() => go('Reorder-Alerts')} aria-label="Open Reorder List" type="button"><OpenArrow /></button>}
             </div>
             {(summary.reorderSuggestions || []).length ? (
               <>
@@ -994,7 +1012,8 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                     <button
                       key={item.productId}
                       type="button"
-                      className={`db-order-row is-${tag.level}${index >= reorderVisible ? ' db-fit-hidden' : ''}`}
+                      className={`db-order-row is-${tag.level}${index >= reorderVisible ? ' db-fit-hidden' : ''}${canStock ? '' : ' is-static'}`}
+                      {...rowLink(canStock)}
                       aria-hidden={index >= reorderVisible || undefined}
                       tabIndex={index >= reorderVisible ? -1 : undefined}
                       onClick={() => go('Stock', { highlightProductId: item.productId })}
@@ -1017,7 +1036,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                   );
                 })}
               </div>
-              {summary.reorderSuggestions.length > reorderVisible && (
+              {canReorder && summary.reorderSuggestions.length > reorderVisible && (
                 <button type="button" className="db-list-more" onClick={() => go('Reorder-Alerts')}>
                   View all {fmt(summary.reorderSuggestions.length)} in the Reorder List →
                 </button>
@@ -1034,7 +1053,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
           {/* Supplier Coverage and Inventory by Category: two separate cards
               in the right column beside Sales History. */}
           <div className="coverage-card card">
-            <button className="db-open-arrow-btn db-coverage-open-btn" onClick={() => go('Product-Supplier', { section: 'suppliers' })} aria-label="Open suppliers" type="button"><OpenArrow /></button>
+            {canProducts && <button className="db-open-arrow-btn db-coverage-open-btn" onClick={() => go('Product-Supplier', { section: 'suppliers' })} aria-label="Open suppliers" type="button"><OpenArrow /></button>}
             <div className="db-coverage-section">
               <div className="db-card-titles">
                 <span className="db-card-title">Supplier Coverage</span>
@@ -1083,12 +1102,12 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                     { label: 'Linked products', value: `${fmt(derived.assignedProducts)} of ${fmt(derived.products.length)}`, to: { section: 'products', supplierFilter: 'linked' }, tip: 'Show products that have a supplier' },
                     { label: 'Unassigned', value: fmt(derived.unassignedProducts), warn: derived.unassignedProducts > 0, to: { section: 'products', supplierFilter: 'none' }, tip: 'Show products without a supplier' },
                   ].map((row) => (
-                    <button key={row.label} type="button" className="db-cov-row" onClick={() => go('Product-Supplier', row.to)} title={row.tip}>
+                    <button key={row.label} type="button" className={`db-cov-row${canProducts ? '' : ' is-static'}`} onClick={() => go('Product-Supplier', row.to)} title={canProducts ? row.tip : undefined} {...rowLink(canProducts)}>
                       <span className="db-cov-text">
                         <span className="db-cov-label">{row.label}</span>
                         <span className={`db-cov-value${row.warn ? ' is-warn' : ''}`}>{row.value}</span>
                       </span>
-                      <ChevronRight size={14} aria-hidden="true" />
+                      {canProducts && <ChevronRight size={14} aria-hidden="true" />}
                     </button>
                   ))}
                 </div>
@@ -1097,7 +1116,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
           </div>
 
           <div className="category-card card">
-            <button className="db-open-arrow-btn db-coverage-open-btn" onClick={() => go('Product-Supplier', { section: 'products' })} aria-label="Open products" type="button"><OpenArrow /></button>
+            {canProducts && <button className="db-open-arrow-btn db-coverage-open-btn" onClick={() => go('Product-Supplier', { section: 'products' })} aria-label="Open products" type="button"><OpenArrow /></button>}
             <div className="db-category-section">
               <div className="db-card-titles">
                 <span className="db-card-title">Inventory by Category</span>
@@ -1151,7 +1170,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
           </div>
 
           <div className="totalOrder-card card db-tone db-tone-flame">
-            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Stock Movements</span><span className="db-card-sub">Ledger entries · last 7 days</span></div><button className="db-open-arrow-btn" onClick={() => go('Stock', { view: 'history' })} aria-label="Open Stock Control history" type="button"><OpenArrow /></button></div>
+            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Stock Movements</span><span className="db-card-sub">Ledger entries · last 7 days</span></div>{canStock && <button className="db-open-arrow-btn" onClick={() => go('Stock', { view: 'history' })} aria-label="Open Stock Control history" type="button"><OpenArrow /></button>}</div>
             <div className="db-stat-value">{derived.hasMovementData ? <CountUp value={derived.movementCount} /> : '—'}</div>
             {derived.hasMovementData ? (
               <div className="db-col-chart">
@@ -1184,7 +1203,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                 <span className="db-card-title">Recent Activity</span>
                 <span className="db-card-sub">Latest stock entries</span>
               </div>
-              <button className="db-open-arrow-btn" onClick={() => go('Stock', { view: 'history' })} aria-label="Open Stock Control history" type="button"><OpenArrow /></button>
+              {canStock && <button className="db-open-arrow-btn" onClick={() => go('Stock', { view: 'history' })} aria-label="Open Stock Control history" type="button"><OpenArrow /></button>}
             </div>
             {derived.recentActivity.length ? (
               <ul className="db-act-list db-fit-box" ref={activityBoxRef}>
@@ -1197,7 +1216,8 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
                       <button
                         type="button"
                         tabIndex={index >= activityFit ? -1 : undefined}
-                        className="db-act-row"
+                        className={`db-act-row${canStock ? '' : ' is-static'}`}
+                        {...(canStock ? {} : { 'aria-disabled': true })}
                         onClick={() => go('Stock', movement.productId ? { highlightProductId: movement.productId } : null)}
                         data-tip={`${activityVerb(movement)} ${fmt(qty)} unit${qty === 1 ? '' : 's'}\n${movement.productName}${movement.variant ? ` · ${movement.variant}` : ''}\nBy ${person} · ${movement.date || ''}`}
                       >
@@ -1222,7 +1242,7 @@ function Dashboard({ onNavigate, isSuperAdmin = false, safetyStock, isActive = t
 
           {/* ===== TOP PRODUCTS SOLD: photo, name, stock now, units sold ===== */}
           <div className="productSales-card card">
-            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Top Products Sold</span><span className="db-card-sub">Last {range} months · units</span></div><button className="db-open-arrow-btn" onClick={() => go('Forecasting')} aria-label="Open sales history" type="button"><OpenArrow /></button></div>
+            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Top Products Sold</span><span className="db-card-sub">Last {range} months · units</span></div>{canForecast && <button className="db-open-arrow-btn" onClick={() => go('Forecasting')} aria-label="Open sales history" type="button"><OpenArrow /></button>}</div>
             {derived.topProducts.length ? (
               <div className="db-ps" role="table" aria-label="Top products sold">
                 <div className="db-ps-row db-ps-head" role="row">

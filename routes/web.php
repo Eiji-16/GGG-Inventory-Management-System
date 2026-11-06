@@ -5,6 +5,7 @@ use App\Http\Controllers\CalculationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\SystemLogoController;
+use App\Http\Controllers\SystemNameController;
 use Illuminate\Support\Facades\Route;
 
 // Limited to stop password guessing (see AppServiceProvider, "login").
@@ -16,6 +17,10 @@ Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth
 Route::post('/auth/password/otp', [AuthController::class, 'sendPasswordResetOtp'])->middleware('throttle:3,1,otp-send');
 Route::post('/auth/password/otp/verify', [AuthController::class, 'verifyPasswordResetOtp'])->middleware('throttle:10,1,otp-verify');
 Route::post('/auth/password/reset', [AuthController::class, 'resetPasswordWithOtp'])->middleware('throttle:10,1,otp-reset');
+
+// The system's name (Settings): readable by anyone, because the login page
+// and the browser tab show it before sign-in. Changing it is below (Super Admin).
+Route::get('/branding/name', [SystemNameController::class, 'show']);
 
 // 2FA: second step of signing in (authenticator-app code).
 Route::post('/auth/two-factor', [AuthController::class, 'verifyTwoFactor'])->middleware('throttle:10,1,two-factor');
@@ -65,6 +70,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/branding/logo', [SystemLogoController::class, 'show']);
     Route::post('/branding/logo', [SystemLogoController::class, 'store']);
     Route::delete('/branding/logo', [SystemLogoController::class, 'destroy']);
+    // System name: only the Super Admin can change it (checked in the controller).
+    Route::put('/branding/name', [SystemNameController::class, 'update']);
 
 });
 

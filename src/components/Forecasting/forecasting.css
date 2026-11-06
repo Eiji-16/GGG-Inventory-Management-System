@@ -41,8 +41,6 @@
     padding: 8px 0 20px;
 }
 
-
-
 /*==========CONTROLS BAR==========*/
 
 .f-controls-bar {
@@ -319,7 +317,6 @@
     font-size: 11px;
 }
 
-
 /*==========BUTTONS==========*/
 
 .f-btn {
@@ -430,7 +427,6 @@
     transform: none;
 }
 
-
 /*==========WARNING==========*/
 
 .f-warning-banner {
@@ -450,22 +446,11 @@
     border-radius: 8px;
 }
 
-.f-notice-banner {
-    margin-bottom: 12px;
-    padding: 12px 14px;
-    color: var(--text-primary);
-    font-size: 13px;
-    background: rgba(65, 160, 105, 0.12);
-    border: 1px solid rgba(65, 160, 105, 0.3);
-    border-radius: 8px;
-}
-
 .f-warning-banner svg {
     width: 17px;
     height: 17px;
     flex-shrink: 0;
 }
-
 
 /*==========MAIN WORKSPACE==========*/
 
@@ -513,7 +498,7 @@
     flex-direction: column;
     align-items: stretch;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     height: auto;
     min-height: 96px;
     padding: 10px 12px;
@@ -616,7 +601,6 @@
     gap: 12px;
 }
 
-
 /*==========STAT BOXES==========*/
 
 .f-stat-row {
@@ -673,7 +657,6 @@
     font-weight: 700;
 }
 
-
 /*==========CHART==========*/
 
 .f-chart-wrap {
@@ -707,7 +690,7 @@
 .f-forecast-chart {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
     padding: 8px 4px;
 }
@@ -756,7 +739,6 @@
 .f-chart-wrap canvas {
     max-width: 100% !important;
 }
-
 
 /*==========TABLE==========*/
 
@@ -813,11 +795,9 @@
     transition: background 0.15s ease;
 }
 
-
 .f-hist tbody tr:last-child td {
     border-bottom: none;
 }
-
 
 /*==========CONFIDENCE PILL==========*/
 
@@ -871,7 +851,6 @@
     background: var(--accent-high);
 }
 
-
 /*==========FORMULA TAG==========*/
 
 .f-formula-tag {
@@ -892,7 +871,6 @@
 
     white-space: nowrap;
 }
-
 
 /*==========FORECAST RESULT==========*/
 
@@ -937,13 +915,12 @@
     font-weight: 700;
 }
 
-
 /*==========REORDER==========*/
 
 .f-reorder-figure {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: 6px;
 
     padding-top: 4px;
 }
@@ -956,7 +933,6 @@
     font-size: 30px;
     font-weight: 800;
 }
-
 
 /*==========EMPTY STATE==========*/
 
@@ -978,7 +954,6 @@
     opacity: 0.5;
 }
 
-
 /*==========DOWNLOAD ACTIONS==========*/
 
 .f-download-actions {
@@ -994,7 +969,6 @@
     width: 14px;
     height: 14px;
 }
-
 
 /*==========SUMMARY CARD==========*/
 
@@ -1137,7 +1111,6 @@
     overflow-wrap: anywhere;
 }
 
-
 /*==========CARD CHILD ALIGNMENT==========*/
 .f-card > .f-formula-tag,
 .f-card > .f-btn,
@@ -1156,7 +1129,7 @@
 /*==========PRODUCT STATS==========*/
 .f-area-product .f-stat-row {
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .f-area-product .f-stat-box {
@@ -1212,7 +1185,7 @@
 .f-history-page-controls {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .f-history-page-button {
@@ -1753,7 +1726,7 @@
 .f-event-modal-footer {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 6px;
     padding-top: 12px;
     border-top: 1px solid var(--border-color);
 }
@@ -1779,7 +1752,7 @@
     display: grid;
     grid-template-columns: minmax(115px, 1fr) minmax(90px, 1fr) minmax(90px, 1fr) auto;
     align-items: end;
-    gap: 8px;
+    gap: 6px;
     margin: 10px 0;
 }
 
@@ -1935,7 +1908,7 @@
     .f-sales-timeline-bar {
         flex-wrap: wrap;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         padding: 9px 12px;
     }
 
@@ -1983,7 +1956,7 @@
     .f-monthly-table-head,
     .f-monthly-row {
         grid-template-columns: minmax(0, 1fr) minmax(115px, 42%);
-        gap: 8px;
+        gap: 6px;
     }
 
     .f-monthly-table-head.has-events,
@@ -2108,7 +2081,7 @@
     align-items: center;
     justify-content: flex-end;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
 }
 
 .f-sales-save-status {
@@ -2147,7 +2120,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     min-height: 36px;
     padding: 6px 10px;
     color: var(--text-muted);
@@ -2339,7 +2312,7 @@
 
 .f-event-list {
     display: grid;
-    gap: 8px;
+    gap: 6px;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -2451,7 +2424,7 @@
 .f-scope-options {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     margin: 0;
     padding: 0;
     border: 0;
@@ -2735,13 +2708,13 @@
 /* bar chart */
 .fx-chart {
     display: grid;
-    gap: 8px;
+    gap: 6px;
 }
 
 .fx-bars {
     display: flex;
     align-items: stretch;
-    gap: 8px;
+    gap: 6px;
     height: 170px;
     padding: 4px 2px 0;
 }
@@ -2905,7 +2878,7 @@
 .fx-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
 }
 
 .fx-actions .f-btn {
@@ -2977,8 +2950,6 @@
 }
 
 /*==========CARDS==========*/
-
-
 
 /* Phone: fit all five WMA columns without sideways scrolling */
 @media (max-width: 560px) {
@@ -3061,15 +3032,6 @@
     font-size: 12px;
 }
 
-.ps-success {
-    margin: 0;
-    padding: 9px 12px;
-    color: var(--accent-high);
-    font-size: 12.5px;
-    background: rgba(30, 138, 95, 0.12);
-    border-radius: 7px;
-}
-
 .ps-preview { display: grid; gap: 12px; }
 
 .ps-detected {
@@ -3081,7 +3043,7 @@
 .ps-stats {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 8px;
+    gap: 6px;
 }
 
 .ps-stats div {
@@ -3106,7 +3068,7 @@
 .ps-stats .is-warn strong { color: var(--accent-med); }
 .ps-stats .is-bad strong { color: var(--accent-low); }
 
-.ps-issues { display: grid; gap: 8px; }
+.ps-issues { display: grid; gap: 6px; }
 .ps-issue-help { margin: 0; color: var(--text-muted); font-size: 12px; }
 .ps-scroll { max-height: 280px; overflow: auto; }
 
@@ -3143,7 +3105,7 @@
 .ps-grid {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 8px;
+    gap: 6px;
 }
 
 .ps-month {
@@ -3195,7 +3157,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    gap: 6px;
 }
 
 .f-suggest-result {
@@ -3243,7 +3205,7 @@
     border: 1px dashed var(--border-color); border-radius: 8px;
 }
 
-.fx-output-card .fx-output { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.fx-output-card .fx-output { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .fx-output-card .fx-stat { padding: 8px 6px; gap: 0; align-content: center; }
 .fx-output-card .fx-stat span { font-size: 9.5px; letter-spacing: 0.05em; }
 .fx-output-card .fx-stat strong { font-size: 20px; line-height: 1.2; }
@@ -3450,7 +3412,7 @@
     .fx-layout:has(> .ps-intro) > .ps-card:last-child .ps-grid {
         flex: 1 0 auto;
         grid-auto-rows: minmax(64px, 1fr);
-        gap: 8px;
+        gap: 6px;
     }
     .fx-layout:has(> .ps-intro) .ps-month { align-content: center; gap: 6px; padding: 8px 10px; }
     .fx-layout:has(> .ps-intro) .ps-month span { font-size: 11.5px; }
@@ -3480,7 +3442,7 @@
 .ps-manual-controls .ps-year-field { flex: 0 0 92px; }
 .ps-manual-controls .ps-month-field { flex: 0 0 84px; }
 @media (max-width: 640px) {
-    .ps-manual-controls { gap: 8px; }
+    .ps-manual-controls { gap: 6px; }
     .ps-manual-controls .ps-find-field { flex: 1 1 100%; }
     .ps-manual-controls .ps-product-field { flex: 1 1 0; }
     .ps-manual-controls .ps-year-field { flex: 0 0 78px; }
@@ -3525,4 +3487,10 @@
         width: auto !important;
         min-width: 0 !important;
     }
+}
+
+/* Past Sales: nudge the "Find product" search box 2px to the right (2026-11-06).
+   Laptop/desktop only — on phones it fills the whole row. */
+@media (min-width: 641px) {
+    .ps-manual-controls .ps-find-field.xs-search { margin-left: 2px; }
 }

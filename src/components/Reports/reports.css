@@ -337,7 +337,7 @@
 .r-supplier-note {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     font-size: 12px;
     color: var(--text-muted, #888);
     background: var(--overlay-soft);
@@ -349,7 +349,7 @@
 .r-export-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     flex-shrink: 0;
 }
 
@@ -480,7 +480,7 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: flex-start;
-    gap: 8px;
+    gap: 6px;
 }
 .r-overall-toolbar .r-modal-error { margin: 0; }
 .r-overall-left { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
@@ -571,7 +571,7 @@
     padding: 1rem 1.1rem 0.85rem;
     border-bottom: 0.5px solid var(--border-color, rgba(0,0,0,0.15));
 }
-.r-modal-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex-shrink: 0; }
+.r-modal-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex-shrink: 0; }
 .r-modal-close {
     display: grid;
     place-items: center;
@@ -629,14 +629,14 @@
    the export buttons under it. Right: Fast-Moving and Slow-Moving share the
    height equally. So both columns end at exactly the same line. */
 .r-overall { padding-top: 6px; }
-.r-kpi-grid { gap: 8px; margin-bottom: 8px; }
+.r-kpi-grid { gap: 6px; margin-bottom: 8px; }
 .r-kpi-grid .r-kpi-card { padding: 0.6rem 0.9rem; }
 .r-kpi-grid .r-kpi-card .r-kpi-label { margin-bottom: 2px; font-size: 10px; }
 .r-kpi-grid .r-kpi-card .r-kpi-value { font-size: clamp(17px, calc(1.5vw / var(--ui-zoom, 1)), 22px); }
 .r-kpi-grid .r-kpi-card .r-kpi-sub { margin-top: 1px; font-size: 10.5px; }
 
-.r-overall-charts { gap: 8px; align-items: stretch; }
-.r-overall-left { gap: 8px; min-height: 0; }
+.r-overall-charts { gap: 6px; align-items: stretch; }
+.r-overall-left { gap: 6px; min-height: 0; }
 .r-overall-left .r-overall-chart {
     flex: 1 1 auto;
     min-height: 0;
@@ -654,7 +654,7 @@
 .r-overall-fs {
     display: grid;
     grid-template-rows: 1fr 1fr;
-    gap: 8px;
+    gap: 6px;
     min-height: 0;
 }
 .r-overall-fs .r-overall-chart {
@@ -726,7 +726,7 @@
 .r-kpi-tile--warn   { --kpi-accent: var(--accent-med); }
 .r-kpi-tile--bad    { --kpi-accent: var(--accent-low); }
 
-.r-kpi-tile-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.r-kpi-tile-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .r-kpi-tile-head .r-kpi-label {
     margin: 0 !important;
     min-width: 0;
@@ -770,7 +770,7 @@
 .r-overall-toolbar {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: 6px;
 }
 .r-overall-toolbar .r-modal-error { grid-column: 1 / -1; }
 .r-export-tile {
@@ -870,7 +870,7 @@
         "mv mv fa fa"
         "mv mv re re"
         "pd xl re re";
-    gap: 8px;
+    gap: 6px;
 }
 .r-bento-k1 { grid-area: k1; }
 .r-bento-k2 { grid-area: k2; }
@@ -1082,7 +1082,7 @@
 /* Round 3 (2026-11-03): phones use the space — the six small number cards
    sit two per row (compact); charts and Stock Health stay full width. */
 @media (max-width: 640px) {
-    .r-bento { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px; }
+    .r-bento { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 6px; }
     .r-bento > * { grid-column: 1 / -1 !important; }
     .r-bento > .r-kpi-tile:not(.r-health-tile) { grid-column: auto !important; }
     .r-bento .r-export-tile { grid-column: auto !important; }

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, ChevronDown, Clock3, MailCheck, RefreshCw, Send, UserPlus, XCircle } from 'lucide-react';
+import { PageToast } from '../../utils/toast';
+import { CheckCircle2, Clock3, MailCheck, RefreshCw, Send, UserPlus, XCircle } from 'lucide-react';
 
 /* ===== ACCOUNT REQUESTS (Super Admin, Staffs page, 2026-11-03) =====
    People who clicked "Request Account Access" on the login page.
@@ -25,14 +26,17 @@ const hoursLeft = (iso) => {
   return h >= 1 ? `${h} h left` : `${Math.max(1, Math.round(ms / 60000))} min left`;
 };
 
-export default function AccountRequests({ onChanged }) {
+/* 2026-11-06: shown as its own tab on the Staffs page ("Accounts | Account
+   requests") as one table: waiting requests first, finished ones below.
+   onCount(n) tells the page how many are waiting (badge on the tab);
+   hidden keeps it loading in the background while the Accounts tab is open. */
+export default function AccountRequests({ onChanged, onCount, hidden = false }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(null);   // { type, text }
   const [busyId, setBusyId] = useState(null);
   const [roles, setRoles] = useState({});        // request id → 'staff' | 'admin'
-  const [showDone, setShowDone] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -88,16 +92,19 @@ export default function AccountRequests({ onChanged }) {
   const done = requests.filter((r) => r.status === 'completed' || r.status === 'rejected');
   const pendingCount = requests.filter((r) => r.status === 'pending').length;
 
-  if (loading && !requests.length) return null;
-  if (!requests.length && !error) return null;
+  useEffect(() => { onCount?.(pendingCount); }, [pendingCount]); // badge on the tab
+
+  if (hidden) return <PageToast message={notice?.text} type={notice?.type === 'error' ? 'error' : 'success'} onShown={() => setNotice(null)} />;
+
+  const rows = [...open, ...done];
 
   return (
-    <section className="st-requests" aria-labelledby="st-requests-title">
-      <div className="st-requests-head">
-        <span className="st-requests-icon" aria-hidden="true"><UserPlus size={16} /></span>
+    <section className="st-table-card st-requests-view" aria-labelledby="st-requests-title">
+      <PageToast message={notice?.text} type={notice?.type === 'error' ? 'error' : 'success'} onShown={() => setNotice(null)} />
+      <div className="st-table-heading st-requests-heading">
         <div>
           <h3 id="st-requests-title">
-            Account requests
+            <UserPlus size={16} aria-hidden="true" /> Account requests
             {pendingCount > 0 && <span className="st-requests-badge">{pendingCount} new</span>}
           </h3>
           <p className="hint-text">From “Request Account Access” on the login page. Approve & Invite creates the account at once and emails a verification link (valid 24 hours). The person can sign in after verifying their email, setting a password and an authenticator app.</p>
@@ -106,82 +113,81 @@ export default function AccountRequests({ onChanged }) {
       </div>
 
       {error && <p className="st-create-account-error" role="alert">{error}</p>}
-      {notice && <p className={notice.type === 'error' ? 'st-create-account-error' : 'st-requests-ok'} role="status">{notice.text}</p>}
 
-      {error ? null : open.length === 0 ? (
-        <p className="st-requests-empty">No requests waiting.</p>
-      ) : (
-        <ul className="st-requests-list">
-          {open.map((request) => {
-            const meta = STATUS[request.status];
-            const left = request.status === 'approved' ? hoursLeft(request.linkExpiresAt) : null;
-            return (
-              <li key={request.id} className={`st-request ${meta.cls}`}>
-                <div className="st-request-who">
-                  <strong>{request.name}</strong>
-                  <span>{request.email}</span>
-                  <small>{request.department || '—'} · asked {when(request.createdAt)}</small>
-                </div>
-                <span className={`st-request-status ${meta.cls}`}><meta.Icon size={12} aria-hidden="true" /> {meta.label}</span>
-                {request.status === 'pending' ? (
-                  <div className="st-request-actions">
-                    <label className="st-request-role">
-                      <span>Role</span>
-                      <select
-                        value={roles[request.id] || 'staff'}
-                        onChange={(event) => setRoles((prev) => ({ ...prev, [request.id]: event.target.value }))}
-                        disabled={busyId === request.id}
-                      >
-                        <option value="staff">Staff</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </label>
-                    <button type="button" className="st-create-account-button" onClick={() => act(request, 'approve')} disabled={busyId === request.id}>
-                      <Send size={14} aria-hidden="true" /> {busyId === request.id ? 'Sending…' : 'Approve & Invite'}
-                    </button>
-                    <button type="button" className="st-request-reject" onClick={() => act(request, 'reject')} disabled={busyId === request.id}>Reject</button>
-                  </div>
-                ) : (
-                  <div className="st-request-actions">
-                    <small className="st-request-link">
-                      As {request.role === 'admin' ? 'Admin' : 'Staff'} · {left === 'expired' ? 'verification link expired' : `verification link ${left}`}{request.linkOpened ? ' · opened' : ''}
-                    </small>
-                    <button type="button" className="st-deactivated-button" onClick={() => act(request, 'resend')} disabled={busyId === request.id}>
-                      <RefreshCw size={14} aria-hidden="true" /> Send link again
-                    </button>
-                    <button type="button" className="st-request-reject" onClick={() => act(request, 'reject')} disabled={busyId === request.id} title="Cancel: the unverified account moves to the Trash Bin">Cancel</button>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      {done.length > 0 && (
-        <div className="st-requests-done">
-          <button type="button" className="st-requests-toggle" onClick={() => setShowDone((v) => !v)} aria-expanded={showDone}>
-            <ChevronDown size={14} aria-hidden="true" className={showDone ? 'is-open' : ''} /> Finished requests ({done.length})
-          </button>
-          {showDone && (
-            <ul className="st-requests-list is-compact">
-              {done.map((request) => {
-                const meta = STATUS[request.status];
-                return (
-                  <li key={request.id} className={`st-request ${meta.cls}`}>
-                    <div className="st-request-who">
+      <div className="st-table-scroll">
+        <table className="st-table st-requests-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Department</th>
+              <th>Asked</th>
+              <th>Status</th>
+              <th className="st-th-actions">Details / Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && !requests.length ? (
+              <tr><td colSpan={5} className="st-empty">Loading account requests…</td></tr>
+            ) : rows.length === 0 ? (
+              <tr><td colSpan={5} className="st-empty">{error ? 'Could not load the requests.' : 'No account requests yet.'}</td></tr>
+            ) : rows.map((request) => {
+              const meta = STATUS[request.status] || STATUS.pending;
+              const left = request.status === 'approved' ? hoursLeft(request.linkExpiresAt) : null;
+              const busy = busyId === request.id;
+              return (
+                <tr key={request.id} className={`st-request-row ${meta.cls}`}>
+                  <td className="st-cell-name" data-label="Name">
+                    <span className="st-request-who">
                       <strong>{request.name}</strong>
                       <span>{request.email}</span>
-                    </div>
+                    </span>
+                  </td>
+                  <td className="st-cell-muted" data-label="Department">{request.department || '—'}</td>
+                  <td className="st-cell-muted" data-label="Asked">{when(request.createdAt) || '—'}</td>
+                  <td className="st-cell-status" data-label="Status">
                     <span className={`st-request-status ${meta.cls}`}><meta.Icon size={12} aria-hidden="true" /> {meta.label}</span>
-                    <small className="st-request-link">{request.status === 'completed' ? `Set up ${when(request.completedAt)}` : `By ${request.reviewedBy || 'Super Admin'} · ${when(request.reviewedAt)}`}</small>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      )}
+                  </td>
+                  <td className="st-cell-actions" data-label="Details / Actions">
+                    {request.status === 'pending' ? (
+                      <div className="st-request-actions">
+                        <label className="st-request-role">
+                          <span>Role</span>
+                          <select
+                            value={roles[request.id] || 'staff'}
+                            onChange={(event) => setRoles((prev) => ({ ...prev, [request.id]: event.target.value }))}
+                            disabled={busy}
+                          >
+                            <option value="staff">Staff</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        </label>
+                        <button type="button" className="st-create-account-button" onClick={() => act(request, 'approve')} disabled={busy}>
+                          <Send size={14} aria-hidden="true" /> {busy ? 'Sending…' : 'Approve & Invite'}
+                        </button>
+                        <button type="button" className="st-request-reject" onClick={() => act(request, 'reject')} disabled={busy}>Reject</button>
+                      </div>
+                    ) : request.status === 'approved' ? (
+                      <div className="st-request-actions">
+                        <small className="st-request-link">
+                          As {request.role === 'admin' ? 'Admin' : 'Staff'} · {left === 'expired' ? 'verification link expired' : `verification link ${left}`}{request.linkOpened ? ' · opened' : ''}
+                        </small>
+                        <button type="button" className="st-deactivated-button" onClick={() => act(request, 'resend')} disabled={busy}>
+                          <RefreshCw size={14} aria-hidden="true" /> Send link again
+                        </button>
+                        <button type="button" className="st-request-reject" onClick={() => act(request, 'reject')} disabled={busy} title="Cancel: the unverified account moves to the Trash Bin">Cancel</button>
+                      </div>
+                    ) : (
+                      <small className="st-request-link">
+                        {request.status === 'completed' ? `Set up ${when(request.completedAt)}` : `By ${request.reviewedBy || 'Super Admin'} · ${when(request.reviewedAt)}`}
+                      </small>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

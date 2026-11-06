@@ -230,7 +230,8 @@ class AccountRequestController extends Controller
             $accountRequest->forceFill(['two_factor_secret' => Totp::newSecret()])->save();
         }
         $secret = $accountRequest->two_factor_secret;
-        $issuer = config('app.name', 'GGG Inventory');
+        // Label in the authenticator app: the system's name (Settings).
+        $issuer = \App\Models\AppSetting::systemName();
 
         return response()->json([
             'name' => $accountRequest->name,

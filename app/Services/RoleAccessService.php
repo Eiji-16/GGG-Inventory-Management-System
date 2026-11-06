@@ -75,11 +75,11 @@ class RoleAccessService
         'reorder.requests' => ['code' => 'rr', 'group' => 'Reorder List', 'label' => 'See and close restock requests (bell)', 'parent' => 'reorder.view'],
         // 2026-11-03: Received (with a proof photo) has its own box. Before,
         // it followed "Add Stock In / Stock Out".
-        'reorder.receive'  => ['code' => 'rc', 'group' => 'Reorder List', 'label' => 'Received: record a delivery with a proof photo (adds a Stock In)', 'parent' => 'reorder.view'],
+        'reorder.receive'  => ['code' => 'rc', 'group' => 'Reorder List', 'label' => 'Received: record a delivery, with an optional proof photo (adds a Stock In)', 'parent' => 'reorder.view'],
 
-        // Order Quantity Calculator (also controls "Order Now" and the row calculator buttons)
+        // Order Quantity Calculator (also controls "Calculate Now", formerly "Order Now", and the row calculator buttons)
         // The calculator is now the "Economic Order Quantity" tab inside Forecasting (2026-11-03).
-        'calculator.use'        => ['code' => 'cu', 'group' => 'Order Quantity Calculator', 'label' => 'Economic Order Quantity tab in Forecasting (also "Order Now")'],
+        'calculator.use'        => ['code' => 'cu', 'group' => 'Order Quantity Calculator', 'label' => 'Economic Order Quantity tab in Forecasting (also "Calculate Now")'],
         'calculator.save_costs' => ['code' => 'cs', 'group' => 'Order Quantity Calculator', 'label' => 'Save ordering and holding cost defaults', 'parent' => 'calculator.use'],
         'calculator.history'    => ['code' => 'ch', 'group' => 'Order Quantity Calculator', 'label' => 'View and clear history', 'parent' => 'calculator.use'],
         'calculator.export'     => ['code' => 'cx', 'group' => 'Order Quantity Calculator', 'label' => 'Export Excel / PDF', 'parent' => 'calculator.use'],

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Edit, Plus, Search, Trash2, Truck, X } from 'lucide-react';
 import apiFetch from '../../apiFetch';
@@ -169,6 +170,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
         <div className="ps-search-wrapper">
           {/* Preset searches: the names of your suppliers. */}
           <SearchSuggestions
+            recentKey="suppliers"
             query={query}
             suggestions={suppliers.map((supplier) => supplier.name)}
             onPick={setQuery}
@@ -177,6 +179,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
             <div className="ps-search-box xs-search">
               <Search size={16} className="ps-search-icon" />
               <input
+                autoComplete="off"
                 type="search"
                 placeholder="Search suppliers or products…"
                 value={query}
@@ -207,7 +210,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
         )}
       </div>
 
-      {error && <p className="ps-export-error" role="alert">{error}</p>}
+      <PageToast message={error} type="error" onShown={() => setError('')} />
 
       <MobileSelectBar
         total={visible.length}
@@ -323,7 +326,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
                       <input id="supplier-lead" type="number" min="0" max="365" step="1" value={draft.leadTimeDays} onChange={(e) => setDraft({ ...draft, leadTimeDays: e.target.value })} placeholder="e.g. 3" />
                     </div>
                   </div>
-                  {formError && <p className="ps-export-error" role="alert">{formError}</p>}
+                  <PageToast message={formError} type="error" onShown={() => setFormError('')} />
                 </section>
               </div>
               <div className="ps-modal-actions">
@@ -366,7 +369,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
                 )}
                 It moves to the Trash Bin, where it can be restored.
               </p>
-              {deleteError && <p className="ps-export-error" role="alert">{deleteError}</p>}
+              <PageToast message={deleteError} type="error" onShown={() => setDeleteError('')} />
             </div>
             <div className="ps-modal-actions">
               <button type="button" className="ps-modal-cancel-btn" onClick={() => setConfirmTarget(null)} disabled={deleting}>

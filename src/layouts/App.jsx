@@ -1,9 +1,11 @@
 import React, { useEffect, useLayoutEffect, useState } from 'react';
+import { PageToast } from '../utils/toast';
 import ReactDOM from 'react-dom/client';
 import { CircleAlert, RefreshCw } from 'lucide-react';
 import Login from '../components/Login/Login';
 import AccountSetup from '../components/Login/AccountSetup';
 import LandingPage from '../components/LandingPage/landingPage';
+import Toaster from '../components/Toaster/Toaster'; /* bottom-right notification pop-ups */
 import './app-error.css';
 import '../styles/motion.css'; /* subtle shared animations (hover, fades, pop-ups) */
 import '../styles/polish.css'; /* finishing layer: focus, inputs, main buttons, cards, tables */
@@ -45,7 +47,8 @@ const themeOf = (account) => normalizeTheme(account?.theme) || readUserTheme(acc
 function App() {
     if (window.location.pathname.replace(/\/+$/, '') === '/account/setup') {
         const token = new URLSearchParams(window.location.search).get('token') || '';
-        return <AccountSetup token={token} />;
+        // Its messages also use the bottom-right pop-ups.
+        return <><Toaster /><AccountSetup token={token} /></>;
     }
     return <MainApp />;
 }
@@ -219,6 +222,7 @@ function MainApp() {
 
     return (
         <div>
+            <Toaster />
             {authStatus === 'checking' && (
                 <main className="app-status-screen" role="status" aria-live="polite">
                     <span className="app-status-spinner" aria-hidden="true" />
@@ -298,7 +302,7 @@ function MainApp() {
             )}
             {authStatus === 'authenticated' && (
                 <>
-                    {error && <p role="alert">{error}</p>}
+                    <PageToast message={error} type="error" />
                     <CurrencyProvider user={user}>
                         <LandingPage
                             user={user}

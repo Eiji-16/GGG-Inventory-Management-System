@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, ChevronDown, Database, Download, FileUp, Lock, ShieldAlert, Trash2, X } from 'lucide-react';
 import apiFetch from '../../apiFetch';
@@ -142,12 +143,8 @@ export default function SystemData() {
       {open && (
         <div className="s-sys-body" id="s-sys-body">
           {loadError && <p className="s-policy-error" role="alert">{loadError}</p>}
-          {notice && (
-            <p className="s-sys-notice" role="status">
-              {notice}
-              <button type="button" onClick={() => setNotice('')} aria-label="Dismiss">×</button>
-            </p>
-          )}
+          {/* Page messages show as a bottom-right pop-up (2026-11-06). */}
+          <PageToast message={notice} type="success" onShown={() => setNotice('')} />
 
           <div className="s-sys-row">
             <span className="s-sys-row-icon is-info" aria-hidden="true"><Download size={15} /></span>
@@ -224,7 +221,7 @@ function ExportDialog({ onClose, onDone }) {
       <form className="s-sys-form" onSubmit={submit}>
         <p className="s-sys-text">The file can be imported back into this system later. Anyone with the file can read the shop’s data, so don’t share it.</p>
         <PasswordField value={password} onChange={setPassword} autoFocus />
-        {error && <p className="s-policy-error" role="alert">{error}</p>}
+        <PageToast message={error} type="error" onShown={() => setError('')} />
         <div className="s-sys-actions">
           <button type="button" className="s-ghost-btn" onClick={onClose} disabled={busy}>Cancel</button>
           <button type="submit" className="s-primary-btn" disabled={busy || !password}>{busy ? 'Preparing file…' : 'Download backup'}</button>
@@ -294,7 +291,7 @@ function ImportDialog({ overview, onClose }) {
 
           <PasswordField value={password} onChange={setPassword} />
           <PhraseField phrase={overview.importPhrase} value={phrase} onChange={setPhrase} />
-          {error && <p className="s-policy-error" role="alert">{error}</p>}
+          <PageToast message={error} type="error" onShown={() => setError('')} />
           <div className="s-sys-actions">
             <button type="button" className="s-ghost-btn" onClick={onClose} disabled={busy}>Cancel</button>
             <button type="submit" className="s-sys-danger-btn" disabled={busy || !file || tooBig || !password || phrase.trim() !== overview.importPhrase}>
@@ -391,7 +388,7 @@ function ResetDialog({ overview, onClose, onDone }) {
           {backupNote && <small>{backupNote}</small>}
         </div>
         <PhraseField phrase={overview.resetPhrase} value={phrase} onChange={setPhrase} />
-        {error && <p className="s-policy-error" role="alert">{error}</p>}
+        <PageToast message={error} type="error" onShown={() => setError('')} />
 
         <div className="s-sys-actions">
           <button type="button" className="s-ghost-btn" onClick={onClose} disabled={busy}>Cancel</button>

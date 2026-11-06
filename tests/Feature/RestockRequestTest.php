@@ -77,6 +77,27 @@ class RestockRequestTest extends TestCase
         $this->assertSame(RestockRequest::STATUS_DONE, RestockRequest::first()->status);
     }
 
+    public function test_a_saved_restock_report_shows_until_the_stock_in_arrives(): void
+    {
+        // Admin saves a Restock Report: the product is "waiting for delivery".
+        $this->actingAs($this->admin)->postJson('/api/restock-report', [
+            'items' => [['productId' => 'PRD-N1', 'qty' => 5, 'suggested' => 3]],
+        ])->assertOk();
+        $this->actingAs($this->staff)->getJson('/api/restock-report')
+            ->assertOk()
+            ->assertJsonPath('PRD-N1.qty', 5);
+
+        // A Stock In from Stock Control (not only Received) clears it.
+        $this->actingAs($this->admin)->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
+            'productId' => 'PRD-N1', 'type' => 'Stock In', 'qty' => 5, 'date' => now('Asia/Manila')->toDateString(),
+        ])->assertCreated();
+
+        $this->actingAs($this->staff)->getJson('/api/restock-report')
+            ->assertOk()
+            ->assertJsonMissingPath('PRD-N1');
+    }
+
     public function test_role_access_controls_who_can_notify(): void
     {
         RoleAccessService::save(['staff' => ['reorder.notify' => false]]);

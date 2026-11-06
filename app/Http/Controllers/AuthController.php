@@ -340,6 +340,8 @@ class AuthController extends Controller
             'currency' => \App\Models\AppSetting::currency(),
             // Sidebar picture chosen by the Super Admin (null = default icon).
             'logoUrl' => \App\Models\AppSetting::logoUrl(),
+            // The system's name chosen by the Super Admin (Settings).
+            'systemName' => \App\Models\AppSetting::systemName(),
             'isSuperAdmin' => $this->isSuperAdmin($user),
             // This account's own Appearance theme (null = default theme).
             'theme' => $user->theme,

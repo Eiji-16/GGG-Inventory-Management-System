@@ -47,4 +47,12 @@ class ThemePreferenceTest extends TestCase
     {
         $this->putJson('/profile/theme', ['theme' => 'emerald'])->assertUnauthorized();
     }
+
+    public function test_the_dark_black_and_white_theme_can_be_chosen(): void
+    {
+        $user = \App\Models\User::factory()->create();
+        $this->actingAs($user)->putJson('/profile/theme', ['theme' => 'noir'])
+            ->assertOk()->assertJsonPath('theme', 'noir');
+        $this->assertSame('noir', $user->fresh()->theme);
+    }
 }

@@ -91,8 +91,8 @@
     margin-top: 2px;
     padding: 9px 11px;
     text-align: left;
-    border-left: 3px solid var(--accent-low);
-    border-radius: 4px;
+    border: 1px solid color-mix(in srgb, var(--accent-low) 35%, transparent);   /* no coloured left stripe */
+    border-radius: 6px;
     background: color-mix(in srgb, var(--accent-low) 8%, transparent);
 }
 .tb-confirm-text .tb-purge-effects p {
@@ -170,7 +170,7 @@
 .tb-toolbar .tb-tabs { margin: 0; flex-shrink: 0; }
 .tb-toolbar .tb-search.xs-search {
     --xs-closed: 30px;
-    --xs-open: 16rem;
+    --xs-open: 12rem;   /* was 16rem: narrower so the "Deleted by" menu is not cut off (2026-11-06) */
     flex: 0 0 auto !important;
     transition:
         width 0.28s cubic-bezier(0.2, 0.7, 0.2, 1),
@@ -196,7 +196,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     margin: 0 5px 8px;
     padding: 8px 10px;
     font-size: 12px;
@@ -247,7 +247,7 @@
    Archived by" filter always share ONE row; the open search only fills the
    space that is left (it no longer pushes the filter to a new line). */
 @media (max-width: 640px) {
-    .tb-toolbar { gap: 8px; }
+    .tb-toolbar { gap: 6px; }
     .tb-toolbar .tb-filter { margin-left: auto; flex: 0 0 auto; }
     .tb-toolbar .tb-filter > span { display: none; }   /* the dropdown says "Anyone" / a name */
     .tb-deleted-by-select { width: 120px; }
@@ -284,10 +284,10 @@
 }
 @media (min-width: 641px) and (max-width: 1100px) {
     .tb-toolbar .tb-tabs button { padding-inline: 8px; gap: 5px; }
-    .tb-toolbar { row-gap: 8px; }
+    .tb-toolbar { row-gap: 6px; }
     .tb-toolbar .tb-tabs { flex: 1 1 100%; width: auto; }
     .tb-toolbar-tools { flex-basis: 100%; }
 }
 @media (max-width: 640px) {
-    .tb-toolbar-tools { flex: 1 1 100%; gap: 8px; }
+    .tb-toolbar-tools { flex: 1 1 100%; gap: 6px; }
 }

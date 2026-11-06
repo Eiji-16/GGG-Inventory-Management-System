@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { PageToast } from '../../utils/toast';
 import apiFetch from '../../apiFetch';
 import { readSalesFile, downloadTemplate, monthLabel } from '../../utils/pastSalesImport';
 import CustomSelect from './CustomSelect';
@@ -204,8 +205,8 @@ function ImportCard({ products, onImported }) {
         <li><strong>Check the preview, then click Import.</strong></li>
       </ol>
 
-      {error && <p className="fx-warning" role="alert">{error}</p>}
-      {success && <p className="ps-success" role="status">{success}</p>}
+      <PageToast message={error} type="error" onShown={() => setError('')} />
+      <PageToast message={success} type="success" onShown={() => setSuccess('')} />
 
       {preview && parsed && (
         <div className="ps-preview">
@@ -463,7 +464,7 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
       <div className={`ps-manual-controls${isWeekly ? ' is-weekly' : ''}`}>
         <div className="f-field ps-find-field f-search-wrap xs-search">
           <label htmlFor="ps-search">Find product</label>
-          <input id="ps-search" type="text" aria-label="Find product" placeholder="Name, ID or category…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input autoComplete="off" id="ps-search" type="text" aria-label="Find product" placeholder="Name, ID or category…" value={search} onChange={(e) => setSearch(e.target.value)} />
           <SearchIcon />
         </div>
         <div className="f-field f-grow ps-product-field">
@@ -557,8 +558,8 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
         </div>
       )}
 
-      {error && <p className="fx-warning" role="alert">{error}</p>}
-      {notice && <p className="ps-success" role="status">{notice}</p>}
+      <PageToast message={error} type="error" onShown={() => setError('')} />
+      <PageToast message={notice} type="success" onShown={() => setNotice('')} />
 
       <div className="fx-actions">
         <button type="button" className="f-btn f-btn-primary" onClick={save} disabled={!dirty || saving}>

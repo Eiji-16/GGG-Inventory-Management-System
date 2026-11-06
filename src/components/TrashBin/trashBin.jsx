@@ -1,8 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import useFillToBottom from '../../utils/fillToBottom';
 import {
-  Archive, AlertTriangle, CalendarDays, Package, RotateCcw, Search, Trash2, Truck, UserRound, X, ArrowLeftRight,
+  Archive,
+  AlertTriangle,
+  CalendarDays,
+  Package,
+  RotateCcw,
+  Search,
+  Trash2,
+  Truck,
+  UserRound,
+  ArrowLeftRight,
 } from 'lucide-react';
 
 /* Reuses Stock Control's table, button and popup styles so the page looks the same. */
@@ -256,7 +266,7 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
         <div className="tb-toolbar-tools">
         <div className="sc-search-box tb-search xs-search">
           <Search size={13} className="sc-search-icon" />
-          <input type="search" placeholder={`Search ${space === 'trash' ? 'Trash Bin' : 'Archive'}…`} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={`Search ${space === 'trash' ? 'Trash Bin' : 'Archive'}`} />
+          <input autoComplete="off" type="search" placeholder={`Search ${space === 'trash' ? 'Trash Bin' : 'Archive'}…`} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={`Search ${space === 'trash' ? 'Trash Bin' : 'Archive'}`} />
         </div>
         <div className="tb-filter">
           <span>{space === 'trash' ? 'Deleted by' : 'Archived by'}</span>
@@ -286,12 +296,8 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
           <button type="button" onClick={load}>Retry</button>
         </div>
       )}
-      {notice && (
-        <div className="sc-merge-notice" role="status">
-          <span>{notice}</span>
-          <button type="button" className="sc-safety-alert-close" onClick={() => setNotice('')} aria-label="Dismiss"><X size={14} /></button>
-        </div>
-      )}
+      {/* Page messages show as a bottom-right pop-up (2026-11-06). */}
+      <PageToast message={notice} type="success" onShown={() => setNotice('')} />
 
       {/* ===== BULK BAR ===== */}
       {selectedItems.length > 0 && (
@@ -436,7 +442,7 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
               {isPurge && <p className="tb-purge-effects">This permanently removes archived records. Historical sales and stock history are retained where they are linked to a product.</p>}
             </div>
             {isPurge && <p className="tb-confirm-final">This action can’t be undone.</p>}
-            {error && <p className="tb-confirm-error" role="alert">{error}</p>}
+            <PageToast message={error} type="error" />
             <div className="sc-modal-actions">
               <button type="button" className="sc-modal-cancel-btn" onClick={closeConfirm} disabled={busy} autoFocus={isPurge}>Cancel</button>
               {confirm.action === 'restore' ? (

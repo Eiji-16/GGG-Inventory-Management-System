@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import './forecasting.css';
 import apiFetch from '../../apiFetch';
@@ -682,8 +683,8 @@ export default function DemandForecastDesign({
     <div className="f-root">
       <div className="f-app">
         <main className="f-main">
-          {error && <div className="f-warning-banner" role="alert">{error}</div>}
-          {notice && <div className="f-notice-banner" role="status">{notice}</div>}
+          <PageToast message={error} type="error" onShown={() => setError('')} />
+          <PageToast message={notice} type="success" onShown={() => setNotice('')} />
 
           <div className="f-view-tabs" role="tablist" aria-label="Forecasting sections">
             <button type="button" role="tab" aria-selected={view === 'forecast'} className={view === 'forecast' ? 'is-active' : ''} onClick={() => setView('forecast')}>
@@ -715,6 +716,7 @@ export default function DemandForecastDesign({
                 <div className="f-field f-search-wrap xs-search">
                   <label htmlFor="eoq-product-search">Search product</label>
                   <input
+                    autoComplete="off"
                     id="eoq-product-search"
                     type="text"
                     aria-label="Search product"
@@ -760,6 +762,7 @@ export default function DemandForecastDesign({
                 <div className="f-field f-search-wrap xs-search">
                   <label htmlFor="forecast-product-search">Search product</label>
                   <input
+                    autoComplete="off"
                     id="forecast-product-search"
                     type="text"
                     aria-label="Search product"
@@ -1098,7 +1101,7 @@ export default function DemandForecastDesign({
                 )}
               </div>
 
-              {eventsError && <div className="f-warning-banner" role="alert">{eventsError}</div>}
+              <PageToast message={eventsError} type="error" onShown={() => setEventsError('')} />
 
               {eventsLoading ? (
                 <p className="f-event-empty">Loading seasonal events…</p>
@@ -1206,7 +1209,7 @@ export default function DemandForecastDesign({
                     <>
                       <div className="f-field">
                         <label htmlFor="event-product-search">Find products ({eventDraft.productIds.length} selected)</label>
-                        <input id="event-product-search" type="text" placeholder="Search by name, ID or category…" value={eventProductSearch} onChange={(e) => setEventProductSearch(e.target.value)} />
+                        <input autoComplete="off" id="event-product-search" type="text" placeholder="Search by name, ID or category…" value={eventProductSearch} onChange={(e) => setEventProductSearch(e.target.value)} />
                       </div>
                       <div className="f-check-list" role="group" aria-label="Products">
                         {eventProductMatches.map((product) => (
@@ -1230,7 +1233,7 @@ export default function DemandForecastDesign({
                     </label>
                   </div>
 
-                  {eventFormError && <p className="f-event-form-error" role="alert">{eventFormError}</p>}
+                  <PageToast message={eventFormError} type="error" onShown={() => setEventFormError('')} />
                   <footer className="f-event-modal-footer">
                     <button type="button" className="f-btn f-btn-ghost f-btn-sm" onClick={() => setEventDraft(null)} disabled={savingEvent}>Cancel</button>
                     <button type="submit" className="f-btn f-btn-primary f-btn-sm" disabled={savingEvent}>

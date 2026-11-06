@@ -153,7 +153,7 @@
 .am-alert {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: 6px;
     margin: 0 0 14px;
     padding: 10px 12px;
     font-size: 12.5px;
@@ -230,7 +230,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     min-height: 46px;
     margin-top: 6px;
     padding: 0 18px;
@@ -279,7 +279,7 @@
 .am-otp {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 8px;
+    gap: 6px;
 }
 .am-otp-box {
     width: 100%;
@@ -352,7 +352,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
     margin-top: 8px;
     padding: 8px 10px;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -435,7 +435,7 @@
 /* "Request sent": what happens next. */
 .am-next {
     display: grid;
-    gap: 8px;
+    gap: 6px;
     margin: 0 0 6px;
     padding: 12px 14px 12px 32px;
     color: var(--am-muted);

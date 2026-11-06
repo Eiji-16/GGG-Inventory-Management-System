@@ -32,7 +32,7 @@ class User extends Authenticatable
     /** Appearance themes a user can pick (same list as src/theme.js). */
     // 'olive' = the dark-frame / cream-panel theme. 'emerald' and 'magenta' were
     // removed from the screen but stay valid so older saved choices still load.
-    public const THEMES = ['soft-white', 'lavender', 'citrus', 'olive', 'graphite', 'midnight-blue', 'emerald', 'magenta', 'ember'];
+    public const THEMES = ['soft-white', 'lavender', 'citrus', 'olive', 'graphite', 'midnight-blue', 'emerald', 'magenta', 'ember', 'noir'];
 
     public const STATUS_ACTIVE = 'active';
     public const STATUS_INACTIVE = 'inactive';

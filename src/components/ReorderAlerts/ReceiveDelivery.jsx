@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import { Camera, CheckCircle2, ClipboardCheck, ImagePlus, PackageCheck, Sparkles, SquarePen, Trash2, X } from 'lucide-react';
 import apiFetch from '../../apiFetch';
@@ -18,7 +19,7 @@ import { useCurrency } from '../../CurrencyContext';
         Saved report     = the owner's quantity from the last "Save Report"
                            in the Restock Report (only when one was saved).
         Custom           = type the amount that actually arrived.
-   2. Proof photo — a picture of the delivery (required).
+   2. Proof photo — a picture of the delivery (optional since 2026-11-06).
    3. "Accomplish" — POST /api/reorder/receive. The quantity goes straight
       into Stock Control as a normal Stock In (same-day merge rules apply),
       the photo is kept with that entry, and the note records which choice
@@ -161,7 +162,7 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
   const qtyValid = Number.isInteger(qtyNumber) && qtyNumber >= 1 && qtyNumber <= 9999;
   const stockAfter = qtyValid ? item.stock + qtyNumber : null;
   const lowLevel = item.points?.low;
-  const ready = qtyValid && photo && form.unitPrice !== '' && Number(form.unitPrice) >= 0;
+  const ready = qtyValid && form.unitPrice !== '' && Number(form.unitPrice) >= 0;
 
   const submit = async (event) => {
     event.preventDefault();
@@ -169,7 +170,6 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
     if (!qtyValid) { setError('Enter the quantity received (1 to 9,999).'); return; }
     if (form.unitPrice === '' || !(Number(form.unitPrice) >= 0)) { setError('Enter the unit price (0 or more).'); return; }
     if (!form.date || form.date > todayString()) { setError('The date cannot be in the future.'); return; }
-    if (!photo) { setError('Add a photo of the delivery as proof that it arrived.'); return; }
 
     setSaving(true);
     setError('');
@@ -182,7 +182,7 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
     data.append('notes', form.notes.trim());
     data.append('choice', choice);
     if (suggestion) data.append('suggestedQty', String(suggestion.qty));
-    data.append('photo', photo);
+    if (photo) data.append('photo', photo);   // optional
     try {
       const response = await apiFetch('/api/reorder/receive', { method: 'POST', body: data });
       const result = await response.json().catch(() => ({}));
@@ -190,7 +190,7 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
         const message = result.errors ? Object.values(result.errors).flat()[0] : result.message;
         throw new Error(message || `Could not record the delivery (${response.status}).`);
       }
-      onReceived?.({ id: item.id, name: item.name, qty: qtyNumber, merged: Boolean(result.merged) });
+      onReceived?.({ id: item.id, name: item.name, qty: qtyNumber, merged: Boolean(result.merged), hasProof: Boolean(result.hasProof) });
     } catch (saveError) {
       setError(saveError.message || 'Could not record the delivery.');
       setSaving(false);
@@ -283,7 +283,7 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
             </section>
 
             <section className="ra-receive-section">
-              <h4><span>2</span> Proof photo <em>required</em></h4>
+              <h4><span>2</span> Proof photo <em className="is-optional">optional</em></h4>
               {preview ? (
                 <div className="ra-proof-preview">
                   <img src={preview} alt="Delivery proof preview" />
@@ -331,10 +331,10 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
           </>
         )}
 
-        {error && <p className="ra-error" role="alert">{error}</p>}
+        <PageToast message={error} type="error" onShown={() => setError('')} />
         <div className="ra-modal-actions">
           <button type="button" className="ra-order-btn" onClick={onClose} disabled={saving}>Cancel</button>
-          <button type="submit" className="ra-order-btn is-urgent ra-accomplish-btn" disabled={saving || loading || !ready} title={!photo ? 'Add the proof photo first' : 'Record the delivery as a Stock In'}>
+          <button type="submit" className="ra-order-btn is-urgent ra-accomplish-btn" disabled={saving || loading || !ready} title="Record the delivery as a Stock In">
             <CheckCircle2 size={14} aria-hidden="true" /> {saving ? 'Saving…' : 'Accomplish'}
           </button>
         </div>

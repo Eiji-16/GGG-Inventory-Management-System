@@ -88,7 +88,7 @@
 .ra-tools {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
 }
 
 .ra-search {
@@ -284,7 +284,7 @@
 .ra-all-good {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     color: var(--accent-high);
     font-weight: 700;
 }
@@ -300,7 +300,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
     margin: 0 0 10px;
     padding: 8px 10px;
     font-size: 12.5px;
@@ -335,6 +335,18 @@
     line-height: 1.35;
 }
 
+/* "In Restock Report, waiting for delivery" (2026-11-06): same size as the
+   request line, in the muted text colour so it reads as a calm status. */
+.ra-report-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 260px;
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.35;
+}
+
 .ra-actions {
     display: inline-flex;
     flex-wrap: wrap;
@@ -365,7 +377,7 @@
 
 .ra-modal {
     display: grid;
-    gap: 8px;
+    gap: 6px;
     width: min(420px, 100%);
     padding: 18px;
     color: var(--text-primary);
@@ -394,7 +406,7 @@
 .ra-modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 6px;
     margin-top: 4px;
 }
 
@@ -474,7 +486,8 @@
 
     .ra-table tbody td .ra-product { justify-items: end; }
     .ra-table tbody td .ra-status-cell { align-items: flex-end; }
-    .ra-table tbody td .ra-request-info { max-width: none; text-align: right; }
+    .ra-table tbody td .ra-request-info,
+    .ra-table tbody td .ra-report-info { max-width: none; text-align: right; }
     .ra-table tbody td .ra-actions { justify-content: flex-end; }
 
     /* Action at the card foot, no label. */
@@ -644,7 +657,8 @@
     .ra-table td[data-label="Supplier"] { text-align: left; }
     .ra-table td:not([data-label="Product"]):not([data-label="Category"]):not([data-label="Supplier"]) .ra-product { justify-items: center; }
     .ra-table .ra-status-cell { align-items: center; }
-    .ra-table .ra-request-info { text-align: center; }
+    .ra-table .ra-request-info,
+    .ra-table .ra-report-info { text-align: center; }
     .ra-table .ra-actions { justify-content: center; }
 }
 
@@ -653,7 +667,7 @@
    Cards (≤900px): tint and outline the whole card instead of each cell,
    so there is no inner box with gaps around it. */
 .ra-table tbody tr.is-selected td { background: rgba(232, 197, 71, 0.08); }
-.ra-table tbody tr.is-selected td:first-child { box-shadow: inset 3px 0 0 var(--accent, #E8C547); }
+/* (No gold left edge on the selected row — design rule 2026-11-06; the row tint is enough.) */
 
 @media (max-width: 900px) {
     .ra-table tbody tr { transition: border-color 0.15s ease, background 0.15s ease; }
@@ -667,7 +681,7 @@
 }
 
 /* ==========KPI CARDS — Dashboard style (icon + label + number)========== */
-.ra-kpis { gap: 8px; }
+.ra-kpis { gap: 6px; }
 .ra-kpi {
     display: flex;
     align-items: center;
@@ -712,7 +726,7 @@
 /* ===== Mark as received (records a Stock In) ===== */
 .ra-receive-btn { white-space: nowrap; }
 .ra-receive { width: min(520px, 100%); gap: 10px; }
-.ra-receive h3 { display: flex; align-items: center; gap: 8px; }
+.ra-receive h3 { display: flex; align-items: center; gap: 6px; }
 .ra-receive h3 svg { color: var(--accent-high); flex-shrink: 0; }
 .ra-receive-grid {
     display: grid;
@@ -834,7 +848,7 @@
     .ra-bulk-modal .ra-modal-actions {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
+        gap: 6px;
     }
     .ra-bulk-modal .ra-modal-actions > button { min-height: 40px; justify-content: center; }
     .ra-bulk-modal .ra-modal-actions > button:last-child:nth-child(odd) { grid-column: 1 / -1; }
@@ -880,7 +894,7 @@
     border: 1px solid var(--border-color);
     border-radius: 12px;
 }
-.ra-receive-section h4 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12.5px; }
+.ra-receive-section h4 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; }
 .ra-receive-section h4 span {
     display: grid; width: 20px; height: 20px; place-items: center;
     font-size: 11px; color: var(--icon-active-color, #0a1530);
@@ -888,8 +902,10 @@
     border-radius: 50%;
 }
 .ra-receive-section h4 em { margin-left: auto; color: var(--accent-low); font-size: 10.5px; font-style: normal; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+/* Proof photo is optional (2026-11-06): calm grey label instead of red. */
+.ra-receive-section h4 em.is-optional { color: var(--text-muted); }
 
-.ra-choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.ra-choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px; }
 .ra-choice {
     display: grid; gap: 2px; padding: 10px 12px; text-align: left;
     color: var(--text-primary); font: inherit;
@@ -1008,7 +1024,7 @@
         min-height: 0;
         padding: 5px 0 !important;
         font-size: 12px;
-        gap: 8px;
+        gap: 6px;
     }
     .ra-bulk-modal .ra-bulk-table tbody td::before { font-size: 9px; }
     .ra-bulk-modal .ra-bulk-table tbody td[data-label="Product"] { grid-column: 1 / -1; }
@@ -1024,7 +1040,7 @@
 }
 /* Phones: compact "same costs" bar — both cost boxes and Apply on one row. */
 @media (max-width: 640px) {
-    .ra-bulk-modal { padding: 12px !important; gap: 8px !important; }
+    .ra-bulk-modal { padding: 12px !important; gap: 6px !important; }
     .ra-bulk-modal .ra-bulk-head .ra-modal-sub { display: none; }
     .ra-bulk-same {
         display: grid !important;
@@ -1067,7 +1083,7 @@
     padding: 0 16px;
     font-size: 12.5px;
 }
-.ra-save-report-btn { gap: 8px; }
+.ra-save-report-btn { gap: 6px; }
 .ra-save-report-text { display: inline; }
 .ra-bulk-modal { container-type: inline-size; container-name: ra-report; }
 @container ra-report (max-width: 600px) {
@@ -1164,7 +1180,7 @@
    when zoomed): fixed column widths, smaller boxes and labels, one-line
    hints. Zoomed in further (window < 900px wide) it switches to the cards. */
 @media (min-width: 901px) {
-    .ra-bulk-modal { width: min(860px, 100%); padding: 12px 14px; gap: 8px; }
+    .ra-bulk-modal { width: min(860px, 100%); padding: 12px 14px; gap: 6px; }
     .ra-bulk-modal .ra-bulk-table {
         min-width: 0 !important;
         width: 100%;

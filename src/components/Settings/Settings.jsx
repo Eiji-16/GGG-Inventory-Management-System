@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { PageToast } from '../../utils/toast';
 import {
   Sun,
   Moon,
@@ -10,6 +11,7 @@ import {
   Info,
   Search,
   Type,
+  PenLine,
 } from 'lucide-react';
 import './settings.css';
 import { readShowFieldHints, saveShowFieldHints } from '../../fieldHints';
@@ -24,6 +26,8 @@ import { CURRENCIES, useCurrency } from '../../CurrencyContext';
 import CustomSelect from '../Forecasting/CustomSelect';
 import RoleAccess from './roleAccess';
 import SystemData from './systemData';
+import apiFetch from '../../apiFetch';
+import { DEFAULT_SYSTEM_NAME, SYSTEM_NAME_MAX, setSystemName, useSystemName } from '../../systemName';
 
 const THEMES = [
   { value: 'soft-white', label: 'Soft White' },
@@ -33,6 +37,8 @@ const THEMES = [
   { value: 'graphite', label: 'Graphite' },
   { value: 'midnight-blue', label: 'Midnight Blue' },
   { value: 'ember', label: 'Ember' },
+  // Real dark mode: black and white (2026-11-06).
+  { value: 'noir', label: 'Dark' },
 ];
 const LIGHT_THEMES = ['soft-white', 'lavender', 'citrus', 'olive'];
 const MAX_POLICY_COUNT = 1_000_000;
@@ -69,6 +75,40 @@ function Settings({
   const isSuperAdmin = isSuperAdminProp ?? role === 'Super Admin';
   const canChangeCurrency = canChangeCurrencyProp ?? (role === 'Super Admin' || role === 'Admin');
   const { currency, currencySymbol, updateCurrency } = useCurrency();
+
+  /* ===== SYSTEM NAME (Super Admin, 2026-11-06) =====
+     One name for the whole system: browser tab, sidebar, login page, reports
+     and emails. Saved on the server (PUT /branding/name). */
+  const systemName = useSystemName();
+  const [nameDraft, setNameDraft] = useState(systemName);
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameSaved, setNameSaved] = useState(false);
+  const [nameError, setNameError] = useState('');
+  useEffect(() => { setNameDraft(systemName); }, [systemName]);
+  const nameChanged = nameDraft.trim().replace(/\s+/g, ' ') !== systemName;
+  const saveSystemName = async (value = nameDraft) => {
+    const name = String(value).trim().replace(/\s+/g, ' ');
+    if (name.length < 2) { setNameError('The name must be at least 2 characters.'); return; }
+    setNameSaving(true);
+    setNameError('');
+    setNameSaved(false);
+    try {
+      const response = await apiFetch('/branding/name', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(Object.values(body?.errors || {}).flat()[0] || body?.message || `Could not save (${response.status}).`);
+      setSystemName(body.name);
+      setNameSaved(true);
+      window.setTimeout(() => setNameSaved(false), 3000);
+    } catch (error) {
+      setNameError(error.message || 'The name could not be saved.');
+    } finally {
+      setNameSaving(false);
+    }
+  };
   const activeThemeName = THEMES.find((option) => option.value === theme)?.label || 'Midnight Blue';
   const selectedThemeRef = useRef(theme);
   const themeButtonRefs = useRef([]);
@@ -379,7 +419,7 @@ function Settings({
             </span>
             {currencySaving && <span className="s-pref-status" role="status">Saving currency…</span>}
             {currencySaved && <span className="s-pref-status" role="status"><Check size={11} /> Saved for the whole system</span>}
-            {currencyError && <span className="s-pref-error" role="alert">{currencyError}</span>}
+            <PageToast message={currencyError} type="error" onShown={() => setCurrencyError('')} />
           </div>
           <CustomSelect
             id="s-currency"
@@ -391,6 +431,49 @@ function Settings({
             options={CURRENCIES.map((option) => ({ value: option.code, label: option.label }))}
           />
         </div>
+
+        {/* System name (Super Admin only) */}
+        {isSuperAdmin && (
+          <div className="s-pref-row s-pref-row-name">
+            <span className="s-pref-icon" aria-hidden="true"><PenLine size={15} /></span>
+            <div className="s-pref-text">
+              <label className="s-pref-title" htmlFor="s-system-name">System name</label>
+              <span className="s-pref-desc hint-text">Shown in the browser tab, the sidebar, the login page, reports and emails, for every account.</span>
+              {nameSaving && <span className="s-pref-status" role="status">Saving name…</span>}
+              {nameSaved && <span className="s-pref-status" role="status"><Check size={11} /> Saved for the whole system</span>}
+              <PageToast message={nameError} type="error" onShown={() => setNameError('')} />
+            </div>
+            <form
+              className="s-name-field"
+              onSubmit={(event) => { event.preventDefault(); if (nameChanged) saveSystemName(); }}
+            >
+              <input
+                id="s-system-name"
+                type="text"
+                autoComplete="off"
+                maxLength={SYSTEM_NAME_MAX}
+                value={nameDraft}
+                onChange={(event) => { setNameDraft(event.target.value); setNameError(''); }}
+                disabled={nameSaving}
+              />
+              <button type="submit" className="s-name-save" disabled={nameSaving || !nameChanged || nameDraft.trim().length < 2}>
+                Save
+              </button>
+              {systemName !== DEFAULT_SYSTEM_NAME && (
+                <button
+                  type="button"
+                  className="s-name-reset"
+                  onClick={() => saveSystemName(DEFAULT_SYSTEM_NAME)}
+                  disabled={nameSaving}
+                  title={`Use the original name: ${DEFAULT_SYSTEM_NAME}`}
+                  aria-label="Use the original name"
+                >
+                  <RotateCcw size={13} />
+                </button>
+              )}
+            </form>
+          </div>
+        )}
 
         {/* Font size: three presets, saved in this browser (src/fontSize.js). */}
         <div className="s-pref-row">
@@ -482,6 +565,7 @@ function Settings({
               <div className="s-search xs-search">
                 <Search size={13} aria-hidden="true" />
                 <input
+                  autoComplete="off"
                   type="search"
                   placeholder="Search product, model, brand, category, or supplier…"
                   value={policyQuery}
@@ -647,7 +731,7 @@ function Settings({
             {/* Footer stays visible */}
             <footer className="s-policy-footer">
               <span className="s-policy-footer-status">
-                {saveError && <span className="s-policy-error" role="alert">{saveError}</span>}
+                <PageToast message={saveError} type="error" onShown={() => setSaveError('')} />
                 {!saveError && dirty && <span className="s-unsaved"><i aria-hidden="true" /> Unsaved changes</span>}
                 {!saveError && saved && !dirty && <span className="s-saved-flag"><Check size={12} /> Policy applied</span>}
               </span>

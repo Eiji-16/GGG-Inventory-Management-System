@@ -15,7 +15,7 @@ const LEGACY_THEME_VALUES = {
 
 export function normalizeTheme(value) {
   const theme = String(value || '').trim().toLowerCase();
-  if (['soft-white', 'lavender', 'citrus', 'olive', 'graphite', 'midnight-blue', 'ember'].includes(theme)) {
+  if (['soft-white', 'lavender', 'citrus', 'olive', 'graphite', 'midnight-blue', 'ember', 'noir'].includes(theme)) {
     return theme;
   }
   return LEGACY_THEME_VALUES[theme] || null;

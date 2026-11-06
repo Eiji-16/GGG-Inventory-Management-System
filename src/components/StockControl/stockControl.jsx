@@ -33,6 +33,8 @@ import MobileSelectBar from '../MobileSelectBar/MobileSelectBar';
 import apiFetch from '../../apiFetch';
 import { useCurrency } from '../../CurrencyContext';
 import { buildForecastHandoff } from '../../utils/forecastHandoff';
+import { PageToast } from '../../utils/toast';
+import CustomSelect from '../Forecasting/CustomSelect';
 import {
   SAFETY_STOCK_DEFAULTS,
   reorderPointFor,
@@ -468,15 +470,16 @@ function StockControl({
   // Movement rows whose − / + adjustment is saving right now.
   const [quickBusy, setQuickBusy] = useState(new Set());
   const [safetyOrdering, setSafetyOrdering] = useState(false);
-  const orderFromSafetyAlert = async () => {
-    if (!safetyAlert || !onNavigate) return;
+  // The alert now shows as a pop-up, so the button passes its own product.
+  const orderFromSafetyAlert = async (alert = safetyAlert) => {
+    if (!alert || !onNavigate) return;
     setSafetyOrdering(true);
-    const { handoff, reason } = await buildForecastHandoff(safetyAlert.productId, safetyAlert.productName);
+    const { handoff, reason } = await buildForecastHandoff(alert.productId, alert.productName);
     setSafetyOrdering(false);
     onNavigate('Auto-Calculator', handoff || {
-      product: safetyAlert.productName,
-      productId: safetyAlert.productId,
-      annualDemand: productById.get(safetyAlert.productId)?.annualDemand,
+      product: alert.productName,
+      productId: alert.productId,
+      annualDemand: productById.get(alert.productId)?.annualDemand,
       forecastUnavailable: reason,
     });
     setSafetyAlert(null);
@@ -1120,6 +1123,12 @@ function StockControl({
   };
 
   const handleSave = async (e, { confirmed = false } = {}) => {
+    // The product box is a themed dropdown now (no browser "required" check).
+    if (!formData.productId) {
+      e?.preventDefault?.();
+      setStockError('Choose a product first.');
+      return;
+    }
     if (priceMissing()) {
       e?.preventDefault?.();
       setStockError(PRICE_REQUIRED_MESSAGE);
@@ -1521,6 +1530,7 @@ function StockControl({
         <div className="sc-search-wrapper">
           {/* Preset searches: the categories your products already use. */}
           <SearchSuggestions
+            recentKey="stock"
             query={query}
             suggestions={productOptions.map((product) => product.category)}
             onPick={setQuery}
@@ -1529,6 +1539,7 @@ function StockControl({
             <div className="sc-search-box xs-search">
               <Search size={16} className="sc-search-icon" />
               <input
+                autoComplete="off"
                 type="search"
                 placeholder="Search movements…"
                 value={query}
@@ -1631,6 +1642,8 @@ function StockControl({
         )}
       </div>
 
+      {/* Errors also pop up at the bottom right, so they show above an open form. */}
+      <PageToast message={stockError} type="error" />
       {stockError && (
         <div className="sc-error-banner" role="alert">
           <span>{stockError}</span>
@@ -1638,34 +1651,22 @@ function StockControl({
         </div>
       )}
 
-      {mergeNotice && (
-        <div className="sc-merge-notice" role="status">
-          <span>{mergeNotice}</span>
-          <button type="button" className="sc-safety-alert-close" onClick={() => setMergeNotice('')} aria-label="Dismiss">
-            <X size={14} />
-          </button>
-        </div>
-      )}
-
-      {safetyAlert && (
-        <div className={`sc-safety-alert is-${safetyAlert.level}`} role="alert">
-          <AlertTriangle size={16} aria-hidden="true" />
-          <span>
-            <strong>{safetyAlert.productName}</strong>
-            {safetyAlert.level === 'out'
-              ? ' is now out of stock.'
-              : ` is now below safety stock — ${safetyAlert.after} left, minimum ${safetyAlert.safety}.`}
-          </span>
-          {canComputeEoq && onNavigate && (
-            <button type="button" className="sc-safety-alert-order" onClick={orderFromSafetyAlert} disabled={safetyOrdering}>
-              {safetyOrdering ? 'Loading forecast…' : 'Order Now'}
-            </button>
-          )}
-          <button type="button" className="sc-safety-alert-close" onClick={() => setSafetyAlert(null)} aria-label="Dismiss">
-            <X size={14} />
-          </button>
-        </div>
-      )}
+      {/* Page messages and the safety stock alert show as bottom-right
+          pop-ups (2026-11-06). The alert keeps its Calculate Now button. */}
+      <PageToast message={mergeNotice} type="info" onShown={() => setMergeNotice('')} />
+      <PageToast
+        type={safetyAlert?.level === 'out' ? 'error' : 'warning'}
+        title={safetyAlert?.level === 'out' ? 'Out of stock' : 'Below safety stock'}
+        message={safetyAlert
+          ? (safetyAlert.level === 'out'
+            ? `${safetyAlert.productName} is now out of stock.`
+            : `${safetyAlert.productName} is now below safety stock — ${safetyAlert.after} left, minimum ${safetyAlert.safety}.`)
+          : ''}
+        action={safetyAlert && canComputeEoq && onNavigate
+          ? { label: 'Calculate Now', onClick: () => orderFromSafetyAlert(safetyAlert) }
+          : undefined}
+        onShown={() => setSafetyAlert(null)}
+      />
 
       {/* ===== TABLE (Stock tab) ===== */}
       {view === 'stock' && (<>
@@ -2082,45 +2083,42 @@ function StockControl({
                       <label htmlFor="productName">
                         Product Name <span className="sc-required">*</span>
                       </label>
-                      <select
+                      {/* Themed dropdown with a search box (2026-11-06), instead of
+                          the browser's plain list. The product code shows as a tag. */}
+                      <CustomSelect
                         id="productName"
-                        name="productName"
+                        className="sc-form-select"
                         value={formData.productId}
-                        onChange={handleProductSelect}
-                        required
+                        onChange={(productId) => handleProductSelect({ target: { name: 'productName', value: productId } })}
                         disabled={editId !== null}
-                      >
-                        <option value="" disabled hidden>
-                          {productOptions.length === 0
-                            ? 'No products yet — add one under Product & Supplier'
-                            : 'Select a product…'}
-                        </option>
-                        {productOptions.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </select>
+                        searchable
+                        searchPlaceholder="Search products…"
+                        placeholder={productOptions.length === 0
+                          ? 'No products yet — add one under Product & Supplier'
+                          : 'Select a product…'}
+                        emptyText="No products yet — add one under Product & Supplier"
+                        options={productOptions.map((p) => ({ value: p.id, label: p.name, sub: p.id }))}
+                      />
 
                       <label htmlFor="variantName">Variant</label>
-                      <select
+                      <CustomSelect
                         id="variantName"
-                        name="variantName"
+                        className="sc-form-select"
                         value={formData.variantName}
-                        onChange={(e) => setFormData({ ...formData, variantName: e.target.value })}
+                        onChange={(variantName) => setFormData((prev) => ({ ...prev, variantName }))}
                         disabled={!formData.productId}
-                      >
-                        <option value="">
-                          {!formData.productId
-                            ? 'Select a product first'
-                            : selectedVariantChoices.length
-                              ? 'No specific variant'
-                              : 'No variants — add them in Product & Supplier'}
-                        </option>
-                        {selectedVariantChoices.map((variant) => (
-                          <option key={variant} value={variant}>{variant}</option>
-                        ))}
-                      </select>
+                        options={[
+                          {
+                            value: '',
+                            label: !formData.productId
+                              ? 'Select a product first'
+                              : selectedVariantChoices.length
+                                ? 'No specific variant'
+                                : 'No variants — add them in Product & Supplier',
+                          },
+                          ...selectedVariantChoices.map((variant) => ({ value: variant, label: variant })),
+                        ]}
+                      />
                     </div>  
                   </div>
 
@@ -2170,10 +2168,16 @@ function StockControl({
                           <label htmlFor="type">
                             Type <span className="sc-required">*</span>
                           </label>
-                          <select id="type" name="type" value={formData.type} onChange={handleFormChange} required>
-                            <option value="Stock In">Stock In (Added)</option>
-                            <option value="Stock Out">Stock Out (Sold)</option>
-                          </select>
+                          <CustomSelect
+                            id="type"
+                            className="sc-form-select"
+                            value={formData.type}
+                            onChange={(type) => setFormData((prev) => ({ ...prev, type }))}
+                            options={[
+                              { value: 'Stock In', label: 'Stock In (Added)' },
+                              { value: 'Stock Out', label: 'Stock Out (Sold)' },
+                            ]}
+                          />
                           <label htmlFor="qty">
                             Quantity <span className="sc-required">*</span>
                           </label>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useState, useRef } from 'react';
+import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import {
   LayoutDashboard,
@@ -39,6 +40,8 @@ import Settings from '../Settings/Settings'; /* ===== SETTINGS ===== */
 import Profile from '../Profile/profile'; /* ===== PROFILE ===== */
 import Staffs from '../Staffs/staffs'; /* ===== STAFFS ===== */
 import TrashBin from '../TrashBin/trashBin'; /* ===== TRASH BIN & ARCHIVE ===== */
+import { removePlainBackground } from '../../utils/removePlainBackground'; /* ===== LOGO BACKGROUND ===== */
+import { setSystemName, useSystemName } from '../../systemName'; /* ===== SYSTEM NAME ===== */
 
 /* ===== NOTIFICATION ICONS ===== */
 const NOTIF_ICONS = {
@@ -272,13 +275,72 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
   const logoFileRef = useRef(null);
   useEffect(() => { setLogoUrl(user?.logoUrl || null); }, [user?.logoUrl]);
 
+  /* ===== SYSTEM NAME + TAB ICON (2026-11-06) =====
+     The name the Super Admin chose (Settings → System name) is shown at the
+     top of the sidebar and in the browser tab. The tab icon follows the
+     system logo while signed in (the default icon otherwise). */
+  const systemName = useSystemName();
+  useEffect(() => { if (user?.systemName) setSystemName(user.systemName); }, [user?.systemName]);
+  useEffect(() => {
+    const icon = document.querySelector('link[rel="icon"]');
+    if (!icon) return undefined;
+    const original = icon.getAttribute('data-default-href') || icon.getAttribute('href');
+    icon.setAttribute('data-default-href', original);
+    if (logoUrl) {
+      icon.setAttribute('href', logoUrl);
+      icon.removeAttribute('type');
+    } else {
+      icon.setAttribute('href', original);
+    }
+    return () => { icon.setAttribute('href', original); icon.setAttribute('type', 'image/svg+xml'); };
+  }, [logoUrl]);
+
+  /* ===== LOGO PREVIEW + "REMOVE PLAIN BACKGROUND" (2026-11-06) =====
+     Choosing a picture shows a preview first (on a checkered background so
+     see-through parts are visible). The switch removes one plain colour
+     around the logo (src/utils/removePlainBackground.js); Strength sets how
+     much. "Save logo" uploads what the preview shows. */
+  const [logoDraft, setLogoDraft] = useState(null);        // { file, url }
+  const [logoRemoveBg, setLogoRemoveBg] = useState(false);
+  const [logoBgStrength, setLogoBgStrength] = useState(40);
+  const [logoCleaned, setLogoCleaned] = useState(null);    // { blob, url, removed, alreadyClear }
+  const [logoCleaning, setLogoCleaning] = useState(false);
+
+  const clearLogoDraft = () => {
+    setLogoDraft((draft) => { if (draft?.url) URL.revokeObjectURL(draft.url); return null; });
+    setLogoCleaned((cleaned) => { if (cleaned?.url) URL.revokeObjectURL(cleaned.url); return null; });
+    setLogoRemoveBg(false);
+    setLogoBgStrength(40);
+  };
+
+  useEffect(() => {
+    if (!logoDraft || !logoRemoveBg) return undefined;
+    let cancelled = false;
+    setLogoCleaning(true);
+    const timer = window.setTimeout(async () => {
+      try {
+        const result = await removePlainBackground(logoDraft.file, { tolerance: logoBgStrength });
+        if (cancelled) { URL.revokeObjectURL(result.url); return; }
+        setLogoCleaned((previous) => { if (previous?.url) URL.revokeObjectURL(previous.url); return result; });
+        setLogoError('');
+      } catch (error) {
+        if (!cancelled) setLogoError(error.message || 'The background could not be removed.');
+      } finally {
+        if (!cancelled) setLogoCleaning(false);
+      }
+    }, 150);   // wait until the Strength slider stops moving
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [logoDraft, logoRemoveBg, logoBgStrength]);
+
   const closeLogoModal = () => {
     if (logoBusy) return;
     setIsLogoModalOpen(false);
     setLogoError('');
+    clearLogoDraft();
   };
 
-  const uploadLogo = async (event) => {
+  // Step 1: a picture was chosen — check it and show the preview.
+  const pickLogo = (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
@@ -286,6 +348,22 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
       setLogoError('Please choose an image file (JPG, PNG, WEBP or GIF).');
       return;
     }
+    if (file.size > 2 * 1024 * 1024) {
+      setLogoError('The picture must be 2 MB or smaller.');
+      return;
+    }
+    setLogoError('');
+    clearLogoDraft();
+    setLogoDraft({ file, url: URL.createObjectURL(file) });
+  };
+
+  // Step 2: "Save logo" — upload the original, or the see-through PNG.
+  const uploadLogo = async () => {
+    if (!logoDraft) return;
+    const useCleaned = logoRemoveBg && logoCleaned && !logoCleaned.alreadyClear;
+    const file = useCleaned
+      ? new File([logoCleaned.blob], 'logo.png', { type: 'image/png' })
+      : logoDraft.file;
     if (file.size > 2 * 1024 * 1024) {
       setLogoError('The picture must be 2 MB or smaller.');
       return;
@@ -302,6 +380,7 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
       }
       setLogoUrl(body.logoUrl || null);
       setIsLogoModalOpen(false);
+      clearLogoDraft();
     } catch (error) {
       setLogoError(error.message || 'The picture could not be saved.');
     } finally {
@@ -365,11 +444,11 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
   const notifRef = useRef(null); /* ===== NOTIFICATION REF ===== */
 
   const unreadCount = notifications.filter((n) => !n.read).length;
-  /* Red number on the bell = every current reorder alert (read or not, so it
-     always matches the Dashboard card and Reorder Alerts) + unread restock
-     requests from Staff. */
-  const unreadRequestCount = notifications.filter((n) => (n.id.startsWith('request-') || n.id.startsWith('account-')) && !n.read).length;
-  const bellCount = reorderAlertCount + unreadRequestCount;
+  /* Red number on the bell = UNREAD notifications only (2026-11-06): stock
+     alerts, restock requests and account requests not read yet. "Mark all
+     read" clears it; a new alert or request brings it back. (How many
+     products need restocking still shows on the Reorder List in the sidebar.) */
+  const bellCount = unreadCount;
 
   useEffect(() => {
     if (!isLogoutConfirmOpen) return undefined;
@@ -794,9 +873,8 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
         ) : (
           <span id="sidebar-logo" aria-hidden="true">{logoContent}</span>
         )}
-        <span className="sidebar-brand">
-          <strong>GGG Inventory</strong>
-          <small>Inventory Management</small>
+        <span className="sidebar-brand" title={systemName}>
+          <strong>{systemName}</strong>
         </span>
         {/* ===== ICONS ONLY / ICONS WITH NAMES (desktop) ===== */}
         <button
@@ -1140,6 +1218,7 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
                 <div className="app-view-panel" hidden={activeView !== 'Dashboard'}>
                   <Dashboard
                     onNavigate={handleNavigate}
+                    canOpen={canAccess}
                     fetchSummary={fetchDashboardSummary}
                     dataRevision={dataRevision}
                     isSuperAdmin={role === 'super_admin'}
@@ -1275,19 +1354,75 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
             aria-labelledby="logo-picker-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <span className="logo-picker-preview" aria-hidden="true">
-              {logoUrl ? <img src={logoUrl} alt="" /> : <CircleUserRound size={40} />}
+            <span className={`logo-picker-preview${logoDraft ? ' is-checker' : ''}`} aria-hidden="true">
+              {logoDraft
+                ? <img src={logoRemoveBg && logoCleaned ? logoCleaned.url : logoDraft.url} alt="" />
+                : logoUrl ? <img src={logoUrl} alt="" /> : <CircleUserRound size={40} />}
             </span>
-            <h2 id="logo-picker-title">System logo</h2>
-            <p>The system’s logo at the top of the sidebar, shown to every account. JPG, PNG, WEBP or GIF, up to 2 MB.</p>
-            {logoError && <p className="logo-picker-error" role="alert">{logoError}</p>}
+            <h2 id="logo-picker-title">{logoDraft ? 'Preview your logo' : 'System logo'}</h2>
+            {logoDraft ? (
+              <>
+                <p className="hint-text">The checkered squares show the see-through parts. If the logo sits on one plain colour (like white), turn on the switch to remove it.</p>
+                <label className="logo-bg-switch">
+                  <input type="checkbox" checked={logoRemoveBg} onChange={(event) => setLogoRemoveBg(event.target.checked)} disabled={logoBusy} />
+                  <span>Remove plain background</span>
+                </label>
+                {logoRemoveBg && (
+                  <label className="logo-bg-strength">
+                    <span>Strength</span>
+                    <input
+                      type="range"
+                      min="10"
+                      max="120"
+                      step="5"
+                      value={logoBgStrength}
+                      onChange={(event) => setLogoBgStrength(Number(event.target.value))}
+                      disabled={logoBusy}
+                      aria-label="How much of the background colour to remove"
+                    />
+                  </label>
+                )}
+                {logoRemoveBg && (
+                  <p className="logo-bg-note" role="status">
+                    {logoCleaning
+                      ? 'Removing the background…'
+                      : logoCleaned?.alreadyClear
+                        ? 'This picture already has a see-through background.'
+                        : logoCleaned
+                          ? `${Math.round(logoCleaned.removed * 100)}% of the picture is now see-through. Move Strength if too much or too little was removed.`
+                          : ''}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p>The system’s logo at the top of the sidebar, shown to every account. JPG, PNG, WEBP or GIF, up to 2 MB.</p>
+            )}
+            <PageToast message={logoError} type="error" onShown={() => setLogoError('')} />
             <input
               ref={logoFileRef}
               type="file"
               accept="image/png,image/jpeg,image/webp,image/gif"
-              onChange={uploadLogo}
+              onChange={pickLogo}
               hidden
             />
+            {logoDraft ? (
+              <div className="logout-confirm-actions">
+                <button type="button" className="logout-confirm-cancel" onClick={clearLogoDraft} disabled={logoBusy}>
+                  Back
+                </button>
+                <button type="button" className="logout-confirm-cancel" onClick={() => logoFileRef.current?.click()} disabled={logoBusy}>
+                  Other picture
+                </button>
+                <button
+                  type="button"
+                  className="logout-confirm-submit logo-picker-choose"
+                  onClick={uploadLogo}
+                  disabled={logoBusy || (logoRemoveBg && logoCleaning)}
+                >
+                  {logoBusy ? 'Saving…' : 'Save logo'}
+                </button>
+              </div>
+            ) : (
             <div className="logout-confirm-actions">
               {logoUrl && (
                 <button type="button" className="logout-confirm-cancel" onClick={removeLogo} disabled={logoBusy}>
@@ -1306,6 +1441,7 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
                 {logoBusy ? 'Saving…' : logoUrl ? 'Change logo' : 'Choose logo'}
               </button>
             </div>
+            )}
           </section>
         </div>,
         document.body

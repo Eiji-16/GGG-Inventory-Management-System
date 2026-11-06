@@ -3,7 +3,7 @@
 <body style="margin:0;padding:32px 16px;background:#eef1f7;font-family:Arial,sans-serif;color:#13203f">
     <main style="max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border-top:4px solid #e8c547">
         <div style="padding:28px">
-            <p style="margin:0;color:#5b6785;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Global Growth Guide · Inventory System</p>
+            <p style="margin:0;color:#5b6785;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Global Growth Guide · {{ \App\Models\AppSetting::systemName() }}</p>
             <h1 style="margin:8px 0 12px;font-size:22px">Hi {{ $name }}, your account is ready</h1>
             <p style="line-height:1.6;margin:0 0 18px">Your inventory account request has been approved and your account has been created. Please click the button below to <strong>verify your email</strong> and finish your setup: you will choose a password and connect an authenticator app (Google or Microsoft Authenticator). You can sign in after this.</p>
             <p style="margin:0 0 22px"><a href="{{ $link }}" style="display:inline-block;padding:13px 22px;background:#e8c547;color:#0a1530;text-decoration:none;font-weight:700;border-radius:10px">Verify my email</a></p>

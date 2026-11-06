@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { PageToast } from '../../../utils/toast';
 import { createPortal } from 'react-dom';
 import {
     ArrowLeft, Check, CircleAlert, Eye, EyeOff, KeyRound, LockKeyhole, Mail, MailCheck, RotateCw, ShieldCheck, X,
@@ -241,9 +242,8 @@ function ResetPass({ onBack }) {
                     {message && step !== 'complete' && !error && (
                         <p className="am-alert is-info" role="status"><Mail size={14} aria-hidden="true" /> {message}</p>
                     )}
-                    {error && (
-                        <p className="am-alert is-error" role="alert"><CircleAlert size={14} aria-hidden="true" /> {error}</p>
-                    )}
+                    {/* Error shows as a bottom-right pop-up (2026-11-06). */}
+                    <PageToast message={error} type="error" />
 
                     {step === 'email' && (
                         <form className="am-form" onSubmit={submitEmail}>

@@ -3,7 +3,7 @@
 <body style="margin:0;padding:32px 16px;background:#eef1f7;font-family:Arial,sans-serif;color:#13203f">
     <main style="max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border-top:4px solid #e8c547">
         <div style="padding:28px 28px 8px">
-            <p style="margin:0;color:#5b6785;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">GGG Inventory · Reorder List</p>
+            <p style="margin:0;color:#5b6785;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">{{ \App\Models\AppSetting::systemName() }} · Reorder List</p>
             <h1 style="margin:8px 0 12px;font-size:22px">Restock request</h1>
             <p style="line-height:1.6;margin:0 0 16px"><strong>{{ $requestedBy }}</strong> asked to restock this product:</p>
             <table style="width:100%;border-collapse:collapse;font-size:14px">

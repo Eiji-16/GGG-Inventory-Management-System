@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BellRing, Calculator, Check, ClipboardList, FileText, PackageCheck, PackageX, Search } from 'lucide-react';
+import { AlertTriangle, BellRing, Calculator, Check, ClipboardList, FileText, PackageCheck, PackageX, Search, X } from 'lucide-react';
 import apiFetch from '../../apiFetch';
+import { PageToast } from '../../utils/toast';
 import './reorderAlerts.css';
 import { reorderPointFor, safetyPointFor, statusPointsFor, SAFETY_STOCK_DEFAULTS } from '../../data/safetyStock';
 import { buildForecastHandoff } from '../../utils/forecastHandoff';
@@ -73,6 +74,32 @@ export default function ReorderAlerts({
     [requests],
   );
 
+  /* ===== WAITING FOR DELIVERY (2026-11-06) =====
+     A product that is in a saved Restock Report is being handled: the row
+     says "In Restock Report, waiting for delivery" and Staff do not see the
+     Request button again. The saved quantity is cleared when the delivery
+     is recorded (Received or a Stock In), so the label goes away by itself.
+     { "P-001": { qty, suggested, savedAt, savedBy } } */
+  const [savedReports, setSavedReports] = useState({});
+  const loadSavedReports = async () => {
+    try {
+      const response = await fetch('/api/restock-report', { headers: { Accept: 'application/json' }, cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json();
+      setSavedReports(data && typeof data === 'object' && !Array.isArray(data) ? data : {});
+    } catch {
+      /* keep the last list */
+    }
+  };
+  useEffect(() => {
+    loadSavedReports();
+    const timer = window.setInterval(loadSavedReports, 30000);   // same rhythm as the requests
+    return () => window.clearInterval(timer);
+  }, [catalogRevision, reloadKey]); // loadSavedReports only reads current props/state
+  const reportDate = (saved) => (saved?.savedAt
+    ? new Date(`${saved.savedAt}T00:00:00`).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
+    : '');
+
   const openNotify = (item) => {
     setNotifyTarget(item);
     setNotifyNote('');
@@ -109,7 +136,7 @@ export default function ReorderAlerts({
     try {
       const response = await apiFetch(`/api/restock-requests/${request.id}/done`, { method: 'PUT' });
       if (!response.ok) throw new Error(`Could not close the request (${response.status}).`);
-      setNotice(`Marked the request for ${request.productName} as done.`);
+      setNotice(`Closed the request for ${request.productName}.`);
       await loadRequests();
       onRequestsChanged?.();
     } catch (error) {
@@ -135,11 +162,12 @@ export default function ReorderAlerts({
   /* A delivery was recorded as a Stock In: show a message, reload the list
      (the product drops off once it is above its low-stock level) and tell
      the rest of the app that stock changed. */
-  const handleReceived = ({ id, name, qty, merged }) => {
+  const handleReceived = ({ id, name, qty, merged, hasProof }) => {
     setReceiveItem(null);
+    const proof = hasProof ? ' with a proof photo' : '';
     setNotice(merged
-      ? `Accomplished: ${qty} × ${name} received with a proof photo. It was added to today's Stock In entry in Stock Control.`
-      : `Accomplished: ${qty} × ${name} received with a proof photo. A Stock In was recorded in Stock Control.`);
+      ? `Accomplished: ${qty} × ${name} received${proof}. It was added to today's Stock In entry in Stock Control.`
+      : `Accomplished: ${qty} × ${name} received${proof}. A Stock In was recorded in Stock Control.`);
     setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
     // The app-wide refresh also reloads this list; reload here only when
     // this page is used on its own.
@@ -209,7 +237,7 @@ export default function ReorderAlerts({
     ? 'Tick the products to restock in the table first'
     : 'Work out the restock quantity for every ticked product and export the report';
 
-  /* Order Now sends the product's forecast demand (WMA + seasonal, per month
+  /* Calculate Now (was "Order Now") sends the product's forecast demand (WMA + seasonal, per month
      × 12) to the EOQ Calculator. If no forecast is possible yet, it falls back
      to actual sales and the calculator says so. */
   const orderNow = async (item) => {
@@ -276,6 +304,7 @@ export default function ReorderAlerts({
             </div>
             {/* Preset searches: the categories of the products in this list. */}
             <SearchSuggestions
+              recentKey="reorder"
               query={query}
               suggestions={alerts.map((item) => item.category)}
               onPick={setQuery}
@@ -284,6 +313,7 @@ export default function ReorderAlerts({
               <div className="ra-search xs-search">
                 <Search size={13} aria-hidden="true" />
                 <input
+                  autoComplete="off"
                   type="search"
                   placeholder="Search the list…"
                   value={query}
@@ -313,12 +343,8 @@ export default function ReorderAlerts({
         </div>
 
         {error && <p className="ra-error" role="alert">{error}</p>}
-        {notice && (
-          <p className="ra-notice" role="status">
-            {notice}
-            <button type="button" onClick={() => setNotice('')} aria-label="Dismiss message">×</button>
-          </p>
-        )}
+        {/* Page messages show as a bottom-right pop-up (2026-11-06). */}
+        <PageToast message={notice} type="info" onShown={() => setNotice('')} />
 
         {canComputeEoq && (
           <MobileSelectBar
@@ -393,13 +419,18 @@ export default function ReorderAlerts({
                           {requestByProduct[item.id].note ? `: “${requestByProduct[item.id].note}”` : ''}
                         </small>
                       )}
+                      {savedReports[item.id] && (
+                        <small className="ra-report-info" title={`Owner's quantity ${savedReports[item.id].qty}${savedReports[item.id].savedBy ? ` · saved by ${savedReports[item.id].savedBy}` : ''}`}>
+                          <FileText size={10} aria-hidden="true" /> In Restock Report{reportDate(savedReports[item.id]) ? ` (${reportDate(savedReports[item.id])})` : ''}, waiting for delivery
+                        </small>
+                      )}
                     </span>
                   </td>
                   <td data-label="Action">
                     <span className="ra-actions">
                       {canComputeEoq && (
-                        <button type="button" className={`ra-order-btn ${item.status !== 'Low Stock' ? 'is-urgent' : ''}`} onClick={() => orderNow(item)} disabled={orderingId !== null} aria-label={`Order Now: ${item.name}`} title="Order Now: work out the Economic Order Quantity">
-                          <Calculator size={13} aria-hidden="true" /> <span className="ra-btn-label">{orderingId === item.id ? 'Loading forecast…' : 'Order Now'}</span>
+                        <button type="button" className={`ra-order-btn ${item.status !== 'Low Stock' ? 'is-urgent' : ''}`} onClick={() => orderNow(item)} disabled={orderingId !== null} aria-label={`Calculate Now: ${item.name}`} title="Calculate Now: work out the Economic Order Quantity">
+                          <Calculator size={13} aria-hidden="true" /> <span className="ra-btn-label">{orderingId === item.id ? 'Loading forecast…' : 'Calculate Now'}</span>
                         </button>
                       )}
                       {canReceive && (
@@ -408,12 +439,14 @@ export default function ReorderAlerts({
                         </button>
                       )}
                       {canManageRequests && requestByProduct[item.id] && (
-                        <button type="button" className="ra-order-btn" onClick={() => markDone(requestByProduct[item.id])} title="Close this restock request">
-                          <Check size={13} aria-hidden="true" /> <span className="ra-btn-label">Mark done</span>
+                        <button type="button" className="ra-order-btn" onClick={() => markDone(requestByProduct[item.id])} title="Close this request without a delivery (for example, the product will not be restocked). A delivery recorded with Received closes it by itself.">
+                          <X size={13} aria-hidden="true" /> <span className="ra-btn-label">Close request</span>
                         </button>
                       )}
                       {canNotify && !canManageRequests && (requestByProduct[item.id] ? (
                         <span className="ra-notified"><Check size={12} aria-hidden="true" /> Requested</span>
+                      ) : savedReports[item.id] ? (
+                        <span className="ra-notified ra-waiting" title="This product is in a saved Restock Report. The label goes away when the delivery is recorded."><FileText size={12} aria-hidden="true" /> Waiting for delivery</span>
                       ) : (
                         <button type="button" className="ra-order-btn" onClick={() => openNotify(item)} aria-label={`Request restock: ${item.name}`} title="Ask the Admins to restock this product (email + notification)">
                           <BellRing size={13} aria-hidden="true" /> <span className="ra-btn-label">Request</span>
@@ -442,7 +475,7 @@ export default function ReorderAlerts({
                 placeholder="e.g. Customer asking for size L"
                 autoFocus
               />
-              {notifyError && <p className="ra-error" role="alert">{notifyError}</p>}
+              <PageToast message={notifyError} type="error" onShown={() => setNotifyError('')} />
               <div className="ra-modal-actions">
                 <button type="button" className="ra-order-btn" onClick={() => setNotifyTarget(null)} disabled={notifyBusy}>Cancel</button>
                 <button type="submit" className="ra-order-btn is-urgent" disabled={notifyBusy}>{notifyBusy ? 'Sending…' : 'Send request'}</button>
@@ -462,7 +495,7 @@ export default function ReorderAlerts({
           <BulkOrder
             items={bulkItems}
             onClose={() => setBulkItems(null)}
-            onSaved={() => setSelectedIds(new Set())}
+            onSaved={() => { setSelectedIds(new Set()); loadSavedReports(); }}
           />
         )}
       </div>

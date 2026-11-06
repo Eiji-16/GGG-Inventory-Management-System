@@ -391,7 +391,7 @@
 .db-legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     font-size: 10px;
     color: var(--text-muted);
 }
@@ -437,7 +437,7 @@
     min-width: 0;
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    gap: 6px;
 }
 
 .db-donut-total {
@@ -775,7 +775,7 @@ grid-column: 5 / span 2;
 .regionalBreakdown-card {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .db-order-list {
@@ -794,8 +794,8 @@ grid-column: 5 / span 2;
     gap: 10px;
     width: 100%;
     padding: 7px 9px;
-    border: 0;
-    border-left: 3px solid var(--accent);
+    /* Thin full border in the status colour — no coloured left stripe. */
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
     border-radius: 8px;
     background: var(--overlay-soft);
     color: var(--text-primary);
@@ -804,9 +804,9 @@ grid-column: 5 / span 2;
     cursor: pointer;
 }
 
-.db-order-row:hover { filter: brightness(1.08); }
-.db-order-row.is-out { border-left-color: var(--accent-low); }
-.db-order-row.is-low { border-left-color: var(--accent-med); }
+.db-order-row:not(.is-static):hover { filter: brightness(1.08); }
+.db-order-row.is-out { border-color: color-mix(in srgb, var(--accent-low) 45%, transparent); }
+.db-order-row.is-low { border-color: color-mix(in srgb, var(--accent-med) 45%, transparent); }
 
 .db-order-info {
     display: flex;
@@ -950,7 +950,7 @@ grid-column: 5 / span 2;
         height: 68px;
         flex-basis: 68px;
     }
-    .db-category-section .db-donut-row { gap: 8px; }
+    .db-category-section .db-donut-row { gap: 6px; }
     .db-coverage-content { gap: 12px; }
 }
 
@@ -1048,8 +1048,6 @@ grid-column: 5 / span 2;
     display: grid;
     gap: 1px;
     margin: 2px 0 4px;
-    padding-left: 10px;
-    border-left: 3px solid var(--accent);
 }
 .db-trend-total-label { color: var(--text-muted); font-size: 10.5px; }
 .db-trend-total strong { font-size: 24px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; }
@@ -1070,8 +1068,7 @@ grid-column: 5 / span 2;
 .db-trend-tag {
     flex-direction: column;
     gap: 1px;
-    padding: 6px 10px 6px 12px;
-    border-left: 3px solid var(--accent);
+    padding: 6px 10px;
     transform: translate(16px, -110%);
 }
 .db-trend-tag.db-hero-tooltip-left { transform: translate(calc(-100% - 16px), -110%); }
@@ -1170,7 +1167,7 @@ grid-column: 5 / span 2;
     isolation: isolate;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
     min-height: 112px;
     padding: 12px 14px;
@@ -1401,24 +1398,24 @@ grid-column: 5 / span 2;
 
 /* Hover (only on devices with a mouse, so taps on phones don't "stick"). */
 @media (hover: hover) {
-    .db-kpi-tile:not(.is-skeleton):hover {
+    .db-kpi-tile:not(.is-skeleton):not(.is-static):hover {
         transform: translateY(-3px);
         border-color: color-mix(in srgb, var(--kpi-accent) 50%, var(--border-color));
         box-shadow: var(--shadow-hover, 0 8px 22px rgba(0, 0, 0, 0.3)), 0 0 0 1px color-mix(in srgb, var(--kpi-accent) 12%, transparent);
     }
-    .db-kpi-tile:not(.is-skeleton):hover::before { opacity: 1; }
-    .db-kpi-tile:not(.is-skeleton):hover::after { transform: scale(1.25); }
-    .db-kpi-tile:not(.is-skeleton):hover .db-kpi-tile-icon {
+    .db-kpi-tile:not(.is-skeleton):not(.is-static):hover::before { opacity: 1; }
+    .db-kpi-tile:not(.is-skeleton):not(.is-static):hover::after { transform: scale(1.25); }
+    .db-kpi-tile:not(.is-skeleton):not(.is-static):hover .db-kpi-tile-icon {
         transform: translateY(-1px) scale(1.06);
         background: color-mix(in srgb, var(--kpi-accent) 22%, transparent);
     }
-    .db-kpi-tile:not(.is-skeleton):hover .db-kpi-tile-go {
+    .db-kpi-tile:not(.is-skeleton):not(.is-static):hover .db-kpi-tile-go {
         opacity: 1;
         color: var(--kpi-accent);
         transform: translate(2px, -2px);
     }
 }
-.db-kpi-tile:active { transform: translateY(-1px); }
+.db-kpi-tile:not(.is-static):active { transform: translateY(-1px); }
 
 /* Keyboard focus: clear ring in the card's accent colour. */
 .db-kpi-tile:focus-visible {
@@ -1554,7 +1551,7 @@ grid-column: 5 / span 2;
     transition: color 0.18s ease, padding-left 0.18s ease;
 }
 .db-cov-row:last-child { border-bottom: 0; }
-.db-cov-row:hover { color: var(--accent); padding-left: 5px; }
+.db-cov-row:not(.is-static):hover { color: var(--accent); padding-left: 5px; }
 .db-cov-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 4px; }
 .db-cov-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .db-cov-label { color: var(--text-muted); font-size: 10px; font-weight: 600; }
@@ -1634,7 +1631,7 @@ grid-column: 5 / span 2;
 .db-ps-sold { font-weight: 800; }
 
 /*==========RECENT ACTIVITY==========*/
-.activity-card { gap: 8px; }
+.activity-card { gap: 6px; }
 .db-act-list {
     display: flex;
     flex-direction: column;
@@ -1658,7 +1655,7 @@ grid-column: 5 / span 2;
     cursor: pointer;
     transition: background-color 0.18s ease;
 }
-.db-act-row:hover { background: var(--overlay-soft, rgba(255, 255, 255, 0.06)); }
+.db-act-row:not(.is-static):hover { background: var(--overlay-soft, rgba(255, 255, 255, 0.06)); }
 .db-act-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
 .db-act-avatar {
     display: grid;
@@ -1746,7 +1743,7 @@ grid-column: 5 / span 2;
     color: var(--kpi-accent);
 }
 @media (hover: hover) {
-    .db-kpi-tile:not(.is-skeleton):hover {
+    .db-kpi-tile:not(.is-skeleton):not(.is-static):hover {
         transform: translateY(-2px);
         border-color: color-mix(in srgb, var(--accent) 35%, var(--border-color));
         box-shadow:
@@ -1804,7 +1801,7 @@ grid-column: 5 / span 2;
     }
 
     .db-order-row {
-        gap: 8px;
+        gap: 6px;
         padding: 4px 8px;
     }
 
@@ -1950,12 +1947,11 @@ grid-column: 5 / span 2;
     vector-effect: non-scaling-stroke;
 }
 
-/* Hover label: dark box, accent bar on the left, number on top. */
+/* Hover label: dark box, number on top (no coloured left stripe). */
 .db-trend-card .db-trend-tag {
     gap: 2px;
-    padding: 7px 12px 7px 11px;
+    padding: 7px 12px;
     border-radius: 6px;
-    border-left: 3px solid var(--accent);
     transform: translate(12px, calc(-100% - 10px));
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
@@ -2016,3 +2012,10 @@ grid-column: 5 / span 2;
 @media (prefers-reduced-motion: reduce) {
     .db-trend-icon-btn.is-busy svg { animation: none; }
 }
+
+/* Cards and rows that would open a page this role cannot open (Role Access):
+   plain, not clickable (2026-11-06). */
+.db-kpi-tile.is-static,
+.db-order-row.is-static,
+.db-cov-row.is-static,
+.db-act-row.is-static { cursor: default; }
