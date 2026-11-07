@@ -6,6 +6,7 @@ import apiFetch from '../../apiFetch';
 import exportReportWorkbook, { printReportPdf } from '../../utils/exportReportWorkbook';
 import PastSalesPanel from './pastSales';
 import AutoCalculator from '../AutoCalculator/autoCal';
+import CustomSelect from './CustomSelect';
 
 const FORECAST_METHOD = 'Weighted Moving Average';
 const FORECAST_METHOD_NOTE = 'Uses the three most recent completed periods with weights 1, 2 and 3; the newest period receives the greatest weight.';
@@ -268,6 +269,8 @@ export default function DemandForecastDesign({
   const [products, setProducts] = useState([]);
   const [productId, setProductId] = useState('');
   const [productSearch, setProductSearch] = useState('');
+  // Where the calculator puts its intro line and History button (2026-11-07).
+  const [eoqHeaderSlot, setEoqHeaderSlot] = useState(null);
   const [selectedPeriodType, setSelectedPeriodType] = useState('month');
   const [history, setHistory] = useState(null);
   const [forecast, setForecast] = useState(null);
@@ -713,32 +716,27 @@ export default function DemandForecastDesign({
           {view === 'eoq' && canComputeEoq && (
             <div className="fx-layout fx-eoq-layout">
               <div className="fx-toolbar">
-                <div className="f-field f-search-wrap xs-search">
-                  <label htmlFor="eoq-product-search">Search product</label>
-                  <input
-                    autoComplete="off"
-                    id="eoq-product-search"
-                    type="text"
-                    aria-label="Search product"
-                    placeholder="Name, ID, brand, category or variant…"
-                    value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
-                  />
-                  <SearchIcon />
-                </div>
-                <div className="f-field fx-product-field">
+                {/* Product picker with its own search box inside (2026-11-07),
+                    the same as Stock Control and Past Sales. */}
+                <div className="f-field fx-product-field fx-product-field-compact">
                   <label htmlFor="eoq-product">Product</label>
-                  <ForecastProductSelect
-                    products={filteredProducts}
-                    allProducts={products}
-                    productId={productId}
-                    loading={loadingProducts}
-                    onChange={chooseProduct}
+                  <CustomSelect
+                    id="eoq-product"
+                    value={productId || ''}
+                    onChange={(value) => chooseProduct(String(value))}
+                    searchable
+                    searchPlaceholder="Search products…"
+                    placeholder={loadingProducts ? 'Loading products…' : 'Select a product…'}
+                    emptyText="No products match"
+                    disabled={loadingProducts}
+                    options={products.map((product) => ({ value: product.id, label: product.name, sub: product.id }))}
                   />
                 </div>
+                <div className="fx-eoq-header-slot" ref={setEoqHeaderSlot} />
               </div>
               <AutoCalculator
                 embedded
+                headerSlot={eoqHeaderSlot}
                 productId={productId}
                 onNavigate={onNavigate}
                 handoff={eoqHandoff}
@@ -759,27 +757,20 @@ export default function DemandForecastDesign({
             <div className="fx-layout">
               {/* ===== TOOLBAR ===== */}
               <div className="fx-toolbar">
-                <div className="f-field f-search-wrap xs-search">
-                  <label htmlFor="forecast-product-search">Search product</label>
-                  <input
-                    autoComplete="off"
-                    id="forecast-product-search"
-                    type="text"
-                    aria-label="Search product"
-                    placeholder="Name, ID, brand, category or variant…"
-                    value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
-                  />
-                  <SearchIcon />
-                </div>
-                <div className="f-field fx-product-field">
+                {/* Product picker with its own search box inside (2026-11-07),
+                    the same as Stock Control and Past Sales. */}
+                <div className="f-field fx-product-field fx-product-field-compact">
                   <label htmlFor="forecast-product">Product</label>
-                  <ForecastProductSelect
-                    products={filteredProducts}
-                    allProducts={products}
-                    productId={productId}
-                    loading={loadingProducts}
-                    onChange={chooseProduct}
+                  <CustomSelect
+                    id="forecast-product"
+                    value={productId || ''}
+                    onChange={(value) => chooseProduct(String(value))}
+                    searchable
+                    searchPlaceholder="Search products…"
+                    placeholder={loadingProducts ? 'Loading products…' : 'Select a product…'}
+                    emptyText="No products match"
+                    disabled={loadingProducts}
+                    options={products.map((product) => ({ value: product.id, label: product.name, sub: product.id }))}
                   />
                 </div>
                 <div className="f-field">

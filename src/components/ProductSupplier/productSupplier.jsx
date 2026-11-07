@@ -10,6 +10,7 @@ import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
 import useFillToBottom from '../../utils/fillToBottom';
+import RowsPicker, { useRowsChoice, rowsFor } from '../RowsPicker/RowsPicker';
 import { uiZoom } from '../../fontSize';
 
 
@@ -336,15 +337,20 @@ function ProductSupplier({
   const tableRef = useCallback((element) => {
     fillTableToBottom(element);
   }, [fillTableToBottom]);
-  const PAGE_SIZE = 10;
+  /* Rows per page (2026-11-07): 10 (as before), 25, 50 or All — chosen
+     under the table and remembered in this browser. */
+  const [rowsChoice, setRowsChoice] = useRowsChoice('products', '10', ['10', '25', '50', 'all']);
+  const showAll = rowsChoice === 'all';
+  const PAGE_SIZE = showAll ? Math.max(1, total) : (rowsFor(rowsChoice) || 10);
   const safeCursor = total === 0 ? 0 : Math.min(cursor, total - 1);
   /* ===== PAGE START ===== */
-  const pageCursor = Math.floor(safeCursor / PAGE_SIZE) * PAGE_SIZE;
-  const visibleProducts = filteredProducts.slice(pageCursor, pageCursor + PAGE_SIZE);
-  const hasNext = pageCursor + PAGE_SIZE < total;
-  const hasPrev = pageCursor > 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const currentPage = Math.floor(pageCursor / PAGE_SIZE) + 1;
+  const pageCursor = showAll ? 0 : Math.floor(safeCursor / PAGE_SIZE) * PAGE_SIZE;
+  const visibleProducts = showAll ? filteredProducts : filteredProducts.slice(pageCursor, pageCursor + PAGE_SIZE);
+  const hasNext = !showAll && pageCursor + PAGE_SIZE < total;
+  const hasPrev = !showAll && pageCursor > 0;
+  const totalPages = showAll ? 1 : Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = showAll ? 1 : Math.floor(pageCursor / PAGE_SIZE) + 1;
+  const chooseRows = (next) => { setRowsChoice(next); setCursor(0); };
   const pageLabel = total === 0
     ? 'No items'
     : `Page ${currentPage} of ${totalPages}`;
@@ -980,7 +986,12 @@ function ProductSupplier({
 
       {/* ===== PAGE BAR ===== */}
       {total > 0 && (
-        <div className="ps-pagination">
+        <div className="rows-footer ps-rows-footer">
+          <span />
+          {showAll ? (
+            <span className="rows-footer-all">Showing all {total.toLocaleString('en-PH')} products</span>
+          ) : (
+          <div className="ps-pagination">
           <button
             className="ps-page-pill"
             onClick={goPrev}
@@ -998,6 +1009,9 @@ function ProductSupplier({
           >
             ›
           </button>
+          </div>
+          )}
+          <RowsPicker value={rowsChoice} options={['10', '25', '50', 'all']} onChange={chooseRows} total={total} label="Products per page" />
         </div>
       )}
 

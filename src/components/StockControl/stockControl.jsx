@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import useFillToBottom from '../../utils/fillToBottom';
 import useRowsThatFit from '../../utils/fitRows';
+import RowsPicker, { useRowsChoice, rowsFor } from '../RowsPicker/RowsPicker';
 import { createPortal } from 'react-dom';
 import {
   Plus,
@@ -621,18 +622,32 @@ function StockControl({
     String(b.row.date).localeCompare(String(a.row.date)) || Number(b.id) - Number(a.id)
   )), [visibleRows]);
 
+  /* Rows per page (2026-11-07): "Fit screen" (as many as fit, the old way),
+     10, 25, 50 or All — chosen under the table, remembered in this browser.
+     Stock and History share the choice. */
+  const [rowsChoice, setRowsChoice] = useRowsChoice('stock-control', 'fit', ['fit', '10', '25', '50', 'all']);
   // Show at least 11 rows per page (phones: 11 cards); the table box can scroll.
-  const PAGE_SIZE = useRowsThatFit(tableBox, {
+  const fitSize = useRowsThatFit(rowsChoice === 'fit' ? tableBox : null, {
     min: 11,
     fallback: 11,
     deps: [view, stockLoading, tableRows.length > 0, historyRows.length > 0],
   });
-  const pageCount = Math.max(1, Math.ceil(tableRows.length / PAGE_SIZE));
+  // Not "Fit screen": rows keep their normal height (no stretching to the box).
+  useEffect(() => {
+    if (!tableBox || rowsChoice === 'fit') return;
+    tableBox.style.removeProperty('--fit-row-height');
+    delete tableBox.dataset.fitRows;
+  }, [tableBox, rowsChoice]);
+  const PAGE_SIZE = rowsFor(rowsChoice) ?? fitSize;
+  const showAll = PAGE_SIZE === Infinity;
+  const pageSlice = (rows, pageNumber) => (showAll ? rows : rows.slice((pageNumber - 1) * PAGE_SIZE, pageNumber * PAGE_SIZE));
+  const pageCount = showAll ? 1 : Math.max(1, Math.ceil(tableRows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
-  const pageRows = tableRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  const historyPageCount = Math.max(1, Math.ceil(historyRows.length / PAGE_SIZE));
+  const pageRows = pageSlice(tableRows, currentPage);
+  const historyPageCount = showAll ? 1 : Math.max(1, Math.ceil(historyRows.length / PAGE_SIZE));
   const currentHistoryPage = Math.min(historyPage, historyPageCount);
-  const historyPageRows = historyRows.slice((currentHistoryPage - 1) * PAGE_SIZE, currentHistoryPage * PAGE_SIZE);
+  const historyPageRows = pageSlice(historyRows, currentHistoryPage);
+  const chooseRows = (next) => { setRowsChoice(next); setPage(1); setHistoryPage(1); };
   // A new search or sort starts again at page 1.
   useEffect(() => { setPage(1); setHistoryPage(1); }, [query, sortBy, sortDir]);
   // Ticks only count for entries that still match the search: an entry hidden
@@ -1942,12 +1957,13 @@ function StockControl({
         </table>
       </div>
       {!stockLoading && tableRows.length > 0 && (
-        <TablePager
-          label="Stock movement pages"
-          page={currentPage}
-          pageCount={pageCount}
-          onPage={setPage}
-        />
+        <div className="rows-footer">
+          <span />
+          {showAll
+            ? <span className="rows-footer-all">Showing all {tableRows.length.toLocaleString('en-PH')} entries</span>
+            : <TablePager label="Stock movement pages" page={currentPage} pageCount={pageCount} onPage={setPage} />}
+          <RowsPicker value={rowsChoice} options={['fit', '10', '25', '50', 'all']} onChange={chooseRows} total={tableRows.length} label="Stock rows per page" />
+        </div>
       )}
       </>)}
 
@@ -2002,12 +2018,13 @@ function StockControl({
         </table>
       </div>
       {!stockLoading && historyRows.length > 0 && (
-        <TablePager
-          label="Stock history pages"
-          page={currentHistoryPage}
-          pageCount={historyPageCount}
-          onPage={setHistoryPage}
-        />
+        <div className="rows-footer">
+          <span />
+          {showAll
+            ? <span className="rows-footer-all">Showing all {historyRows.length.toLocaleString('en-PH')} entries</span>
+            : <TablePager label="Stock history pages" page={currentHistoryPage} pageCount={historyPageCount} onPage={setHistoryPage} />}
+          <RowsPicker value={rowsChoice} options={['fit', '10', '25', '50', 'all']} onChange={chooseRows} total={historyRows.length} label="History rows per page" />
+        </div>
       )}
       </>)}
 

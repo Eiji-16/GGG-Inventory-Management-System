@@ -127,6 +127,15 @@ class StockMovementController extends Controller
         ]);
         $request->merge(['type' => 'Stock In', 'mergeSameDay' => true]);
 
+        // A product with sizes/colours must say which one arrived (2026-11-07),
+        // so the delivery counts toward that variant in Stock Control.
+        $receivedProduct = Product::where('code', (string) $request->input('productId'))->first();
+        if ($receivedProduct && ! empty($receivedProduct->variants) && trim((string) $request->input('variantName', '')) === '') {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'variantName' => "Choose which variant of {$receivedProduct->name} arrived.",
+            ]);
+        }
+
         $choice = $request->input('choice', 'custom');
         $suggested = $request->filled('suggestedQty') ? (int) $request->input('suggestedQty') : null;
         $note = trim((string) $request->input('notes', ''));

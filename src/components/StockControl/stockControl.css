@@ -2424,3 +2424,14 @@
     background: transparent;
     box-shadow: none;
 }
+
+/* History tab (2026-11-07): the table still scrolls, but without a visible scrollbar. */
+.sc-table-scroll:has(> .sc-history-table) {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.sc-table-scroll:has(> .sc-history-table)::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+}

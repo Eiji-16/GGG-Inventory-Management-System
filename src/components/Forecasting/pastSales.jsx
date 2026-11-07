@@ -4,12 +4,6 @@ import apiFetch from '../../apiFetch';
 import { readSalesFile, downloadTemplate, monthLabel } from '../../utils/pastSalesImport';
 import CustomSelect from './CustomSelect';
 
-/* Same search icon as Forecasting (expandable search box). */
-const SearchIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-    <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
-  </svg>
-);
 
 /* ==========================================================================
    PAST SALES
@@ -86,6 +80,7 @@ function ImportCard({ products, onImported }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [issueFilter, setIssueFilter] = useState('error');
+  const [dragging, setDragging] = useState(false);
 
   const reset = () => {
     setParsed(null);
@@ -148,6 +143,21 @@ function ImportCard({ products, onImported }) {
     }
   };
 
+  /* Drop area (2026-11-07): a file dragged onto the box is read the same
+     way as one picked with "Choose Excel file". */
+  const handleDrop = (event) => {
+    event.preventDefault();
+    setDragging(false);
+    if (busy) return;
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    if (!/\.(xlsx|xls|csv)$/i.test(file.name)) {
+      setError('Drop an Excel file (.xlsx or .xls) or a .csv file.');
+      return;
+    }
+    handleFile({ target: { files: [file] } });
+  };
+
   const handleImport = async () => {
     if (!parsed?.rows?.length) return;
     setStatus('importing');
@@ -175,35 +185,46 @@ function ImportCard({ products, onImported }) {
       <header className="fx-card-head">
         <div className="fx-title">
           <h2>Import from Excel</h2>
-          <p>For many products at once — use her existing Excel sheet or the template. (Excel import is for monthly sales; weekly sales are entered below.)</p>
+          <p className="hint-text">For many products at once.</p>
         </div>
       </header>
 
+      {/* Short steps + a drop area (2026-11-07). */}
       <ol className="ps-steps">
         <li>
-          <strong>Get the sheet ready.</strong> Either <button type="button" className="ps-link" onClick={handleTemplate}>download the template</button> (all
-          products, last 12 months across), or use her own sheet with columns like <em>Product · Month · Units Sold</em>, or
-          <em> Product · Jan 2026 · Feb 2026 …</em>
+          <strong>Get the sheet ready.</strong> <button type="button" className="ps-link" onClick={handleTemplate}>Download the template</button> or
+          use the owner's own sheet <span className="hint-text">(columns like <em>Product · Month · Units Sold</em> or <em>Product · Jan 2026 · Feb 2026 …</em>)</span>.
         </li>
-        <li>
-          <strong>Upload it.</strong> The system reads the first sheet and shows a preview — nothing is saved yet.
-          <div className="ps-upload-row">
-            <label className={`f-btn f-btn-primary ps-upload${busy ? ' is-disabled' : ''}`}>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={handleFile}
-                disabled={busy}
-                aria-label="Choose an Excel or CSV file"
-              />
-              {status === 'reading' ? 'Reading file…' : status === 'previewing' ? 'Checking rows…' : 'Choose Excel file'}
-            </label>
-            {fileName && <span className="ps-file-name">{fileName}</span>}
-          </div>
-        </li>
-        <li><strong>Check the preview, then click Import.</strong></li>
+        <li><strong>Upload it.</strong> You'll see a preview first. Nothing is saved yet.</li>
+        <li><strong>Check, then import.</strong></li>
       </ol>
+
+      <div
+        className={`ps-drop${dragging ? ' is-dragging' : ''}${busy ? ' is-busy' : ''}`}
+        onDragOver={(event) => { event.preventDefault(); if (!busy) setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+      >
+        <svg className="ps-drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z" /><path d="M9 12l2 2 4-4" />
+        </svg>
+        <span className="ps-drop-text">
+          {status === 'reading' ? 'Reading file…' : status === 'previewing' ? 'Checking rows…' : 'Drop an Excel file here'}
+        </span>
+        <label className={`f-btn f-btn-primary ps-upload${busy ? ' is-disabled' : ''}`}>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFile}
+            disabled={busy}
+            aria-label="Choose an Excel or CSV file"
+          />
+          Choose Excel file
+        </label>
+        {fileName && <span className="ps-file-name">{fileName}</span>}
+      </div>
+      <p className="ps-muted ps-drop-note hint-text">Monthly sales only. Enter weekly sales on the right.</p>
 
       <PageToast message={error} type="error" onShown={() => setError('')} />
       <PageToast message={success} type="success" onShown={() => setSuccess('')} />
@@ -295,7 +316,6 @@ function ImportCard({ products, onImported }) {
 
 /* ===== ENTER MANUALLY (one product, 12-month grid) ===== */
 function ManualCard({ products, productId, onProductChange, onSaved }) {
-  const [search, setSearch] = useState('');
   const [periodType, setPeriodType] = useState('month'); // 'month' | 'week'
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -306,31 +326,6 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
-  const matches = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return !q ? products : products.filter((p) =>
-      [p.name, p.id, p.brand, p.category, ...(p.variants || [])]
-        .some((v) => String(v || '').toLowerCase().includes(q)));
-  }, [products, search]);
-
-  const filtered = useMemo(() => {
-    const list = matches;
-    if (productId && !list.some((p) => p.id === productId)) {
-      const selected = products.find((p) => p.id === productId);
-      return selected ? [selected, ...list] : list;
-    }
-    return list;
-  }, [products, matches, productId]);
-
-  useEffect(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return;
-    const exactMatches = matches.filter((p) =>
-      [p.name, p.id].some((value) => String(value || '').trim().toLowerCase() === query));
-    const match = exactMatches.length === 1 ? exactMatches[0]
-      : matches.length === 1 ? matches[0] : null;
-    if (match && String(match.id) !== String(productId)) onProductChange(String(match.id));
-  }, [search, matches, onProductChange]);
 
   useEffect(() => {
     setData(null);
@@ -400,6 +395,16 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
     [data, isWeekly],
   );
   const dirty = cells.some(({ key, locked }) => !locked && key in drafts && String(drafts[key]) !== String(saved[key] ?? ''));
+  /* Total of the boxes on screen (typed numbers, or the weekly total a blank
+     month uses), so typing can be checked at a glance. */
+  const shownTotal = cells.reduce((sum, { key, locked }) => {
+    if (locked) return sum;
+    const typed = String(valueFor(key)).trim();
+    if (typed !== '' && Number.isFinite(Number(typed))) return sum + Number(typed);
+    const weeks = weekTotals[key];
+    return weeks && weeks.complete ? sum + Number(weeks.unitsSold) : sum;
+  }, 0);
+  const usesWeekTotals = !isWeekly && cells.some(({ key, locked }) => !locked && weekTotals[key]);
 
   const save = async () => {
     const records = [];
@@ -441,7 +446,7 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
       <header className="fx-card-head">
         <div className="fx-title">
           <h2>Enter manually</h2>
-          <p>For one product — type the units sold per {isWeekly ? 'week' : 'month'}.</p>
+          <p className="hint-text">For one product — type the units sold per {isWeekly ? 'week' : 'month'}.</p>
         </div>
         {/* Monthly entries feed the month/year forecast; weekly entries feed the weekly forecast. */}
         <div className="fx-segmented ps-period-toggle" role="tablist" aria-label="Enter sales per">
@@ -462,11 +467,6 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
       </header>
 
       <div className={`ps-manual-controls${isWeekly ? ' is-weekly' : ''}`}>
-        <div className="f-field ps-find-field f-search-wrap xs-search">
-          <label htmlFor="ps-search">Find product</label>
-          <input autoComplete="off" id="ps-search" type="text" aria-label="Find product" placeholder="Name, ID or category…" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <SearchIcon />
-        </div>
         <div className="f-field f-grow ps-product-field">
           <label htmlFor="ps-product">Product</label>
           <CustomSelect
@@ -474,7 +474,9 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
             value={productId || ''}
             placeholder="Select a product…"
             emptyText="No products match"
-            options={filtered.slice(0, 500).map((p) => ({ value: p.id, label: p.name, sub: p.id }))}
+            searchable
+            searchPlaceholder="Search products…"
+            options={products.map((p) => ({ value: p.id, label: p.name, sub: p.id }))}
             onChange={(value) => onProductChange(value)}
           />
         </div>
@@ -546,10 +548,10 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
                       ? `Total of the weekly entries for ${title}. Weeks that cross into another month are split by days.`
                       : `${weeks.weeksEntered} of the ${weeks.weeksNeeded} weeks of ${title} have weekly entries — enter all of them to use the weekly total.`}
                   >
-                    {auto ? `Weekly total used`
-                      : mismatch ? `⚠ Weeks total ${formatUnits(weeks.unitsSold)}`
+                    {auto ? <><i className="ps-dot" aria-hidden="true" />weeks</>
+                      : mismatch ? `⚠ Weeks: ${formatUnits(weeks.unitsSold)}`
                       : weeks.complete ? 'Matches weeks ✓'
-                      : `Weeks: ${weeks.weeksEntered} of ${weeks.weeksNeeded} entered`}
+                      : `${weeks.weeksEntered} of ${weeks.weeksNeeded} weeks`}
                   </small>
                 )}
               </label>
@@ -561,11 +563,17 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
       <PageToast message={error} type="error" onShown={() => setError('')} />
       <PageToast message={notice} type="success" onShown={() => setNotice('')} />
 
-      <div className="fx-actions">
+      <div className="fx-actions ps-manual-actions">
+        {dataReady && (
+          <span className="ps-legend">
+            {usesWeekTotals && <><i className="ps-dot" aria-hidden="true" /> = total from the weekly entries · </>}
+            {isWeekly ? 'Month' : 'Year'} total: <strong>{formatUnits(shownTotal)}</strong>
+          </span>
+        )}
+        {dirty && <button type="button" className="f-btn f-btn-ghost" onClick={() => setDrafts({})} disabled={saving}>Undo changes</button>}
         <button type="button" className="f-btn f-btn-primary" onClick={save} disabled={!dirty || saving}>
           {saving ? 'Saving…' : `Save ${unitWord}s`}
         </button>
-        {dirty && <button type="button" className="f-btn f-btn-ghost" onClick={() => setDrafts({})} disabled={saving}>Undo changes</button>}
       </div>
       <p className="ps-muted hint-text">Leave a {unitWord} blank if there is no record. Clearing a saved {unitWord} and saving removes it.{isWeekly
         ? ' Weekly entries are used by the weekly forecast. Once every week of a month is entered, its total is also used for that month (if it has no monthly entry).'
@@ -580,12 +588,18 @@ export default function PastSalesPanel({ products, productId, onProductChange, o
       <section className="fx-card ps-intro">
         <div className="fx-title">
           <h2>Past Sales</h2>
-          <p>
-            Monthly or weekly sales from <strong>before</strong> a product was recorded in Stock Control — for example from the owner’s old Excel sheets.
-            They give the forecast history to work with right away. They are only used for forecasting and never change stock on hand.
-            From the month (or week) a product’s Stock Control records begin, its sales come from Stock Out transactions instead, so nothing is counted twice. Monthly entries are used by the monthly and yearly forecast; weekly entries by the weekly forecast — and by a month with no monthly entry once all its weeks are entered.
-          </p>
+          <p>Sales from <strong>before</strong> Stock Control, used only for forecasting. They never change stock on hand.</p>
         </div>
+        {/* The full explanation, one click away (2026-11-07). */}
+        <details className="ps-how hint-text">
+          <summary>How it works</summary>
+          <p>
+            Enter sales from <strong>before</strong> a product was recorded in Stock Control — for example from the owner’s old Excel sheets.
+            They give the forecast history to work with right away.
+            From the month (or week) a product’s Stock Control records begin, its sales come from Stock Out transactions instead, so nothing is counted twice.
+            Monthly entries are used by the monthly and yearly forecast; weekly entries by the weekly forecast — and by a month with no monthly entry once all its weeks are entered.
+          </p>
+        </details>
       </section>
       <ImportCard products={products} onImported={onChanged} />
       <ManualCard products={products} productId={productId} onProductChange={onProductChange} onSaved={onChanged} />

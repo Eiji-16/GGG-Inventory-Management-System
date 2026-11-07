@@ -142,7 +142,7 @@ export default function RoleAccess() {
               Role Access
               <span className="s-restricted-badge"><KeyRound size={9} /> Super Admin</span>
             </h2>
-            <span className="s-card-sub">Choose what Admin and Staff can use. The Super Admin can always use everything.</span>
+            <span className="s-card-sub hint-text">Choose what Admin and Staff can use. The Super Admin can always use everything.</span>
           </div>
         </div>
         <button

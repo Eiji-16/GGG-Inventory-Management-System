@@ -9,15 +9,12 @@ import { CountUp } from '../../utils/countUp';
 
 const fmt = (value) => Number(value || 0).toLocaleString('en-PH');
 
-/* One short, plain label per reorder suggestion (full reasons stay in the tooltip). */
+/* One short, plain label per Reorder List row (full reasons stay in the tooltip).
+   Same products and statuses as the Reorder List page (2026-11-07). */
 function reorderTag(item) {
   if (item.currentStock <= 0) return { label: 'Out of stock', level: 'out' };
-  if (item.safetyStock != null && item.currentStock <= item.safetyStock) return { label: 'Below safety stock', level: 'out' };
-  if (item.leadTimeDays != null && item.daysOfCover != null && item.daysOfCover < item.leadTimeDays) {
-    return { label: 'Runs out before delivery', level: 'out' };
-  }
-  if (item.currentStock <= item.reorderPoint) return { label: 'Low stock', level: 'low' };
-  return { label: 'Not enough for next month', level: 'soon' };
+  if (item.status === 'critical') return { label: 'Critical', level: 'out' };
+  return { label: 'Low stock', level: 'low' };
 }
 const localDateString = () => {
   const now = new Date();
@@ -989,15 +986,15 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
             </div>
           </div>
 
-          {/* ===== REORDER SUGGESTIONS (demand-linked) =====
-              Server-computed from next month's forecast, current stock, safety
-              stock and lead time. Recommendations only — nothing is order. */}
+          {/* ===== REORDER LIST CARD =====
+              Same products as the Reorder List page: stock at or below the
+              Low level (2026-11-07). The forecast only adds "about N days". */}
           <div className="regionalBreakdown-card card">
             <div className="db-card-head">
               <div className="db-card-titles">
                 <span className="db-card-title">Reorder List</span>
                 <span className="db-card-sub">
-                  Based on next month’s forecast
+                  At or below the Low level
                   {(summary.reorderSuggestions || []).length ? ` · ${fmt(summary.reorderSuggestions.length)} product${summary.reorderSuggestions.length === 1 ? '' : 's'}` : ''}
                 </span>
               </div>
@@ -1029,8 +1026,8 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
                         </span>
                       </span>
                       <span className="db-order-qty">
-                        <small>Order</small>
-                        <strong>{fmt(item.suggestedQty)}</strong>
+                        <small>Low level</small>
+                        <strong>{fmt(item.reorderPoint)}</strong>
                       </span>
                     </button>
                   );
@@ -1045,7 +1042,7 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
             ) : (
               <div className="db-order-empty">
                 <strong>All good</strong>
-                <span>Stock covers next month for every product.</span>
+                <span>No product is at or below its Low level.</span>
               </div>
             )}
           </div>

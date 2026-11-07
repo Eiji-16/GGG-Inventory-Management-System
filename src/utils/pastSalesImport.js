@@ -228,7 +228,7 @@ export function downloadTemplate(XLSX, products, months = lastCompletedMonths(12
     ['1. Type the units sold in the light-yellow cells — one number per product per month. Leave a cell blank if there is no record.'],
     ['2. Do not change the grey Product ID / Product Name columns — the Product ID is how the system finds each product.'],
     ['3. You may add more month columns to the right (write the heading like "Jan 2025").'],
-    ['4. Months already recorded in Stock Control are skipped automatically, so nothing is counted twice.'],
+    ['4. Months already recorded in Stock Control are skipped, so nothing is counted twice.'],
     ['5. Save the file, then in Forecasting → Past Sales click "Choose Excel file". You will see a preview before anything is saved.'],
     [''],
     ['Example (do not type this in the Past Sales sheet):'],

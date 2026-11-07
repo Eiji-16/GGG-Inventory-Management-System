@@ -1,0 +1,89 @@
+/* ===== ROWS PICKER (2026-11-07) ===== */
+.rows-picker {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+.rows-picker-label { color: var(--text-muted); font-weight: 600; }
+.rows-picker-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 4px 10px;
+    color: var(--text-primary);
+    font: inherit;
+    font-weight: 600;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+}
+.rows-picker-button:hover,
+.rows-picker-button.is-open { border-color: var(--accent-med); }
+.rows-picker-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Opens upward (the picker sits under the table). */
+.rows-picker-menu {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 6px);
+    z-index: 40;
+    min-width: 150px;
+    margin: 0;
+    padding: 4px;
+    list-style: none;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    animation: rows-picker-in 0.16s ease-out;
+}
+.rows-picker-menu button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    padding: 7px 9px;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: left;
+    background: none;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.rows-picker-menu button:hover,
+.rows-picker-menu button:focus-visible { background: var(--static-bg-color); outline: none; }
+.rows-picker-menu button.is-active { font-weight: 700; }
+.rows-picker-menu small { color: var(--text-muted); font-size: 11px; }
+@keyframes rows-picker-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .rows-picker-menu { animation: none; } }
+
+/* Footer under a table: page buttons centred, picker on the right. */
+.rows-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.rows-footer > :nth-child(2) { justify-self: center; }
+.rows-footer > .rows-picker { justify-self: end; }
+.rows-footer-all {
+    padding: 10px 0 4px;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+@media (max-width: 640px) {
+    .rows-footer { grid-template-columns: minmax(0, 1fr) auto; }
+    .rows-footer > :first-child { display: none; }
+    .rows-footer > :nth-child(2) { justify-self: start; }
+}

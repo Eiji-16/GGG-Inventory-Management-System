@@ -28,9 +28,11 @@ class CalculationController extends Controller
             'productId' => ['nullable', 'string', Rule::exists('products', 'code')->whereNull('deleted_at')],
             'demandSource' => ['sometimes', Rule::in(['historical', 'forecast'])],
             'inputs' => ['required', 'array'],
-            'inputs.annualDemand' => ['required', 'numeric', 'gt:0'],
-            'inputs.orderingCost' => ['required', 'numeric', 'gt:0'],
-            'inputs.holdingCost' => ['required', 'numeric', 'gt:0'],
+            // Limits (2026-11-07): the same as the calculator screen, so a
+            // typing mistake such as 2,223,333,333 can't reach Reports.
+            'inputs.annualDemand' => ['required', 'numeric', 'min:1', 'max:99999', 'decimal:0,2'],
+            'inputs.orderingCost' => ['required', 'numeric', 'min:0.01', 'max:99999.99', 'decimal:0,2'],
+            'inputs.holdingCost' => ['required', 'numeric', 'min:0.01', 'max:99999.99', 'decimal:0,2'],
             'forecast' => ['required_if:demandSource,forecast', 'nullable', 'array'],
             'forecast.productId' => ['required_if:demandSource,forecast', 'string', 'same:productId'],
             'forecast.periodType' => ['required_if:demandSource,forecast', Rule::in(['week', 'month', 'year'])],
@@ -147,7 +149,8 @@ class CalculationController extends Controller
                 'inputs' => 'The values entered did not produce a valid economic order quantity.',
             ]);
         }
-        $recommendedOrderQuantity = (int) round($economicOrderQuantity);
+        // Never "0 units": at least 1 (same as the screen).
+        $recommendedOrderQuantity = max(1, (int) round($economicOrderQuantity));
         $annualOrders = $annualDemand / $economicOrderQuantity;
         $user = $request->user();
         $productName = $product?->name;

@@ -1,6 +1,6 @@
 import { getSystemName } from '../systemName';
 /* ==========================================================================
-   SIMPLE PDF FILE (2026-11-03) — no library.
+   SIMPLE PDF FILE (2026-11-03, restyled 2026-11-07) — no library.
    Builds a real .pdf file (A4, landscape) with a title, summary boxes and a
    table that continues on new pages, then downloads it. Used by the
    Restock Report "Save Report" button.
@@ -89,8 +89,10 @@ export function buildTablePdf({
 }) {
   const PAGE_W = 842; const PAGE_H = 595; const M = 36;
   const innerW = PAGE_W - M * 2;
-  const NAVY = rgb('#0f1f45'); const GOLD = rgb('#e8c547'); const INK = rgb('#13203f');
-  const MUTED = rgb('#5b6785'); const LINE = rgb('#dfe4ee'); const SOFT = rgb('#f4f6fb');
+  // Same colours as the Excel and Reports PDF exports (2026-11-07).
+  const NAVY = rgb('#14213d'); const NAVY_SOFT = rgb('#1f3158'); const ACCENT = rgb('#2b59c3');
+  const INK = rgb('#1f2937'); const MUTED = rgb('#6b7280'); const LINE = rgb('#d5dce8');
+  const SOFT = rgb('#f5f7fb'); const TILE = rgb('#f0f4fa'); const PALE = rgb('#c9d3e8');
   const totalWeight = widths.length ? widths.reduce((a, b) => a + b, 0) : headers.length;
   const colW = headers.map((_, i) => ((widths[i] ?? 1) / totalWeight) * innerW);
   const ROW_H = 20; const HEAD_H = 30; const PAD = 5; const SIZE = 8.5;
@@ -108,9 +110,11 @@ export function buildTablePdf({
   };
   const rect = (x, yy, w, h, color) => ops.push(`${color} rg ${x.toFixed(2)} ${yy.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`);
   const hline = (x1, x2, yy, color = LINE, width = 0.6) => ops.push(`${color} RG ${width} w ${x1.toFixed(2)} ${yy.toFixed(2)} m ${x2.toFixed(2)} ${yy.toFixed(2)} l S`);
+  // A box outline (thin border all round, no coloured side stripe).
+  const frame = (x, yy, w, h, color = LINE, width = 0.7) => ops.push(`${color} RG ${width} w ${x.toFixed(2)} ${yy.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re S`);
 
   const tableHeader = () => {
-    rect(M, y - HEAD_H, innerW, HEAD_H, NAVY);
+    rect(M, y - HEAD_H, innerW, HEAD_H, NAVY_SOFT);
     let x = M;
     headers.forEach((header, i) => {
       // Column titles may take two lines so they are never cut off.
@@ -128,27 +132,34 @@ export function buildTablePdf({
     if (ops.length) pages.push(ops);
     ops = [];
     y = PAGE_H - M;
-    rect(0, PAGE_H - 6, PAGE_W, 6, GOLD);
+    // Navy band: system name on the left, business name on the right.
+    const BAND_H = 24;
+    rect(M, y - BAND_H, innerW, BAND_H, NAVY);
+    text(brand.toUpperCase(), M + 10, y - 15.5, { font: 'F2', size: 8.5, color: '1 1 1', maxWidth: innerW / 2 });
+    text('Global Growth Guide', M + innerW / 2, y - 15.5, { size: 8, color: PALE, alignTo: 'right', width: innerW / 2 - 10 });
+    y -= BAND_H;
     if (first) {
-      text(brand.toUpperCase(), M, y - 8, { font: 'F2', size: 8, color: MUTED });
-      text(title, M, y - 30, { font: 'F2', size: 20, color: INK });
-      if (subtitle) text(subtitle, M, y - 46, { size: 9.5, color: MUTED, maxWidth: innerW });
-      y -= 60;
+      text(title, M, y - 26, { font: 'F2', size: 19, color: NAVY });
+      if (subtitle) text(subtitle, M, y - 41, { size: 9.5, color: MUTED, maxWidth: innerW });
+      const stamp = `Generated ${new Date().toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' })}`;
+      text(stamp, M, y - 53, { size: 7.5, color: MUTED, maxWidth: innerW });
+      hline(M, M + innerW, y - 60, ACCENT, 0.8);
+      y -= 70;
       if (summary.length) {
         const gap = 8;
         const boxW = (innerW - gap * (summary.length - 1)) / summary.length;
         summary.forEach((item, i) => {
           const x = M + i * (boxW + gap);
-          rect(x, y - 40, boxW, 40, SOFT);
-          rect(x, y - 40, 3, 40, GOLD);
-          text(item.label, x + 10, y - 14, { size: 7.5, color: MUTED, maxWidth: boxW - 16 });
-          text(item.value, x + 10, y - 31, { font: 'F2', size: 12, color: INK, maxWidth: boxW - 16 });
+          rect(x, y - 40, boxW, 40, TILE);
+          frame(x, y - 40, boxW, 40);
+          text(String(item.label || '').toUpperCase(), x + 6, y - 14, { font: 'F2', size: 6.8, color: MUTED, maxWidth: boxW - 12, alignTo: 'center', width: boxW - 12 });
+          text(item.value, x + 6, y - 32, { font: 'F2', size: 13, color: NAVY, maxWidth: boxW - 12, alignTo: 'center', width: boxW - 12 });
         });
         y -= 54;
       }
     } else {
-      text(`${title} (continued)`, M, y - 14, { font: 'F2', size: 11, color: INK });
-      y -= 26;
+      text(`${title} (continued)`, M, y - 18, { font: 'F2', size: 11, color: NAVY });
+      y -= 28;
     }
     if (headers.length) tableHeader();
   };
@@ -184,6 +195,7 @@ export function buildTablePdf({
     if (y - boxH - 10 < BOTTOM) newPage(false);
     y -= 10;
     rect(M, y - boxH, innerW, boxH, SOFT);
+    frame(M, y - boxH, innerW, boxH);
     lines.forEach((line, i) => text(line, M + 10, y - 16 - i * 11, { size: 8, color: MUTED }));
     y -= boxH;
   }
@@ -194,7 +206,7 @@ export function buildTablePdf({
   pages.forEach((pageOps, i) => {
     ops = pageOps;
     hline(M, PAGE_W - M, M + 10, LINE, 0.6);
-    text(`${brand} · ${title} · ${stamp}`, M, M - 2, { size: 7.5, color: MUTED, maxWidth: innerW - 80 });
+    text(`${brand} · ${title} · Prepared for Global Growth Guide · ${stamp}`, M, M - 2, { size: 7.5, color: MUTED, maxWidth: innerW - 80 });
     text(`Page ${i + 1} of ${pages.length}`, PAGE_W - M - 80, M - 2, { size: 7.5, color: MUTED, alignTo: 'right', width: 80 });
   });
 

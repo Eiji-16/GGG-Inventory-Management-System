@@ -134,8 +134,9 @@ class DashboardSummaryController extends Controller
             'products' => $products,
             'salesHistory' => $salesHistory,
             'stockMovements' => $stockMovements,
-            // Demand-linked reorder suggestions (forecast-based, read-only).
-            'reorderSuggestions' => $demandReorder->suggestions(
+            // Same products as the Reorder List page (at or below the Low
+            // level); the forecast only adds "about N days left".
+            'reorderSuggestions' => $demandReorder->reorderList(
                 $productRecords->filter(fn (Product $product) => isset($movedSet[$product->id]))
             ),
             'supplierCount' => Supplier::whereHas('products')->count(),

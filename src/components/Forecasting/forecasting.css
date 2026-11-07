@@ -3494,3 +3494,109 @@
 @media (min-width: 641px) {
     .ps-manual-controls .ps-find-field.xs-search { margin-left: 2px; }
 }
+
+/* ==========PAST SALES: tidier layout (2026-11-07)==========
+   Both columns the same width and the same height; short intro with
+   "How it works"; the import box ends in a drop area that fills the space;
+   month boxes use a small dot (not a dashed border) for weekly totals. */
+.ps-how { margin-top: 6px; font-size: 11.5px; }
+.ps-how summary {
+    width: fit-content;
+    color: var(--accent-med);
+    font-weight: 700;
+    cursor: pointer;
+}
+.ps-how p { margin: 6px 0 0; color: var(--text-muted); line-height: 1.55; }
+
+.ps-drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 120px;
+    padding: 14px;
+    color: var(--text-muted);
+    text-align: center;
+    border: 1px dashed var(--border-color);
+    border-radius: 10px;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.ps-drop.is-dragging { border-color: var(--accent-med); background: var(--static-bg-color); }
+.ps-drop.is-busy { cursor: wait; }
+.ps-drop-icon { width: 26px; height: 26px; }
+.ps-drop-text { font-size: 12.5px; }
+.ps-drop-note { margin: 0; }
+
+.ps-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 5px;
+    vertical-align: 1px;
+    background: var(--accent-med);
+    border-radius: 50%;
+}
+.ps-month.is-auto { border-style: solid; border-color: var(--border-color); }
+.ps-month.is-auto .ps-week-note { color: var(--text-muted); font-weight: 600; }
+
+.ps-manual-actions { align-items: center; flex-wrap: wrap; }
+.ps-legend { margin-right: auto; color: var(--text-muted); font-size: 11.5px; }
+.ps-legend strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+@media (min-width: 981px) {
+    .fx-layout:has(> .ps-intro) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+@media (min-width: 981px) and (min-height: 600px) {
+    /* Import card: steps at the top, the drop area takes the rest. */
+    .fx-layout:has(> .ps-intro) > .ps-card:nth-of-type(2) .ps-steps { flex: 0 0 auto; align-content: start; gap: 6px; }
+    .fx-layout:has(> .ps-intro) > .ps-card:nth-of-type(2) .ps-drop { flex: 1 1 auto; }
+}
+
+/* Past Sales (2026-11-07): Find, Product and Year stay on ONE line in the
+   equal-width column — the Product box shrinks instead of Year wrapping. */
+@media (min-width: 981px) {
+    .ps-manual-controls { flex-wrap: nowrap; }
+    .ps-manual-controls .ps-find-field { flex: 0 1 190px; min-width: 120px; }
+    .ps-manual-controls .ps-product-field { flex: 1 1 0; min-width: 0; }
+    .ps-manual-controls .ps-year-field { flex: 0 0 92px; }
+    .ps-manual-controls .ps-month-field { flex: 0 0 84px; }
+    .ps-manual-controls .ps-product-field .cs-button { min-width: 0; }
+}
+
+/* Sales Forecasting and Economic Order Quantity tabs (2026-11-07): the
+   separate search box is gone (search is inside the Product dropdown), and
+   the dropdown is a compact width instead of the whole row. On the Sales
+   Forecasting tab, "Forecast by" and Recompute sit on the right. */
+@media (min-width: 981px) {
+    .fx-toolbar .fx-product-field-compact { flex: 0 1 380px; }
+    .fx-toolbar .fx-product-field-compact + .f-field { margin-left: auto; }
+}
+
+/* Economic Order Quantity tab (2026-11-07): the calculator's intro line and
+   History button sit on the right of the Product card. */
+.fx-eoq-header-slot { display: flex; flex: 1 1 320px; min-width: 0; align-self: center; }
+.fx-eoq-header-slot:empty { display: none; }
+
+/* Tablets and phones (2026-11-07 fix): the Product dropdown was squeezed to
+   a tiny box next to the History button. Now it fills the row beside it. */
+@media (max-width: 980px) {
+    /* Compact (2026-11-07): Product and History share one row; the
+       dropdown takes the space History doesn't need. */
+    .fx-toolbar .fx-product-field.fx-product-field-compact { flex: 1 1 0 !important; width: auto; min-width: 0; }
+    .fx-eoq-header-slot { flex: 0 0 auto; align-self: flex-end; }
+    .fx-eoq-header-slot .ac-icon-btn { min-height: 34px; }
+    /* A slimmer dropdown on small screens (Forecasting tabs and Past Sales). */
+    .fx-toolbar .fx-product-field-compact .cs-button,
+    .ps-manual-controls .cs-button { min-height: 34px; padding-block: 5px; font-size: 12.5px; }
+    .fx-toolbar .fx-product-field-compact .cs-sub,
+    .ps-manual-controls .ps-product-field .cs-sub { font-size: 10px; }
+    .fx-toolbar { padding: 10px 12px; gap: 10px; }
+    /* Sales Forecasting: "Forecast by" and Recompute share the next row. */
+    .fx-toolbar .fx-product-field.fx-product-field-compact:not(:has(+ .fx-eoq-header-slot)) { flex: 1 1 100% !important; }
+    .fx-toolbar .fx-product-field-compact + .f-field { flex: 1 1 0 !important; min-width: 0; }
+    .fx-toolbar .fx-product-field-compact + .f-field + .f-field { flex: 0 0 auto !important; }
+    .fx-toolbar .fx-product-field-compact + .f-field .fx-segmented { width: 100%; min-height: 34px; }
+    .fx-toolbar .fx-product-field-compact + .f-field .fx-segmented button { flex: 1; }
+    .fx-toolbar .fx-refresh { min-height: 34px; }
+}

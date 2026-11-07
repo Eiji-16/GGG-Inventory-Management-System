@@ -44,6 +44,9 @@ class StockMovementService
             [$type, $qty, $isAdjustment, $delta] = $this->movementValues($data, $adjustmentBaseline);
             $newStock = $currentStock + $delta;
             $this->ensureNonNegative($newStock);
+            if (! $isAdjustment && $type === 'out') {
+                $this->ensureVariantHasStock($product, $data['variantName'] ?? null, $qty);
+            }
 
             // Same product + same day + same action = one row: a Stock In /
             // Stock Out that matches an existing entry (same product, type, date,
@@ -386,7 +389,46 @@ class StockMovementService
             ? $query->whereNull('unit_price')
             : $query->where('unit_price', $price);
 
+        // Only the same person's entries are combined (2026-11-07), so every
+        // row still shows who recorded it ("Recorded By").
+        $recordedBy = $data['recordedBy'] ?? null;
+        $recordedBy === null
+            ? $query->whereNull('recorded_by')
+            : $query->where('recorded_by', $recordedBy);
+
         return $query->orderByDesc('id')->lockForUpdate()->first();
+    }
+
+    /**
+     * A Stock Out of one variant (e.g. "Large") may not take that variant
+     * below zero, even when the product total still has enough (2026-11-07).
+     * Same count as the Stock Control screen: the variant's Stock In minus
+     * its Stock Out and Corrections. Entries with no variant are not checked.
+     */
+    private function ensureVariantHasStock(Product $product, ?string $variantName, int $qty): void
+    {
+        $variant = mb_strtolower(trim((string) $variantName));
+        if ($variant === '') {
+            return;
+        }
+
+        $onHand = (int) StockMovement::query()
+            ->where('product_id', $product->id)
+            ->whereRaw("LOWER(TRIM(COALESCE(variant_name, ''))) = ?", [$variant])
+            ->selectRaw("COALESCE(SUM(CASE WHEN movement_type = 'in' THEN qty ELSE -qty END), 0) AS on_hand")
+            ->value('on_hand');
+
+        if ($onHand - $qty < 0) {
+            $name = trim((string) $variantName);
+            throw ValidationException::withMessages([
+                'qty' => "Only {$this->num0($onHand)} of {$product->name} ({$name}) on hand — a Stock Out of {$qty} would make this variant negative.",
+            ]);
+        }
+    }
+
+    private function num0(int $value): string
+    {
+        return (string) max(0, $value);
     }
 
     /** Keep the old note and add the new one after it (skipping repeats). */

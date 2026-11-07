@@ -13,8 +13,9 @@ use Tests\Concerns\AuthenticatesBusinessApi;
 use Tests\TestCase;
 
 /**
- * Dashboard reorder suggestions use forecast demand (Demand-Linked Reordering)
- * with current stock, safety stock and lead time — and never change stock.
+ * The Dashboard's Reorder List card shows the same products as the Reorder
+ * List page (stock at or below the Low level); the forecast only adds
+ * "about N days left". It never changes stock. (Updated 2026-11-07.)
  */
 class DemandLinkedReorderTest extends TestCase
 {
@@ -64,54 +65,46 @@ class DemandLinkedReorderTest extends TestCase
         ]);
     }
 
-    public function test_suggestion_uses_next_months_forecast_and_explains_why(): void
+    public function test_card_lists_the_same_products_as_the_reorder_list_page(): void
     {
         $this->travelTo(Carbon::parse('2026-05-15'));
-        $product = $this->product('PRD-A', 30, safety: 10, leadTime: 7);
+        // 93 sold in the last year → reorder point = ceil(10 + 93 ÷ 365 × 7) = 12.
+        $product = $this->product('PRD-A', 11, safety: 10, leadTime: 7);
         foreach (['2026-02-10', '2026-03-10', '2026-04-10'] as $date) {
             $this->sold($product, $date, 31);
         }
 
-        // F = 31/month, May has 31 days → 1/day. ROP = 10 + 1 × 7 = 17.
-        // 30 in stock > 17, but 31 forecast > 30 − 10 = 20 available.
-        // Suggested = ceil(10 + 7 + 31 − 30) = 18.
+        // 11 ≤ 12 → Low, the same as the Reorder List page. May forecast
+        // 31 units over 31 days = 1 a day → about 11 days left.
         $response = $this->getJson('/api/dashboard/summary')->assertOk();
         $response->assertJsonCount(1, 'reorderSuggestions')
             ->assertJsonPath('reorderSuggestions.0.productId', 'PRD-A')
-            ->assertJsonPath('reorderSuggestions.0.basis', 'forecast')
-            ->assertJsonPath('reorderSuggestions.0.forecastDemand', 31)
-            ->assertJsonPath('reorderSuggestions.0.reorderPoint', 17)
-            ->assertJsonPath('reorderSuggestions.0.daysOfCover', 30)
-            ->assertJsonPath('reorderSuggestions.0.suggestedQty', 18)
-            ->assertJsonCount(1, 'reorderSuggestions.0.reasons');
-        $this->assertStringContainsString('forecast demand', $response->json('reorderSuggestions.0.reasons.0'));
-        $this->assertSame(30, $product->fresh()->stock_on_hand, 'Suggestions must not change stock.');
+            ->assertJsonPath('reorderSuggestions.0.status', 'low')
+            ->assertJsonPath('reorderSuggestions.0.reorderPoint', 12)
+            ->assertJsonPath('reorderSuggestions.0.daysOfCover', 11)
+            ->assertJsonMissingPath('reorderSuggestions.0.suggestedQty');
+        $this->assertSame(11, $product->fresh()->stock_on_hand, 'The card must not change stock.');
         $this->assertDatabaseCount('stock_movements', 3);
     }
 
-    public function test_seasonal_forecast_can_trigger_a_suggestion_and_supplier_lead_time_is_used(): void
+    public function test_stock_above_the_low_level_is_not_listed_even_if_the_forecast_is_high(): void
     {
-        $this->travelTo(Carbon::parse('2026-11-15'));
-        $product = $this->product('PRD-B', 40, safety: 5, supplierLead: 10);
-        foreach (['2026-08-10', '2026-09-10', '2026-10-10'] as $date) {
-            $this->sold($product, $date, 30);
+        $this->travelTo(Carbon::parse('2026-05-15'));
+        // Before 2026-11-07 the card listed this product ("not enough for
+        // next month") while the Reorder List page did not.
+        $product = $this->product('PRD-B', 30, safety: 10, leadTime: 7);
+        foreach (['2026-02-10', '2026-03-10', '2026-04-10'] as $date) {
+            $this->sold($product, $date, 31);
         }
-
-        // Without the event: F = 30, ROP = ceil(5 + 1 × 10) = 15, 30 ≤ 35 → no suggestion.
-        $this->getJson('/api/dashboard/summary')->assertJsonCount(0, 'reorderSuggestions');
-
         SeasonalEvent::create([
-            'name' => 'Sale', 'start_date' => '2026-11-01', 'end_date' => '2026-11-30',
+            'name' => 'Sale', 'start_date' => '2026-05-01', 'end_date' => '2026-05-31',
             'adjustment_pct' => 50, 'scope' => 'all', 'is_active' => true,
         ]);
-        // With +50% all month: F = 45 > 35 available → suggested.
-        $this->getJson('/api/dashboard/summary')
-            ->assertJsonCount(1, 'reorderSuggestions')
-            ->assertJsonPath('reorderSuggestions.0.forecastDemand', 45)
-            ->assertJsonPath('reorderSuggestions.0.leadTimeDays', 10);
+
+        $this->getJson('/api/dashboard/summary')->assertJsonCount(0, 'reorderSuggestions');
     }
 
-    public function test_healthy_products_are_not_suggested(): void
+    public function test_healthy_products_are_not_listed(): void
     {
         $this->travelTo(Carbon::parse('2026-05-15'));
         $product = $this->product('PRD-C', 500, safety: 10, leadTime: 7);
@@ -122,19 +115,18 @@ class DemandLinkedReorderTest extends TestCase
         $this->getJson('/api/dashboard/summary')->assertJsonCount(0, 'reorderSuggestions');
     }
 
-    public function test_products_without_a_forecast_fall_back_to_the_reorder_point(): void
+    public function test_products_without_a_policy_or_forecast_use_the_default_low_level(): void
     {
         $this->travelTo(Carbon::parse('2026-05-15'));
         $product = $this->product('PRD-D', 5);
         $this->sold($product, '2026-05-02', 3);   // current month only → no forecast yet
 
-        // No policy yet → default Low point 10 (the same point that marks it
-        // Low/Critical in Stock Alerts), so stock 5 is suggested.
+        // No policy yet → default Low 10 / Critical 5, so stock 5 is Critical.
         $this->getJson('/api/dashboard/summary')
             ->assertJsonCount(1, 'reorderSuggestions')
-            ->assertJsonPath('reorderSuggestions.0.basis', 'reorder_point')
+            ->assertJsonPath('reorderSuggestions.0.status', 'critical')
             ->assertJsonPath('reorderSuggestions.0.reorderPoint', 10)
-            ->assertJsonPath('reorderSuggestions.0.forecastDemand', null);
+            ->assertJsonPath('reorderSuggestions.0.daysOfCover', null);
         $this->assertSame(5, $product->fresh()->stock_on_hand);
     }
 }

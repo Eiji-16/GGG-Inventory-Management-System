@@ -21,15 +21,11 @@ class ProductController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Annual demand from real history: total units sold (stock out, non-adjustment)
-        // in the trailing 12 months, per product — used by Auto Calculator auto-fill.
-        $demand = \App\Models\StockMovement::query()
-            ->where('movement_type', 'out')
-            ->where('is_adjustment', false)
-            ->where('movement_date', '>=', now()->subYear()->toDateString())
-            ->selectRaw('product_id, SUM(qty) as total')
-            ->groupBy('product_id')
-            ->pluck('total', 'product_id');
+        // Annual demand from real history (last 12 months): Stock Out units
+        // plus Past Sales from before Stock Control began — the same numbers
+        // the server uses for reorder points (ReorderPointService).
+        $reorderPoints = app(\App\Services\ReorderPointService::class)->preload($products);
+        $demand = $products->mapWithKeys(fn ($p) => [$p->id => $reorderPoints->annualDemand($p)]);
 
         // Variants (e.g. colors) recorded for each product in Stock Movement.
         $variants = \App\Models\StockMovement::query()
@@ -364,6 +360,17 @@ class ProductController extends Controller
         return $code;
     }
 
+    /** Read once per request (the product list formats many products). */
+    private function canSeeCost(): bool
+    {
+        $attributes = request()->attributes;
+        if (! $attributes->has('ggg.canSeeCost')) {
+            $attributes->set('ggg.canSeeCost', \App\Services\RoleAccessService::allows(auth()->user(), 'products.view'));
+        }
+
+        return (bool) $attributes->get('ggg.canSeeCost');
+    }
+
     private function format(Product $p, int $demandFromHistory = 0, ?array $variants = null, ?bool $inStockControl = null): array
     {
         $inStockControl ??= \App\Models\StockMovement::where('product_id', $p->id)->exists();
@@ -388,7 +395,8 @@ class ProductController extends Controller
             'brand'           => $p->brand,
             'model'           => $p->model,
             'unitMeasure'     => $p->unit_measure,
-            'unitCost'        => $p->unit_cost,
+            // Cost prices only for roles that may open Products (2026-11-07).
+            'unitCost'        => $this->canSeeCost() ? $p->unit_cost : null,
             'image'           => $this->photos()->url($p),   // a short link, not the photo itself
             // definedVariants: the product's own list (edited in the product modal;
             // Stock Control picks from it). recordedVariants: names found on

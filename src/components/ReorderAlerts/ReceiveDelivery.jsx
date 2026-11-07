@@ -7,6 +7,7 @@ import { buildForecastHandoff } from '../../utils/forecastHandoff';
 import { orderQuantityFor } from './bulkOrder';
 import { orderPresets } from '../../utils/orderPresets';
 import { useCurrency } from '../../CurrencyContext';
+import CustomSelect from '../Forecasting/CustomSelect';
 
 /* ===== RECEIVED (Reorder List, remodel 2026-11-03) =====
    The system does not place orders — buying happens outside it. When the
@@ -24,7 +25,9 @@ import { useCurrency } from '../../CurrencyContext';
       into Stock Control as a normal Stock In (same-day merge rules apply),
       the photo is kept with that entry, and the note records which choice
       was used and what the system suggested.
-   Staff, Admin and Super Admin can all use it (Role Access → "Received"). */
+   Staff, Admin and Super Admin can all use it (Role Access → "Received").
+   Variant (2026-11-07): a product with sizes/colours asks which one arrived,
+   so the delivery is added to that variant's count in Stock Control. */
 
 const todayString = () => {
   const now = new Date();
@@ -42,6 +45,9 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
   const [savedReport, setSavedReport] = useState(null);   // { qty, suggested, savedAt, savedBy }
   const [choice, setChoice] = useState('custom');           // 'suggested' | 'report' | 'custom'
   const [form, setForm] = useState({ qty: '', unitPrice: '', date: todayString(), notes: 'Delivery received (Reorder List)' });
+  const variantOptions = (item.definedVariants || []).map((name) => ({ value: name, label: name }));
+  const needsVariant = variantOptions.length > 0;
+  const [variant, setVariant] = useState(variantOptions.length === 1 ? variantOptions[0].value : '');
   const [photo, setPhoto] = useState(null);                 // File
   const [preview, setPreview] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -162,7 +168,7 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
   const qtyValid = Number.isInteger(qtyNumber) && qtyNumber >= 1 && qtyNumber <= 9999;
   const stockAfter = qtyValid ? item.stock + qtyNumber : null;
   const lowLevel = item.points?.low;
-  const ready = qtyValid && form.unitPrice !== '' && Number(form.unitPrice) >= 0;
+  const ready = qtyValid && form.unitPrice !== '' && Number(form.unitPrice) >= 0 && (!needsVariant || variant !== '');
 
   const submit = async (event) => {
     event.preventDefault();
@@ -170,6 +176,7 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
     if (!qtyValid) { setError('Enter the quantity received (1 to 9,999).'); return; }
     if (form.unitPrice === '' || !(Number(form.unitPrice) >= 0)) { setError('Enter the unit price (0 or more).'); return; }
     if (!form.date || form.date > todayString()) { setError('The date cannot be in the future.'); return; }
+    if (needsVariant && !variant) { setError('Choose which variant arrived.'); return; }
 
     setSaving(true);
     setError('');
@@ -177,6 +184,7 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
     data.append('productId', item.id);
     data.append('productName', item.name);
     data.append('qty', String(qtyNumber));
+    if (needsVariant && variant) data.append('variantName', variant);
     data.append('unitPrice', String(Number(form.unitPrice)));
     data.append('date', form.date);
     data.append('notes', form.notes.trim());
@@ -256,6 +264,21 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
                 ))}
               </div>
               <div className="ra-receive-grid">
+                {needsVariant && (
+                  <div className="ra-receive-field ra-receive-variant">
+                    <label htmlFor="ra-receive-variant">Variant</label>
+                    <CustomSelect
+                      id="ra-receive-variant"
+                      value={variant}
+                      options={variantOptions}
+                      onChange={(value) => { setVariant(value); setError(''); }}
+                      placeholder="Choose the variant that arrived"
+                      ariaLabel="Variant received"
+                      disabled={saving}
+                    />
+                    <small className="hint-text">Added to this variant's count in Stock Control.</small>
+                  </div>
+                )}
                 <div className="ra-receive-field">
                   <label htmlFor="ra-receive-qty">Quantity</label>
                   <input id="ra-receive-qty" type="number" min="1" max="9999" step="1" inputMode="numeric" value={form.qty} onChange={update('qty')} required />

@@ -305,7 +305,7 @@ class PastSalesController extends Controller
             }
 
             $date = Carbon::parse($month.'-01');
-            if (! $date->lt(now()->startOfMonth())) {
+            if (! $date->lt(\App\Services\SalesForecastService::shopNow()->startOfMonth())) {
                 $issue($row, 'skipped', 'This month is not finished yet.');
                 continue;
             }

@@ -360,7 +360,7 @@ function Settings({
         <header className="s-card-head">
           <div className="s-card-titles">
             <h2 className="s-card-title" id="s-prefs-title">Preferences</h2>
-            <span className="s-card-sub">Display options for the whole workspace</span>
+            <span className="s-card-sub hint-text">Display options for the whole workspace</span>
           </div>
         </header>
 
@@ -540,7 +540,7 @@ function Settings({
                 Safety Stock Policy
                 <span className="s-restricted-badge"><Lock size={9} /> Super Admin</span>
               </h2>
-              <span className="s-card-sub">
+              <span className={`s-card-sub${isSuperAdmin ? ' hint-text' : ''}`}>
                 {isSuperAdmin
                   ? 'Safety stock and lead time set every product’s reorder point and status'
                   : 'Locked. Ask a Super Admin to change safety stock.'}

@@ -28,10 +28,13 @@ Route::middleware(['web', 'auth', 'active'])->group(function (): void {
     // Tiny "has anything changed?" check used for automatic refresh.
     Route::get('/data-version', DataVersionController::class);
     // Product list is read by Stock Control, Reorder Alerts, the calculator
-    // and Forecasting, so reading stays open to every signed-in user.
+    // and Forecasting, so reading stays open to every signed-in user (cost
+    // prices are left out for roles without Products access).
     Route::get('/products', [ProductController::class, 'index']);
     Route::get('/products/{product}', [ProductController::class, 'show']);
-    Route::get('/stock-movements', [StockMovementController::class, 'index']);
+    // Stock records: Stock Control, and the Reorder List's Received and
+    // Restock Report windows (2026-11-07: no longer open to every role).
+    Route::get('/stock-movements', [StockMovementController::class, 'index'])->middleware('feature:stock.view|reorder.view');
     Route::get('/stock-activities', [StockMovementController::class, 'activities'])->middleware('feature:stock.history');
     Route::get('/safety-stock', [SafetyStockController::class, 'index']);
 
@@ -47,8 +50,9 @@ Route::middleware(['web', 'auth', 'active'])->group(function (): void {
     Route::match(['put', 'patch'], '/products/{product}', [ProductController::class, 'update'])->middleware('feature:products.edit');
     Route::delete('/products/{product}', [ProductController::class, 'destroy'])->middleware('feature:products.delete');
     // The supplier list is also needed by the Add/Edit Product form.
-    Route::get('/suppliers', [SupplierController::class, 'index'])->middleware('feature:products.view');
-    Route::get('/suppliers/{supplier}', [SupplierController::class, 'show'])->middleware('feature:products.view');
+    // "View suppliers" is now checked here too (2026-11-07).
+    Route::get('/suppliers', [SupplierController::class, 'index'])->middleware('feature:suppliers.view|products.create|products.edit');
+    Route::get('/suppliers/{supplier}', [SupplierController::class, 'show'])->middleware('feature:suppliers.view|products.create|products.edit');
     Route::post('/suppliers', [SupplierController::class, 'store'])->middleware('feature:suppliers.manage');
     Route::match(['put', 'patch'], '/suppliers/{supplier}', [SupplierController::class, 'update'])->middleware('feature:suppliers.manage');
     Route::delete('/suppliers/{supplier}', [SupplierController::class, 'destroy'])->middleware('feature:suppliers.manage');

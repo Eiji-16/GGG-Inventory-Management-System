@@ -4,14 +4,18 @@ namespace App\Services;
 
 use App\Models\Product;
 use App\Models\StockMovement;
+use Illuminate\Support\Carbon;
 
 /**
  * Reorder point = safety stock + (annual demand ÷ 365) × lead time.
  *
- * Annual demand comes only from real sales: Stock Out units in the last
- * 12 months. (A typed "annual demand" in the safety stock policy was removed
- * because it went stale and overrode real sales.) Lead time is the product's
- * override from the policy, else its supplier's lead time.
+ * Annual demand comes only from real sales in the last 12 months: Stock Out
+ * units, plus the Past Sales (typed or imported from Excel) of months before
+ * the product's Stock Control records begin (2026-11-07). The forecast uses
+ * the same rule, so the same sale is never counted twice. (A typed "annual
+ * demand" in the safety stock policy was removed because it went stale and
+ * overrode real sales.) Lead time is the product's override from the
+ * policy, else its supplier's lead time.
  */
 class ReorderPointService
 {
@@ -39,14 +43,18 @@ class ReorderPointService
         $totals = StockMovement::query()
             ->where('movement_type', 'out')
             ->where('is_adjustment', false)
-            ->where('movement_date', '>=', now()->subYear()->toDateString())
+            ->where('movement_date', '>=', $this->windowStart()->toDateString())
             ->selectRaw('product_id, SUM(qty) as total')
             ->groupBy('product_id')
             ->pluck('total', 'product_id');
 
+        // Past Sales of every product, read in three queries in total.
+        $forecasts = app(SalesForecastService::class)->preload($products);
+
         $this->demandByProduct = [];
         foreach ($products as $product) {
-            $this->demandByProduct[$product->id] = (int) ($totals[$product->id] ?? 0);
+            $this->demandByProduct[$product->id] = (int) ($totals[$product->id] ?? 0)
+                + $this->pastSalesInWindow($product, $forecasts);
         }
 
         return $this;
@@ -58,12 +66,38 @@ class ReorderPointService
             return $this->demandByProduct[$product->id];
         }
 
-        return (int) StockMovement::query()
+        $stockOut = (int) StockMovement::query()
             ->where('product_id', $product->id)
             ->where('movement_type', 'out')
             ->where('is_adjustment', false)
-            ->where('movement_date', '>=', now()->subYear()->toDateString())
+            ->where('movement_date', '>=', $this->windowStart()->toDateString())
             ->sum('qty');
+
+        return $stockOut + $this->pastSalesInWindow($product, app(SalesForecastService::class));
+    }
+
+    /** First day counted in "the last 12 months", on the shop's clock. */
+    private function windowStart(): Carbon
+    {
+        return SalesForecastService::shopNow()->subYear()->startOfDay();
+    }
+
+    /**
+     * Past Sales units of the months in the last 12 months. Only months
+     * before the product's Stock Control records begin are given by
+     * pastMonthlyTotals(), so they never overlap Stock Out units.
+     */
+    private function pastSalesInWindow(Product $product, SalesForecastService $forecasts): int
+    {
+        $firstMonth = SalesForecastService::shopNow()->startOfMonth()->subMonthsNoOverflow(12)->toDateString();
+        $units = 0.0;
+        foreach ($forecasts->pastMonthlyTotals($product) as $month => $row) {
+            if ($month >= $firstMonth) {
+                $units += (float) $row['unitsSold'];
+            }
+        }
+
+        return (int) round($units);
     }
 
     public function leadTimeDays(Product $product): ?int

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import { X, History, Download, TrendingUp, Calculator, Info, Lock } from 'lucide-react';
@@ -24,6 +24,9 @@ import {
    ========================================================================== */
 
 const EOQ_FORMULA = '√(2 × annual demand × ordering cost ÷ holding cost)';
+/* Input limits (2026-11-07). Change these numbers to adjust the rules;
+   keep them the same as CalculationController and saveEoqCosts. */
+const LIMITS = { demand: 99999, cost: 99999.99, unusualOrderCost: 10000 };
 const EMPTY_INPUTS = { demand: '', orderCost: '', holdingCost: '', leadTime: '', safetyStock: '' };
 const INPUT_KEYS = Object.keys(EMPTY_INPUTS);
 
@@ -162,7 +165,57 @@ function HistoryPanel({ onClose, history, onClear }) {
 }
 
 /* ===== ONE LABELLED INPUT WITH A HINT ===== */
-function Field({ id, label, hint, prefix, suffix, error, tag, children, ...inputProps }) {
+/* ===== NUMBER BOX WITH COMMAS (2026-11-07) =====
+   Shows 3321 as "3,321" while typing. The value kept and checked is the
+   plain number ("3321"); only what you see has the commas. Up to 5 digits
+   before the dot (99,999) and 2 after it, so too-long numbers can't be
+   typed at all. The cursor stays where you are typing. */
+const toPlain = (text, maxWholeDigits = Infinity) => {
+  const cleaned = String(text ?? '').replace(/[^\d.]/g, '');
+  const [rawWhole, ...rest] = cleaned.split('.');
+  // Stop at the allowed number of digits (e.g. 5 → up to 99,999), so a
+  // number that is too long simply can't be typed (2026-11-07).
+  const whole = rawWhole.replace(/^0+(?=\d)/, '').slice(0, maxWholeDigits);
+  return rest.length ? `${whole}.${rest.join('').slice(0, 2)}` : whole;
+};
+const withCommas = (plain) => {
+  const [whole, decimals] = String(plain ?? '').split('.');
+  const grouped = whole.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return decimals !== undefined ? `${grouped}.${decimals}` : grouped;
+};
+
+function CommaNumberInput({ value, onChange, name, maxWholeDigits = 5, ...rest }) {
+  const ref = useRef(null);
+  const caret = useRef(null);
+  const shown = withCommas(value);
+
+  useEffect(() => {
+    // Put the cursor back after the same number of digits as before.
+    if (caret.current === null || !ref.current || document.activeElement !== ref.current) return;
+    let count = caret.current;
+    let position = 0;
+    while (position < shown.length && count > 0) {
+      if (/[\d.]/.test(shown[position])) count -= 1;
+      position += 1;
+    }
+    ref.current.setSelectionRange(position, position);
+    caret.current = null;
+  }, [shown]);
+
+  const handleChange = (event) => {
+    const typed = event.target.value;
+    // Already at the digit limit: an extra digit is ignored (nothing moves).
+    const wholeDigits = (text) => String(text ?? '').replace(/[^\d.]/g, '').split('.')[0].replace(/^0+(?=\d)/, '').length;
+    if (wholeDigits(typed) > maxWholeDigits && wholeDigits(value) >= maxWholeDigits) return;
+    const before = typed.slice(0, event.target.selectionStart ?? typed.length);
+    caret.current = before.replace(/[^\d.]/g, '').length;
+    onChange({ target: { name, value: toPlain(typed, maxWholeDigits) } });
+  };
+
+  return <input ref={ref} type="text" inputMode="decimal" autoComplete="off" name={name} value={shown} onChange={handleChange} {...rest} />;
+}
+
+function Field({ id, label, hint, prefix, suffix, error, tag, children, commas = false, ...inputProps }) {
   return (
     <div className="eq-field">
       <div className="eq-label-row">
@@ -171,7 +224,9 @@ function Field({ id, label, hint, prefix, suffix, error, tag, children, ...input
       </div>
       <div className={`eq-input-wrap${error ? ' has-error' : ''}`}>
         {prefix && <span className="eq-affix">{prefix}</span>}
-        <input id={id} type="number" min="0" step="any" inputMode="decimal" {...inputProps} />
+        {commas
+          ? <CommaNumberInput id={id} {...inputProps} />
+          : <input id={id} type="number" min="0" step="any" inputMode="decimal" {...inputProps} />}
         {suffix && <span className="eq-affix eq-suffix">{suffix}</span>}
       </div>
       {/* Field errors show as a bottom-right pop-up; the box stays red. */}
@@ -201,6 +256,9 @@ export default function AutoCalculatorDesign({
   // and its "Go to Forecasting" button and follows `productId`.
   embedded = false,
   productId: controlledProductId = '',
+  // Inside Forecasting (2026-11-07): where the intro line and History button
+  // go — the Product card at the top of the tab. Without it they stay here.
+  headerSlot = null,
 }) {
   const { currency, currencySymbol, formatCurrency } = useCurrency();
   const [savedDraft] = useState(() => readCalculatorDraft(currentUserId));
@@ -225,6 +283,9 @@ export default function AutoCalculatorDesign({
   const [history, setHistory] = useState(savedDraft?.history || []);
   const [unitCost, setUnitCost] = useState('');
   const [showEstimator, setShowEstimator] = useState(false);
+  // Unusual-value check: the inputs already confirmed, and the warning text.
+  const [confirmedUnusual, setConfirmedUnusual] = useState('');
+  const [unusualNote, setUnusualNote] = useState('');
   const [costSave, setCostSave] = useState({ state: 'idle', text: '' });
 
   const selectedProduct = products.find((product) => String(product.id) === String(selectedProductId)) || null;
@@ -329,7 +390,7 @@ export default function AutoCalculatorDesign({
       setProducts((prev) => prev.map((product) => (String(product.id) === String(selectedProduct.id)
         ? { ...product, orderingCost: data.orderingCost, holdingCost: data.holdingCost }
         : product)));
-      setCostSave({ state: 'saved', text: `Saved for ${selectedProduct.name}. They’ll fill in automatically next time.` });
+      setCostSave({ state: 'saved', text: `Saved for ${selectedProduct.name}. They’ll be filled in for you next time.` });
     } catch (error) {
       setCostSave({ state: 'error', text: error.message || 'Could not save the costs.' });
     }
@@ -446,14 +507,41 @@ export default function AutoCalculatorDesign({
   const handleCompute = async () => {
     const value = (key) => Number(inputs[key]);
     const blank = (key) => String(inputs[key] ?? '').trim() === '';
+    // At most 2 numbers after the dot (like money).
+    const twoDecimals = (key) => /^\d+(\.\d{1,2})?$/.test(String(inputs[key] ?? '').trim());
     const errs = {};
-    if (blank('demand') || !(value('demand') > 0)) errs.demand = 'Enter the units sold per year (more than 0).';
-    if (blank('orderCost') || !(value('orderCost') > 0)) errs.orderCost = 'Enter the cost of placing one order (more than 0).';
-    if (blank('holdingCost') || !(value('holdingCost') > 0)) errs.holdingCost = 'Enter the yearly cost of keeping one unit (more than 0).';
-    if (!blank('leadTime') && !(value('leadTime') >= 0)) errs.leadTime = 'Lead time must be 0 or more days.';
+    /* Limits (2026-11-07): stop typing mistakes such as 2,223,333,333. The
+       server checks the same limits (CalculationController). */
+    if (blank('demand') || !(value('demand') >= 1) || value('demand') > LIMITS.demand || !twoDecimals('demand')) {
+      errs.demand = `Enter the units sold per year: 1 to ${LIMITS.demand.toLocaleString('en-PH')}, up to 2 decimals.`;
+    }
+    if (blank('orderCost') || !(value('orderCost') >= 0.01) || value('orderCost') > LIMITS.cost || !twoDecimals('orderCost')) {
+      errs.orderCost = `Enter the cost of placing one order: ${currencySymbol}0.01 to ${currencySymbol}${LIMITS.cost.toLocaleString('en-PH')}.`;
+    }
+    if (blank('holdingCost') || !(value('holdingCost') >= 0.01) || value('holdingCost') > LIMITS.cost || !twoDecimals('holdingCost')) {
+      errs.holdingCost = `Enter the yearly cost of keeping one unit: ${currencySymbol}0.01 to ${currencySymbol}${LIMITS.cost.toLocaleString('en-PH')}.`;
+    }
+    if (!blank('leadTime') && !(value('leadTime') >= 0 && value('leadTime') <= 365)) errs.leadTime = 'Lead time must be 0 to 365 days.';
     if (!blank('safetyStock') && !(value('safetyStock') >= 0)) errs.safetyStock = 'Safety stock must be 0 or more units.';
     setErrors(errs);
     if (Object.keys(errs).length) return;
+
+    /* Unusual but allowed: ask once (pop-up), Compute again to go ahead. */
+    const unitCostKnown = Number(selectedProduct?.unitCost) > 0 ? Number(selectedProduct.unitCost) : null;
+    const unusual = [];
+    if (unitCostKnown !== null && value('holdingCost') > unitCostKnown) {
+      unusual.push(`the holding cost (${formatCurrency(value('holdingCost'))}) is higher than the unit cost (${formatCurrency(unitCostKnown)})`);
+    }
+    if (value('orderCost') > LIMITS.unusualOrderCost) {
+      unusual.push(`the ordering cost (${formatCurrency(value('orderCost'))}) is very high`);
+    }
+    const unusualKey = `${inputs.demand}|${inputs.orderCost}|${inputs.holdingCost}`;
+    if (unusual.length && confirmedUnusual !== unusualKey) {
+      setConfirmedUnusual(unusualKey);
+      setUnusualNote(`Please check: ${unusual.join(' and ')}. If it's correct, click Compute again.`);
+      return;
+    }
+    setUnusualNote('');
 
     const calculation = calculateOrderQuantity({
       annualDemand: value('demand'),
@@ -637,13 +725,12 @@ export default function AutoCalculatorDesign({
 
   return (
     <div className="ac-root eq-root">
-      {/* ===== HEADER ===== */}
-      <div className="eq-header">
-        <p className="eq-intro">
-          Find <strong>how many units to order each time</strong> at the lowest total ordering + storage cost,
-          and <strong>when to reorder</strong>.
-        </p>
-        <div className="eq-header-actions">
+      {/* ===== HEADER =====
+          The intro line stays here. Inside Forecasting, only the History
+          button moves into the Product card (2026-11-07). */}
+      {(() => {
+        const actions = (
+        <div className={`eq-header-actions${headerSlot ? ' eq-header-actions-in-toolbar' : ''}`}>
           {canViewHistory && (
           <button className="ac-icon-btn" type="button" onClick={() => setShowHistory(true)}><History size={13} /> History</button>
           )}
@@ -653,10 +740,24 @@ export default function AutoCalculatorDesign({
           </button>
           )}
         </div>
+        );
+        return (
+      <>
+      <div className="eq-header">
+        <p className="eq-intro hint-text">
+          Find <strong>how many units to order each time</strong> at the lowest total ordering + storage cost,
+          and <strong>when to reorder</strong>.
+        </p>
+        {!headerSlot && actions}
       </div>
+      {headerSlot && createPortal(actions, headerSlot)}
+      </>
+        );
+      })()}
 
       {/* Forecast notes show as a bottom-right pop-up (2026-11-06). They show
           again when another product is chosen (the text changes). */}
+      <PageToast type="warning" title="Unusual value" message={unusualNote} onShown={() => setUnusualNote('')} />
       <PageToast
         type="warning"
         title="No forecast yet — using actual sales."
@@ -694,31 +795,27 @@ export default function AutoCalculatorDesign({
             )}
 
             <Field
-              id="eq-demand" name="demand" label="Annual Demand (D)" suffix="units/yr"
+              id="eq-demand" name="demand" label="Annual Demand (D)" suffix="units/yr" commas
               value={inputs.demand} onChange={handleInputChange} error={errors.demand} tag={demandTag}
               hint={activeForecastContext ? 'Forecast for the next 12 months' : 'Units expected to sell per year'}
             />
             <Field
-              id="eq-order-cost" name="orderCost" label="Ordering Cost (S)" prefix={currencySymbol} suffix="/order"
+              id="eq-order-cost" name="orderCost" label="Ordering Cost (S)" prefix={currencySymbol} suffix="/order" commas
               value={inputs.orderCost} onChange={handleInputChange} error={errors.orderCost}
               hint="Delivery + transfer + transport, per order"
             />
             <Field
-              id="eq-holding-cost" name="holdingCost" label="Holding Cost (H)" prefix={currencySymbol} suffix="/unit/yr"
+              id="eq-holding-cost" name="holdingCost" label="Holding Cost (H)" prefix={currencySymbol} suffix="/unit/yr" commas
               value={inputs.holdingCost} onChange={handleInputChange} error={errors.holdingCost}
-              tag={!showEstimator && <button type="button" className="eq-link" onClick={() => setShowEstimator(true)}>Estimate</button>}
-              hint="About 20–25% of the unit cost per year"
-            >
-              {showEstimator && (
-                <div className="eq-estimator">
-                  <input type="number" min="0" step="any" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} aria-label="Unit cost" placeholder={`Unit cost ${currencySymbol}`} />
-                  <button type="button" className="ac-btn-reset" onClick={applyEstimate} disabled={!(Number(unitCost) > 0)}>
-                    Use 20%{Number(unitCost) > 0 ? ` = ${currencySymbol}${fmtSmart(Math.round(Number(unitCost) * 0.2 * 100) / 100)}` : ''}
-                  </button>
-                  <button type="button" className="eq-link" onClick={() => setShowEstimator(false)}>Cancel</button>
-                </div>
+              tag={(
+                /* The same link opens and closes the helper, so the label row
+                   never changes height (2026-11-07). */
+                <button type="button" className="eq-link" aria-expanded={showEstimator} onClick={() => setShowEstimator((open) => !open)}>
+                  {showEstimator ? 'Close' : 'Estimate'}
+                </button>
               )}
-            </Field>
+              hint="About 20–25% of the unit cost per year"
+            />
             <div className="eq-pair">
               <Field
                 id="eq-lead-time" name="leadTime" label="Lead Time" suffix="days"
@@ -739,6 +836,22 @@ export default function AutoCalculatorDesign({
                 hint={safetyStockLocked ? 'Set by the Super Admin in Settings → Safety Stock Policy' : 'Extra buffer units'}
               />
             </div>
+            {/* Holding cost helper (2026-11-07): its own box in the empty space
+                beside Safety Stock, so the other boxes never move. */}
+            {showEstimator && (
+              <div className="eq-field eq-estimator-cell">
+                <div className="eq-label-row"><label htmlFor="eq-unit-cost">Unit cost</label></div>
+                <div className="eq-estimator">
+                  <div className="eq-input-wrap">
+                    <span className="eq-affix">{currencySymbol}</span>
+                    <CommaNumberInput id="eq-unit-cost" name="unitCost" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="Unit cost" autoFocus />
+                  </div>
+                  <button type="button" className="ac-btn-reset" onClick={applyEstimate} disabled={!(Number(unitCost) > 0)} title={Number(unitCost) > 0 ? 'Use 20% of the unit cost as the holding cost' : 'Type the unit cost first'}>
+                    Use 20%{Number(unitCost) > 0 ? ` = ${currencySymbol}${fmtSmart(Math.round(Number(unitCost) * 0.2 * 100) / 100)}` : ''}
+                  </button>
+                </div>
+              </div>
+            )}
             {selectedProduct && allowSaveCosts && (
               <div className="eq-cost-save eq-span-2">
                 <PageToast message={costSave.state === 'error' ? costSave.text : ''} type="error" />

@@ -57,6 +57,61 @@ class DemandReorderService
         return $suggestions;
     }
 
+    /**
+     * The Dashboard's Reorder List card (2026-11-07): exactly the products
+     * the Reorder List page shows — stock at or below the product's Low
+     * point (Low, Critical or Out). The forecast only adds "about N days
+     * left"; it no longer decides which products appear, so the card and
+     * the page always list the same products.
+     *
+     * @param  iterable<Product>  $products  products tracked in Stock Control
+     * @return array<int, array<string, mixed>>
+     */
+    public function reorderList(iterable $products): array
+    {
+        $rows = [];
+        foreach ($products as $product) {
+            $status = $this->reorderPoints->statusFor($product);
+            if ($status === 'healthy') {
+                continue;
+            }
+            $stock = (int) $product->stock_on_hand;
+            $lowPoint = $this->reorderPoints->statusPoints($product)['low'];
+
+            $daily = null;
+            try {
+                $forecast = $this->forecasts->forecast($product, 'month');
+                $monthly = (float) $forecast['adjustedForecast'];
+                $days = (int) ($forecast['periodDays'] ?? Carbon::parse($forecast['forecastPeriod'])->daysInMonth);
+                $daily = $monthly > 0 ? $monthly / max(1, $days) : null;
+            } catch (ValidationException) {
+                $daily = null;
+            }
+            $daysOfCover = $daily ? round(max(0, $stock) / $daily, 1) : null;
+
+            $rows[] = [
+                'productId'    => $product->code,
+                'productName'  => $product->name,
+                'category'     => $product->category,
+                'currentStock' => $stock,
+                'safetyStock'  => $this->reorderPoints->safetyStock($product),
+                'leadTimeDays' => $this->reorderPoints->leadTimeDays($product),
+                'reorderPoint' => $lowPoint,
+                'status'       => $status,
+                'daysOfCover'  => $daysOfCover,
+                'reasons'      => array_values(array_filter([
+                    $stock <= 0 ? 'Out of stock.' : "Stock ({$stock}) is at or below its Low level ({$lowPoint}).",
+                    $daysOfCover !== null ? 'At this month’s forecast it lasts about '.$this->num(floor($daysOfCover)).' days.' : null,
+                ])),
+            ];
+        }
+
+        // Same order as the Reorder List page: furthest below the Low level first.
+        usort($rows, fn (array $a, array $b) => ($a['currentStock'] - $a['reorderPoint']) <=> ($b['currentStock'] - $b['reorderPoint']));
+
+        return $rows;
+    }
+
     public function forProduct(Product $product): ?array
     {
         $stock = (int) $product->stock_on_hand;

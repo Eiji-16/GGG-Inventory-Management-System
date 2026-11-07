@@ -338,7 +338,7 @@ export default function Profile() {
         {/* ===== ACCOUNT DETAILS ===== */}
         <section className="pf-card pf-area-details">
           <h3>Account Details</h3>
-          <p className="pf-sub">Contact information tied to this account</p>
+          <p className="pf-sub hint-text">Contact information tied to this account</p>
 
           <PageToast message={saveError} type="error" onShown={() => setSaveError('')} />
 
@@ -390,7 +390,7 @@ export default function Profile() {
         {/* ===== ROLE ACCESS ===== */}
         <section className="pf-card pf-area-permissions">
           <h3>Role &amp; Permissions</h3>
-          <p className="pf-sub">
+          <p className="pf-sub hint-text">
             {user.role === 'Super Admin'
               ? 'What the Super Admin can do in this system'
               : `What your ${user.role} account can use — set by the Super Admin in Settings → Role Access`}
@@ -409,7 +409,7 @@ export default function Profile() {
         {/* ===== SECURITY ===== */}
         <section className="pf-card pf-area-security">
           <h3>Security</h3>
-          <p className="pf-sub">Keep this account protected</p>
+          <p className="pf-sub hint-text">Keep this account protected</p>
           <div className="pf-security-row">
             <div className="pf-row-icon"><KeyRound size={15} /></div>
             <div className="pf-row-text">
@@ -425,7 +425,7 @@ export default function Profile() {
         {/* ===== RECENT ACTIVITY ===== */}
         <section className="pf-card pf-area-activity">
           <h3>Recent Activity</h3>
-          <p className="pf-sub">Actions recorded under this account</p>
+          <p className="pf-sub hint-text">Actions recorded under this account</p>
           <div className="pf-scroll">
             {activityLoading ? (
               <div className="pf-activity-skeleton" aria-busy="true" aria-label="Loading activity">

@@ -305,7 +305,7 @@ function ResetPass({ onBack }) {
                                     Use a different email
                                 </button>
                             </div>
-                            <p className="am-help">No email? Check the spam folder. The code only reaches emails that have an account.</p>
+                            <p className="am-help hint-text">No email? Check the spam folder. The code only reaches emails that have an account.</p>
                         </form>
                     )}
 

@@ -108,13 +108,24 @@ class SafetyStockController extends Controller
     public function saveEoqCosts(Request $request, string $code): JsonResponse
     {
         $data = $request->validate([
-            'orderingCost' => ['required', 'numeric', 'min:0.01', 'max:9999999999'],
-            'holdingCost' => ['required', 'numeric', 'min:0.01', 'max:9999999999'],
+            // Same limits as the calculator (2026-11-07).
+            'orderingCost' => ['required', 'numeric', 'min:0.01', 'max:99999.99', 'decimal:0,2'],
+            'holdingCost' => ['required', 'numeric', 'min:0.01', 'max:99999.99', 'decimal:0,2'],
         ]);
-        $product = Product::where('code', $code)->firstOrFail();
+        $product = Product::with('safetyStock')->where('code', $code)->firstOrFail();
+        // A product with no policy yet turns Low at 10 and Critical at 5.
+        // Saving costs must not change that, so a new row keeps those same
+        // levels (only the Super Admin changes them, in the Safety Stock Policy).
+        $keepLevels = $product->safetyStock === null && Schema::hasColumn('safety_stock', 'status_mode')
+            ? [
+                'status_mode' => 'manual',
+                'low_point' => ReorderPointService::DEFAULT_LOW_POINT,
+                'critical_point' => ReorderPointService::DEFAULT_CRITICAL_POINT,
+            ]
+            : [];
         $product->safetyStock()->updateOrCreate(
             ['product_id' => $product->id],
-            ['ordering_cost' => $data['orderingCost'], 'holding_cost' => $data['holdingCost']]
+            ['ordering_cost' => $data['orderingCost'], 'holding_cost' => $data['holdingCost']] + $keepLevels
         );
         $policy = $product->safetyStock()->first();
 

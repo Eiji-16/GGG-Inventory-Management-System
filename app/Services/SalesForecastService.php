@@ -38,6 +38,17 @@ class SalesForecastService
     private array $eventsByPeriod = [];
 
     /**
+     * "Now" on the shop's clock (Philippines), 2026-11-07. The server clock
+     * is UTC, so for the first 8 hours of a new month (or week) it still
+     * showed the old one. This keeps the shop's date and time but in the
+     * app's own timezone, so it compares cleanly with saved dates.
+     */
+    public static function shopNow(): Carbon
+    {
+        return Carbon::parse(now(config('app.business_timezone', 'Asia/Manila'))->format('Y-m-d H:i:s'));
+    }
+
+    /**
      * Speed-up: read the Stock Out sales, past monthly sales and first
      * recorded date of these products in three queries in total. The
      * forecasts come out exactly the same as without it.
@@ -155,7 +166,7 @@ class SalesForecastService
      */
     public function weeklyPastSalesCutoff(Product $product): Carbon
     {
-        $currentWeek = now()->startOfWeek(Carbon::MONDAY)->startOfDay();
+        $currentWeek = self::shopNow()->startOfWeek(Carbon::MONDAY)->startOfDay();
         $first = $this->firstMovementDate($product);
         $firstWeek = $first?->copy()->startOfWeek(Carbon::MONDAY);
 
@@ -170,7 +181,7 @@ class SalesForecastService
      */
     public function pastSalesCutoff(Product $product): Carbon
     {
-        $currentMonth = now()->startOfMonth();
+        $currentMonth = self::shopNow()->startOfMonth();
         $recordingStart = $this->recordingStart($product);
 
         return $recordingStart && $recordingStart->lt($currentMonth) ? $recordingStart : $currentMonth;
@@ -313,7 +324,7 @@ class SalesForecastService
      */
     public function salesSeries(Product $product, string $periodType = 'month'): array
     {
-        $current = $this->periodStart(now(), $periodType);
+        $current = $this->periodStart(self::shopNow(), $periodType);
 
         $totals = [];
         $sources = [];
@@ -400,7 +411,7 @@ class SalesForecastService
     {
         return [
             'periodType' => $periodType,
-            'nextPeriod' => $this->periodStart(now(), $periodType)->toDateString(),
+            'nextPeriod' => $this->periodStart(self::shopNow(), $periodType)->toDateString(),
         ] + $this->buildTable($this->salesSeries($product, $periodType));
     }
 

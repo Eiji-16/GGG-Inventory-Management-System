@@ -82,7 +82,7 @@ export default function TwoFactorPrompt({ email, onSuccess, onCancel }) {
                         <button type="submit" className="am-primary" disabled={busy || code.length !== 6}>
                             {busy ? <><span className="am-spinner" aria-hidden="true" /> Checking…</> : 'Verify and sign in'}
                         </button>
-                        <p className="am-help">The code changes every 30 seconds. Lost your phone? Ask the Super Admin to turn off the authenticator app for your account.</p>
+                        <p className="am-help hint-text">The code changes every 30 seconds. Lost your phone? Ask the Super Admin to turn off the authenticator app for your account.</p>
                     </form>
                 </div>
             </section>

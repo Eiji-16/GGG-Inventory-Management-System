@@ -132,7 +132,7 @@ export default function SystemData() {
               Data &amp; System
               <span className="s-restricted-badge"><Lock size={9} /> Super Admin</span>
             </h2>
-            <span className="s-card-sub">Back up, restore or reset the whole system. Every action asks for your password.</span>
+            <span className="s-card-sub hint-text">Back up, restore or reset the whole system. Every action asks for your password.</span>
           </div>
         </div>
         <button type="button" className="s-ghost-btn" aria-expanded={open} aria-controls="s-sys-body" onClick={() => setOpen((value) => !value)}>
