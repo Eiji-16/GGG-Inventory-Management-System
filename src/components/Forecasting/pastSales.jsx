@@ -406,6 +406,23 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
   }, 0);
   const usesWeekTotals = !isWeekly && cells.some(({ key, locked }) => !locked && weekTotals[key]);
 
+  /* Locked weeks/months show what Stock Control recorded (2026-11-08), so a
+     locked box is not a mystery. Display only — nothing here is saved.
+     Example: first entry Oct 24 → the week Oct 19–25 shows "3 sold" and
+     "(Oct 24–25)", the days Stock Control actually covers. */
+  const stockSales = data?.stockSales || {};
+  const firstEntry = isWeekly ? data?.recordingStart : data?.firstEntryDate;
+  const coveredDays = (key) => {
+    if (!firstEntry) return '';
+    const first = parseKey(firstEntry);
+    const start = isWeekly ? parseKey(key) : new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, 1);
+    const end = isWeekly
+      ? new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6)
+      : new Date(start.getFullYear(), start.getMonth() + 1, 0);
+    // Only the period where Stock Control started part-way through.
+    return first > start && first <= end ? ` (${shortDate(first)}–${first.getMonth() === end.getMonth() ? end.getDate() : shortDate(end)})` : '';
+  };
+
   const save = async () => {
     const records = [];
     for (const { key, title, locked } of cells) {
@@ -524,10 +541,15 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
             const auto = weeks && weeks.complete && typed === '';
             const mismatch = weeks && weeks.complete && typed !== '' && Number(typed) !== weeks.unitsSold;
             return (
-              <label key={key} className={`ps-month${locked ? ' is-locked' : ''}${saved[key] !== undefined ? ' has-value' : ''}${auto ? ' is-auto' : ''}${mismatch ? ' is-mismatch' : ''}`} title={title}>
+              <label key={key} className={`ps-month${locked ? ' is-locked' : ''}${locked && !unfinished ? ' has-stock' : ''}${saved[key] !== undefined ? ' has-value' : ''}${auto ? ' is-auto' : ''}${mismatch ? ' is-mismatch' : ''}`} title={title}>
                 <span>{label}</span>
                 {locked ? (
-                  <em>{unfinished ? 'Not finished' : 'From Stock Control'}</em>
+                  unfinished ? <em>Not finished</em> : (
+                    <>
+                      <strong className="ps-stock-sold">{formatUnits(stockSales[key] ?? 0)} sold</strong>
+                      <em>From Stock Control{coveredDays(key)}</em>
+                    </>
+                  )
                 ) : (
                   <input
                     type="number"

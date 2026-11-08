@@ -916,7 +916,7 @@ export default function DemandForecastDesign({
                 </div>
                 <dl className="fx-facts">
                   <div><dt>Current stock</dt><dd>{selectedProduct ? `${Number(selectedProduct.stock || 0)} units` : '—'}</dd></div>
-                  <div><dt>Suggested reorder</dt><dd>{forecast ? `${reorderQuantity} units` : '—'}</dd></div>
+                  <div><dt>Short of forecast</dt><dd>{forecast ? `${reorderQuantity} units` : '—'}</dd></div>
                   <div><dt>Avg. {periodAdjective} sales</dt><dd>{historyRows.length ? `${Math.round(overallAverage)} units` : '—'}</dd></div>
                   <div><dt>Avg. variance</dt><dd>{forecast?.meanAbsoluteDeviation != null ? `±${forecast.meanAbsoluteDeviation}` : '—'}</dd></div>
                 </dl>

@@ -66,6 +66,9 @@ class PastSalesController extends Controller
                 'cutoff'         => $cutoff->toDateString(),   // Monday of the first week NOT allowed
                 'recordingStart' => $this->forecasts->firstMovementDate($product)?->toDateString(),
                 'rows'           => $rows,
+                // Read-only: units sold (Stock Out) in each locked week, so the
+                // grid can show them instead of only "From Stock Control".
+                'stockSales'     => $this->stockSales($product, $cutoff, 'week'),
             ]);
         }
 
@@ -111,9 +114,39 @@ class PastSalesController extends Controller
             'productName'    => $product->name,
             'cutoff'         => $cutoff->format('Y-m'),
             'recordingStart' => $this->forecasts->recordingStart($product)?->format('Y-m'),
+            // The exact day of the first Stock Control entry (e.g. 2026-10-24).
+            'firstEntryDate' => $this->forecasts->firstMovementDate($product)?->toDateString(),
             'rows'           => $rows,
             'fromWeeks'      => $fromWeeks,
+            // Read-only: units sold (Stock Out) in each locked month.
+            'stockSales'     => $this->stockSales($product, $cutoff, 'month'),
         ]);
+    }
+
+    /**
+     * Units sold (Stock Out, not corrections) per week or month, from the
+     * cutoff on — the periods the grid shows as "From Stock Control"
+     * (2026-11-08). Display only; the forecast reads the same Stock Out rows.
+     * Keys: '2026-10-19' (week, its Monday) or '2026-10' (month).
+     *
+     * @return array<string, int>
+     */
+    private function stockSales(Product $product, Carbon $cutoff, string $periodType): array
+    {
+        $totals = [];
+        \App\Models\StockMovement::query()
+            ->where('product_id', $product->id)
+            ->where('movement_type', 'out')
+            ->where('is_adjustment', false)
+            ->where('movement_date', '>=', $cutoff->toDateString())
+            ->get(['qty', 'movement_date'])
+            ->each(function ($movement) use (&$totals, $periodType): void {
+                $start = $this->forecasts->periodStart(Carbon::parse($movement->movement_date), $periodType);
+                $key = $periodType === 'week' ? $start->toDateString() : $start->format('Y-m');
+                $totals[$key] = ($totals[$key] ?? 0) + (int) $movement->qty;
+            });
+
+        return $totals;
     }
 
     /**

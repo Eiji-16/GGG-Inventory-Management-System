@@ -106,12 +106,30 @@ class DashboardSummaryController extends Controller
                     $addSale($product, $month, $row['unitsSold']);
                 }
             });
+        // 2026-11-08: send only what the Dashboard cards show, not the whole
+        // history. Sales: from January of last year (the yearly chart compares
+        // with last year). Stock entries: the last 12 months (Top Products
+        // Sold, the charts, this month's numbers) plus the 12 newest entries
+        // (Recent Activity), even if those are older.
+        $shopNow = \App\Services\SalesForecastService::shopNow();
+        $salesFrom = $shopNow->copy()->subYear()->startOfYear()->toDateString();
+        $movementsFrom = $shopNow->copy()->startOfMonth()->subMonthsNoOverflow(12)->toDateString();
+        $newestMovementIds = StockMovement::query()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(12)
+            ->pluck('id');
+
         $salesHistory = collect(array_values($monthly))
+            ->filter(fn (array $row) => $row['periodDate'] >= $salesFrom)
             ->sortBy('periodDate')
             ->values()
             ->map(fn (array $row, int $i) => ['id' => $i + 1] + $row);
 
         $stockMovements = StockMovement::with('product:id,code')
+            ->where(fn ($query) => $query
+                ->where('movement_date', '>=', $movementsFrom)
+                ->orWhereIn('id', $newestMovementIds))
             ->orderBy('movement_date')
             ->orderBy('id')
             ->get(['id', 'product_id', 'product_name', 'variant_name', 'movement_date', 'movement_type', 'is_adjustment', 'qty', 'recorded_by', 'created_at'])

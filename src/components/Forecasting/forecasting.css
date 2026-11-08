@@ -3600,3 +3600,9 @@
     .fx-toolbar .fx-product-field-compact + .f-field .fx-segmented button { flex: 1; }
     .fx-toolbar .fx-refresh { min-height: 34px; }
 }
+
+/* Past Sales: locked boxes show what Stock Control recorded (2026-11-08).
+   Display only. Same faded look as the other locked boxes; colours come
+   from the theme. */
+.ps-month .ps-stock-sold { color: var(--text-primary); font-size: 15px; font-weight: 700; line-height: 1.2; }
+.ps-month .ps-stock-sold + em { min-height: 0; line-height: 1.3; }

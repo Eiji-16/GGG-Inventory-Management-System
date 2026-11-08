@@ -83,18 +83,32 @@ class ReorderPointService
     }
 
     /**
-     * Past Sales units of the months in the last 12 months. Only months
-     * before the product's Stock Control records begin are given by
-     * pastMonthlyTotals(), so they never overlap Stock Out units.
+     * Past Sales units of the last 12 months. Only months before the
+     * product's Stock Control records begin are given by pastMonthlyTotals(),
+     * so they never overlap Stock Out units.
+     *
+     * 2026-11-08: the oldest month counts only for its days inside the last
+     * 12 months, so the total is exactly 12 months (Stock Out also counts
+     * from the same day). Example on Nov 7, 2026: the window starts
+     * Nov 7, 2025, so 30 units sold in November 2025 count as 30 × 24 ÷ 30 = 24.
      */
     private function pastSalesInWindow(Product $product, SalesForecastService $forecasts): int
     {
-        $firstMonth = SalesForecastService::shopNow()->startOfMonth()->subMonthsNoOverflow(12)->toDateString();
+        // Plain dates (no time zone mix-up between the shop clock and the server clock).
+        $windowStart = Carbon::parse($this->windowStart()->toDateString());
         $units = 0.0;
         foreach ($forecasts->pastMonthlyTotals($product) as $month => $row) {
-            if ($month >= $firstMonth) {
-                $units += (float) $row['unitsSold'];
+            $monthStart = Carbon::parse($month)->startOfMonth();
+            $monthEnd = $monthStart->copy()->endOfMonth()->startOfDay();
+            if ($monthEnd->lt($windowStart)) {
+                continue;   // the whole month is older than 12 months
             }
+            $share = 1.0;
+            if ($monthStart->lt($windowStart)) {
+                $daysInside = (int) round($windowStart->diffInDays($monthEnd, true)) + 1;
+                $share = $daysInside / $monthStart->daysInMonth;
+            }
+            $units += (float) $row['unitsSold'] * $share;
         }
 
         return (int) round($units);

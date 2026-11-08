@@ -37,6 +37,7 @@ class StockMovementService
             // No date sent: use the shop's today (Philippines), not the server's UTC date.
             $date = $data['date'] ?? now(config('app.business_timezone', 'Asia/Manila'))->toDateString();
             $lowestBefore = $this->historyLow($product)['min'];
+            $variantsBefore = $this->variantBalances($product);
             $adjustmentBaseline = $data['type'] === 'Adjustment'
                 ? $this->balanceBeforeDate($product, $date, $currentStock)
                 : null;
@@ -64,6 +65,7 @@ class StockMovementService
 
                 $product->update(['stock_on_hand' => $newStock]);
                 $this->assertHistoryNotNegative($product, $this->reconcileMovementBalances($product), $lowestBefore, $type === 'out' ? $qty : null, $date);
+                $this->assertVariantsNotNegative($product, $variantsBefore);
                 $this->syncSalesFromMovements($product);
 
                 $merged = $sameDayEntry->fresh();
@@ -90,6 +92,7 @@ class StockMovementService
 
             $product->update(['stock_on_hand' => $newStock]);
             $this->assertHistoryNotNegative($product, $this->reconcileMovementBalances($product), $lowestBefore, ! $isAdjustment && $type === 'out' ? $qty : null, $date);
+            $this->assertVariantsNotNegative($product, $variantsBefore);
             $this->syncSalesFromMovements($product);
             if (! $isAdjustment) {
                 $movement->update(['remaining_stock' => $newStock]);
@@ -113,6 +116,8 @@ class StockMovementService
             $newProduct = $this->findProduct($data);
             $oldLowestBefore = $this->historyLow($oldProduct)['min'];
             $newLowestBefore = $newProduct->id === $oldProduct->id ? $oldLowestBefore : $this->historyLow($newProduct)['min'];
+            $oldVariantsBefore = $this->variantBalances($oldProduct);
+            $newVariantsBefore = $newProduct->id === $oldProduct->id ? $oldVariantsBefore : $this->variantBalances($newProduct);
 
             if ($newProduct->id === $oldProduct->id) {
                 $newProduct = $oldProduct;
@@ -160,6 +165,11 @@ class StockMovementService
             if ($oldProduct->id !== $newProduct->id) {
                 $this->assertHistoryNotNegative($newProduct, $this->reconcileMovementBalances($newProduct), $newLowestBefore);
             }
+            // 2026-11-08: an edit may not make one variant negative either.
+            $this->assertVariantsNotNegative($oldProduct, $oldVariantsBefore);
+            if ($oldProduct->id !== $newProduct->id) {
+                $this->assertVariantsNotNegative($newProduct, $newVariantsBefore);
+            }
             $this->syncSalesFromMovements($oldProduct);
             if ($oldProduct->id !== $newProduct->id) {
                 $this->syncSalesFromMovements($newProduct);
@@ -186,11 +196,13 @@ class StockMovementService
             $newStock = (int) $product->stock_on_hand - $this->deltaFor($movement);
             $this->ensureNonNegative($newStock);
             $lowestBefore = $this->historyLow($product)['min'];
+            $variantsBefore = $this->variantBalances($product);
 
             $movement->forceFill($this->deletedByColumns($deletedBy) + ['deleted_with_product' => false])->save();
             $movement->delete();
             $product->update(['stock_on_hand' => $newStock]);
             $this->assertHistoryNotNegative($product, $this->reconcileMovementBalances($product), $lowestBefore);
+            $this->assertVariantsNotNegative($product, $variantsBefore);
             $this->syncSalesFromMovements($product);
         });
     }
@@ -246,6 +258,7 @@ class StockMovementService
             }
 
             $lowestBefore = $this->historyLow($product)['min'];
+            $variantsBefore = $this->variantBalances($product);
             $newStock = (int) $product->stock_on_hand + $this->deltaFor($movement);
             if ($newStock < 0) {
                 throw ValidationException::withMessages([
@@ -263,6 +276,7 @@ class StockMovementService
             ])->save();
             $product->update(['stock_on_hand' => $newStock]);
             $this->assertHistoryNotNegative($product, $this->reconcileMovementBalances($product), $lowestBefore);
+            $this->assertVariantsNotNegative($product, $variantsBefore);
             $this->syncSalesFromMovements($product);
 
             return $movement->fresh();
@@ -423,6 +437,78 @@ class StockMovementService
             throw ValidationException::withMessages([
                 'qty' => "Only {$this->num0($onHand)} of {$product->name} ({$name}) on hand — a Stock Out of {$qty} would make this variant negative.",
             ]);
+        }
+    }
+
+    /**
+     * Edit "details only" (variant, price, notes) — 2026-11-08. Changing the
+     * variant moves that entry's units to another variant, so it gets the
+     * same check: no variant may go below zero because of the edit.
+     * Example: GGG Shirt 10 Large in, 8 Large out. Changing the Stock In to
+     * "Small" would leave Large at -8, so it is refused.
+     */
+    public function updateDetails(StockMovement $existingMovement, array $attributes): StockMovement
+    {
+        return DB::transaction(function () use ($existingMovement, $attributes) {
+            $movement = StockMovement::query()->lockForUpdate()->findOrFail($existingMovement->id);
+            $product = $movement->product_id === null
+                ? null
+                : Product::query()->lockForUpdate()->find($movement->product_id);
+            $variantsBefore = $product ? $this->variantBalances($product) : [];
+
+            $movement->update($attributes);
+
+            if ($product) {
+                $this->assertVariantsNotNegative($product, $variantsBefore);
+            }
+
+            return $movement->fresh();
+        });
+    }
+
+    /**
+     * Each named variant's count: Stock In minus Stock Out and Corrections
+     * (the same count Stock Control shows). Entries with no variant are left
+     * out. Keyed by the lower-case name, e.g. ['large' => ['name' => 'Large', 'onHand' => 2]].
+     *
+     * @return array<string, array{name: string, onHand: int}>
+     */
+    private function variantBalances(Product $product): array
+    {
+        $balances = [];
+        StockMovement::query()
+            ->where('product_id', $product->id)
+            ->get(['variant_name', 'movement_type', 'qty'])
+            ->each(function (StockMovement $row) use (&$balances): void {
+                $name = trim((string) $row->variant_name);
+                if ($name === '') {
+                    return;
+                }
+                $key = mb_strtolower($name);
+                $balances[$key] ??= ['name' => $name, 'onHand' => 0];
+                $balances[$key]['onHand'] += $this->deltaFor($row);
+            });
+
+        return $balances;
+    }
+
+    /**
+     * Refuse a change (edit, delete, restore, new entry) that makes one
+     * variant go below zero (2026-11-08). Only blocks a variant that the
+     * change made lower than it already was, so old records never lock a
+     * product.
+     *
+     * @param  array<string, array{name: string, onHand: int}>  $before
+     */
+    private function assertVariantsNotNegative(Product $product, array $before): void
+    {
+        foreach ($this->variantBalances($product) as $key => $variant) {
+            $was = $before[$key]['onHand'] ?? 0;
+            if ($variant['onHand'] < 0 && $variant['onHand'] < $was) {
+                throw ValidationException::withMessages([
+                    'qty' => "This would make {$product->name} ({$variant['name']}) go below zero ({$variant['onHand']}). Record the missing Stock In for that variant first, or pick a different variant.",
+                ]);
+            }
         }
     }
 

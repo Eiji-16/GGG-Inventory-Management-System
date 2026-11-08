@@ -1405,6 +1405,25 @@ function StockControl({
     clearPending(rowId);
   };
 
+  /* Last Stock In price per product + variant (2026-11-08). A Correction
+     (typed count) has no price, so when it is a variant's newest entry the
+     Price column shows this price instead of "—".
+     Example: White — Stock In at $20, then a count of 28 → Price shows $20. */
+  const lastStockInPriceByKey = useMemo(() => {
+    const latest = new Map();
+    stockFromDatabase.forEach((row) => {
+      if (row.type !== 'Stock In' || row.unitPrice == null) return;
+      const key = variantKeyOf(row);
+      const current = latest.get(key);
+      if (!current
+        || new Date(row.date) - new Date(current.date) > 0
+        || (row.date === current.date && Number(row.id) > Number(current.id))) {
+        latest.set(key, row);
+      }
+    });
+    return new Map([...latest].map(([key, row]) => [key, Number(row.unitPrice)]));
+  }, [stockFromDatabase]);
+
   const lastPriceFor = (productId, type) => {
     let latest = null;
     stockFromDatabase.forEach((row) => {
@@ -1853,13 +1872,27 @@ function StockControl({
                       <span title={`${variantStock} on hand for this ${stock.variantName ? 'variant' : 'product'} · ${totalQty} for the whole product`}>{variantStock}</span>
                     )}
                   </td>
-                  <td
-                    className="sc-td-nowrap"
-                    data-label="Price"
-                    title={stock.unitPrice != null ? `${formatCurrency(stock.unitPrice)} × ${stock.qty} = ${formatCurrency(Number(stock.unitPrice) * Number(stock.qty || 0))}` : 'No price recorded'}
-                  >
-                    {stock.unitPrice != null ? formatCurrency(stock.unitPrice) : '—'}
-                  </td>
+                  {(() => {
+                    // Newest entry is a Correction (no price): show the last Stock In price.
+                    const fallbackPrice = stock.unitPrice == null && stock.type === 'Adjustment'
+                      ? lastStockInPriceByKey.get(variantKeyOf(stock))
+                      : undefined;
+                    return (
+                      <td
+                        className="sc-td-nowrap"
+                        data-label="Price"
+                        title={stock.unitPrice != null
+                          ? `${formatCurrency(stock.unitPrice)} × ${stock.qty} = ${formatCurrency(Number(stock.unitPrice) * Number(stock.qty || 0))}`
+                          : fallbackPrice != null
+                            ? 'Last Stock In price (a Correction has no price of its own)'
+                            : 'No price recorded'}
+                      >
+                        {stock.unitPrice != null
+                          ? formatCurrency(stock.unitPrice)
+                          : fallbackPrice != null ? formatCurrency(fallbackPrice) : '—'}
+                      </td>
+                    );
+                  })()}
                   <td data-label="Reorder Point">
                     {status ? (
                       <span

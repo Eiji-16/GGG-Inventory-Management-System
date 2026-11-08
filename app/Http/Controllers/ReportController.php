@@ -41,15 +41,20 @@ class ReportController extends Controller
         $allowed = RoleAccessService::effectiveFor($request->user());
         $can = fn (string $section): bool => $allowed[RoleAccessService::REPORT_SECTIONS[$section]] ?? false;
 
+        // Products with at least one stock entry ("tracked"). The Reorder List
+        // and the Dashboard's Low Stock count only use these (2026-11-08), so
+        // a brand-new product with no entries is not listed as needing a restock.
+        $tracked = array_flip(StockMovement::query()->distinct()->pluck('product_id')->filter()->all());
+
         $builders = [
-            'stockSummary'   => fn () => $this->stockSummary($products),
+            'stockSummary'   => fn () => $this->stockSummary($products, $tracked),
             'stockMovement'  => fn () => $this->stockMovement(),
             'topMoving'      => fn () => $this->topMoving(),
             'fastSlowMoving' => fn () => $this->fastSlowMoving($products),
             'demandForecast' => fn () => $this->demandForecast($products),
             'autoCalculator' => fn () => $this->autoCalculatorLog(),
             'inventoryAging' => fn () => $this->inventoryAging($products),
-            'reorderPoint'   => fn () => $this->reorderPoint($products),
+            'reorderPoint'   => fn () => $this->reorderPoint($products, $tracked),
         ];
 
         $payload = ['generatedAt' => now()->toIso8601String()];
@@ -60,6 +65,16 @@ class ReportController extends Controller
         }
 
         return response()->json($payload);
+    }
+
+    /**
+     * Today on the shop's clock (Philippines) as a plain date at midnight
+     * (2026-11-08). The server clock is UTC, so before 8 AM it was still
+     * "yesterday" there: on a Monday morning the weekly charts showed last week.
+     */
+    private function shopToday(): \Illuminate\Support\Carbon
+    {
+        return \Illuminate\Support\Carbon::parse(SalesForecastService::shopNow()->toDateString());
     }
 
     /** Same four statuses as Stock Control, the Dashboard and Reorder Alerts. */
@@ -104,7 +119,7 @@ class ReportController extends Controller
         return $costs;
     }
 
-    private function stockSummary($products): array
+    private function stockSummary($products, array $tracked = []): array
     {
         $totalStock = 0;
         $low = 0;
@@ -119,9 +134,13 @@ class ReportController extends Controller
             $stock = (int) $p->stock_on_hand;
             $status = $this->statusFor($p);
             $totalStock += $stock;
-            if ($status === 'Low Stock') $low++;
-            if ($status === 'Critical') $critical++;
-            if ($status === 'Out of Stock') $out++;
+            // Low / Critical / Out counts: tracked products only, the same
+            // as the Dashboard's Low Stock Items and the Reorder List.
+            if (isset($tracked[$p->id])) {
+                if ($status === 'Low Stock') $low++;
+                if ($status === 'Critical') $critical++;
+                if ($status === 'Out of Stock') $out++;
+            }
             $cost = $costs[$p->id] ?? null;
             if ($cost !== null) {
                 $value += $stock * $cost;
@@ -165,7 +184,7 @@ class ReportController extends Controller
     private function stockMovement(): array
     {
         $weeks = 8;
-        $firstWeek = now()->startOfWeek(\Illuminate\Support\Carbon::MONDAY)->subWeeks($weeks - 1);
+        $firstWeek = $this->shopToday()->startOfWeek(\Illuminate\Support\Carbon::MONDAY)->subWeeks($weeks - 1);
         $byWeek = [];
         for ($w = 0; $w < $weeks; $w++) {
             $start = $firstWeek->copy()->addWeeks($w);
@@ -240,7 +259,7 @@ class ReportController extends Controller
     private function fastSlowMoving($products): array
     {
         $windowDays = 90;
-        $since = now()->subDays($windowDays)->toDateString();
+        $since = $this->shopToday()->subDays($windowDays)->toDateString();
 
         $sold = StockMovement::where('movement_type', 'out')
             ->where('is_adjustment', false)
@@ -283,7 +302,7 @@ class ReportController extends Controller
 
         // Weekly sales trend: stock-out units for the last 8 weeks (Monday start).
         $weeks = 8;
-        $firstWeek = now()->startOfWeek(\Illuminate\Support\Carbon::MONDAY)->subWeeks($weeks - 1);
+        $firstWeek = $this->shopToday()->startOfWeek(\Illuminate\Support\Carbon::MONDAY)->subWeeks($weeks - 1);
         $trend = [];
         for ($w = 0; $w < $weeks; $w++) {
             $start = $firstWeek->copy()->addWeeks($w);
@@ -396,7 +415,7 @@ class ReportController extends Controller
             $ageEstimated = $lastIn === null;
 
             $days = $ageDate
-                ? abs((int) now()->startOfDay()->diffInDays(\Illuminate\Support\Carbon::parse($ageDate)->startOfDay()))
+                ? abs((int) $this->shopToday()->diffInDays(\Illuminate\Support\Carbon::parse($ageDate)->startOfDay()))
                 : null;
 
             $status = $days === null ? 'Unknown' : ($days > 120 ? 'Slow Mover' : ($days > 60 ? 'Aging' : 'Healthy'));
@@ -416,11 +435,13 @@ class ReportController extends Controller
         return ['rows' => $rows];
     }
 
-    /** Products at or below their reorder point. */
-    private function reorderPoint($products): array
+    /** Products at or below their reorder point — the same list as the Reorder List page. */
+    private function reorderPoint($products, array $tracked = []): array
     {
         $rows = [];
         foreach ($products as $p) {
+            // No stock entries yet = not in the Reorder List either (2026-11-08).
+            if (! isset($tracked[$p->id])) continue;
             $stock = (int) $p->stock_on_hand;
             // Uses the product's status points (Automatic or Manual) — the
             // same points Stock Control and Reorder Alerts use.

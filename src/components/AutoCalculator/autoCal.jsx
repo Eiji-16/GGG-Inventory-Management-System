@@ -11,6 +11,7 @@ import {
   DEFAULT_SAFETY_STOCK,
   policyFor,
   safetyPointFor,
+  statusPointsFor,
   SAFETY_STOCK_DEFAULTS,
 } from '../../data/safetyStock';
 
@@ -92,7 +93,7 @@ const sameInputs = (a, b) => INPUT_KEYS.every((key) => String(a?.[key] ?? '') ==
 /* Short labels for the saved inputs (older entries keep the same keys). */
 const HISTORY_FIELDS = [
   { key: 'Annual demand', label: 'Demand', suffix: '/yr' },
-  { key: 'Ordering cost', label: 'Order cost', money: true },
+  { key: 'Ordering cost', label: 'Ordering cost', money: true },
   { key: 'Holding cost', label: 'Holding', money: true },
   { key: 'Lead time (days)', label: 'Lead time', suffix: ' d' },
   { key: 'Safety stock', label: 'Safety', suffix: '' },
@@ -133,7 +134,7 @@ function HistoryPanel({ onClose, history, onClear }) {
                 <article className="ac-history-item" key={i}>
                   <div className="ac-history-qty" title="Economic order quantity">
                     <strong>{Math.round(Number(h.result)).toLocaleString('en-PH')}</strong>
-                    <span>{h.unit || 'units'} / order</span>
+                    <span>{h.unit || 'units'} each time</span>
                   </div>
                   <div className="ac-history-main">
                     <div className="ac-history-top">
@@ -296,6 +297,22 @@ export default function AutoCalculatorDesign({
     : null;
   const resultIsStale = Boolean(result && !sameInputs(inputs, resultInputs));
   const currentStock = selectedProduct ? Number(selectedProduct.stock ?? 0) : null;
+  /* The level where this product joins the Reorder List (2026-11-08): the
+     SAME Low level as the Reorder List and Dashboard — Formula mode: the
+     reorder point from the last 12 months of sales; Manual: the Super Admin's
+     Low level; no policy: 10. (The calculator's own reorder point uses the
+     annual demand typed above, so it can be a different number.) */
+  const listPoints = selectedProduct
+    ? statusPointsFor({
+      productId: selectedProduct.id,
+      productName: selectedProduct.name,
+      safetyStock: selectedProduct.safetyStock,
+      annualDemand: selectedProduct.annualDemand,
+      demandFromHistory: selectedProduct.demandFromHistory,
+      leadTimeDays: selectedProduct.leadTimeDays,
+    }, safetyStock)
+    : null;
+  const listLevel = listPoints && Number.isFinite(Number(listPoints.low)) ? Number(listPoints.low) : null;
 
   useEffect(() => {
     try {
@@ -616,10 +633,11 @@ export default function AutoCalculatorDesign({
     return `${fmtSmart(per)} units/${unit} × ${periods} = ${fmt(activeForecastContext.annualDemand)} units/year${seasonal}`;
   })();
 
-  const stockStatus = result && selectedProduct && currentStock !== null
-    ? currentStock <= result.reorderPoint
-      ? { tone: 'due', text: `Current stock is ${fmt(currentStock)} unit${currentStock === 1 ? '' : 's'} — at or below the reorder point. Order ${fmt(result.recommendedOrder)} unit${result.recommendedOrder === 1 ? '' : 's'} now.` }
-      : { tone: 'ok', text: `Current stock is ${fmt(currentStock)} units — above the reorder point, no order needed yet.` }
+  // Uses the Reorder List's Low level, so this matches the Reorder List.
+  const stockStatus = result && selectedProduct && currentStock !== null && listLevel !== null
+    ? currentStock <= listLevel
+      ? { tone: 'due', text: `Current stock is ${fmt(currentStock)} unit${currentStock === 1 ? '' : 's'} — at or below its Low level (${fmt(listLevel)}). Restock ${fmt(result.recommendedOrder)} unit${result.recommendedOrder === 1 ? '' : 's'} now.` }
+      : { tone: 'ok', text: `Current stock is ${fmt(currentStock)} units — above its Low level (${fmt(listLevel)}), no restock needed yet.` }
     : null;
 
   /* ===== REPORT EXPORTS ===== */
@@ -654,10 +672,10 @@ export default function AutoCalculatorDesign({
     try {
       await exportReportWorkbook({
         title: 'Economic Order Quantity Report',
-        subtitle: `Order planning for ${selectedProduct?.name || 'manual calculation'}`,
+        subtitle: `Restock planning for ${selectedProduct?.name || 'manual calculation'}`,
         fileName: `eoq-report-${selectedProduct?.id || 'manual'}`,
         summary: [
-          { label: 'Order quantity', value: `${fmt(result.recommendedOrder)} units` },
+          { label: 'Economic Order Quantity', value: `${fmt(result.recommendedOrder)} units` },
           { label: 'Reorder point', value: `${fmt(result.reorderPoint)} units` },
           { label: 'Orders per year', value: fmt(result.annualOrders, 1) },
           { label: 'Total annual cost', value: formatCurrency(result.totalCost) },
@@ -668,7 +686,7 @@ export default function AutoCalculatorDesign({
           { title: 'Results', headers: ['Result', 'Value'], rows: rows.results },
         ],
         scope: `Economic order quantity = ${EOQ_FORMULA}; Reorder point = safety stock + (annual demand ÷ 365 × lead time).`,
-        note: 'Planning recommendation only — confirm supplier prices and availability before ordering.',
+        note: 'Planning recommendation only — confirm supplier prices and availability before buying.',
         columnWidths: [30, 60],
       });
     } catch (error) {
@@ -703,8 +721,8 @@ export default function AutoCalculatorDesign({
       </style></head><body><main>
       <header><div class="brand">${esc(getSystemName())}</div><h1>Economic Order Quantity Report</h1>
       <div class="muted">${esc(selectedProduct?.name || 'Manual calculation')}</div></header>
-      <div class="hero"><span class="muted">Recommended order quantity</span><b>${esc(fmt(result.recommendedOrder))} units per order</b>
-      <span>When stock drops to <strong>${esc(fmt(result.reorderPoint))} units</strong>, reorder ${esc(fmt(result.recommendedOrder))} units.</span></div>
+      <div class="hero"><span class="muted">Economic Order Quantity</span><b>${esc(fmt(result.recommendedOrder))} units each time</b>
+      <span>When stock drops to <strong>${esc(fmt(listLevel ?? result.reorderPoint))} units</strong>, restock ${esc(fmt(result.recommendedOrder))} units.</span></div>
       <h2>Product and demand</h2><table>${table(rows.context)}</table>
       <h2>Inputs</h2><table>${table(rows.inputs)}</table>
       <h2>Results</h2><table>${table(rows.results)}</table>
@@ -745,8 +763,8 @@ export default function AutoCalculatorDesign({
       <>
       <div className="eq-header">
         <p className="eq-intro hint-text">
-          Find <strong>how many units to order each time</strong> at the lowest total ordering + storage cost,
-          and <strong>when to reorder</strong>.
+          Find <strong>how many units to buy each time</strong> at the lowest total ordering + storage cost,
+          and <strong>when to restock</strong>.
         </p>
         {!headerSlot && actions}
       </div>
@@ -939,7 +957,18 @@ export default function AutoCalculatorDesign({
               </div>
 
               <p className="eq-sentence">
-                When stock drops to <strong>{fmt(result.reorderPoint)} unit{result.reorderPoint === 1 ? '' : 's'}</strong>, the product appears in the Reorder List — order <strong>{fmt(result.recommendedOrder)} unit{result.recommendedOrder === 1 ? '' : 's'}</strong> each time.
+                {listLevel !== null ? (
+                  <>
+                    This product appears in the Reorder List when stock is at or below its Low level of <strong>{fmt(listLevel)} unit{listLevel === 1 ? '' : 's'}</strong>{listPoints?.mode === 'manual' ? ' (set in the Safety Stock Policy)' : ''} — restock <strong>{fmt(result.recommendedOrder)} unit{result.recommendedOrder === 1 ? '' : 's'}</strong> each time.
+                    {listLevel !== result.reorderPoint && (
+                      <span className="hint-text"> The reorder point above uses the annual demand in this calculation, so it can differ.</span>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    When stock drops to <strong>{fmt(result.reorderPoint)} unit{result.reorderPoint === 1 ? '' : 's'}</strong>, restock <strong>{fmt(result.recommendedOrder)} unit{result.recommendedOrder === 1 ? '' : 's'}</strong> each time.
+                  </>
+                )}
               </p>
               {stockStatus && <p className={`eq-status is-${stockStatus.tone}`}>{stockStatus.text}</p>}
 
@@ -950,7 +979,7 @@ export default function AutoCalculatorDesign({
                   <tr className="eq-total"><th>Total annual cost</th><td /><td>{formatCurrency(result.totalCost)}</td></tr>
                 </tbody>
               </table>
-              <p className="eq-note"><Info size={12} /> At the economic order quantity the ordering and holding costs are equal — that balance is what makes it the cheapest order size.</p>
+              <p className="eq-note"><Info size={12} /> At the economic order quantity the ordering and holding costs are equal — that balance is what makes it the cheapest amount to buy each time.</p>
 
               {saveStatus.text && (
                 <p className={`eq-save is-${saveStatus.type}`} role={saveStatus.type === 'error' ? 'alert' : 'status'}>{saveStatus.text}</p>

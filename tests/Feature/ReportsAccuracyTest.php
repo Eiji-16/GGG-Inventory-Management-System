@@ -61,10 +61,10 @@ class ReportsAccuracyTest extends TestCase
     public function test_stock_summary_uses_the_same_statuses_as_stock_control(): void
     {
         // No policy → default points: Low at 10, Critical at 5.
-        $this->product('PRD-OUT', 0);
-        $this->product('PRD-CRIT', 4);
-        $this->product('PRD-LOW', 8);
-        $this->product('PRD-OK', 50);
+        // Each product has a stock entry ("tracked"), like the Reorder List needs.
+        foreach (['PRD-OUT' => 0, 'PRD-CRIT' => 4, 'PRD-LOW' => 8, 'PRD-OK' => 50] as $code => $stock) {
+            $this->move($this->product($code, $stock), 'in', 1, '2026-10-01');
+        }
 
         $summary = $this->getJson('/api/reports')->assertOk()->json('stockSummary');
         $status = collect($summary['rows'])->pluck('status', 'productId');
@@ -191,6 +191,7 @@ class ReportsAccuracyTest extends TestCase
     public function test_reorder_point_report_shows_the_point_that_decides_the_status(): void
     {
         $p = $this->product('PRD-MAN', 8);
+        $this->move($p, 'in', 8, '2026-10-01');
         SafetyStock::create([
             'product_id' => $p->id, 'safety_stock' => 2,
             'status_mode' => 'manual', 'low_point' => 12, 'critical_point' => 4,

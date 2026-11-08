@@ -39,6 +39,8 @@ class SystemDataService
     /** Data tables, parents first (insert in this order, delete in reverse). */
     private const TABLES = [
         'users',
+        // Login-page account requests (2026-11-08: now in the backup too).
+        'account_requests',
         'suppliers',
         'products',
         'safety_stock',
@@ -57,6 +59,13 @@ class SystemDataService
     private const FILE_FOLDERS = ['product-photos', 'avatars', 'branding'];
 
     /**
+     * Delivery proof photos (Reorder List → Received), saved as
+     * delivery-proofs/{stock entry id}/{file}. Added to the backup on
+     * 2026-11-08 so an import never shows an old photo on the wrong entry.
+     */
+    private const PROOF_FOLDER = 'delivery-proofs';
+
+    /**
      * What System Reset can erase, in plain words for the screen.
      * Products & suppliers also erase everything linked to products, so the
      * stock and sales groups are always included with it.
@@ -64,7 +73,7 @@ class SystemDataService
     public const RESET_GROUPS = [
         'stock' => [
             'label' => 'Stock records',
-            'description' => 'Every Stock In / Stock Out / Correction entry, saved monthly sales and restock requests. Every product goes back to 0 stock.',
+            'description' => 'Every Stock In / Stock Out / Correction entry, saved monthly sales, restock requests and delivery proof photos. Every product goes back to 0 stock.',
             'tables' => ['stock_movements', 'sales_history', 'restock_requests'],
         ],
         'sales' => [
@@ -287,6 +296,10 @@ class SystemDataService
 
         // Photos and the logo: written after the data is safely in.
         $disk = Storage::disk(self::DISK);
+        // The stock entries were replaced, so the old proof photos no longer
+        // belong to them (entry #12 could show another delivery's photo).
+        // The safety copy saved before the import still has them.
+        $disk->deleteDirectory(self::PROOF_FOLDER);
         foreach ($backup['files'] as $path => $base64) {
             $disk->put($path, base64_decode($base64, true));
         }
@@ -350,6 +363,10 @@ class SystemDataService
         });
 
         $disk = Storage::disk(self::DISK);
+        // No stock entries left = their delivery proof photos go too.
+        if (in_array('stock', $groups, true)) {
+            $disk->deleteDirectory(self::PROOF_FOLDER);
+        }
         foreach (array_merge($photoFiles, $avatarFiles) as $path) {
             if ($this->isSafeFilePath($path)) {
                 $disk->delete($path);
@@ -403,13 +420,26 @@ class SystemDataService
             }
         }
 
+        // Delivery proof photos of the stock entries in the backup.
+        if (isset($tables['stock_movements'])) {
+            $idAt = array_search('id', $tables['stock_movements']['columns'], true);
+            $ids = $idAt === false ? [] : array_flip(array_map('strval', array_column($tables['stock_movements']['rows'], $idAt)));
+            foreach (Storage::disk(self::DISK)->allFiles(self::PROOF_FOLDER) as $path) {
+                $parts = explode('/', $path);
+                if (count($parts) === 3 && isset($ids[$parts[1]])) {
+                    $paths[] = $path;
+                }
+            }
+        }
+
         return array_values(array_unique(array_filter($paths, fn ($path) => $this->isSafeFilePath($path))));
     }
 
     /** Only plain file names inside the photo / logo folders. */
     private function isSafeFilePath(string $path): bool
     {
-        return (bool) preg_match('#^('.implode('|', self::FILE_FOLDERS).')/[A-Za-z0-9._-]+$#', $path)
+        return ((bool) preg_match('#^('.implode('|', self::FILE_FOLDERS).')/[A-Za-z0-9._-]+$#', $path)
+                || (bool) preg_match('#^'.self::PROOF_FOLDER.'/[0-9]+/[A-Za-z0-9._-]+$#', $path))
             && ! str_contains($path, '..');
     }
 

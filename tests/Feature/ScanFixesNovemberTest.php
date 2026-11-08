@@ -77,20 +77,22 @@ class ScanFixesNovemberTest extends TestCase
         for ($month = Carbon::parse('2025-11-01'); $month->lt(Carbon::parse('2026-11-01')); $month->addMonth()) {
             PastSale::create(['product_id' => $product->id, 'period_date' => $month->toDateString(), 'units_sold' => 30]);
         }
+        // November 2025 counts only Nov 7–30 (24 of 30 days): 30 × 24 ÷ 30 = 24,
+        // so 24 + 11 × 30 = 354 — exactly 12 months (2026-11-08).
         // Older than 12 months: not counted.
         PastSale::create(['product_id' => $product->id, 'period_date' => '2025-10-01', 'units_sold' => 999]);
 
         $service = new ReorderPointService();
         $fresh = Product::with(['safetyStock', 'supplier'])->find($product->id);
-        $this->assertSame(360, $service->annualDemand($fresh));
-        // ceil(3 + 360 ÷ 365 × 14) = ceil(16.8) = 17, not 3.
+        $this->assertSame(354, $service->annualDemand($fresh));
+        // ceil(3 + 354 ÷ 365 × 14) = ceil(16.6) = 17, not 3.
         $this->assertSame(17, $service->forProduct($fresh));
 
         // The preloaded path (Dashboard, Reports, product list) gives the same numbers.
         $preloaded = (new ReorderPointService())->preload(collect([$fresh]));
-        $this->assertSame(360, $preloaded->annualDemand($fresh));
-        $this->getJson('/api/products')->assertJsonFragment(['id' => 'PRD-SHIRT', 'annualDemand' => 360]);
-        $this->getJson('/api/dashboard/summary')->assertJsonPath('products.0.annualDemand', 360);
+        $this->assertSame(354, $preloaded->annualDemand($fresh));
+        $this->getJson('/api/products')->assertJsonFragment(['id' => 'PRD-SHIRT', 'annualDemand' => 354]);
+        $this->getJson('/api/dashboard/summary')->assertJsonPath('products.0.annualDemand', 354);
     }
 
     /** Fix 3: a month is never counted from both Past Sales and Stock Out. */

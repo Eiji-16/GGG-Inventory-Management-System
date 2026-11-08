@@ -276,7 +276,9 @@ class StockMovementController extends Controller
                 ['productId' => $stockMovement->product?->code, 'variantName' => $data['variantName'] ?? null],
                 $stockMovement->variant_name
             );
-            $stockMovement->update([
+            // Checked save (2026-11-08): changing the variant may not make
+            // any variant go below zero.
+            $this->stockMovements->updateDetails($stockMovement, [
                 'variant_name' => $data['variantName'] ?? null,
                 'notes'        => $data['notes'] ?? null,
                 'recorded_by'  => $stockMovement->recorded_by ?: $this->recorderName($request),

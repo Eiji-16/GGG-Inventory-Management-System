@@ -249,8 +249,8 @@ function buildSections(report, formatCurrency) {
       'No products to rank yet.');
   }
   if (report?.demandForecast) {
-    add('demandForecast', 'Demand Forecast Summary', "Next month's forecast: 3-month Weighted Moving Average plus any active seasonal event.",
-      ['Product', 'Current Stock', 'Forecasted Demand', 'Suggested Reorder', 'Confidence'],
+    add('demandForecast', 'Demand Forecast Summary', "This month's forecast: 3-month Weighted Moving Average plus any active seasonal event. Units Needed = safety stock + sales during the lead time + this month's forecast − current stock (a guide; the Economic Order Quantity is in the calculator).",
+      ['Product', 'Current Stock', 'Forecasted Demand', 'Units Needed', 'Confidence'],
       (report.demandForecast.rows || []).map((r) => [
         r.product, r.currentStock,
         `${r.forecastedDemand}${r.adjustmentPct ? ` (${r.adjustmentPct > 0 ? '+' : ''}${r.adjustmentPct}%)` : ''}`,
@@ -358,7 +358,7 @@ function buildCards(report, formatCurrency) {
   }
   if (report?.demandForecast) {
     const rows = report.demandForecast.rows || [];
-    cards.push({ key: 'forecast', report: 'demandForecast', Icon: TrendingUp, tone: 'blue', label: 'Forecast Next Month', value: Math.round(sumBy(rows, 'forecastedDemand')).toLocaleString(), sub: `units across ${rows.length} product${rows.length === 1 ? '' : 's'}` });
+    cards.push({ key: 'forecast', report: 'demandForecast', Icon: TrendingUp, tone: 'blue', label: 'Forecast This Month', value: Math.round(sumBy(rows, 'forecastedDemand')).toLocaleString(), sub: `units across ${rows.length} product${rows.length === 1 ? '' : 's'}` });
   }
   if (report?.autoCalculator) {
     const rows = report.autoCalculator.rows || [];
