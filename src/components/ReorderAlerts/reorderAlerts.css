@@ -824,7 +824,7 @@
     border: 1px solid transparent; border-radius: 7px; background: transparent;
     color: var(--text-muted); cursor: pointer;
 }
-.ra-bulk-remove:hover:not(:disabled) { color: var(--accent-low); border-color: var(--border-color); background: rgba(196, 67, 46, 0.08); }
+.ra-bulk-remove:hover:not(:disabled) { color: var(--accent-low); border-color: var(--border-color); background: color-mix(in srgb, var(--accent-low) 10%, transparent); }
 .ra-bulk-remove:disabled { opacity: 0.4; cursor: not-allowed; }
 .ra-presets.ra-presets-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 900px) {
@@ -1197,7 +1197,14 @@
     .ra-bulk-modal .ra-bulk-table th:nth-child(6),
     .ra-bulk-modal .ra-bulk-table th:nth-child(7) { width: 11%; }
     .ra-bulk-modal .ra-bulk-table th:nth-child(8) { width: 10%; }
-    .ra-bulk-modal .ra-bulk-table th:nth-child(9) { width: 3%; }
+    /* Remove (×) column: a fixed 36px so the 26px button and its hover box
+       fit (3% was ~25px, so the × was cut off on the right; 2026-11-08). */
+    .ra-bulk-modal .ra-bulk-table th:nth-child(9) { width: 36px; }
+    .ra-bulk-modal .ra-bulk-table td[data-label="Remove"] { text-align: center; }
+    /* Ordering / Holding cost boxes line up with the Annual demand box
+       (that one has a hint under it, so it sits higher; 2026-11-08). */
+    .ra-bulk-modal .ra-bulk-table td[data-label="Ordering cost"],
+    .ra-bulk-modal .ra-bulk-table td[data-label="Holding cost"] { vertical-align: top; }
     .ra-bulk-modal .ra-bulk-table th:first-child,
     .ra-bulk-modal .ra-bulk-table td[data-label="Product"] { min-width: 0 !important; }
     .ra-bulk-modal .ra-bulk-table th {
@@ -1252,4 +1259,38 @@
     .ra-bulk-modal .ra-bulk-input { height: 30px; min-height: 30px; }
     .ra-bulk-modal .ra-bulk-qty { font-size: 16px; }
     .ra-modal-actions.ra-save-report .ra-order-btn { height: 34px; }
+}
+
+/* ==========RESTOCK REPORT — CLOSE CHECK (2026-11-08)==========
+   "Close the Restock Report?" Yes / No, shown over the report when it is
+   not saved yet. Colours follow the theme. */
+.ra-bulk-modal { position: relative; }
+.ra-close-confirm {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: color-mix(in srgb, var(--bg-card) 70%, transparent);
+    backdrop-filter: blur(2px);
+    border-radius: inherit;
+}
+.ra-close-card {
+    display: grid;
+    gap: 8px;
+    width: min(340px, 100%);
+    padding: 16px;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong, var(--border-color));
+    border-radius: 12px;
+    box-shadow: var(--shadow-hover);
+}
+.ra-close-card h4 { margin: 0; font-size: 14px; }
+.ra-close-card p { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+.ra-close-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+@media (max-width: 640px) {
+    .ra-close-confirm { position: fixed; z-index: 1001; }
+    .ra-close-actions { display: grid; grid-template-columns: 1fr 1fr; }
 }

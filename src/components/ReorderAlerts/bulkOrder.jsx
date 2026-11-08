@@ -7,6 +7,8 @@ import { buildTablePdf, downloadBlob } from '../../utils/simplePdf';
 import { buildForecastHandoff } from '../../utils/forecastHandoff';
 import { useCurrency } from '../../CurrencyContext';
 import { orderPresets, PRESET_LABELS } from '../../utils/orderPresets';
+// Same digit limits + commas as the Economic Order Quantity calculator (2026-11-08).
+import { CommaNumberInput } from '../AutoCalculator/autoCal';
 
 /* ===== RESTOCK REPORT (Reorder List; was "Bulk order") =====
    The system does not buy anything. This window works out how many units to
@@ -100,16 +102,28 @@ export default function BulkOrder({ items, onClose, onSaved }) {
     return () => { active = false; };
   }, [items]);
 
+  /* Close check (2026-11-08): closing asks "Yes / No" unless the report was
+     just saved with nothing changed since. */
+  const [reportSaved, setReportSaved] = useState(false);
+  const [askClose, setAskClose] = useState(false);
+  const requestClose = () => {
+    if (saving) return;
+    if (reportSaved) { onClose(); return; }
+    setAskClose(true);
+  };
+
   const updateRow = (id, field, value) => {
+    setReportSaved(false);
     setRows((prev) => prev.map((row) => (row.id === id ? { ...row, [field]: value } : row)));
     // The owner's quantity is not part of the saved calculation.
     if (field !== 'ownerQty') setSavedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
   };
 
   /* Take a product off this report (the Reorder List itself is not changed). */
-  const removeRow = (id) => setRows((prev) => prev.filter((row) => row.id !== id));
+  const removeRow = (id) => { setReportSaved(false); setRows((prev) => prev.filter((row) => row.id !== id)); };
 
   const applySameCosts = () => {
+    setReportSaved(false);
     setRows((prev) => prev.map((row) => ({
       ...row,
       orderingCost: positive(sameCosts.orderingCost) ? sameCosts.orderingCost : row.orderingCost,
@@ -243,6 +257,7 @@ export default function BulkOrder({ items, onClose, onSaved }) {
       problems.push('The PDF could not be created.');
     }
     setSaving(false);
+    setReportSaved(problems.length === 0);
     setMessage(problems.length
       ? { type: 'error', text: `${downloaded ? 'The PDF was downloaded, but ' : ''}some parts were not saved — ${problems.join(' · ')}` }
       : { type: 'ok', text: `Report saved and downloaded. The quantities are ready in “Received”, and ${ready.length} Economic Order Quantity result${ready.length === 1 ? ' is' : 's are'} in Reports.` });
@@ -291,7 +306,7 @@ export default function BulkOrder({ items, onClose, onSaved }) {
   });
 
   return createPortal(
-    <div className="ra-modal-overlay" onClick={() => !saving && onClose()}>
+    <div className="ra-modal-overlay" onClick={requestClose}>
       <div className="ra-modal ra-bulk-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="ra-bulk-title">
         <div className="ra-bulk-head">
           <div>
@@ -300,19 +315,19 @@ export default function BulkOrder({ items, onClose, onSaved }) {
               System suggested = √(2 × annual demand × ordering cost ÷ holding cost), the same as “Calculate Now”. Type your own amount in Owner’s quantity if you want more or fewer. “Save Report” keeps the result for “Received” and downloads the PDF to give to the person who buys.
             </p>
           </div>
-          <button type="button" className="ra-bulk-close" onClick={onClose} disabled={saving} aria-label="Close"><X size={16} /></button>
+          <button type="button" className="ra-bulk-close" onClick={requestClose} disabled={saving} aria-label="Close"><X size={16} /></button>
         </div>
 
         <div className="ra-bulk-same">
           <span>Use the same costs for all:</span>
           <label>
             Ordering cost ({currencySymbol})
-            <input type="number" min="0" step="0.01" value={sameCosts.orderingCost}
+            <CommaNumberInput maxWholeDigits={5} value={sameCosts.orderingCost}
               onChange={(e) => setSameCosts((prev) => ({ ...prev, orderingCost: e.target.value }))} placeholder="per order" />
           </label>
           <label>
             Holding cost ({currencySymbol})
-            <input type="number" min="0" step="0.01" value={sameCosts.holdingCost}
+            <CommaNumberInput maxWholeDigits={5} value={sameCosts.holdingCost}
               onChange={(e) => setSameCosts((prev) => ({ ...prev, holdingCost: e.target.value }))} placeholder="per unit / year" />
           </label>
           <button type="button" className="ra-order-btn" onClick={applySameCosts}
@@ -353,18 +368,18 @@ export default function BulkOrder({ items, onClose, onSaved }) {
                       <span className="ra-product"><strong>{Number(row.annualDemand).toLocaleString('en-PH')}</strong><small>{sourceLabel(row)}</small></span>
                     ) : (
                       <span className="ra-product">
-                        <input className="ra-bulk-input" type="number" min="0" step="1" value={row.annualDemand}
+                        <CommaNumberInput className="ra-bulk-input" maxWholeDigits={5} value={row.annualDemand}
                           onChange={(e) => updateRow(row.id, 'annualDemand', e.target.value)} aria-label={`Annual demand for ${row.name}`} />
                         <small>{sourceLabel(row)}</small>
                       </span>
                     )}
                   </td>
                   <td data-label="Ordering cost">
-                    <input className="ra-bulk-input" type="number" min="0" step="0.01" value={row.orderingCost} placeholder="Required"
+                    <CommaNumberInput className="ra-bulk-input" maxWholeDigits={5} value={row.orderingCost} placeholder="Required"
                       onChange={(e) => updateRow(row.id, 'orderingCost', e.target.value)} aria-label={`Ordering cost for ${row.name}`} />
                   </td>
                   <td data-label="Holding cost">
-                    <input className="ra-bulk-input" type="number" min="0" step="0.01" value={row.holdingCost} placeholder="Required"
+                    <CommaNumberInput className="ra-bulk-input" maxWholeDigits={5} value={row.holdingCost} placeholder="Required"
                       onChange={(e) => updateRow(row.id, 'holdingCost', e.target.value)} aria-label={`Holding cost for ${row.name}`} />
                   </td>
                   <td data-label="System suggested" className="ra-num">
@@ -383,13 +398,10 @@ export default function BulkOrder({ items, onClose, onSaved }) {
                   </td>
                   <td data-label="Owner’s quantity" className="ra-num">
                     <span className="ra-product">
-                      <input
+                      <CommaNumberInput
                         className={`ra-bulk-input ra-bulk-owner${row.ownerValid ? '' : ' is-invalid'}`}
-                        type="number"
-                        min="1"
-                        max="9999"
-                        step="1"
-                        inputMode="numeric"
+                        maxWholeDigits={4}
+                        allowDecimals={false}
                         value={row.ownerQty}
                         placeholder={row.suggestedQty !== null ? String(row.suggestedQty) : 'Type it'}
                         onChange={(e) => updateRow(row.id, 'ownerQty', e.target.value)}
@@ -425,7 +437,7 @@ export default function BulkOrder({ items, onClose, onSaved }) {
         <PageToast message={message.text} type={message.type === 'error' ? 'error' : 'success'} onShown={() => setMessage({ type: '', text: '' })} />
 
         <div className="ra-modal-actions ra-save-report">
-          <button type="button" className="ra-order-btn" onClick={onClose} disabled={saving}>Close</button>
+          <button type="button" className="ra-order-btn" onClick={requestClose} disabled={saving}>Close</button>
           <button
             type="button"
             className="ra-order-btn is-urgent ra-save-report-btn"
@@ -439,6 +451,19 @@ export default function BulkOrder({ items, onClose, onSaved }) {
           </button>
         </div>
         <p className="ra-help">“Save Report” saves the result and downloads the PDF. Report only: this does not change stock or place any order. Buying happens outside the system; when the delivery arrives, press “Received” on the product and enter what actually arrived.</p>
+
+        {askClose && (
+          <div className="ra-close-confirm" role="alertdialog" aria-modal="true" aria-labelledby="ra-close-title" aria-describedby="ra-close-text">
+            <div className="ra-close-card">
+              <h4 id="ra-close-title">Close the Restock Report?</h4>
+              <p id="ra-close-text">It is not saved yet. The quantities and costs you typed here will be lost.</p>
+              <div className="ra-close-actions">
+                <button type="button" className="ra-order-btn" onClick={() => setAskClose(false)} autoFocus>No, keep editing</button>
+                <button type="button" className="ra-order-btn is-urgent" onClick={onClose}>Yes, close</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>,
     document.body,

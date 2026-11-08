@@ -171,8 +171,9 @@ function HistoryPanel({ onClose, history, onClear }) {
    plain number ("3321"); only what you see has the commas. Up to 5 digits
    before the dot (99,999) and 2 after it, so too-long numbers can't be
    typed at all. The cursor stays where you are typing. */
-const toPlain = (text, maxWholeDigits = Infinity) => {
-  const cleaned = String(text ?? '').replace(/[^\d.]/g, '');
+const toPlain = (text, maxWholeDigits = Infinity, allowDecimals = true) => {
+  // Whole numbers only (e.g. a quantity): a typed dot is ignored.
+  const cleaned = String(text ?? '').replace(allowDecimals ? /[^\d.]/g : /[^\d]/g, '');
   const [rawWhole, ...rest] = cleaned.split('.');
   // Stop at the allowed number of digits (e.g. 5 → up to 99,999), so a
   // number that is too long simply can't be typed (2026-11-07).
@@ -185,7 +186,10 @@ const withCommas = (plain) => {
   return decimals !== undefined ? `${grouped}.${decimals}` : grouped;
 };
 
-function CommaNumberInput({ value, onChange, name, maxWholeDigits = 5, ...rest }) {
+/* Also used by the Restock Report (Reorder List) since 2026-11-08, so the
+   same digit limits and commas apply there. allowDecimals={false} for
+   whole-number boxes such as Owner's quantity. */
+export function CommaNumberInput({ value, onChange, name, maxWholeDigits = 5, allowDecimals = true, ...rest }) {
   const ref = useRef(null);
   const caret = useRef(null);
   const shown = withCommas(value);
@@ -210,10 +214,10 @@ function CommaNumberInput({ value, onChange, name, maxWholeDigits = 5, ...rest }
     if (wholeDigits(typed) > maxWholeDigits && wholeDigits(value) >= maxWholeDigits) return;
     const before = typed.slice(0, event.target.selectionStart ?? typed.length);
     caret.current = before.replace(/[^\d.]/g, '').length;
-    onChange({ target: { name, value: toPlain(typed, maxWholeDigits) } });
+    onChange({ target: { name, value: toPlain(typed, maxWholeDigits, allowDecimals) } });
   };
 
-  return <input ref={ref} type="text" inputMode="decimal" autoComplete="off" name={name} value={shown} onChange={handleChange} {...rest} />;
+  return <input ref={ref} type="text" inputMode={allowDecimals ? 'decimal' : 'numeric'} autoComplete="off" name={name} value={shown} onChange={handleChange} {...rest} />;
 }
 
 function Field({ id, label, hint, prefix, suffix, error, tag, children, commas = false, ...inputProps }) {
