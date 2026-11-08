@@ -666,7 +666,7 @@
    Desktop: tint the whole row with a gold edge on the left.
    Cards (≤900px): tint and outline the whole card instead of each cell,
    so there is no inner box with gaps around it. */
-.ra-table tbody tr.is-selected td { background: rgba(232, 197, 71, 0.08); }
+.ra-table tbody tr.is-selected td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 /* (No gold left edge on the selected row — design rule 2026-11-06; the row tint is enough.) */
 
 @media (max-width: 900px) {

@@ -142,7 +142,7 @@
 
 .sc-reorder-settings:hover {
     border-color: var(--accent, #E8C547);
-    background: rgba(232, 197, 71, 0.08);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .sc-reorder-overview {
@@ -193,7 +193,7 @@
 }
 
 .sc-reorder-overview-setup {
-    border-color: rgba(232, 197, 71, 0.32);
+    border-color: color-mix(in srgb, var(--accent) 32%, transparent);
 }
 
 .sc-reorder-overview-setup strong {
@@ -311,7 +311,7 @@
 }
 
 .sc-reorder-status.is-setup {
-    background: rgba(232, 197, 71, 0.13);
+    background: color-mix(in srgb, var(--accent) 13%, transparent);
     color: var(--accent, #E8C547);
 }
 
@@ -500,8 +500,9 @@
 }
 
 .sc-safety-low {
-    color: var(--accent, #E8C547);
-    background: rgba(232, 197, 71, 0.12);
+    /* The theme's amber "low" colour in every theme (was the accent: blue on Graphite, purple on Lavender). */
+    color: var(--accent-med, #E8C547);
+    background: color-mix(in srgb, var(--accent-med) 12%, transparent);
 }
 
 .sc-safety-healthy {
@@ -519,7 +520,7 @@
 }
 
 .sc-table tbody tr.sc-row-low td:first-child {
-    box-shadow: inset 3px 0 0 rgba(232, 197, 71, 0.65);
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent-med) 65%, transparent);
 }
 
 .sc-table tbody tr.sc-row-healthy td:first-child {
@@ -528,7 +529,7 @@
 
 .sc-table tbody tr.sc-row-critical { background-color: rgba(255, 77, 77, 0.06); }
 .sc-table tbody tr.sc-row-outofstock { background-color: rgba(220, 38, 38, 0.1); }
-.sc-table tbody tr.sc-row-low { background-color: rgba(232, 197, 71, 0.07); }
+.sc-table tbody tr.sc-row-low { background-color: color-mix(in srgb, var(--accent-med) 7%, transparent); }
 
 /*==========TYPE PILL==========*/
 .sc-type-pill {
@@ -545,7 +546,7 @@
 
 .sc-type-pill.sc-type-stockin { color: var(--accent-high); border-color: var(--accent-high); background: var(--accent-high-soft); }
 .sc-type-pill.sc-type-stockout { color: var(--accent-low); border-color: var(--accent-low); background: var(--accent-low-soft); }
-.sc-type-pill.sc-type-adjustment { color: var(--accent, #E8C547); border-color: rgba(232, 197, 71, 0.4); background: rgba(232, 197, 71, 0.1); }
+.sc-type-pill.sc-type-adjustment { color: var(--accent, #E8C547); border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
 .sc-search-wrapper {
     margin-right: auto;
@@ -757,7 +758,7 @@
     animation: sc-row-flash 2.4s ease-out;
 }
 @keyframes sc-row-flash {
-    0%, 30%   { background-color: rgba(232, 197, 71, 0.35); }
+    0%, 30%   { background-color: color-mix(in srgb, var(--accent) 35%, transparent); }
     100%      { background-color: transparent; }
 }
 
@@ -831,7 +832,7 @@
 
 .sc-row-low .sc-table-action-btn.sc-eoq-btn:hover {
     background: var(--background-icon-active-color-theme) !important;
-    filter: drop-shadow(0 0 6px rgba(232, 197, 71, 0.35));
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 35%, transparent));
 }
 
 /*==========TAP FEEDBACK==========*/
@@ -1608,7 +1609,7 @@
 }
 
 .sc-activity-dot.sc-act-add { color: var(--accent-high); background: var(--accent-high-soft); }
-.sc-activity-dot.sc-act-edit { color: var(--accent, #E8C547); background: rgba(232, 197, 71, 0.12); }
+.sc-activity-dot.sc-act-edit { color: var(--accent, #E8C547); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .sc-activity-dot.sc-act-delete { color: var(--accent-low); background: var(--accent-low-soft); }
 
 .sc-activity-main {
@@ -1741,7 +1742,7 @@
     .sc-table tbody tr.sc-row-healthy td:first-child { box-shadow: none; }
     .sc-table tbody tr.sc-row-outofstock { border-left: 3px solid rgba(220, 38, 38, 0.9); }
     .sc-table tbody tr.sc-row-critical { border-left: 3px solid rgba(255, 77, 77, 0.65); }
-    .sc-table tbody tr.sc-row-low { border-left: 3px solid rgba(232, 197, 71, 0.75); }
+    .sc-table tbody tr.sc-row-low { border-left: 3px solid color-mix(in srgb, var(--accent-med) 75%, transparent); }
     .sc-table tbody tr.sc-row-healthy { border-left: 3px solid rgba(74, 222, 128, 0.6); }
 
     /* Each cell → labelled row. */
@@ -2435,3 +2436,34 @@
     width: 0;
     height: 0;
 }
+
+/*==========LIGHT THEMES: READABLE STATUS COLOURS (2026-11-08)==========
+   The status colours above (pale red, green, blue) were made for dark
+   backgrounds. On Soft White, Lavender, Teal Citrus and Olive they were
+   hard to read (e.g. the Out of Stock badge was almost invisible). Here they
+   use each theme's own status colours. Dark themes are unchanged. */
+:root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .sc-reorder-overview-alert strong,
+:root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .sc-reorder-status.is-due,
+:root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .sc-reorder-number.is-low,
+:root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .sc-reorder-top-up,
+:root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .sc-safety-critical,
+:root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .sc-out {
+    color: var(--accent-low);
+}
+:root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .sc-reorder-overview-good strong,
+:root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .sc-reorder-status.is-healthy {
+    color: var(--accent-high);
+}
+:root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .sc-reorder-formula-mark {
+    color: var(--info-color);
+}
+:root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .sc-safety-critical {
+    background: var(--accent-low-soft);
+}
+/* Out of Stock: the strongest red, with a filled background. */
+:root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .sc-safety-outofstock {
+    color: var(--accent-low);
+    background: color-mix(in srgb, var(--accent-low) 22%, transparent);
+}
+:root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .sc-table tbody tr.sc-row-critical { background-color: color-mix(in srgb, var(--accent-low) 6%, transparent); }
+:root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .sc-table tbody tr.sc-row-outofstock { background-color: color-mix(in srgb, var(--accent-low) 10%, transparent); }

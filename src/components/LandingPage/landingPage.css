@@ -2678,7 +2678,7 @@ body {
    accent at the top, an accent-tinted edge, and accent hover states.
    Sizes, spacing and the open / close animation are unchanged. */
 @media (min-width: 821px) {
-    [data-theme="soft-white"]    .dashboard-page-wrapper { --shell-bg: #121722; }  /* navy, gold accent */
+    [data-theme="soft-white"]    .dashboard-page-wrapper { --shell-bg: #1f1b15; }  /* warm deep brown, gold accent (was navy #121722 — did not match the warm Soft White colours; 2026-11-08) */
     [data-theme="midnight-blue"] .dashboard-page-wrapper { --shell-bg: #0b1329; }
     [data-theme="lavender"]      .dashboard-page-wrapper { --shell-bg: #16142a; }
     [data-theme="citrus"]        .dashboard-page-wrapper { --shell-bg: #082d28; }

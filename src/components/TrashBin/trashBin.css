@@ -291,3 +291,10 @@
 @media (max-width: 640px) {
     .tb-toolbar-tools { flex: 1 1 100%; gap: 6px; }
 }
+
+/* Light themes (2026-11-08): the pale violet made for dark backgrounds was
+   hard to read; a deeper violet keeps it apart from suppliers (blue). Dark themes unchanged. */
+:root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .tb-kind-event,
+:root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .tb-type-event {
+    color: #6D4FC2;
+}

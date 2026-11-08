@@ -930,7 +930,7 @@
     display: inline-flex; align-items: center; gap: 5px; justify-self: start;
     padding: 3px 9px; font-size: 11px; font-weight: 700; border-radius: 999px; white-space: nowrap;
 }
-.st-request-status.is-pending { color: #b7791f; background: rgba(232, 197, 71, 0.16); }
+.st-request-status.is-pending { color: #b7791f; background: color-mix(in srgb, var(--accent-med) 16%, transparent); }
 .st-request-status.is-approved { color: #3b82f6; background: rgba(59, 130, 246, 0.14); }
 .st-request-status.is-completed { color: var(--accent-high, #1f8a5b); background: var(--accent-high-soft, rgba(74, 222, 155, 0.14)); }
 .st-request-status.is-rejected { color: var(--accent-low, #c4432e); background: rgba(196, 67, 46, 0.12); }
@@ -1038,8 +1038,8 @@
 .st-status-unverified {
     margin-left: 4px;
     color: #b7791f;
-    background: rgba(232, 197, 71, 0.16);
-    border-color: rgba(232, 197, 71, 0.35);
+    background: color-mix(in srgb, var(--accent-med) 16%, transparent);
+    border-color: color-mix(in srgb, var(--accent-med) 35%, transparent);
 }
 
 /* ==========STAFFS TABS: Accounts | Account requests (2026-11-06)==========
@@ -1104,7 +1104,7 @@
 .st-requests-view > .st-create-account-error { margin: 12px 16px 0; }
 .st-requests-table .st-request-who { display: grid; gap: 1px; min-width: 0; }
 .st-requests-table td.st-cell-actions .st-request-actions { justify-content: center; }
-.st-requests-table tr.is-pending td { background: rgba(232, 197, 71, 0.05); }
+.st-requests-table tr.is-pending td { background: color-mix(in srgb, var(--accent-med) 5%, transparent); }
 
 @media (max-width: 640px) {
     /* Tabs take their own row above the search and buttons. */

@@ -1563,7 +1563,7 @@
     height: 32px;
     flex-shrink: 0;
     color: var(--accent, #E8C547);
-    background: rgba(232, 197, 71, 0.14);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
     border-radius: 9px;
 }
 .ac-history-sub { margin: 2px 0 0; color: var(--text-muted); font-size: 11px; }
@@ -1580,14 +1580,14 @@
     border-radius: 10px;
     transition: border-color 0.15s ease, background 0.15s ease;
 }
-.ac-history-modal .ac-history-item:hover { border-color: rgba(232, 197, 71, 0.45); }
+.ac-history-modal .ac-history-item:hover { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .ac-history-qty {
     display: grid;
     justify-items: center;
     gap: 1px;
     padding: 8px 4px;
     text-align: center;
-    background: rgba(232, 197, 71, 0.12);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
     border-radius: 8px;
 }
 .ac-history-qty strong { color: var(--accent, #E8C547); font-size: 22px; font-weight: 800; line-height: 1.05; }
