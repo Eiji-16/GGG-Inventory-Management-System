@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 import './forecasting.css';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook, { printReportPdf } from '../../utils/exportReportWorkbook';
@@ -1134,7 +1135,7 @@ export default function DemandForecastDesign({
                     <h3 id="seasonal-event-title">{eventDraft.id ? 'Edit seasonal event' : 'Add seasonal event'}</h3>
                     <p className="f-sub hint-text">Applied after the weighted moving average forecast, only for the days the event covers. If events overlap, the stronger one counts on shared days.</p>
                   </div>
-                  <button type="button" className="f-event-close" aria-label="Close" onClick={() => setEventDraft(null)} disabled={savingEvent}>×</button>
+                  <button type="button" className="f-event-close" aria-label="Close" onClick={() => setEventDraft(null)} disabled={savingEvent}><X size={16} aria-hidden="true" /></button>
                 </header>
                 <form className="f-event-modal-body" onSubmit={saveEvent}>
                   <div className="f-field">

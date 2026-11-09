@@ -1615,16 +1615,22 @@
 }
 
 .f-event-close {
-    width: 28px;
-    height: 28px;
+    /* Icon centred in its box, never squeezed (2026-11-09; the × is now an icon). */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    padding: 0;
     color: var(--text-muted);
-    font-size: 22px;
-    line-height: 1;
     background: transparent;
     border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
+    transition: color 0.15s ease, background-color 0.15s ease;
 }
+.f-event-close:hover:not(:disabled) { color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 6%, transparent); }
 
 .f-event-modal-body {
     display: flex;
@@ -3326,6 +3332,9 @@
     font-family: inherit;
 }
 .fx-modal-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 28px; height: 28px; padding: 0;
     font-size: 18px; line-height: 1; color: var(--text-muted);
     background: transparent; border: 1px solid var(--border-color); border-radius: 50%; cursor: pointer;
