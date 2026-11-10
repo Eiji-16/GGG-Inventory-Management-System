@@ -974,6 +974,39 @@
     color: var(--text-muted);
 }
 
+/* "Added stock · 1 on hand → 2 · +1 units · CRITICAL ≤3" in ONE row
+   (2026-11-10): the change and the status badge sit on the right. */
+.sc-variant-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+.sc-variant-side {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.sc-variant-row .sc-variant-value {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.sc-variant-row .sc-variant-value small {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
 /*==========ADD / EDIT STOCK ENTRY MODAL==========*/
 .sc-modal-overlay {
     position: fixed;

@@ -833,6 +833,14 @@
     color: var(--text-muted);
 }
 
+/* The global table rule (index.css) left-aligns column 3 when the first
+   column is a checkbox — here column 3 is Picture, so it pushed the empty
+   picture's icon to the left. Keep the icon in the middle (2026-11-10). */
+table.ps-table tr > td.ps-td-pic > span.ps-thumb.ps-thumb-empty:only-child {
+    justify-content: center !important;
+    justify-items: center !important;
+}
+
 .ps-name-text {
     overflow: hidden;
     text-overflow: ellipsis;

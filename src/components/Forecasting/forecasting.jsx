@@ -2,12 +2,15 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { limitDigits } from '../../utils/numberLimit';
+import MarqueeText from '../../utils/marqueeText';
 import './forecasting.css';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook, { printReportPdf } from '../../utils/exportReportWorkbook';
 import PastSalesPanel from './pastSales';
 import AutoCalculator from '../AutoCalculator/autoCal';
 import CustomSelect from './CustomSelect';
+import ProductSearchPicker from './ProductSearchPicker';
 
 const FORECAST_METHOD = 'Weighted Moving Average';
 const FORECAST_METHOD_NOTE = 'Uses the three most recent completed periods with weights 1, 2 and 3; the newest period receives the greatest weight.';
@@ -244,6 +247,8 @@ function eventScopeText(event) {
 }
 
 /* can* props come from Role Access (Settings); the server checks the same boxes. */
+
+
 export default function DemandForecastDesign({
   onNavigate,
   onClearEoqHandoff,
@@ -288,6 +293,14 @@ export default function DemandForecastDesign({
   const [events, setEvents] = useState([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [eventsError, setEventsError] = useState('');
+  const [eventQuery, setEventQuery] = useState('');   // Seasonal Adjustments search (2026-11-10)
+  const eventNeedle = eventQuery.trim().toLowerCase();
+  const shownEvents = eventNeedle
+    ? events.filter((event) => [
+      event.name, event.status, eventScopeText(event),
+      ...(event.productNames || []), ...(event.productIds || []), ...(event.categories || []),
+    ].join(' ').toLowerCase().includes(eventNeedle))
+    : events;
   const [eventDraft, setEventDraft] = useState(null);
   const [eventProductSearch, setEventProductSearch] = useState('');
   const [savingEvent, setSavingEvent] = useState(false);
@@ -717,22 +730,15 @@ export default function DemandForecastDesign({
           {view === 'eoq' && canComputeEoq && (
             <div className="fx-layout fx-eoq-layout">
               <div className="fx-toolbar">
-                {/* Product picker with its own search box inside (2026-11-07),
-                    the same as Stock Control and Past Sales. */}
-                <div className="f-field fx-product-field fx-product-field-compact">
-                  <label htmlFor="eoq-product">Product</label>
-                  <CustomSelect
-                    id="eoq-product"
-                    value={productId || ''}
-                    onChange={(value) => chooseProduct(String(value))}
-                    searchable
-                    searchPlaceholder="Search products…"
-                    placeholder={loadingProducts ? 'Loading products…' : 'Select a product…'}
-                    emptyText="No products match"
-                    disabled={loadingProducts}
-                    options={products.map((product) => ({ value: product.id, label: product.name, sub: product.id }))}
-                  />
-                </div>
+                {/* Product search on the right (2026-11-10), same as Sales Forecasting. */}
+                <ProductSearchPicker
+                  id="eoq-product"
+                  label="Search"
+                  products={products}
+                  value={productId || ''}
+                  disabled={loadingProducts}
+                  onChange={(value) => chooseProduct(String(value))}
+                />
                 <div className="fx-eoq-header-slot" ref={setEoqHeaderSlot} />
               </div>
               <AutoCalculator
@@ -758,22 +764,18 @@ export default function DemandForecastDesign({
             <div className="fx-layout">
               {/* ===== TOOLBAR ===== */}
               <div className="fx-toolbar">
-                {/* Product picker with its own search box inside (2026-11-07),
-                    the same as Stock Control and Past Sales. */}
-                <div className="f-field fx-product-field fx-product-field-compact">
-                  <label htmlFor="forecast-product">Product</label>
-                  <CustomSelect
-                    id="forecast-product"
-                    value={productId || ''}
-                    onChange={(value) => chooseProduct(String(value))}
-                    searchable
-                    searchPlaceholder="Search products…"
-                    placeholder={loadingProducts ? 'Loading products…' : 'Select a product…'}
-                    emptyText="No products match"
-                    disabled={loadingProducts}
-                    options={products.map((product) => ({ value: product.id, label: product.name, sub: product.id }))}
-                  />
-                </div>
+                {/* Product search (2026-11-10): just the search icon; click it and
+                    it slides open (same as Stock Control) with the products
+                    listed under it like a dropdown. The chosen product's name
+                    shows in the chart and table titles. */}
+                <ProductSearchPicker
+                  id="forecast-product"
+                  label="Search"
+                  products={products}
+                  value={productId || ''}
+                  disabled={loadingProducts}
+                  onChange={(value) => chooseProduct(String(value))}
+                />
                 <div className="f-field">
                   <label>Forecast by</label>
                   <div className="fx-segmented" role="tablist" aria-label="Forecast period">
@@ -901,17 +903,17 @@ export default function DemandForecastDesign({
                 <div className="fx-output">
                   <div className="fx-stat">
                     <span>Base Forecast</span>
-                    <strong>{forecast ? Number(forecast.baseForecast).toFixed(1) : '—'}</strong>
+                    <strong><MarqueeText>{forecast ? Number(forecast.baseForecast).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '—'}</MarqueeText></strong>
                     <small>units / {periodUnit}</small>
                   </div>
                   <div className="fx-stat fx-stat-main">
                     <span>Adjusted ({forecast ? formatPeriod(forecast.forecastPeriod, selectedPeriodType) : periodUnit})</span>
-                    <strong>{forecast ? Number(adjustedDemand).toFixed(1) : '—'}</strong>
+                    <strong><MarqueeText>{forecast ? Number(adjustedDemand).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '—'}</MarqueeText></strong>
                     <small>{forecast ? `${formatSigned(effectivePct, 1)}% seasonal` : 'units'}</small>
                   </div>
                   <div className="fx-stat">
                     <span>Annual Estimate</span>
-                    <strong>{forecast ? annualDemand.toLocaleString() : '—'}</strong>
+                    <strong><MarqueeText>{forecast ? annualDemand.toLocaleString() : '—'}</MarqueeText></strong>
                     <small>{forecast ? `${Number(adjustedDemand).toFixed(1)} × ${annualPeriods}` : 'units / year'}</small>
                   </div>
                 </div>
@@ -1086,6 +1088,24 @@ export default function DemandForecastDesign({
                     whenever its dates overlap the forecast period.
                   </p>
                 </div>
+                {/* Search the events by name, products/category or status (2026-11-10). */}
+                <div className="fx-psearch has-label fx-event-search">
+                  <label className="fx-psearch-label" htmlFor="seasonal-search">Search</label>
+                  <div className="f-search-wrap">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                      <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+                    </svg>
+                    <input
+                      id="seasonal-search"
+                      type="text"
+                      autoComplete="off"
+                      placeholder="Search events…"
+                      value={eventQuery}
+                      onChange={(event) => setEventQuery(event.target.value)}
+                      onKeyDown={(event) => { if (event.key === 'Escape') setEventQuery(''); }}
+                    />
+                  </div>
+                </div>
                 {canManageEvents && (
                 <button type="button" className="f-btn f-btn-primary" onClick={() => openEventForm()}>
                   + Add Event
@@ -1099,9 +1119,11 @@ export default function DemandForecastDesign({
                 <p className="f-event-empty">Loading seasonal events…</p>
               ) : events.length === 0 ? (
                 <p className="f-event-empty">No seasonal events yet. Add one such as “Christmas Sale, Dec 1–25, +35%”.</p>
+              ) : shownEvents.length === 0 ? (
+                <p className="f-event-empty">No event matches “{eventQuery.trim()}”.</p>
               ) : (
                 <ul className="f-event-list">
-                  {events.map((event) => (
+                  {shownEvents.map((event) => (
                     <li className="f-event-item" key={event.id}>
                       <div className="f-event-info">
                         <strong>{event.name}</strong>
@@ -1153,7 +1175,7 @@ export default function DemandForecastDesign({
                     </div>
                     <div className="f-field">
                       <label htmlFor="event-pct">Adjustment (%)</label>
-                      <input id="event-pct" type="number" min="-100" max="1000" step="0.01" placeholder="e.g. 35 or -10" value={eventDraft.adjustmentPct} onChange={(e) => updateDraft({ adjustmentPct: e.target.value })} />
+                      <input id="event-pct" type="number" min="-100" max="1000" step="0.01" placeholder="e.g. 35 or -10" value={eventDraft.adjustmentPct} onChange={(e) => updateDraft({ adjustmentPct: limitDigits(e.target.value, { whole: 4, decimals: 2, negative: true }) })} />
                     </div>
                   </div>
 

@@ -1480,7 +1480,11 @@ grid-column: 5 / span 2;
     font-size: clamp(19px, calc(1.8vw / var(--ui-zoom, 1)), 26px);
     overflow-wrap: anywhere;
 }
-.db-kpi-tile-value small { white-space: nowrap; }.db-kpi-tile-foot { overflow-wrap: anywhere; }
+.db-kpi-tile-value small { white-space: nowrap; }
+/* The number and its unit sit inside the sliding box (2026-11-10), so the
+   card's flex gap no longer reaches the unit: keep the same 6px space. */
+.db-kpi-tile-value .ui-marquee-text small { margin-left: 6px; }
+.db-kpi-tile-foot { overflow-wrap: anywhere; }
 .db-kpi-legend > span:not(.db-kpi-pulse) { white-space: normal; }
 
 /* Stock Health: Critical gets its own colour (same as Reports & Analytics). */

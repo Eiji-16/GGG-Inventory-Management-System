@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { limitDigits } from '../../utils/numberLimit';
 import { PageToast } from '../../utils/toast';
 import {
   Sun,
@@ -213,7 +214,9 @@ function Settings({
     return '';
   };
 
-  const editRow = (productId, field, value) => {
+  const editRow = (productId, field, rawValue) => {
+    // Digit limits (2026-11-10): lead time up to 3 digits (365), counts up to 7 (1,000,000).
+    const value = limitDigits(rawValue, { whole: field === 'leadTimeDays' ? 3 : 7 });
     const error = validatePolicyValue(field, value);
     const errorKey = `${productId}:${field}`;
     setPolicyInputErrors((current) => {

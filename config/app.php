@@ -74,6 +74,10 @@ return [
     */
     'business_timezone' => env('BUSINESS_TIMEZONE', 'Asia/Manila'),
 
+    // Hosting behind a proxy / Cloudflare: "*" or the proxy IP addresses,
+    // comma separated (see AppServiceProvider). Empty on Laragon.
+    'trusted_proxies' => env('TRUSTED_PROXIES', ''),
+
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

@@ -89,6 +89,23 @@ class User extends Authenticatable
     }
 
     /** True for admin and super_admin (i.e. "admin or above"). */
+    /**
+     * The SUPER_ADMIN_EMAIL in .env counts as Super Admin ONLY while no
+     * account has the super_admin role yet (an old database from before the
+     * role column). Before 2026-11-10 it always counted, so after the Super
+     * Admin changed their email, a Staff account could take the old address
+     * in Profile and get every Super Admin power.
+     */
+    public function isConfiguredSuperAdminEmail(): bool
+    {
+        $email = config('auth.super_admin_email');
+        if (! is_string($email) || $email === '' || ! hash_equals(strtolower($email), strtolower((string) $this->email))) {
+            return false;
+        }
+
+        return ! static::query()->where('role', self::ROLE_SUPER_ADMIN)->exists();
+    }
+
     public function isAdminOrAbove(): bool
     {
         return in_array($this->role, [self::ROLE_SUPER_ADMIN, self::ROLE_ADMIN], true);

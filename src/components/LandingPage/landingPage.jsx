@@ -1268,6 +1268,10 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
                     safetyStock={safetyStock}
                     catalogRevision={policyRefreshKey}
                     canComputeEoq={canAccess('Auto-Calculator')}
+                    /* "Calculate Now" opens the calculator tab INSIDE Forecasting,
+                       so it also needs Forecasting (2026-11-10). The Restock
+                       Report only needs the calculator box. */
+                    canOpenCalculator={canAccess('Auto-Calculator') && canAccess('Forecasting')}
                     canNotify={can('reorder.notify')}
                     canManageRequests={can('reorder.requests')}
                     canReceive={can('reorder.receive')}

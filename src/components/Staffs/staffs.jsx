@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import MarqueeText from '../../utils/marqueeText';
 import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import {
@@ -500,21 +501,21 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
         <div className="st-kpi-card">
           <div className="st-kpi-icon"><Users size={18} /></div>
           <div>
-            <p className="st-kpi-value">{total}</p>
+            <p className="st-kpi-value"><MarqueeText>{Number(total).toLocaleString()}</MarqueeText></p>
             <p className="st-kpi-label">Total staff</p>
           </div>
         </div>
         <div className="st-kpi-card">
           <div className="st-kpi-icon st-kpi-icon-green"><CircleDot size={18} /></div>
           <div>
-            <p className="st-kpi-value">{active}</p>
+            <p className="st-kpi-value"><MarqueeText>{Number(active).toLocaleString()}</MarqueeText></p>
             <p className="st-kpi-label">Active</p>
           </div>
         </div>
         <div className="st-kpi-card">
           <div className="st-kpi-icon st-kpi-icon-gold"><ShieldCheck size={18} /></div>
           <div>
-            <p className="st-kpi-value">{admins}</p>
+            <p className="st-kpi-value"><MarqueeText>{Number(admins).toLocaleString()}</MarqueeText></p>
             <p className="st-kpi-label">Admins &amp; up</p>
           </div>
         </div>

@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { Fragment, useState, useEffect, useMemo } from 'react';
 import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import {
-  Download, FileText, X, ChevronRight, ArrowUpRight, Package, Wallet,
+  Download, FileText, X, ChevronRight, ChevronDown, Search, ArrowUpRight, Package, Wallet,
   ShoppingBag, TrendingUp, Calculator, Hourglass, FileSpreadsheet, ShieldCheck,
 } from 'lucide-react';
 import './reports.css';
@@ -10,6 +10,7 @@ import exportReportWorkbook, { printReportPdf } from '../../utils/exportReportWo
 import { useCurrency } from '../../CurrencyContext';
 import useFillToBottom from '../../utils/fillToBottom';
 import { CountUp, CountUpText } from '../../utils/countUp';
+import MarqueeText from '../../utils/marqueeText';
 
 /* ===== REPORTS & ANALYTICS: ONE OVERALL REPORT =====
    One page, no tabs. It shows the overall picture of the system's data:
@@ -28,6 +29,7 @@ const BADGE = {
   'Out of Stock': 'r-badge-bad', 'Slow Mover': 'r-badge-bad',
   'Fast-Moving': 'r-badge-good', 'Slow-Moving': 'r-badge-bad',
   Aging: 'r-badge-warn', Watch: 'r-badge-warn', Medium: 'r-badge-warn', Unknown: 'r-badge-warn',
+  'No Stock Records': 'r-badge-neutral',   // no Stock Control entries yet
 };
 const Badge = ({ label }) => (
   <span className={`r-badge ${BADGE[label] || 'r-badge-warn'}`}><span className="r-dot" />{label}</span>
@@ -302,7 +304,7 @@ function buildSections(report, formatCurrency) {
       entry.products += 1;
       entry.units += Number(r.stock) || 0;
       if (r.value != null) entry.value += Number(r.value) || 0; else if (Number(r.stock) > 0) entry.unpriced += 1;
-      if (r.status !== 'In Stock') entry.attention += 1;
+      if (['Low Stock', 'Critical', 'Out of Stock'].includes(r.status)) entry.attention += 1;
       byCategory.set(key, entry);
     });
     add('categoryBreakdown', 'Products by Category', 'How many products, units and how much stock value each category holds.',
@@ -317,7 +319,7 @@ function buildSections(report, formatCurrency) {
       'No products found.');
 
     // Stock Health: products grouped by stock status.
-    const order = ['Out of Stock', 'Critical', 'Low Stock', 'In Stock'];
+    const order = ['Out of Stock', 'Critical', 'Low Stock', 'In Stock', 'No Stock Records'];
     const total = rows.length || 1;
     add('stockHealth', 'Stock Health', 'Products grouped by stock status: how many are in stock, low, critical or out of stock.',
       ['Status', 'Products', 'Share of Products', 'Units in Stock', 'Products in this Status'],
@@ -380,6 +382,8 @@ function StockHealthTile({ rows, loading, onOpen }) {
     { key: 'warn', label: 'Low', value: count('Low Stock') },
     { key: 'crit', label: 'Critical', value: count('Critical') },
     { key: 'bad', label: 'Out', value: count('Out of Stock') },
+    // Products with no Stock Control entries yet (shown only when there are some).
+    { key: 'none', label: 'No records', value: count('No Stock Records'), optional: true },
   ];
   const total = rows.length;
   const healthy = total ? Math.round((parts[0].value / total) * 100) : 0;
@@ -391,7 +395,7 @@ function StockHealthTile({ rows, loading, onOpen }) {
         <span className="r-kpi-tile-go" aria-hidden="true"><ArrowUpRight size={14} strokeWidth={2.2} /></span>
       </span>
       <div className="r-health-main">
-        <div className="r-kpi-value">{loading ? '…' : <CountUp value={healthy} format={(n) => `${Math.round(n)}%`} />}</div>
+        <div className="r-kpi-value"><MarqueeText>{loading ? '…' : <CountUp value={healthy} format={(n) => `${Math.round(n)}%`} />}</MarqueeText></div>
         <div className="r-kpi-sub">of {total} product{total === 1 ? '' : 's'} in stock</div>
       </div>
       <div className="r-health-bar">
@@ -405,7 +409,7 @@ function StockHealthTile({ rows, loading, onOpen }) {
         ))}
       </div>
       <div className="r-health-legend">
-        {parts.map((p) => (
+        {parts.filter((p) => !p.optional || p.value > 0).map((p) => (
           <span key={p.key} data-tip={`${p.label}\n${p.value} of ${total} products (${total ? Math.round((p.value / total) * 100) : 0}%)`}><i className={`is-${p.key}`} />{p.label} <strong>{p.value}</strong></span>
         ))}
       </div>
@@ -452,7 +456,51 @@ function exportPdf({ title, subtitle, sections, summary, scope }) {
 const fileNameOf = (title) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 /* ===== POP-UP: one report with all of its rows and its own export ===== */
+/* ===== LONG NAME LISTS (2026-11-10) =====
+   Stock Health can hold thousands of product names. The row shows a chevron
+   and "View details"; the list opens under the row: a search box, then the
+   names A–Z, one per line, in a bordered box that scrolls when long. */
+const byName = (a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: 'base', numeric: true });
+
+function ListPanel({ items, label }) {
+  const [query, setQuery] = useState('');
+  const sorted = useMemo(() => [...items].sort(byName), [items]);
+  const needle = query.trim().toLowerCase();
+  const shown = needle ? sorted.filter((name) => String(name).toLowerCase().includes(needle)) : sorted;
+  return (
+    <div className="r-list-panel">
+      <div className="r-list-panel-head">
+        <span className="r-list-search-wrap">
+        <Search size={15} className="r-list-search-icon" aria-hidden="true" />
+        <input
+          type="search"
+          className="r-list-search"
+          placeholder={`Search ${label ? `${label.toLowerCase()} ` : ''}products…`}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label={`Search ${label || ''} products`}
+          autoFocus
+        />
+        </span>
+        <span className="r-list-count">
+          {needle ? `${shown.length.toLocaleString()} of ${sorted.length.toLocaleString()}` : `${sorted.length.toLocaleString()} products`} · A–Z
+        </span>
+      </div>
+      {shown.length === 0 ? (
+        <p className="r-list-empty">No product matches “{query.trim()}”.</p>
+      ) : (
+        <ul className="r-list-items">
+          {shown.map((name, index) => <li key={`${name}-${index}`} title={name}>{name}</li>)}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function ReportModal({ section, canExport, onClose }) {
+  const [openListRow, setOpenListRow] = useState(null);   // which row's full list is open
+  // The column holding a name list (Stock Health products), or -1.
+  const listColumn = (section.rows || []).reduce((found, row) => (found >= 0 ? found : row.findIndex((cell) => Array.isArray(cell))), -1);
   const [exportError, setExportError] = useState('');
 
   useEffect(() => {
@@ -518,23 +566,66 @@ function ReportModal({ section, canExport, onClose }) {
         <div className="r-modal-body">
           <table className="r-table">
             <thead>
-              <tr>{section.headers.map((header) => <th key={header}>{header}</th>)}</tr>
+              {/* Sections with a name list (Stock Health): a chevron column on
+                  the left and "Actions" instead of the list column (2026-11-10). */}
+              <tr>
+                {listColumn >= 0 && <th className="r-expand-th" aria-label="Expand" />}
+                {section.headers.map((header, index) => (
+                  <th key={header}>{index === listColumn ? 'Actions' : header}</th>
+                ))}
+              </tr>
             </thead>
             <tbody>
-              {section.rows.length === 0 ? <EmptyRow cols={section.headers.length} text={section.emptyText} />
-                : section.rows.map((row, rowIndex) => (
-                  <tr key={rowIndex}>
-                    {row.map((cell, cellIndex) => (
-                      <td key={cellIndex}>
-                        {Array.isArray(cell) ? (
-                          <span className="r-chip-list">
-                            {cell.map((item) => <span className="r-chip" key={item}>{item}</span>)}
-                          </span>
-                        ) : BADGE[cell] ? <Badge label={cell} /> : cell}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+              {section.rows.length === 0 ? <EmptyRow cols={section.headers.length + (listColumn >= 0 ? 1 : 0)} text={section.emptyText} />
+                : section.rows.map((row, rowIndex) => {
+                  // A name list (e.g. Stock Health products) opens under its row
+                  // with a search box — fits shops with 2,000 products (2026-11-10).
+                  const listCell = listColumn >= 0 ? row[listColumn] : null;
+                  const hasList = Array.isArray(listCell) && listCell.length > 0;
+                  const isOpen = hasList && openListRow === rowIndex;
+                  const statusLabel = typeof row[0] === 'string' ? row[0] : '';
+                  const toggle = () => setOpenListRow(isOpen ? null : rowIndex);
+                  return (
+                    <Fragment key={rowIndex}>
+                      <tr className={isOpen ? 'r-row-open' : undefined}>
+                        {listColumn >= 0 && (
+                          <td className="r-expand-td">
+                            {hasList && (
+                              <button
+                                type="button"
+                                className={`r-expand-btn${isOpen ? ' is-open' : ''}`}
+                                onClick={toggle}
+                                aria-expanded={isOpen}
+                                aria-label={`${isOpen ? 'Hide' : 'Show'} ${statusLabel} products`}
+                              >
+                                <ChevronDown size={15} />
+                              </button>
+                            )}
+                          </td>
+                        )}
+                        {row.map((cell, cellIndex) => (
+                          <td key={cellIndex}>
+                            {cellIndex === listColumn ? (
+                              hasList ? (
+                                <button type="button" className="r-details-link" onClick={toggle} aria-expanded={isOpen}>
+                                  {isOpen ? 'Hide details' : 'View details'}
+                                </button>
+                              ) : '—'
+                            ) : Array.isArray(cell) ? cell.join(', ')
+                              : BADGE[cell] ? <Badge label={cell} /> : cell}
+                          </td>
+                        ))}
+                      </tr>
+                      {isOpen && (
+                        <tr className="r-list-row">
+                          <td colSpan={section.headers.length + 1}>
+                            <ListPanel items={listCell} label={statusLabel} />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
             </tbody>
           </table>
         </div>
@@ -673,7 +764,7 @@ export default function ReportsAnalyticsDesign({ safetyStock, refreshKey = 0, is
                   <span className="r-kpi-label">{card.label}</span>
                   <span className="r-kpi-tile-go" aria-hidden="true"><ArrowUpRight size={14} strokeWidth={2.2} /></span>
                 </span>
-                <div className="r-kpi-value">{firstLoad ? '…' : <CountUpText text={card.value} />}</div>
+                <div className="r-kpi-value"><MarqueeText>{firstLoad ? '…' : <CountUpText text={card.value} />}</MarqueeText></div>
                 <div className="r-kpi-sub">{card.sub}</div>
               </div>
             ))}

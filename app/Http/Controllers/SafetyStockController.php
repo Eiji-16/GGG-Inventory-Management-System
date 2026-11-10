@@ -47,8 +47,8 @@ class SafetyStockController extends Controller
                 'statusMode' => $policy?->status_mode ?? ($hasPolicy ? 'auto' : 'manual'),
                 'lowPoint' => $hasPolicy ? $policy->low_point : ReorderPointService::DEFAULT_LOW_POINT,
                 'criticalPoint' => $hasPolicy ? $policy->critical_point : ReorderPointService::DEFAULT_CRITICAL_POINT,
-                'orderingCost' => auth()->user()?->isAdminOrAbove() ? $policy?->ordering_cost : null,
-                'holdingCost' => auth()->user()?->isAdminOrAbove() ? $policy?->holding_cost : null,
+                'orderingCost' => self::canSeeEoqCosts() ? $policy?->ordering_cost : null,
+                'holdingCost' => self::canSeeEoqCosts() ? $policy?->holding_cost : null,
                 'configured' => $hasPolicy,
             ];
         }));
@@ -134,5 +134,17 @@ class SafetyStockController extends Controller
             'orderingCost' => $policy->ordering_cost,
             'holdingCost' => $policy->holding_cost,
         ]);
+    }
+
+    /**
+     * Saved ordering / holding costs: Admin and Super Admin, or anyone whose
+     * role has the calculator (Role Access "Economic Order Quantity" box) —
+     * before 2026-11-10 a Staff member with the calculator saw them empty.
+     */
+    private static function canSeeEoqCosts(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) ($user?->isAdminOrAbove() || \App\Services\RoleAccessService::allows($user, 'calculator.use'));
     }
 }

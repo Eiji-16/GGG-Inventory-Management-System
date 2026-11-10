@@ -417,8 +417,8 @@ class ProductController extends Controller
             // Product policy lead time first, then the supplier's lead time.
             'leadTimeDays'    => $p->safetyStock?->lead_time_days ?? $p->supplier?->lead_time_days,
             'supplierLeadTimeDays' => $p->supplier?->lead_time_days,
-            'orderingCost'    => auth()->user()?->isAdminOrAbove() ? $p->safetyStock?->ordering_cost : null,
-            'holdingCost'     => auth()->user()?->isAdminOrAbove() ? $p->safetyStock?->holding_cost : null,
+            'orderingCost'    => self::canSeeEoqCosts() ? $p->safetyStock?->ordering_cost : null,
+            'holdingCost'     => self::canSeeEoqCosts() ? $p->safetyStock?->holding_cost : null,
             // Units sold (stock out) in the trailing 12 months — real demand.
             'demandFromHistory' => $demandFromHistory,
             // True once the product has a stock entry (see index()).
@@ -438,5 +438,17 @@ class ProductController extends Controller
         }
 
         return $defined;
+    }
+
+    /**
+     * Saved ordering / holding costs: Admin and Super Admin, or anyone whose
+     * role has the calculator (Role Access "Economic Order Quantity" box) —
+     * before 2026-11-10 a Staff member with the calculator saw them empty.
+     */
+    private static function canSeeEoqCosts(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) ($user?->isAdminOrAbove() || \App\Services\RoleAccessService::allows($user, 'calculator.use'));
     }
 }

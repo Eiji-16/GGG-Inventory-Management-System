@@ -39,6 +39,7 @@ const STATUS_COLORS = {
   low: { text: 'B54708', fill: 'FEF0C7' },
   healthy: { text: '067647', fill: 'DCFAE6' },
   'in stock': { text: '067647', fill: 'DCFAE6' },
+  'no stock records': { text: '5B6785', fill: 'EEF1F7' },
 };
 const statusColor = (value) => (typeof value === 'string' ? STATUS_COLORS[value.trim().toLowerCase()] : undefined);
 

@@ -236,9 +236,9 @@ class RoleAccessService
         if ($user->role === User::ROLE_SUPER_ADMIN) {
             return true;
         }
-        $email = config('auth.super_admin_email');
 
-        return is_string($email) && $email !== '' && hash_equals(strtolower($email), strtolower((string) $user->email));
+        // The .env email only counts while nobody has the role (2026-11-10).
+        return $user->isConfiguredSuperAdminEmail();
     }
 
     /**

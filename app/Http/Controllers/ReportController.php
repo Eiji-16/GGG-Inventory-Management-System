@@ -132,7 +132,11 @@ class ReportController extends Controller
 
         foreach ($products as $p) {
             $stock = (int) $p->stock_on_hand;
-            $status = $this->statusFor($p);
+            // No Stock Control entries yet: "No Stock Records" instead of
+            // Low/Critical/Out (2026-11-10). The cards already skip these
+            // products, like the Dashboard and the Reorder List, so the table
+            // now agrees with them.
+            $status = isset($tracked[$p->id]) ? $this->statusFor($p) : 'No Stock Records';
             $totalStock += $stock;
             // Low / Critical / Out counts: tracked products only, the same
             // as the Dashboard's Low Stock Items and the Reorder List.

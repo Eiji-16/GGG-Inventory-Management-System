@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { CommaNumberInput } from '../AutoCalculator/autoCal';
+import MarqueeText from '../../utils/marqueeText';
 import useFillToBottom from '../../utils/fillToBottom';
 import useRowsThatFit from '../../utils/fitRows';
 import RowsPicker, { useRowsChoice, rowsFor } from '../RowsPicker/RowsPicker';
@@ -1518,14 +1520,12 @@ function StockControl({
                       <label htmlFor="unitPrice">
                         Unit Price ({currencySymbol}) {!editingCorrection && <span className="sc-required">*</span>}
                       </label>
-                      <input
+                      {/* Up to 99,999.99, with commas while typing (2026-11-10). */}
+                      <CommaNumberInput
                         id="unitPrice"
                         name="unitPrice"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        inputMode="decimal"
-                        value={formData.unitPrice}
+                        maxWholeDigits={5}
+                        value={formData.unitPrice ?? ''}
                         onChange={handleFormChange}
                         placeholder="e.g. 299.00"
                         required={!editingCorrection}
@@ -2349,23 +2349,10 @@ function StockControl({
                         )}
                   </div>
 
-                  {!canSetOpeningStock && projectedChange !== null && (
-                    <div className="sc-variant-preview" aria-live="polite">
-                      <div className="sc-computed-copy">
-                        <span className="sc-computed-label">{projectedType}</span>
-                        <span className="sc-computed-note">
-                          {`${currentOnHand} on hand → ${projectedRemaining}`}
-                        </span>
-                      </div>
-                      <span className={`sc-variant-value ${projectedChange > 0 ? 'sc-in' : projectedChange < 0 ? 'sc-out' : ''}`}>
-                        {projectedChange >= 0 ? '+' : '−'}{Math.abs(projectedChange)}
-                        <small>units</small>
-                      </span>
-                    </div>
-                  )}
-
-                  {projectedStatus && (
-                    <div className="sc-status-preview" aria-live="polite">
+                  {(() => {
+                    /* Status badge + note (2026-11-10): shown in the SAME row as
+                       "Added stock … +1 units", so no extra row is wasted. */
+                    const statusBadge = projectedStatus && (
                       <span className={`sc-safety-badge sc-safety-${projectedStatus}`}>
                         {projectedStatus !== 'healthy' && <AlertTriangle size={10} />}
                         {STATUS_LABEL[projectedStatus]}
@@ -2376,6 +2363,8 @@ function StockControl({
                           leadTimeDays: productById.get(formData.productId)?.leadTimeDays,
                         }, safetyStock)}</small>
                       </span>
+                    );
+                    const statusNote = projectedStatus && (
                       <span className="sc-status-preview-note">
                         {projectedStatus === 'healthy'
                           ? 'This entry keeps the item above its reorder point.'
@@ -2385,8 +2374,36 @@ function StockControl({
                               ? 'This entry puts the item at or below its safety stock.'
                               : 'This entry leaves the item out of stock.'}
                       </span>
-                    </div>
-                  )}
+                    );
+
+                    if (!canSetOpeningStock && projectedChange !== null) {
+                      return (
+                        <div className="sc-variant-preview sc-variant-row" aria-live="polite">
+                          <div className="sc-computed-copy">
+                            <span className="sc-computed-label">{projectedType}</span>
+                            <span className="sc-computed-note">
+                              {`${currentOnHand} on hand → ${projectedRemaining}`}
+                            </span>
+                            {statusNote}
+                          </div>
+                          <div className="sc-variant-side">
+                            <span className={`sc-variant-value ${projectedChange > 0 ? 'sc-in' : projectedChange < 0 ? 'sc-out' : ''}`}>
+                              {projectedChange >= 0 ? '+' : '−'}{Math.abs(projectedChange)}
+                              <small>units</small>
+                            </span>
+                            {statusBadge}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return projectedStatus ? (
+                      <div className="sc-status-preview" aria-live="polite">
+                        {statusBadge}
+                        {statusNote}
+                      </div>
+                    ) : null;
+                  })()}
 
                 </section>
                 )}
@@ -2590,22 +2607,22 @@ function StockControl({
             <div className="sc-history-summary">
               <div className="sc-history-stat">
                 <span className="sc-history-stat-label">Total In</span>
-                <span className="sc-history-stat-value sc-in">+{activeLedger?.totalIn ?? 0}</span>
+                <span className="sc-history-stat-value sc-in"><MarqueeText>+{(activeLedger?.totalIn ?? 0).toLocaleString()}</MarqueeText></span>
               </div>
               <div className="sc-history-stat">
                 <span className="sc-history-stat-label">Total Out</span>
-                <span className="sc-history-stat-value sc-out">−{activeLedger?.totalOut ?? 0}</span>
+                <span className="sc-history-stat-value sc-out"><MarqueeText>−{(activeLedger?.totalOut ?? 0).toLocaleString()}</MarqueeText></span>
               </div>
               <div className="sc-history-stat">
                 <span className="sc-history-stat-label">Net Change</span>
                 <span className="sc-history-stat-value">
-                  {(activeLedger?.net ?? 0) >= 0 ? '+' : '−'}{Math.abs(activeLedger?.net ?? 0)}
+                  <MarqueeText>{(activeLedger?.net ?? 0) >= 0 ? '+' : '−'}{Math.abs(activeLedger?.net ?? 0).toLocaleString()}</MarqueeText>
                 </span>
               </div>
               <div className="sc-history-stat">
                 <span className="sc-history-stat-label">On Hand</span>
                 <span className="sc-history-stat-value sc-history-closing">
-                  {activeLedger?.closing ?? 0}
+                  <MarqueeText>{(activeLedger?.closing ?? 0).toLocaleString()}</MarqueeText>
                 </span>
               </div>
             </div>

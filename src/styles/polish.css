@@ -376,3 +376,50 @@ select:not([multiple]):focus-visible {
         transform: none !important;
     }
 }
+
+/* ==========================================================================
+   MARQUEE VALUE FOR CARDS (2026-11-10) — see src/utils/marqueeText.jsx
+   A card number that is wider than its card slides left to show the end,
+   then back. It never makes the card wider and is never cut off.
+   ========================================================================== */
+.ui-marquee {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex: 1 1 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    contain: inline-size;   /* the number can never stretch the card */
+}
+.ui-marquee-text { display: inline-block; white-space: nowrap; }
+/* The number keeps the look of its card value. Some cards style every
+   "span" inside them as a small label (e.g. ".fx-stat span" on Forecasting,
+   ".eq-hero span" on the calculator), which made the big number tiny.
+   The repeated class makes this rule stronger than those label rules
+   (even ".fx-output-card .fx-stat span" and their phone-size versions). */
+.ui-marquee.ui-marquee.ui-marquee.ui-marquee,
+.ui-marquee.ui-marquee.ui-marquee.ui-marquee > .ui-marquee-text {
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    line-height: inherit;
+}
+.ui-marquee.is-moving {
+    text-align: left;
+    -webkit-mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 14px), transparent);
+            mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 14px), transparent);
+}
+.ui-marquee.is-moving .ui-marquee-text {
+    animation: ui-marquee-slide var(--marquee-time, 6s) ease-in-out infinite alternate;
+}
+.ui-marquee.is-moving:hover .ui-marquee-text { animation-play-state: paused; }
+@keyframes ui-marquee-slide {
+    0%, 18%   { transform: translateX(0); }
+    82%, 100% { transform: translateX(var(--marquee-shift, 0)); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ui-marquee.is-moving { -webkit-mask-image: none; mask-image: none; text-overflow: ellipsis; }
+    .ui-marquee.is-moving .ui-marquee-text { display: inline; animation: none; }
+}

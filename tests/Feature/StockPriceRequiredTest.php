@@ -65,4 +65,14 @@ class StockPriceRequiredTest extends TestCase
             ->assertOk()
             ->assertJsonPath('notes', 'Recount');
     }
+
+    /** 2026-11-10: unit price is at most 99,999.99 (same as the calculator). */
+    public function test_unit_price_has_a_digit_limit(): void
+    {
+        $this->entry(['type' => 'Stock In', 'unitPrice' => 99999.99])->assertCreated();
+        $this->entry(['type' => 'Stock In', 'unitPrice' => 100000])
+            ->assertStatus(422)->assertJsonValidationErrors('unitPrice');
+        $this->entry(['type' => 'Stock In', 'unitPrice' => '9999999999999999'])
+            ->assertStatus(422)->assertJsonValidationErrors('unitPrice');
+    }
 }

@@ -3,6 +3,7 @@ import { PageToast } from '../../utils/toast';
 import apiFetch from '../../apiFetch';
 import { readSalesFile, downloadTemplate, monthLabel } from '../../utils/pastSalesImport';
 import CustomSelect from './CustomSelect';
+import ProductSearchPicker from './ProductSearchPicker';
 
 
 /* ==========================================================================
@@ -484,19 +485,14 @@ function ManualCard({ products, productId, onProductChange, onSaved }) {
       </header>
 
       <div className={`ps-manual-controls${isWeekly ? ' is-weekly' : ''}`}>
-        <div className="f-field f-grow ps-product-field">
-          <label htmlFor="ps-product">Product</label>
-          <CustomSelect
-            id="ps-product"
-            value={productId || ''}
-            placeholder="Select a product…"
-            emptyText="No products match"
-            searchable
-            searchPlaceholder="Search products…"
-            options={products.map((p) => ({ value: p.id, label: p.name, sub: p.id }))}
-            onChange={(value) => onProductChange(value)}
-          />
-        </div>
+        {/* Product search on the right (2026-11-10), same as Sales Forecasting. */}
+        <ProductSearchPicker
+          id="ps-product"
+          label="Search"
+          products={products}
+          value={productId || ''}
+          onChange={(value) => onProductChange(value)}
+        />
         <div className="f-field ps-year-field">
           <label htmlFor="ps-year">Year</label>
           <CustomSelect

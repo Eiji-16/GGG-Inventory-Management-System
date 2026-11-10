@@ -926,6 +926,7 @@
 .r-health-seg.is-warn, .r-health-legend i.is-warn { background: var(--accent-med); }
 .r-health-seg.is-crit, .r-health-legend i.is-crit { background: color-mix(in srgb, var(--accent-low) 70%, var(--accent-med)); }
 .r-health-seg.is-bad,  .r-health-legend i.is-bad  { background: var(--accent-low); }
+.r-health-seg.is-none, .r-health-legend i.is-none { background: var(--text-muted, #888); opacity: 0.55; }
 .r-health-legend {
     display: flex;
     flex-wrap: wrap;
@@ -1004,6 +1005,120 @@
     background: var(--overlay-soft, rgba(255, 255, 255, 0.06));
     border: 1px solid var(--border-color, rgba(0,0,0,0.15));
     border-radius: 999px;
+}
+
+/* Long name lists (2026-11-10): chevron + "View details" open a panel
+   under the row with a search box and the names, one per line. */
+.r-table th.r-expand-th,
+.r-table td.r-expand-td { width: 36px; padding-right: 0 !important; }
+.r-expand-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    color: var(--text-muted);
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+}
+.r-expand-btn:hover { color: var(--text-primary); background: var(--overlay-soft, rgba(255, 255, 255, 0.06)); }
+.r-expand-btn svg { transition: transform 0.2s ease; transform: rotate(-90deg); }
+.r-expand-btn.is-open svg { transform: rotate(0deg); }
+.r-details-link {
+    padding: 0;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    background: none;
+    border: 0;
+}
+.r-details-link:hover,
+.r-details-link[aria-expanded="true"] { color: var(--accent); }
+.r-table tr.r-row-open > td { border-bottom-color: transparent; }
+.r-list-row > td { padding: 0 12px 14px !important; }
+.r-list-panel {
+    padding: 14px;
+    text-align: left;
+    background: var(--overlay-soft, rgba(255, 255, 255, 0.03));
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+.r-list-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.r-list-search-wrap {
+    position: relative;
+    flex: 0 1 380px;
+    min-width: 0;
+}
+.r-list-search-icon {
+    position: absolute;
+    top: 50%;
+    left: 11px;
+    color: var(--text-muted);
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+.r-list-search {
+    width: 100%;
+    height: 34px;
+    padding: 0 12px 0 34px;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--text-primary);
+    background: var(--input-bg, transparent);
+    border: 1px solid var(--border-strong, var(--border-color));
+    border-radius: 8px;
+}
+.r-list-search:focus { outline: none; border-color: var(--accent); }
+.r-list-count { flex: none; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.r-list-items {
+    /* Names fill the whole width in columns, like a table (2026-11-10):
+       as many columns as fit (at least 220px each), lines between cells. */
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    max-height: 340px;          /* about 12 rows, then it scrolls */
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+.r-list-items li {
+    min-width: 0;
+    padding: 7px 14px;
+    overflow: hidden;
+    font-size: 12.5px;
+    line-height: 16px;
+    color: var(--text-primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    /* Cell lines: right and bottom (the outer box border covers the edges). */
+    box-shadow: 1px 0 0 var(--border-color), 0 1px 0 var(--border-color);
+}
+.r-list-items li:hover { background: var(--overlay-soft, rgba(255, 255, 255, 0.04)); }
+.r-list-empty { margin: 4px 0; font-size: 12px; color: var(--text-muted); }
+/* The global table rule (index.css: first 2 columns left) also reaches this
+   panel, because it sits in the row's first cell, and its "justify-items:
+   start" made the search row and the list only as wide as their text. Keep
+   them full width. */
+.r-table tr.r-list-row > td > .r-list-panel { justify-items: stretch !important; justify-content: normal !important; }
+.r-list-panel > .r-list-panel-head,
+.r-list-panel > .r-list-items { justify-self: stretch; width: 100%; }
+@media (max-width: 600px) {
+    .r-list-panel-head { flex-direction: column; align-items: stretch; }
+    .r-list-search-wrap { flex-basis: auto; }
 }
 
 /*==========HOVER DATA ON EVERY CHART==========

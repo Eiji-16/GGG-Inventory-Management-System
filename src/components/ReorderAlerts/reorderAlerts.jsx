@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import MarqueeText from '../../utils/marqueeText';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, BellRing, Calculator, Check, ClipboardList, FileText, PackageCheck, PackageX, Search, X } from 'lucide-react';
 import apiFetch from '../../apiFetch';
@@ -24,6 +25,7 @@ export default function ReorderAlerts({
   canComputeEoq = true,
   canNotify = false,
   canManageRequests = false,
+  canOpenCalculator = canComputeEoq,
   canReceive = false,
   onRequestsChanged,
   onStockChanged,
@@ -260,21 +262,21 @@ export default function ReorderAlerts({
           <span className="ra-kpi-icon" aria-hidden="true"><ClipboardList size={17} strokeWidth={1.8} /></span>
           <span className="ra-kpi-copy">
             <span className="ra-kpi-label">Items needing reorder</span>
-            <strong>{loading ? '—' : alerts.length}</strong>
+            <strong><MarqueeText>{loading ? '—' : Number(alerts.length).toLocaleString()}</MarqueeText></strong>
           </span>
         </div>
         <div className="ra-kpi ra-kpi-out">
           <span className="ra-kpi-icon" aria-hidden="true"><PackageX size={17} strokeWidth={1.8} /></span>
           <span className="ra-kpi-copy">
             <span className="ra-kpi-label">Out of stock</span>
-            <strong>{loading ? '—' : outCount}</strong>
+            <strong><MarqueeText>{loading ? '—' : Number(outCount).toLocaleString()}</MarqueeText></strong>
           </span>
         </div>
         <div className="ra-kpi ra-kpi-low">
           <span className="ra-kpi-icon" aria-hidden="true"><AlertTriangle size={17} strokeWidth={1.8} /></span>
           <span className="ra-kpi-copy">
             <span className="ra-kpi-label">Low stock</span>
-            <strong>{loading ? '—' : lowCount}</strong>
+            <strong><MarqueeText>{loading ? '—' : Number(lowCount).toLocaleString()}</MarqueeText></strong>
           </span>
         </div>
       </div>
@@ -428,7 +430,7 @@ export default function ReorderAlerts({
                   </td>
                   <td data-label="Action">
                     <span className="ra-actions">
-                      {canComputeEoq && (
+                      {canOpenCalculator && (
                         <button type="button" className={`ra-order-btn ${item.status !== 'Low Stock' ? 'is-urgent' : ''}`} onClick={() => orderNow(item)} disabled={orderingId !== null} aria-label={`Calculate Now: ${item.name}`} title="Calculate Now: work out the Economic Order Quantity">
                           <Calculator size={13} aria-hidden="true" /> <span className="ra-btn-label">{orderingId === item.id ? 'Loading forecast…' : 'Calculate Now'}</span>
                         </button>
@@ -452,7 +454,7 @@ export default function ReorderAlerts({
                           <BellRing size={13} aria-hidden="true" /> <span className="ra-btn-label">Request</span>
                         </button>
                       ))}
-                      {!canComputeEoq && !canNotify && !canManageRequests && !canReceive && <span className="ra-muted">—</span>}
+                      {!canOpenCalculator && !canNotify && !canManageRequests && !canReceive && <span className="ra-muted">—</span>}
                     </span>
                   </td>
                 </tr>

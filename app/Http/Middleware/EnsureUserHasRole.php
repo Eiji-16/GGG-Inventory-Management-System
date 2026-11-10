@@ -17,10 +17,10 @@ class EnsureUserHasRole
             abort(403, 'This account is inactive.');
         }
 
+        // The .env email only counts while nobody has the super_admin role
+        // (see User::isConfiguredSuperAdminEmail, 2026-11-10).
         $isConfiguredSuperAdmin = $user->role === 'super_admin'
-            || (is_string(config('auth.super_admin_email'))
-                && config('auth.super_admin_email') !== ''
-                && hash_equals(strtolower(config('auth.super_admin_email')), strtolower($user->email)));
+            || ($user instanceof \App\Models\User && $user->isConfiguredSuperAdminEmail());
         $allowed = in_array($user->role, $roles, true)
             || ($isConfiguredSuperAdmin && in_array('super_admin', $roles, true));
 

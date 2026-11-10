@@ -6,6 +6,7 @@ import { statusPointsFor } from '../../data/safetyStock';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
 import { uiZoom } from '../../fontSize';
 import { CountUp } from '../../utils/countUp';
+import MarqueeText from '../../utils/marqueeText';
 
 const fmt = (value) => Number(value || 0).toLocaleString('en-PH');
 
@@ -155,8 +156,10 @@ function KpiTile({ tone, Icon, label, value, unit, onClick, openLabel, canGo = t
         {canGo && <span className="db-kpi-tile-go" aria-hidden="true"><ArrowUpRight size={14} strokeWidth={2.2} /></span>}
       </span>
       <span className="db-kpi-tile-value">
-        {value}
-        {unit && <small>{unit}</small>}
+        <MarqueeText>
+          {value}
+          {unit && <small>{unit}</small>}
+        </MarqueeText>
       </span>
       <span className="db-kpi-tile-foot">{children}</span>
       {canGo && <span className="db-sr-only">{openLabel}</span>}
@@ -1168,7 +1171,7 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
 
           <div className="totalOrder-card card db-tone db-tone-flame">
             <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Stock Movements</span><span className="db-card-sub">Ledger entries · last 7 days</span></div>{canStock && <button className="db-open-arrow-btn" onClick={() => go('Stock', { view: 'history' })} aria-label="Open Stock Control history" type="button"><OpenArrow /></button>}</div>
-            <div className="db-stat-value">{derived.hasMovementData ? <CountUp value={derived.movementCount} /> : '—'}</div>
+            <div className="db-stat-value"><MarqueeText>{derived.hasMovementData ? <CountUp value={derived.movementCount} /> : '—'}</MarqueeText></div>
             {derived.hasMovementData ? (
               <div className="db-col-chart">
                 {derived.dailyMovements.map((day) => (

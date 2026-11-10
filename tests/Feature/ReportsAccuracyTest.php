@@ -78,6 +78,21 @@ class ReportsAccuracyTest extends TestCase
         $this->assertSame(1, $summary['kpis']['outOfStock']);
     }
 
+    /** 2026-11-10: GGG Cap has stock 3 but no Stock Control entries (Aula Keyboard case). */
+    public function test_products_with_no_stock_entries_show_no_stock_records(): void
+    {
+        $this->product('PRD-CAP', 3);
+        $this->move($this->product('PRD-CRIT', 4), 'in', 1, '2026-10-01');
+
+        $summary = $this->getJson('/api/reports')->assertOk()->json('stockSummary');
+        $status = collect($summary['rows'])->pluck('status', 'productId');
+
+        $this->assertSame('No Stock Records', $status['PRD-CAP']);
+        $this->assertSame('Critical', $status['PRD-CRIT']);
+        $this->assertSame(1, $summary['kpis']['criticalStock'], 'GGG Cap is not counted as Critical.');
+        $this->assertSame(7, $summary['kpis']['totalStock'], 'Its units are still in the total.');
+    }
+
     public function test_stock_summary_excludes_products_in_the_trash_bin(): void
     {
         $active = $this->product('PRD-ACTIVE', 4);

@@ -3615,3 +3615,100 @@
    from the theme. */
 .ps-month .ps-stock-sold { color: var(--text-primary); font-size: 15px; font-weight: 700; line-height: 1.2; }
 .ps-month .ps-stock-sold + em { min-height: 0; line-height: 1.3; }
+
+/* Product search picker (Sales Forecasting tab, 2026-11-10): the expanding
+   search box with the product list under it like a dropdown. */
+.fx-psearch {
+    position: relative;
+    align-self: flex-end;
+    flex: 0 0 auto;
+    width: 40px;                /* closed: just the icon */
+    max-width: 100%;
+    transition: width 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);   /* same as Stock Control */
+}
+.fx-psearch:focus-within,
+.fx-psearch:has(input:not(:placeholder-shown)) { width: min(18rem, 100%); }
+/* The box fills its holder; the holder above does the sliding. */
+.fx-psearch .f-search-wrap.xs-search {
+    --xs-closed: 40px;
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: none !important;
+    height: 40px;
+    transition: none;
+}
+/* On the LEFT of each toolbar (Sales Forecasting, Economic Order Quantity,
+   Past Sales); the other buttons sit on the right. It opens toward the
+   right and its list lines up with its left edge. */
+.fx-psearch { order: -1; margin-left: 0; margin-right: auto; }
+.fx-psearch-menu { min-width: 280px; left: 0; right: auto; }
+@media (prefers-reduced-motion: reduce) { .fx-psearch { transition: none; } }
+
+/* Past Sales "Enter manually" tidy (2026-11-10): the search icon and the
+   Year (and Month) boxes line up on one neat row. Their small labels are
+   hidden (still read aloud) — "2026" and "Nov" explain themselves. */
+.ps-manual-controls { align-items: center; }
+.ps-manual-controls .ps-year-field > label,
+.ps-manual-controls .ps-month-field > label {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.ps-manual-controls .fx-psearch { align-self: center; margin-left: 8px; }   /* a bit in from the left (2026-11-10) */
+
+/* "SEARCH" heading above the search icon (Sales Forecasting, 2026-11-10),
+   the same style as "FORECAST BY". */
+.fx-psearch.has-label { display: flex; flex-direction: column; gap: 6px; }
+.fx-psearch-label {
+    color: var(--text-muted);
+    font-size: 10.5px;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+/* 2026-11-10: the product search is a FIXED bar (always open, no slide).
+   Clicking it drops down the product list. */
+.fx-psearch,
+.fx-psearch:focus-within,
+.fx-psearch:has(input:not(:placeholder-shown)) { width: min(18rem, 100%); transition: none; }
+.fx-psearch .f-search-wrap { position: relative; width: 100%; flex: none !important; height: 40px; }   /* an old toolbar rule gave it flex: 1 1 240px */
+.fx-psearch .f-search-wrap svg {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    right: auto;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 2;
+}
+.fx-psearch .f-search-wrap input {
+    width: 100%;
+    height: 40px;
+    padding-left: 34px;
+    padding-right: 10px;
+    box-sizing: border-box;
+}
+
+/* Not clicked: the selected product's name in normal text (2026-11-10). */
+.fx-psearch.has-value .f-search-wrap input::placeholder { color: var(--text-primary); opacity: 1; }
+
+/* Past Sales with the "SEARCH" heading (2026-11-10): the search bar and the
+   Year (and Month) boxes line up along their bottom edge. */
+.ps-manual-controls { align-items: flex-end; }
+.ps-manual-controls .fx-psearch { align-self: flex-end; }
+
+/* Search bar tidy-up (2026-11-10): long names end with "…"; phones use the
+   full width. */
+.fx-psearch .f-search-wrap input { text-overflow: ellipsis; }
+@media (max-width: 560px) {
+    .fx-psearch,
+    .fx-psearch:focus-within,
+    .fx-psearch:has(input:not(:placeholder-shown)) { width: 100%; flex: 1 1 100%; }
+    .fx-psearch-menu { min-width: 0; width: 100%; }
+}
+/* Seasonal Adjustments search: between the title and "+ Add Event". */
+.f-seasonal-head { align-items: flex-end; flex-wrap: wrap; }
+.f-seasonal-head > div:first-child { flex: 1 1 260px; min-width: 0; align-self: flex-start; }
+.f-seasonal-head .fx-event-search { order: 0; margin: 0; }

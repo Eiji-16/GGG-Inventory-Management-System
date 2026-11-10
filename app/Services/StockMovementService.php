@@ -283,13 +283,31 @@ class StockMovementService
         });
     }
 
-    /** Erase one entry from the Trash Bin for good. Stock is not changed (it was already taken out). */
+    /**
+     * Erase one entry from the Trash Bin for good.
+     *
+     * An entry deleted on its own was already taken out of the stock, so the
+     * stock is not changed. An entry that went to the Trash Bin WITH its
+     * product was not (the product keeps its number so a restore brings it
+     * all back), so take it out now (2026-11-10). Before, a restored product
+     * could come back with stock but no entries (e.g. "3, Critical" in
+     * Reports, but missing from Stock Control).
+     */
     public function forceDelete(int $movementId): StockMovement
     {
         return DB::transaction(function () use ($movementId) {
             $movement = StockMovement::onlyTrashed()->lockForUpdate()->findOrFail($movementId);
             $copy = $movement->replicate();
             $copy->id = $movement->id;
+
+            if ($movement->deleted_with_product && $movement->product_id !== null) {
+                $product = Product::withTrashed()->lockForUpdate()->find($movement->product_id);
+                if ($product !== null) {
+                    $newStock = max(0, (int) $product->stock_on_hand - $this->deltaFor($movement));
+                    $product->forceFill(['stock_on_hand' => $newStock])->save();
+                }
+            }
+
             $movement->forceDelete();
 
             return $copy;

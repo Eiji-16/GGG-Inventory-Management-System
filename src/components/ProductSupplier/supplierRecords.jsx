@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { limitDigits } from '../../utils/numberLimit';
 import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Edit, Plus, Search, Trash2, Truck, X } from 'lucide-react';
@@ -323,7 +324,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
                     </div>
                     <div className="ps-form-group">
                       <label htmlFor="supplier-lead">Lead Time (days)</label>
-                      <input id="supplier-lead" type="number" min="0" max="365" step="1" value={draft.leadTimeDays} onChange={(e) => setDraft({ ...draft, leadTimeDays: e.target.value })} placeholder="e.g. 3" />
+                      <input id="supplier-lead" type="number" min="0" max="365" step="1" value={draft.leadTimeDays} onChange={(e) => setDraft({ ...draft, leadTimeDays: limitDigits(e.target.value, { whole: 3 }) })} placeholder="e.g. 3" />
                     </div>
                   </div>
                   <PageToast message={formError} type="error" onShown={() => setFormError('')} />

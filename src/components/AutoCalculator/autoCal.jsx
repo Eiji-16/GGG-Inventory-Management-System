@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import { X, History, Download, TrendingUp, Calculator, Info, Lock } from 'lucide-react';
+import { limitDigits } from '../../utils/numberLimit';
+import MarqueeText from '../../utils/marqueeText';
 import './autoCal.css';
 import apiFetch from '../../apiFetch';
 import exportReportWorkbook from '../../utils/exportReportWorkbook';
@@ -464,7 +466,11 @@ export default function AutoCalculatorDesign({
   }, [embedded, controlledProductId, productsLoading, products]); // handleProductSelect only reads current state
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    // Digit limits (2026-11-10): lead time up to 365 (3 digits), safety stock up to 7 digits.
+    const value = name === 'leadTime' ? limitDigits(e.target.value, { whole: 3 })
+      : name === 'safetyStock' ? limitDigits(e.target.value, { whole: 7 })
+        : e.target.value;
     setInputs((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: '' }));
     if (name === 'demand') {
@@ -937,7 +943,7 @@ export default function AutoCalculatorDesign({
 
               <div className="eq-hero">
                 <span>Economic Order Quantity</span>
-                <strong>{fmt(result.recommendedOrder)}</strong>
+                <strong><MarqueeText>{fmt(result.recommendedOrder)}</MarqueeText></strong>
                 <em>unit{result.recommendedOrder === 1 ? '' : 's'} per order</em>
                 <small>√(2 × {fmtSmart(result.annualDemand)} × {fmtSmart(result.orderingCost)} ÷ {fmtSmart(result.holdingCost)}) = {fmt(result.economicOrderQuantity, 2)}</small>
               </div>
@@ -945,17 +951,17 @@ export default function AutoCalculatorDesign({
               <div className="eq-stats">
                 <div>
                   <span>Reorder Point</span>
-                  <strong>{fmt(result.reorderPoint)} <small>units</small></strong>
+                  <strong><MarqueeText>{fmt(result.reorderPoint)} <small>units</small></MarqueeText></strong>
                   <em>{fmtSmart(result.safetyStock)} + {fmtSmart(result.annualDemand)} ÷ 365 × {fmtSmart(result.leadTimeDays)} days</em>
                 </div>
                 <div>
                   <span>Safety Stock</span>
-                  <strong>{fmtSmart(result.safetyStock)} <small>units</small></strong>
+                  <strong><MarqueeText>{fmtSmart(result.safetyStock)} <small>units</small></MarqueeText></strong>
                   <em>buffer for late sales/deliveries</em>
                 </div>
                 <div>
                   <span>Orders per Year</span>
-                  <strong>{fmt(result.annualOrders, 1)}</strong>
+                  <strong><MarqueeText>{fmt(result.annualOrders, 1)}</MarqueeText></strong>
                   <em>about every {fmt(result.daysBetweenOrders)} days</em>
                 </div>
               </div>

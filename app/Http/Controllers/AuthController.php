@@ -365,10 +365,7 @@ class AuthController extends Controller
             return true;
         }
 
-        $superAdminEmail = config('auth.super_admin_email');
-
-        return is_string($superAdminEmail)
-            && $superAdminEmail !== ''
-            && hash_equals(strtolower($superAdminEmail), strtolower($user->email));
+        // The .env email only counts while nobody has the role (2026-11-10).
+        return $user->isConfiguredSuperAdminEmail();
     }
 }

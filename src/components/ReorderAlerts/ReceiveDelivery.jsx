@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { limitDigits } from '../../utils/numberLimit';
+import { CommaNumberInput } from '../AutoCalculator/autoCal';
 import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import { Camera, CheckCircle2, ClipboardCheck, ImagePlus, PackageCheck, Sparkles, SquarePen, Trash2, X } from 'lucide-react';
@@ -141,7 +143,11 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
 
   const update = (field) => (event) => {
     if (field === 'qty') setChoice('custom');
-    setForm((prev) => ({ ...prev, [field]: event.target.value }));
+    // Digit limits (2026-11-10): quantity up to 9,999; price up to 99,999.99.
+    const value = field === 'qty' ? limitDigits(event.target.value, { whole: 4 })
+      : field === 'unitPrice' ? limitDigits(event.target.value, { whole: 5, decimals: 2 })
+        : event.target.value;
+    setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const takePhoto = (file) => {
@@ -291,7 +297,7 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
                 </div>
                 <div className="ra-receive-field">
                   <label htmlFor="ra-receive-price">Unit price ({currencySymbol})</label>
-                  <input id="ra-receive-price" type="number" min="0" step="0.01" inputMode="decimal" value={form.unitPrice} onChange={update('unitPrice')} required />
+                  <CommaNumberInput id="ra-receive-price" maxWholeDigits={5} value={form.unitPrice ?? ''} onChange={update('unitPrice')} required />
                   <small className="hint-text">{lastPrice !== null ? 'From the last Stock In.' : 'Type the price paid per unit.'}</small>
                 </div>
                 <div className="ra-receive-field">

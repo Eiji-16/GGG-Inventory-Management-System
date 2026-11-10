@@ -270,7 +270,7 @@ class StockMovementController extends Controller
                 'notes'       => ['nullable', 'string', 'max:255'],
                 'recordedBy'  => ['nullable', 'string', 'max:255'],
                 // Required on Stock In / Stock Out rows; older count corrections have no price.
-                'unitPrice'   => [$stockMovement->is_adjustment ? 'nullable' : 'required', 'nullable', 'numeric', 'min:0', 'max:9999999999'],
+                'unitPrice'   => [$stockMovement->is_adjustment ? 'nullable' : 'required', 'nullable', 'numeric', 'min:0', 'max:99999.99'],
             ], self::PRICE_MESSAGES);
             $this->assertVariantBelongsToProduct(
                 ['productId' => $stockMovement->product?->code, 'variantName' => $data['variantName'] ?? null],
@@ -503,7 +503,8 @@ class StockMovementController extends Controller
             'countedStock'=> ['required_if:type,Adjustment', 'nullable', 'integer', 'min:0'],
             'variantName' => ['nullable', 'string', 'max:255'],
             // Required for Stock In / Stock Out (0 is allowed); a count correction has no price.
-            'unitPrice'   => ['required_unless:type,Adjustment', 'nullable', 'numeric', 'min:0', 'max:9999999999'],
+            // At most 99,999.99 — the same limit as the calculator's money boxes (2026-11-10).
+            'unitPrice'   => ['required_unless:type,Adjustment', 'nullable', 'numeric', 'min:0', 'max:99999.99'],
             'notes'       => ['nullable', 'string', 'max:255'],
             'recordedBy'  => ['nullable', 'string', 'max:255'],
             // No future dates. "Today" is the shop's date (Philippines), not the server's UTC date.
