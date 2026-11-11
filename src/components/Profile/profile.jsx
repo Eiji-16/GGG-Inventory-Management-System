@@ -511,11 +511,11 @@ export default function Profile() {
               </label>
               <label>
                 New password
-                <input name="password" type="password" autoComplete="new-password" minLength={8} required />
+                <input name="password" type="password" autoComplete="new-password" minLength={8} required onInput={(event) => { event.currentTarget.value = event.currentTarget.value.replace(/\s/g, ''); }} />
               </label>
               <label>
                 Confirm new password
-                <input name="password_confirmation" type="password" autoComplete="new-password" minLength={8} required />
+                <input name="password_confirmation" type="password" autoComplete="new-password" minLength={8} required onInput={(event) => { event.currentTarget.value = event.currentTarget.value.replace(/\s/g, ''); }} />
               </label>
               <PageToast message={pwdError} type="error" onShown={() => setPwdError('')} />
               <PageToast message={pwdSuccess} type="success" onShown={() => setPwdSuccess('')} />

@@ -1104,7 +1104,7 @@
 .st-requests-view > .st-create-account-error { margin: 12px 16px 0; }
 .st-requests-table .st-request-who { display: grid; gap: 1px; min-width: 0; }
 .st-requests-table td.st-cell-actions .st-request-actions { justify-content: center; }
-.st-requests-table tr.is-pending td { background: color-mix(in srgb, var(--accent-med) 5%, transparent); }
+/* 2026-11-12: no tinted background on waiting requests (it showed as boxes on phones). */
 
 @media (max-width: 640px) {
     /* Tabs take their own row above the search and buttons. */
@@ -1243,7 +1243,6 @@
     cursor: pointer;
 }
 .st-select-box:disabled { cursor: not-allowed; opacity: 0.5; }
-.st-table tbody tr.is-selected td { background: color-mix(in srgb, var(--accent, #E8C547) 9%, transparent); }
 .st-bulk-bar {
     display: flex;
     flex-wrap: wrap;
@@ -1298,4 +1297,49 @@
     .st-table tbody td.st-cell-select { order: 0; flex: 0 0 auto; width: auto; }
     .st-bulk-bar { flex: 1 1 100%; }
     .st-bulk-button { flex: 1 1 0; justify-content: center; }
+}
+
+/* ==========ACCOUNT REQUESTS: CLEAN, COMPACT WAITING REQUEST (2026-11-12)==========
+   One tidy line of actions: [Staff ▾] [Approve & Invite] [Reject], all the
+   same height. The "Role" word is hidden (the list itself says Staff/Admin
+   and is read out as "Role for …"). Reject is a quiet text button. On
+   phones the three share one row under the name and date. */
+.st-requests-table .st-request-actions.is-pending {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+}
+.st-requests-table .st-request-actions.is-pending .st-request-role > span { display: none; }
+.st-requests-table .st-request-actions.is-pending .st-role-select { width: 92px; }
+.st-requests-table .st-request-actions.is-pending .st-role-select .cs-button,
+.st-requests-table .st-request-actions.is-pending .st-request-approve,
+.st-requests-table .st-request-actions.is-pending .st-request-reject {
+    min-height: 34px;
+    height: 34px;
+}
+.st-requests-table .st-request-approve {
+    gap: 6px;
+    padding: 0 12px;
+    font-size: 12.5px;
+    white-space: nowrap;
+}
+.st-requests-table .st-request-actions.is-pending .st-request-reject {
+    padding: 0 10px;
+    border-color: transparent;
+}
+.st-requests-table .st-request-actions.is-pending .st-request-reject:hover {
+    background: color-mix(in srgb, var(--accent-low, #c4432e) 10%, transparent);
+    border-color: transparent;
+}
+@media (max-width: 640px) {
+    .st-requests-table tbody td.st-cell-actions .st-request-actions.is-pending {
+        display: flex !important;
+        width: 100%;
+        margin-top: 2px;
+    }
+    .st-requests-table .st-request-actions.is-pending .st-request-role { flex: 0 0 92px; grid-column: auto; }
+    .st-requests-table .st-request-actions.is-pending .st-request-role .st-role-select { width: 100%; }
+    .st-requests-table .st-request-actions.is-pending .st-request-approve { flex: 1 1 auto; order: 0; grid-column: auto; }
+    .st-requests-table .st-request-actions.is-pending .st-request-reject { flex: 0 0 auto; }
 }

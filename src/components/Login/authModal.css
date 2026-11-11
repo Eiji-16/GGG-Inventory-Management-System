@@ -378,6 +378,9 @@
 .am-checks li svg { padding: 1px; color: #fff; background: #c3c9d6; border-radius: 50%; }
 .am-checks li.is-ok { color: var(--am-green); }
 .am-checks li.is-ok svg { background: var(--am-green); }
+/* 2026-11-12: suggested (not required) checks stay soft grey until met. */
+.am-checks li.is-optional:not(.is-ok) { color: #8a94ab; }
+.am-checks li.is-optional:not(.is-ok) svg { background: #dde1ea; }
 .am-match { margin: -2px 0 0; font-size: 11.5px; font-weight: 600; }
 .am-match.is-ok { color: var(--am-green); }
 .am-match.is-bad { color: var(--am-red); }

@@ -81,16 +81,19 @@ export default function AccountSetup({ token }) {
     }, [token]);
 
     const qr = useMemo(() => (info?.twoFactor?.uri ? qrDataUrl(info.twoFactor.uri) : ''), [info]);
+    // 2026-11-12: only 8+ characters is required (spaces are removed while
+    // typing). A number and a special character are suggested, not required.
     const checks = [
         { label: 'At least 8 characters', ok: password.length >= 8 },
-        { label: 'Letters and numbers', ok: /[a-z]/i.test(password) && /\d/.test(password) },
+        { label: 'A number (suggested)', ok: /\d/.test(password), optional: true },
+        { label: 'A special character like ! or # (suggested)', ok: /[^A-Za-z0-9]/.test(password), optional: true },
     ];
-    const passwordOk = checks.every((check) => check.ok);
+    const passwordOk = password.length >= 8 && !/\s/.test(password);
     const matches = confirmation.length > 0 && confirmation === password;
 
     const toAuthenticator = (event) => {
         event.preventDefault();
-        if (!passwordOk) { setError('The password needs at least 8 characters, with letters and numbers.'); return; }
+        if (!passwordOk) { setError('The password needs at least 8 characters, with no spaces.'); return; }
         if (!matches) { setError('The two passwords do not match.'); return; }
         setError('');
         setStep('authenticator');
@@ -181,20 +184,20 @@ export default function AccountSetup({ token }) {
                                     <label className="am-label" htmlFor="am-setup-pass">New password</label>
                                     <div className="am-input">
                                         <LockKeyhole size={16} aria-hidden="true" />
-                                        <input id="am-setup-pass" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" placeholder="At least 8 characters" autoFocus required />
+                                        <input id="am-setup-pass" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value.replace(/\s/g, ''))} autoComplete="new-password" placeholder="At least 8 characters" autoFocus required />
                                         <button type="button" className="am-eye" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword}>
                                             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                         </button>
                                     </div>
                                     <ul className="am-checks">
                                         {checks.map((check) => (
-                                            <li key={check.label} className={check.ok ? 'is-ok' : ''}><Check size={12} strokeWidth={3} aria-hidden="true" /> {check.label}</li>
+                                            <li key={check.label} className={`${check.ok ? 'is-ok' : ''}${check.optional ? ' is-optional' : ''}`}><Check size={12} strokeWidth={3} aria-hidden="true" /> {check.label}</li>
                                         ))}
                                     </ul>
                                     <label className="am-label" htmlFor="am-setup-confirm">Confirm password</label>
                                     <div className={`am-input${confirmation && !matches ? ' is-invalid' : ''}`}>
                                         <LockKeyhole size={16} aria-hidden="true" />
-                                        <input id="am-setup-confirm" type={showPassword ? 'text' : 'password'} value={confirmation} onChange={(e) => setConfirmation(e.target.value)} autoComplete="new-password" placeholder="Type the password again" required />
+                                        <input id="am-setup-confirm" type={showPassword ? 'text' : 'password'} value={confirmation} onChange={(e) => setConfirmation(e.target.value.replace(/\s/g, ''))} autoComplete="new-password" placeholder="Type the password again" required />
                                     </div>
                                     {confirmation && <p className={`am-match ${matches ? 'is-ok' : 'is-bad'}`}>{matches ? 'Passwords match.' : 'Passwords do not match yet.'}</p>}
                                     <button type="submit" className="am-primary" disabled={!passwordOk || !matches}>

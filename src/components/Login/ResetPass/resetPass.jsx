@@ -57,10 +57,13 @@ async function postJson(url, payload) {
 
 const formatClock = (seconds) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
+// 2026-11-12: only 8+ characters is required (spaces are removed while
+// typing). A number and a special character are suggested, not required.
 function passwordChecks(password) {
     return [
         { label: 'At least 8 characters', ok: password.length >= 8 },
-        { label: 'A letter and a number', ok: /[a-z]/i.test(password) && /\d/.test(password) },
+        { label: 'A number (suggested)', ok: /\d/.test(password), optional: true },
+        { label: 'A special character like ! or # (suggested)', ok: /[^A-Za-z0-9]/.test(password), optional: true },
     ];
 }
 
@@ -318,7 +321,7 @@ function ResetPass({ onBack }) {
                                     id="am-reset-password"
                                     type={showPassword ? 'text' : 'password'}
                                     value={password}
-                                    onChange={(event) => setPassword(event.target.value)}
+                                    onChange={(event) => setPassword(event.target.value.replace(/\s/g, ''))}
                                     placeholder="At least 8 characters"
                                     autoComplete="new-password"
                                     autoFocus
@@ -336,7 +339,7 @@ function ResetPass({ onBack }) {
                             </div>
                             <ul className="am-checks">
                                 {checks.map((check) => (
-                                    <li key={check.label} className={check.ok ? 'is-ok' : ''}>
+                                    <li key={check.label} className={`${check.ok ? 'is-ok' : ''}${check.optional ? ' is-optional' : ''}`}>
                                         <Check size={12} strokeWidth={3} aria-hidden="true" /> {check.label}
                                     </li>
                                 ))}
@@ -348,7 +351,7 @@ function ResetPass({ onBack }) {
                                     id="am-reset-confirm"
                                     type={showPassword ? 'text' : 'password'}
                                     value={confirmation}
-                                    onChange={(event) => setConfirmation(event.target.value)}
+                                    onChange={(event) => setConfirmation(event.target.value.replace(/\s/g, ''))}
                                     placeholder="Type the password again"
                                     autoComplete="new-password"
                                     required

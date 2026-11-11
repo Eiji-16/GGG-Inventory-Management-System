@@ -573,11 +573,12 @@ class AuthController extends Controller
         $attributes = $request->validate([
             'email' => ['required', 'email', 'max:255'],
             'otp' => ['required', 'digits:6'],
-            'password' => ['required', 'confirmed', Password::min(8)],
+            'password' => ['required', 'confirmed', Password::min(8), 'not_regex:/\s/'],   // 2026-11-12: no spaces
         ], [
             'otp.required' => 'Enter the 6-digit code from the email.',
             'otp.digits' => 'The code must be exactly 6 numbers.',
             'password.confirmed' => 'The two passwords do not match.',
+            'password.not_regex' => 'The password cannot contain spaces.',
         ]);
         $email = strtolower(trim($attributes['email']));
 

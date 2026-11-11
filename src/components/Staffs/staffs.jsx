@@ -97,6 +97,15 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
       .finally(() => setLoading(false));
   }, []);
 
+  /* 2026-11-12: the list updates by itself when something changes (a new
+     account finished its setup, someone approved, deactivated…): the main
+     page checks every 5 seconds and sends this event. */
+  useEffect(() => {
+    const onChanged = () => { refreshStaff().catch(() => { /* keep the list shown; next change tries again */ }); };
+    window.addEventListener('ggg-account-requests-changed', onChanged);
+    return () => window.removeEventListener('ggg-account-requests-changed', onChanged);
+  }, []);
+
   useEffect(() => {
     if (!actionMessage) return undefined;
     const timeout = window.setTimeout(() => setActionMessage(''), 5000);
@@ -698,11 +707,11 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
                 </label>
                 <label>
                   Temporary password
-                  <input name="password" type="password" autoComplete="new-password" minLength="8" required />
+                  <input name="password" type="password" autoComplete="new-password" minLength="8" required onInput={(event) => { event.currentTarget.value = event.currentTarget.value.replace(/\s/g, ''); }} />
                 </label>
                 <label>
                   Confirm password
-                  <input name="password_confirmation" type="password" autoComplete="new-password" minLength="8" required />
+                  <input name="password_confirmation" type="password" autoComplete="new-password" minLength="8" required onInput={(event) => { event.currentTarget.value = event.currentTarget.value.replace(/\s/g, ''); }} />
                 </label>
                 <label>
                   Role

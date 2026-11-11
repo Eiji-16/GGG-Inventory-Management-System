@@ -60,7 +60,9 @@ class ProfileController extends Controller
 
         $data = $request->validate([
             'current_password' => ['required', 'string'],
-            'password'         => ['required', 'confirmed', Password::min(8)],
+            'password'         => ['required', 'confirmed', Password::min(8), 'not_regex:/\s/'],   // 2026-11-12: no spaces
+        ], [
+            'password.not_regex' => 'The password cannot contain spaces.',
         ]);
 
         if (! Hash::check($data['current_password'], $user->password)) {

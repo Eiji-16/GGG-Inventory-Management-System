@@ -49,8 +49,10 @@ class StaffController extends Controller
         $data = $request->validate([
             'name'                  => ['required', 'string', 'max:255'],
             'email'                 => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password'              => ['required', 'confirmed', Password::min(8)],
+            'password'              => ['required', 'confirmed', Password::min(8), 'not_regex:/\s/'],   // 2026-11-12: no spaces
             'role'                  => ['required', Rule::in(User::ROLES)],
+        ], [
+            'password.not_regex' => 'The password cannot contain spaces.',
         ]);
 
         // An Admin may only create Staff accounts.

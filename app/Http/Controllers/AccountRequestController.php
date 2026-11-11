@@ -289,11 +289,14 @@ class AccountRequestController extends Controller
         $viaEmail = $request->input('method') === 'email';
         $data = $request->validate([
             'token' => ['required', 'string', 'size:64'],
-            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            // 2026-11-12: 8+ characters, no spaces. Numbers and special characters
+            // are suggested on the screen but not required.
+            'password' => ['required', 'confirmed', Password::min(8), 'not_regex:/\s/'],
             'method' => ['nullable', Rule::in(['app', 'email'])],
             'code' => [$viaEmail ? 'nullable' : 'required', 'digits:6'],
         ], [
             'password.confirmed' => 'The two passwords do not match.',
+            'password.not_regex' => 'The password cannot contain spaces.',
             'code.required' => 'Enter the 6-digit code from your authenticator app.',
             'code.digits' => 'The code must be exactly 6 numbers.',
         ]);

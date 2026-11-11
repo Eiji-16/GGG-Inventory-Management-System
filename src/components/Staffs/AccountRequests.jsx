@@ -181,7 +181,7 @@ export default function AccountRequests({ onChanged, onCount, hidden = false }) 
                             ]}
                           />
                         </div>
-                        <button type="button" className="st-create-account-button" onClick={() => act(request, 'approve')} disabled={busy}>
+                        <button type="button" className="st-create-account-button st-request-approve" onClick={() => act(request, 'approve')} disabled={busy}>
                           <Send size={14} aria-hidden="true" /> {busy ? 'Sending…' : 'Approve & Invite'}
                         </button>
                         <button type="button" className="st-request-reject" onClick={() => act(request, 'reject')} disabled={busy}>Reject</button>
