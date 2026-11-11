@@ -1,5 +1,7 @@
 export const THEME_STORAGE_KEY = 'ggg-inventory-theme';
-export const DEFAULT_THEME = 'midnight-blue';
+// 2026-11-12: Soft White until the person picks another theme (new accounts,
+// accounts that never chose one, and a browser that never signed in).
+export const DEFAULT_THEME = 'soft-white';
 
 const LEGACY_THEME_VALUES = {
   dark: 'midnight-blue',

@@ -3385,3 +3385,9 @@ body {
 @media (max-width: 820px) {
     .sidebar-body .sidebar-logo-row { gap: 0.65rem; }
 }
+
+/*==========NO LINE ABOVE STAFFS (2026-11-12)==========
+   The thin line between the menu and the bottom group (Staffs, Trash,
+   Profile, Settings) is removed, on laptops and phones. */
+.sidebar-footer-item,
+.sidebar-body.is-expanded .sidebar-footer-item { border-top: 0 !important; }
