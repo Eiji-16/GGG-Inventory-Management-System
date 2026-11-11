@@ -758,6 +758,20 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isNotifOpen]);
 
+  /* 2026-11-11: on phones and tablets the panel closes when the page behind
+     it is scrolled (scrolling inside the panel's own list keeps it open). */
+  useEffect(() => {
+    if (!isNotifOpen) return undefined;
+    const narrow = window.matchMedia('(max-width: 820px)');
+    const closeOnPageScroll = (event) => {
+      if (!narrow.matches) return;
+      if (notifRef.current && event.target instanceof Node && notifRef.current.contains(event.target)) return;
+      setIsNotifOpen(false);
+    };
+    document.addEventListener('scroll', closeOnPageScroll, true);
+    return () => document.removeEventListener('scroll', closeOnPageScroll, true);
+  }, [isNotifOpen]);
+
   const markAllRead = () => {
     const readIds = new Set(notificationPreferencesRef.current.readIds);
     notifications.forEach((notification) => readIds.add(notification.id));

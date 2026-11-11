@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PageToast } from '../../utils/toast';
-import { Package, Boxes, ShieldCheck, ShoppingBag, TrendingUp, TrendingDown, Minus, ArrowUpRight, ChevronRight, RefreshCw, Download, Database, X } from 'lucide-react';
+import { Package, Boxes, ShieldCheck, ShoppingBag, TrendingUp, TrendingDown, Minus, ArrowUpRight, ChevronRight, RefreshCw, Download } from 'lucide-react';
 import apiFetch from '../../apiFetch';
 import './dashboard.css';
 import { statusPointsFor } from '../../data/safetyStock';
@@ -368,24 +368,7 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
   // Arrows, cards and rows only open pages this role may open (Role Access).
   const go = (tab, payload = null) => { if (onNavigate && canOpen(tab)) onNavigate(tab, payload); };
 
-  /* ===== BACKUP REMINDER (2026-11-11, Super Admin) =====
-     A small note when no full backup (Settings → Data & System) was made in
-     the last 7 days. "Later" hides it until the page is opened again. */
-  const [backupInfo, setBackupInfo] = useState(null);
-  const [backupDismissed, setBackupDismissed] = useState(false);
-  useEffect(() => {
-    if (!isSuperAdmin || !isActive) return undefined;
-    let active = true;
-    apiFetch('/api/settings/system', { headers: { Accept: 'application/json' }, cache: 'no-store' })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((data) => { if (active && data) setBackupInfo(data); })
-      .catch(() => { /* the reminder is optional */ });
-    return () => { active = false; };
-  }, [isSuperAdmin, isActive, dataRevision]);
-  const backupLastText = backupInfo?.lastBackupAt
-    ? new Date(backupInfo.lastBackupAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-    : null;
-  const showBackupReminder = isSuperAdmin && backupInfo?.backupDue && !backupDismissed;
+  /* Backup reminder removed on 2026-11-11 (the user asked). */
   const canProducts = canOpen('Product-Supplier');
   const canStock = canOpen('Stock');
   const canReorder = canOpen('Reorder-Alerts');
@@ -753,22 +736,6 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
     <main className="dashboard-content-view">
       <div className="dashboard-scroll-container">
         <PageToast type="warning" message={error ? `${error} Showing the last data loaded.` : ''} />
-        {showBackupReminder && (
-          <div className="db-backup-note" role="status">
-            <span className="db-backup-icon" aria-hidden="true"><Database size={16} /></span>
-            <span className="db-backup-text">
-              <strong>Time for a backup.</strong>{' '}
-              {backupLastText
-                ? `The last full backup was on ${backupLastText}, more than ${backupInfo.backupReminderDays || 7} days ago.`
-                : 'No full backup has been made yet.'}{' '}
-              Make one in Settings → Data &amp; System.
-            </span>
-            <button type="button" className="db-backup-go" onClick={() => onNavigate?.('Setting')}>Open Settings</button>
-            <button type="button" className="db-backup-close" aria-label="Hide the backup reminder" title="Later" onClick={() => setBackupDismissed(true)}>
-              <X size={14} aria-hidden="true" />
-            </button>
-          </div>
-        )}
         <section className="db-kpi-row" aria-label="Inventory summary">
           {/* 1. Products — the size of the catalogue */}
           <KpiTile

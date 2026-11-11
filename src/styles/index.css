@@ -654,3 +654,67 @@ html .dashboard-page-wrapper {
     caret-color: var(--text-primary);
     transition: background-color 9999s ease-out 0s;
 }
+
+
+/*==========LOADING SKELETON (2026-11-11)==========
+   Add "ui-loading" to a loading box or table cell: its text and dashed box
+   are hidden (screen readers still read the text) and three soft bars with
+   a light sweep show instead — the same look as the Products table while it
+   loads. The doubled class wins over each page's own empty-box rules. */
+.ui-loading.ui-loading {
+    position: relative;
+    height: 96px;
+    min-height: 96px;
+    overflow: hidden;
+    color: transparent !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    user-select: none;
+}
+.ui-loading.ui-loading::before {
+    --ui-skel: var(--static-bg-color, rgba(255, 255, 255, 0.06));
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    left: 16px;
+    right: 16px;
+    top: 50%;
+    height: 56px;
+    transform: translateY(-50%);
+    border-radius: 6px;
+    background:
+        linear-gradient(var(--ui-skel), var(--ui-skel)) 0 0 / 72% 12px no-repeat,
+        linear-gradient(var(--ui-skel), var(--ui-skel)) 0 22px / 92% 12px no-repeat,
+        linear-gradient(var(--ui-skel), var(--ui-skel)) 0 44px / 56% 12px no-repeat !important;
+}
+.ui-loading.ui-loading::after {
+    content: '' !important;
+    position: absolute !important;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent 0%, var(--background-icon-active-color-theme, rgba(255, 255, 255, 0.08)) 50%, transparent 100%) !important;
+    animation: ui-shimmer 1.4s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes ui-shimmer { 100% { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) {
+    .ui-loading.ui-loading::after { animation: none; }
+}
+
+
+/*==========PAGE COLOUR LAYER (2026-11-11)==========
+   html/body are one screen tall, so a gradient page colour (Midnight Blue,
+   Citrus, Ember…) repeated every screen height on long pages (phones):
+   bright band, then dark again. The page colour now sits on its own fixed
+   layer that always covers the screen behind everything, so it can never
+   repeat. Works in every browser (phone browsers ignore
+   background-attachment: fixed). */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: var(--bg-main, #f1f5fa);
+    pointer-events: none;
+}

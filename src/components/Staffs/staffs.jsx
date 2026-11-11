@@ -698,7 +698,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={canManage ? 6 : 5} className="st-empty">Loading staff…</td>
+                  <td colSpan={canManage ? 6 : 5} className="st-empty ui-loading">Loading staff…</td>
                 </tr>
               ) : filtered.map((s) => {
                 const role = ROLE_META[s.role] || ROLE_META.Staff;

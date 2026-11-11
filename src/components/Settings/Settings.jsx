@@ -609,7 +609,7 @@ function Settings({
                 <span role="columnheader" aria-label="Reset" />
               </div>
 
-              {policyLoading && <div className="s-policy-empty">Loading products and reorder policies…</div>}
+              {policyLoading && <div className="s-policy-empty ui-loading">Loading products and reorder policies…</div>}
               {policyError && <div className="s-policy-error" role="alert">{policyError}</div>}
 
               {visibleRows.map((row) => {

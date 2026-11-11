@@ -986,8 +986,11 @@ export default function DemandForecastDesign({
                     {forecast?.seasonalEnabled && (
                       <span className="fx-pill fx-pill-gold">Seasonal adj. active {formatSigned(effectivePct, 1)}%</span>
                     )}
-                    <button type="button" className="fx-modal-close" onClick={() => setShowTable(false)} aria-label="Close table">×</button>
                   </div>
+                  {/* 2026-11-11: close button pinned to the top-right corner. */}
+                  <button type="button" className="fx-modal-close fx-table-close" onClick={() => setShowTable(false)} aria-label="Close table">
+                    <X size={15} aria-hidden="true" />
+                  </button>
                 </header>
 
                 <div className="fx-table-wrap">
@@ -1003,7 +1006,7 @@ export default function DemandForecastDesign({
                     </thead>
                     <tbody>
                       {busy && historyRows.length === 0 ? (
-                        <tr><td colSpan={5} className="fx-empty">Loading sales history…</td></tr>
+                        <tr><td colSpan={5} className="fx-empty ui-loading">Loading sales history…</td></tr>
                       ) : historyRows.length === 0 ? (
                         <tr>
                           <td colSpan={5} className="fx-empty">
@@ -1125,7 +1128,7 @@ export default function DemandForecastDesign({
               <PageToast message={eventsError} type="error" onShown={() => setEventsError('')} />
 
               {eventsLoading ? (
-                <p className="f-event-empty">Loading seasonal events…</p>
+                <p className="f-event-empty ui-loading">Loading seasonal events…</p>
               ) : events.length === 0 ? (
                 <p className="f-event-empty">No seasonal events yet. Add one such as “Christmas Sale, Dec 1–25, +35%”.</p>
               ) : shownEvents.length === 0 ? (

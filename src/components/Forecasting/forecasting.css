@@ -3780,3 +3780,58 @@
 }
 
 /* Calendar styles moved to eventRangeCalendar.css (2026-11-11). */
+
+/* Seasonal Events on phones (2026-11-11): no empty gap under the
+   description (the title block's 260px basis and the search bar's 100%
+   basis were used as a HEIGHT once the header stacks and wraps), search
+   full width, "+ Add Event" on the right, and the
+   status badge only as wide as its text. */
+.f-event-status { justify-self: start; }
+@media (max-width: 680px) {
+    .f-event-item { row-gap: 8px; }
+}
+
+
+/* Phones (2026-11-11): each toolbar on ONE row —
+   Seasonal Adjustments: Search + "+ Add Event";
+   Economic Order Quantity: Search + "History";
+   Sales Forecasting: Search on top, then Week/Month/Year + "Recompute". */
+@media (max-width: 680px) {
+    /* Seasonal Adjustments */
+    .f-seasonal-head { flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+    .f-seasonal-head > div:first-child { flex: 1 1 100%; align-self: stretch; }
+    .f-seasonal-head .fx-event-search,
+    .f-seasonal-head .fx-event-search:focus-within,
+    .f-seasonal-head .fx-event-search:has(input:not(:placeholder-shown)) { flex: 1 1 0; width: auto; min-width: 0; }
+    .f-seasonal-head > .f-btn { flex: 0 0 auto; align-self: flex-end; min-height: 38px; white-space: nowrap; }
+
+    /* Economic Order Quantity */
+    .fx-eoq-layout .fx-toolbar { flex-wrap: nowrap; align-items: flex-end; }
+    .fx-eoq-layout .fx-toolbar .fx-psearch,
+    .fx-eoq-layout .fx-toolbar .fx-psearch:focus-within,
+    .fx-eoq-layout .fx-toolbar .fx-psearch:has(input:not(:placeholder-shown)) { flex: 1 1 0; width: auto; min-width: 0; }
+    .fx-eoq-layout .fx-toolbar .fx-eoq-header-slot { flex: 0 0 auto; align-self: flex-end; }
+    .fx-eoq-layout .fx-toolbar .eq-header-actions { margin: 0; }
+    .fx-eoq-layout .fx-toolbar .ac-icon-btn { min-height: 38px; white-space: nowrap; }
+
+    /* Sales Forecasting */
+    .fx-toolbar > .f-field:has(.fx-segmented) { flex: 1 1 0 !important; min-width: 0; }
+    .fx-toolbar > .f-field:has(.fx-segmented) .fx-segmented { width: 100%; }
+    .fx-toolbar > .f-field:has(.fx-refresh) { flex: 0 0 auto !important; }
+    .fx-toolbar > .f-field:has(.fx-refresh) > label { display: none; }
+    .fx-toolbar .fx-refresh { width: auto; min-height: 34px; padding-inline: 14px; white-space: nowrap; }
+}
+
+
+/* Forecast table pop-up (2026-11-11): the X sits in the top-right corner,
+   centred in its circle; the title and badges keep clear of it. */
+.fx-table-modal { position: relative; }
+.fx-table-modal > .fx-card-head { padding-right: 40px; }
+.fx-table-modal .fx-table-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 2;
+    background: var(--bg-card);
+}
+.fx-table-modal .fx-table-close svg { display: block; }

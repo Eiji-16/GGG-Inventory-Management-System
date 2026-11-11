@@ -1810,7 +1810,7 @@ function StockControl({
           </thead>
           <tbody>
             {stockLoading ? (
-              <tr><td colSpan={11} className="sc-empty-state">Loading stock movements…</td></tr>
+              <tr><td colSpan={11} className="sc-empty-state ui-loading">Loading stock movements…</td></tr>
             ) : pageRows.map(({ row: stock, id, totalQty, change, balanceAfter, variantStock }) => {
               const product = productById.get(stock.productId);
               const statusRow = {
@@ -2099,7 +2099,7 @@ function StockControl({
           </thead>
           <tbody>
             {stockLoading ? (
-              <tr><td colSpan={7} className="sc-empty-state">Loading stock history…</td></tr>
+              <tr><td colSpan={7} className="sc-empty-state ui-loading">Loading stock history…</td></tr>
             ) : historyPageRows.map(({ row: stock, id, change }) => {
               const after = variantData.afterById.get(id) ?? 0;
               const before = after - change;
@@ -2770,7 +2770,7 @@ function StockControl({
 
               <h4 className="sc-product-activity-title">Activity Report</h4>
               {productActivityLoading ? (
-                <div className="sc-empty-state">Loading product activity…</div>
+                <div className="sc-empty-state ui-loading">Loading product activity…</div>
               ) : productActivityError ? (
                 <div className="sc-error-banner" role="alert">{productActivityError}</div>
               ) : productActivityLog.length > 0 ? (
@@ -2838,7 +2838,7 @@ function StockControl({
 
             <div className="sc-drawer-body">
               {activityLoading ? (
-                <div className="sc-empty-state">Loading stock activity…</div>
+                <div className="sc-empty-state ui-loading">Loading stock activity…</div>
               ) : activityError ? (
                 <div className="sc-error-banner" role="alert">{activityError}</div>
               ) : activityLog.length === 0 ? (

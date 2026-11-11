@@ -119,7 +119,7 @@ function MovementChartCard({ rows, loading, onOpen }) {
         </div>
       </div>
       {rows.length === 0 ? (
-        <div className="r-chart-placeholder">{loading ? 'Loading…' : 'No movement data yet.'}</div>
+        <div className={`r-chart-placeholder${loading ? ' ui-loading' : ''}`}>{loading ? 'Loading…' : 'No movement data yet.'}</div>
       ) : chartType === 'line' ? (
         <MovementLineChart key="line" rows={rows} maxVal={maxVal} />
       ) : (

@@ -134,7 +134,7 @@ export default function AccountRequests({ onChanged, onCount, hidden = false }) 
           </thead>
           <tbody>
             {loading && !requests.length ? (
-              <tr><td colSpan={4} className="st-empty">Loading account requests…</td></tr>
+              <tr><td colSpan={4} className="st-empty ui-loading">Loading account requests…</td></tr>
             ) : rows.length === 0 ? (
               <tr><td colSpan={4} className="st-empty">{error ? 'Could not load the requests.' : 'No account requests yet.'}</td></tr>
             ) : rows.map((request) => {

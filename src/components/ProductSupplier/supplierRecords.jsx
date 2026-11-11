@@ -242,7 +242,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="ps-empty-state">Loading suppliers…</td></tr>
+              <tr><td colSpan={6} className="ps-empty-state ui-loading">Loading suppliers…</td></tr>
             ) : visible.length === 0 ? (
               <tr>
                 <td colSpan={6} className="ps-empty-state">

@@ -341,7 +341,7 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
           </thead>
           <tbody>
             {loading && records.length === 0 ? (
-              <tr><td colSpan={7} className="sc-empty-state">Loading {space === 'trash' ? 'Trash Bin' : 'Archive'}…</td></tr>
+              <tr><td colSpan={7} className="sc-empty-state ui-loading">Loading {space === 'trash' ? 'Trash Bin' : 'Archive'}…</td></tr>
             ) : records.length === 0 ? (
               <tr>
                 <td colSpan={7} className="sc-empty-state">
