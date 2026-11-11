@@ -45,6 +45,30 @@ class AuthController extends Controller
             return response()->json(['message' => 'This account has been deactivated. Contact a Super Admin.'], 403);
         }
 
+        // 2026-11-11: "Require the authenticator app for every account" is on
+        // (Settings) and this account has none yet: it must set one up now.
+        // Nobody is signed in until the QR code is scanned and a code typed.
+        if (! $user->hasTwoFactor() && \App\Models\AppSetting::requireAuthenticator()) {
+            $request->session()->regenerate();
+            $secret = \App\Support\Totp::newSecret();
+            $request->session()->put(self::TWO_FACTOR_SETUP_KEY, [
+                'id' => $user->id,
+                'secret' => $secret,
+                'expires' => now()->addMinutes(10)->timestamp,
+                'tries' => 0,
+            ]);
+
+            return response()->json([
+                'twoFactorSetupRequired' => true,
+                'message' => 'Your account now needs an authenticator app. Scan the QR code, then type the 6-digit code.',
+                'twoFactor' => [
+                    'secret' => trim(chunk_split($secret, 4, ' ')),
+                    'uri' => \App\Support\Totp::uri($secret, $user->email, \App\Models\AppSetting::systemName()),
+                ],
+                'csrfToken' => csrf_token(),
+            ]);
+        }
+
         // 2FA (2026-11-03): accounts with an authenticator app must also type
         // its 6-digit code. Until then nobody is signed in; the session only
         // remembers "password OK for user X" for 5 minutes.
@@ -67,7 +91,67 @@ class AuthController extends Controller
     }
 
     private const TWO_FACTOR_KEY = 'two_factor_login';
+    private const TWO_FACTOR_SETUP_KEY = 'two_factor_setup';
     private const TWO_FACTOR_TRIES = 5;
+
+    /**
+     * POST /auth/two-factor/setup  { code } — 2026-11-11: an account that must
+     * use the authenticator app (Settings) connects it at sign-in: the code
+     * proves the QR code was scanned, then the secret is saved and the person
+     * is signed in. 5 wrong codes or 10 minutes = start again.
+     */
+    public function setupTwoFactor(Request $request): JsonResponse
+    {
+        $request->validate(['code' => ['required', 'digits:6']], [
+            'code.required' => 'Enter the 6-digit code from your authenticator app.',
+            'code.digits' => 'The code must be exactly 6 numbers.',
+        ]);
+        $pending = $request->session()->get(self::TWO_FACTOR_SETUP_KEY);
+        if (! is_array($pending) || ($pending['expires'] ?? 0) < now()->timestamp || empty($pending['secret'])) {
+            $request->session()->forget(self::TWO_FACTOR_SETUP_KEY);
+
+            return response()->json([
+                'code' => 'two_factor_expired',
+                'message' => 'The setup took too long. Enter your email and password again.',
+            ], 422);
+        }
+
+        $user = User::find($pending['id']);
+        if (! $user || $user->status !== User::STATUS_ACTIVE) {
+            $request->session()->forget(self::TWO_FACTOR_SETUP_KEY);
+
+            return response()->json(['code' => 'two_factor_expired', 'message' => 'This account cannot sign in right now. Contact the Super Admin.'], 422);
+        }
+
+        $step = \App\Support\Totp::verify((string) $pending['secret'], (string) $request->input('code'));
+        if ($step === null) {
+            $tries = (int) ($pending['tries'] ?? 0) + 1;
+            if ($tries >= self::TWO_FACTOR_TRIES) {
+                $request->session()->forget(self::TWO_FACTOR_SETUP_KEY);
+
+                return response()->json([
+                    'code' => 'two_factor_expired',
+                    'message' => 'Too many wrong codes. Enter your email and password again to get a new QR code.',
+                ], 422);
+            }
+            $request->session()->put(self::TWO_FACTOR_SETUP_KEY, ['tries' => $tries] + $pending);
+            $left = self::TWO_FACTOR_TRIES - $tries;
+            throw ValidationException::withMessages([
+                'code' => "That code is incorrect. Make sure you scanned the QR code on this screen and type the newest code. {$left} ".($left === 1 ? 'try' : 'tries').' left.',
+            ]);
+        }
+        // This code cannot be used again for the next sign-in.
+        \Illuminate\Support\Facades\Cache::add("totp_used:{$user->id}:{$step}", 1, now()->addMinutes(3));
+
+        $user->forceFill([
+            'two_factor_secret' => $pending['secret'],
+            'two_factor_confirmed_at' => now(),
+        ])->save();
+        $request->session()->forget(self::TWO_FACTOR_SETUP_KEY);
+        \App\Models\ActivityLog::record('account.2fa_setup', 'Connected an authenticator app at sign-in', 'shield', [], $user->id);
+
+        return $this->completeLogin($request, $user, viaTwoFactor: true);
+    }
 
     /** POST /auth/two-factor  { code } — second step of signing in. */
     public function verifyTwoFactor(Request $request): JsonResponse
@@ -121,13 +205,123 @@ class AuthController extends Controller
         return $this->completeLogin($request, $user, viaTwoFactor: true);
     }
 
-    private function completeLogin(Request $request, User $user, bool $viaTwoFactor = false): JsonResponse
+    private const EMAIL_CODE_MINUTES = 10;
+    private const EMAIL_CODE_RESEND_SECONDS = 60;
+
+    /**
+     * POST /auth/two-factor/email — 2026-11-11: "Can't use your phone? Send a
+     * code to my email" on the two-step window. Only works right after the
+     * correct password (the same 2FA session), so the password AND the email
+     * inbox are both needed. The code is saved hashed in that session:
+     * 10 minutes, works once, 5 wrong tries (shared with the app code).
+     */
+    public function sendTwoFactorEmailCode(Request $request): JsonResponse
+    {
+        $pending = $request->session()->get(self::TWO_FACTOR_KEY);
+        if (! is_array($pending) || ($pending['expires'] ?? 0) < now()->timestamp) {
+            $request->session()->forget(self::TWO_FACTOR_KEY);
+
+            return response()->json([
+                'code' => 'two_factor_expired',
+                'message' => 'Your sign-in took too long. Enter your email and password again.',
+            ], 422);
+        }
+        $user = User::find($pending['id']);
+        if (! $user || $user->status !== User::STATUS_ACTIVE) {
+            $request->session()->forget(self::TWO_FACTOR_KEY);
+
+            return response()->json(['code' => 'two_factor_expired', 'message' => 'This account cannot sign in right now. Contact the Super Admin.'], 422);
+        }
+        $wait = (int) ($pending['email_sent_at'] ?? 0) + self::EMAIL_CODE_RESEND_SECONDS - now()->timestamp;
+        if ($wait > 0) {
+            return response()->json(['message' => "Please wait {$wait} seconds before asking for a new code."], 429);
+        }
+
+        $code = (string) random_int(100000, 999999);
+        try {
+            Mail::to($user->email)->send(new \App\Mail\TwoFactorEmailCodeMail($code, self::EMAIL_CODE_MINUTES));
+        } catch (Throwable $exception) {
+            Log::error('Sign-in email code could not be sent. Check the MAIL_* settings in .env, then run php artisan config:clear.', ['exception' => $exception]);
+
+            return response()->json([
+                'code' => 'mail_failed',
+                'message' => 'The code could not be emailed because the system\'s email settings are not working. Use your authenticator app, or tell the Super Admin.',
+            ], 503);
+        }
+
+        // A new code replaces the old one; the sign-in now has 10 minutes.
+        $request->session()->put(self::TWO_FACTOR_KEY, [
+            'email_code_hash' => Hash::make($code),
+            'email_code_expires' => now()->addMinutes(self::EMAIL_CODE_MINUTES)->timestamp,
+            'email_sent_at' => now()->timestamp,
+            'expires' => max((int) $pending['expires'], now()->addMinutes(self::EMAIL_CODE_MINUTES)->timestamp),
+        ] + $pending);
+        \App\Models\ActivityLog::record('login.2fa_email_sent', 'Asked for a sign-in code by email', 'mail', [], $user->id);
+
+        return response()->json([
+            'sent' => true,
+            'expiresInMinutes' => self::EMAIL_CODE_MINUTES,
+            'resendInSeconds' => self::EMAIL_CODE_RESEND_SECONDS,
+        ]);
+    }
+
+    /** POST /auth/two-factor/email/verify  { code } — sign in with the emailed code. */
+    public function verifyTwoFactorEmailCode(Request $request): JsonResponse
+    {
+        $request->validate(['code' => ['required', 'digits:6']], [
+            'code.required' => 'Enter the 6-digit code from the email.',
+            'code.digits' => 'The code must be exactly 6 numbers.',
+        ]);
+        $pending = $request->session()->get(self::TWO_FACTOR_KEY);
+        if (! is_array($pending) || ($pending['expires'] ?? 0) < now()->timestamp) {
+            $request->session()->forget(self::TWO_FACTOR_KEY);
+
+            return response()->json([
+                'code' => 'two_factor_expired',
+                'message' => 'Your sign-in took too long. Enter your email and password again.',
+            ], 422);
+        }
+        $user = User::find($pending['id']);
+        if (! $user || $user->status !== User::STATUS_ACTIVE) {
+            $request->session()->forget(self::TWO_FACTOR_KEY);
+
+            return response()->json(['code' => 'two_factor_expired', 'message' => 'This account cannot sign in right now. Contact the Super Admin.'], 422);
+        }
+        if (empty($pending['email_code_hash']) || ($pending['email_code_expires'] ?? 0) < now()->timestamp) {
+            throw ValidationException::withMessages(['code' => 'This code has expired. Press "Send a new code".']);
+        }
+
+        if (! Hash::check((string) $request->input('code'), (string) $pending['email_code_hash'])) {
+            $tries = (int) ($pending['tries'] ?? 0) + 1;
+            if ($tries >= self::TWO_FACTOR_TRIES) {
+                $request->session()->forget(self::TWO_FACTOR_KEY);
+                \App\Models\ActivityLog::record('login.2fa_failed', 'Too many wrong email codes at sign-in', 'key', [], $user->id);
+
+                return response()->json([
+                    'code' => 'two_factor_expired',
+                    'message' => 'Too many wrong codes. Enter your email and password again.',
+                ], 422);
+            }
+            $request->session()->put(self::TWO_FACTOR_KEY, ['tries' => $tries] + $pending);
+            $left = self::TWO_FACTOR_TRIES - $tries;
+            throw ValidationException::withMessages([
+                'code' => "That code is incorrect. Check the newest email and try again. {$left} ".($left === 1 ? 'try' : 'tries').' left.',
+            ]);
+        }
+
+        $request->session()->forget(self::TWO_FACTOR_KEY);
+
+        return $this->completeLogin($request, $user, viaTwoFactor: true, method: 'email');
+    }
+
+    private function completeLogin(Request $request, User $user, bool $viaTwoFactor = false, string $method = 'app'): JsonResponse
     {
         Auth::login($user);
         $request->session()->regenerate();
         $request->session()->put('_account_auth_version', (int) $user->auth_version);
 
-        \App\Models\ActivityLog::record('login', $viaTwoFactor ? 'Signed in (with authenticator code)' : 'Signed in', 'login', [], $user->id);
+        $how = $method === 'email' ? 'Signed in (with a code sent by email)' : 'Signed in (with authenticator code)';
+        \App\Models\ActivityLog::record('login', $viaTwoFactor ? $how : 'Signed in', 'login', [], $user->id);
 
         return response()->json([
             'user' => $this->userPayload($user),

@@ -2500,3 +2500,115 @@
 }
 :root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .sc-table tbody tr.sc-row-critical { background-color: color-mix(in srgb, var(--accent-low) 6%, transparent); }
 :root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .sc-table tbody tr.sc-row-outofstock { background-color: color-mix(in srgb, var(--accent-low) 10%, transparent); }
+
+/* 2026-11-11: the Date box opens our own calendar (EventRangeCalendar.jsx,
+   same look as Seasonal Adjustments). The button looks like the other boxes. */
+.sc-form-group .sc-date-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.62rem 0.8rem;
+    font: inherit;
+    font-size: 0.85rem;
+    text-align: left;
+    color: var(--text-primary);
+    background: var(--input-bg, var(--static-bg-color, #f8fafc));
+    cursor: pointer;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.sc-form-group .sc-date-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-form-group .sc-date-trigger svg { flex-shrink: 0; color: var(--text-muted); }
+.sc-form-group .sc-date-trigger:hover:not(:disabled) { border-color: var(--text-muted); }
+.sc-form-group .sc-date-trigger.is-active,
+.sc-form-group .sc-date-trigger:focus-visible {
+    border-color: var(--accent, #E8C547);
+    box-shadow: 0 0 0 3px var(--accent-ring);
+    outline: none;
+}
+.sc-form-group .sc-date-trigger:disabled { cursor: not-allowed; opacity: 0.6; }
+
+/* 2026-11-11: proof photo = a small arrow button right beside the note
+   (was the text "View proof photo" on its own line). */
+.sc-table td[data-label="Notes"]:has(.sc-proof-link) {
+    white-space: nowrap;
+}
+/* One line + "…" beside the arrow, so the row keeps its normal height
+   (the full note shows on hover). */
+.sc-table td[data-label="Notes"]:has(.sc-proof-link) .sc-notes-text {
+    display: inline-block;
+    max-width: 9rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    -webkit-line-clamp: unset;
+}
+.sc-proof-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    margin-left: 6px;
+    vertical-align: middle;
+    color: var(--accent);
+    text-decoration: none;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    border-radius: 6px;
+}
+.sc-proof-link:hover,
+.sc-proof-link:focus-visible {
+    color: var(--btn-fill-text, #0b1426);
+    background: var(--accent);
+    outline: none;
+    filter: none;
+}
+@media (max-width: 640px) {
+    .sc-table tbody td[data-label="Notes"] .sc-proof-link { display: inline-flex; flex-basis: auto; margin: 0 0 0 6px; }
+}
+
+/* 2026-11-11: hover the note to read all of it (NoteText in stockControl.jsx). */
+.sc-notes-text.is-hoverable { cursor: help; border-radius: 4px; }
+.sc-notes-text.is-hoverable:hover,
+.sc-notes-text.is-hoverable:focus-visible { color: var(--text-primary); outline: none; }
+.sc-note-tip {
+    position: fixed;
+    z-index: 1300;
+    box-sizing: border-box;
+    max-width: min(320px, calc(100vw - 16px));
+    padding: 9px 11px;
+    color: var(--text-primary);
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong, var(--border-color));
+    border-radius: 8px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
+    pointer-events: none;
+}
+
+/* 2026-11-11: the proof photo link is just a small arrow (no box). */
+.sc-proof-link,
+.sc-proof-link:hover,
+.sc-proof-link:focus-visible {
+    width: auto;
+    height: auto;
+    padding: 0 2px;
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+}
+.sc-proof-link { color: var(--accent); }
+.sc-proof-link:hover,
+.sc-proof-link:focus-visible { color: var(--text-primary); }
+.sc-proof-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

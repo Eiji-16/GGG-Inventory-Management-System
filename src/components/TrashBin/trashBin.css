@@ -298,3 +298,15 @@
 :root:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"]) .tb-type-event {
     color: #6D4FC2;
 }
+
+/* Selected row (2026-11-11): the pinned Actions cell has its own solid
+   background, so the selected tint stopped before it. Paint the same tint
+   on top of the card colour so the whole row is highlighted, edge to edge. */
+@media (min-width: 901px) {
+    .tb-unified-table tbody tr.is-selected > td.sc-td-actions {
+        background-image: linear-gradient(var(--background-icon-active-color-theme), var(--background-icon-active-color-theme)) !important;
+    }
+}
+
+/* "Deleted by" list (2026-11-11): opens 10px further to the left. */
+.tb-deleted-by-select .cs-menu { left: -10px; }

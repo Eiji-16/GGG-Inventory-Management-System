@@ -1066,12 +1066,11 @@
     color: var(--text-primary);
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-top: 3px solid var(--info-color, #60A5FA);
     border-radius: 12px;
     box-shadow: var(--shadow-hover, 0 10px 30px rgba(0, 0, 0, 0.4));
 }
-.s-sys-dialog.is-warn   { border-top-color: var(--accent-med, #F0C05A); }
-.s-sys-dialog.is-danger { border-top-color: var(--accent-low, #ef4444); width: min(540px, 100%); }
+/* 2026-11-11: no coloured top stripe on these windows any more. */
+.s-sys-dialog.is-danger { width: min(540px, 100%); }
 .s-sys-dialog-head { display: flex; align-items: center; gap: 6px; }
 .s-sys-dialog-head h3 { margin: 0; font-size: 14px; }
 .s-sys-dialog-icon { display: grid; place-items: center; color: var(--info-color, #60A5FA); }
@@ -1297,3 +1296,15 @@
 
 /* Dark theme dot in Appearance: half white, half black (2026-11-06). */
 .s-theme-stop-noir .s-theme-stop-dot { border-color: #737373; background: linear-gradient(135deg, #ffffff 0 50%, #000000 50% 100%); }
+
+/* ===== SECURITY AND DEFAULTS card (2026-11-11, systemRules.jsx) ===== */
+.s-rules-body { display: grid; gap: 2px; }
+.s-rules-body .s-pref-row:first-child { border-top: 0; }
+.s-rules-note { color: var(--accent-med); }
+.s-rules-lead { flex: 0 1 190px; }
+.s-rules-lead input { width: 80px; flex: 0 0 80px; text-align: center; }
+.s-rules-unit { color: var(--text-muted); font-size: 12px; }
+@media (max-width: 560px) {
+    .s-rules-body .s-pref-row { flex-wrap: wrap; }
+    .s-rules-lead { flex: 1 1 100%; margin-left: 30px; }
+}

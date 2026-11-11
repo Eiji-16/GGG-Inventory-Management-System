@@ -22,7 +22,8 @@ use Throwable;
  * ===== ACCOUNT REGISTRATION WITH EMAIL VALIDATION + 2FA (2026-11-03) =====
  *
  * Step 1  Request   POST /auth/account-request (login page, no sign-in)
- *                   Work email + full name + department/role. The email
+ *                   Work email + full name (department/role no longer
+ *                   asked, 2026-11-11 — the Super Admin picks the role). The email
  *                   domain is checked (ACCOUNT_REQUEST_DOMAINS in .env).
  * Step 2  Approval  The Super Admin sees it (bell + Staffs → Account
  *                   requests) and clicks "Approve & Invite" (or Reject).
@@ -44,12 +45,13 @@ class AccountRequestController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'min:2', 'max:120'],
             'email' => ['required', 'email', 'max:255'],
-            'department' => ['required', 'string', 'max:120'],
+            // 2026-11-11: no longer asked on the form (the Super Admin picks
+            // the role when approving). Still accepted if sent.
+            'department' => ['nullable', 'string', 'max:120'],
         ], [
             'name.required' => 'Enter your full name.',
             'email.required' => 'Enter your work email.',
             'email.email' => 'Enter a valid email address.',
-            'department.required' => 'Enter your department or role.',
         ]);
         $email = strtolower(trim($data['email']));
 
@@ -82,7 +84,7 @@ class AccountRequestController extends Controller
         $accountRequest = AccountRequest::create([
             'name' => trim($data['name']),
             'email' => $email,
-            'department' => trim($data['department']),
+            'department' => trim((string) ($data['department'] ?? '')) ?: null,
             'status' => AccountRequest::PENDING,
         ]);
         ActivityLog::record('account.request', "{$accountRequest->name} requested an account ({$email})", 'user', [

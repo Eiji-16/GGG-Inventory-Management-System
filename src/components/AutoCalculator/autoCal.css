@@ -1683,3 +1683,22 @@
     opacity: 0.45;
     cursor: not-allowed;
 }
+
+/* 2026-11-11: locked Lead Time / Safety Stock look clearly "hard-locked",
+   so users can see at once which boxes they type in. Dimmed text, a faint
+   striped background and a dashed border (works on every theme). */
+.eq-input-wrap:has(input[readonly]) {
+    border-style: dashed;
+    background:
+        repeating-linear-gradient(135deg, transparent 0 6px, var(--overlay-soft, rgba(127, 127, 127, 0.10)) 6px 12px),
+        var(--overlay-soft, rgba(127, 127, 127, 0.06));
+}
+.eq-input-wrap input[readonly] {
+    color: var(--text-muted);
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+.eq-input-wrap:has(input[readonly]) .eq-affix {
+    background: transparent;
+    opacity: 0.7;
+}

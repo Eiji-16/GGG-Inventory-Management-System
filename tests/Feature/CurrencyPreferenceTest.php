@@ -50,16 +50,24 @@ class CurrencyPreferenceTest extends TestCase
             ->assertJsonPath('user.currency', 'USD');
     }
 
-    public function test_admins_can_change_it_but_staff_cannot(): void
+    public function test_only_the_super_admin_can_change_it_by_default(): void
     {
+        // 2026-11-11: "Change currency" is off for Admin by default.
         $this->actingAs($this->user(User::ROLE_ADMIN))
             ->putJson('/api/settings/currency', ['currency' => 'EUR'])
-            ->assertOk();
+            ->assertForbidden();
 
         $this->actingAs($this->user(User::ROLE_STAFF))
             ->putJson('/api/settings/currency', ['currency' => 'JPY'])
             ->assertForbidden();
 
+        $this->assertSame('PHP', AppSetting::currency());
+
+        // The Super Admin can still turn the box on for Admin in Role Access.
+        \App\Services\RoleAccessService::save(['admin' => ['settings.currency' => true]]);
+        $this->actingAs($this->user(User::ROLE_ADMIN))
+            ->putJson('/api/settings/currency', ['currency' => 'EUR'])
+            ->assertOk();
         $this->assertSame('EUR', AppSetting::currency());
     }
 

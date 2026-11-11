@@ -55,6 +55,38 @@ class RestockRequestTest extends TestCase
         $this->assertSame(1, RestockRequest::count());
     }
 
+    public function test_two_staff_can_each_request_the_same_product(): void
+    {
+        $other = User::factory()->create(['role' => User::ROLE_STAFF, 'status' => User::STATUS_ACTIVE, 'name' => 'Jose']);
+
+        $this->actingAs($this->staff)
+            ->postJson('/api/restock-requests', ['productId' => 'PRD-N1', 'note' => 'Size L'])
+            ->assertCreated()
+            ->assertJsonPath('mine', true);
+        $this->actingAs($other)
+            ->postJson('/api/restock-requests', ['productId' => 'PRD-N1', 'note' => 'Black, 10 units'])
+            ->assertCreated()
+            ->assertJsonPath('requestedBy', 'Jose');
+
+        $this->assertSame(2, RestockRequest::where('status', RestockRequest::STATUS_OPEN)->count());
+
+        // Each Staff member sees which request is theirs.
+        $list = $this->actingAs($other)->getJson('/api/restock-requests')->assertOk()->assertJsonCount(2)->json();
+        $this->assertSame(['Jose'], array_values(array_map(fn ($r) => $r['requestedBy'], array_filter($list, fn ($r) => $r['mine']))));
+    }
+
+    public function test_closing_one_request_closes_every_request_for_that_product(): void
+    {
+        $other = User::factory()->create(['role' => User::ROLE_STAFF, 'status' => User::STATUS_ACTIVE]);
+        $id = $this->actingAs($this->staff)->postJson('/api/restock-requests', ['productId' => 'PRD-N1'])->json('id');
+        $this->actingAs($other)->postJson('/api/restock-requests', ['productId' => 'PRD-N1'])->assertCreated();
+
+        $this->actingAs($this->admin)->putJson("/api/restock-requests/{$id}/done")->assertOk()->assertJsonPath('status', 'done');
+
+        $this->assertSame(0, RestockRequest::where('status', RestockRequest::STATUS_OPEN)->count());
+        $this->actingAs($this->admin)->getJson('/api/restock-requests')->assertJsonCount(0);
+    }
+
     public function test_admin_can_close_it_but_staff_cannot(): void
     {
         $id = $this->actingAs($this->staff)->postJson('/api/restock-requests', ['productId' => 'PRD-N1'])->json('id');

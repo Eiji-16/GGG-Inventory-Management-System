@@ -27,8 +27,10 @@ class SafetyStockController extends Controller
         $products = Product::with(['safetyStock', 'supplier'])->withoutPhoto()->orderBy('name')->get();
         // Speed: every product's annual demand in one query.
         $reorderPoints->preload($products);
+        // Used when neither the policy nor the supplier has a lead time (2026-11-11).
+        $defaultLeadTime = \App\Models\AppSetting::defaultLeadTimeDays();
 
-        return response()->json($products->map(function (Product $product) use ($reorderPoints) {
+        return response()->json($products->map(function (Product $product) use ($reorderPoints, $defaultLeadTime) {
             $policy = $product->safetyStock;
             $hasPolicy = $policy !== null;
 
@@ -42,6 +44,7 @@ class SafetyStockController extends Controller
                 'leadTimeDays' => $policy?->lead_time_days,
                 'supplierName' => $product->supplier?->name,
                 'supplierLeadTimeDays' => $product->supplier?->lead_time_days,
+                'defaultLeadTimeDays' => $defaultLeadTime,
                 'demandFromHistory' => $reorderPoints->annualDemand($product),
                 'reorderPoint' => $reorderPoints->forProduct($product),
                 'statusMode' => $policy?->status_mode ?? ($hasPolicy ? 'auto' : 'manual'),

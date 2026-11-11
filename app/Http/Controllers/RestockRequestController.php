@@ -11,6 +11,7 @@ use Illuminate\Validation\Rule;
 
 /**
  * Restock requests (Staff "Notify" in Reorder Alerts).
+ * Each Staff member can have one open request per product (2026-11-11).
  *
  * GET  /api/restock-requests           open requests (bell + Reorder Alerts)
  * POST /api/restock-requests           send one: productId + optional note
@@ -44,9 +45,12 @@ class RestockRequestController extends Controller
         $product = Product::where('code', $data['productId'])->firstOrFail();
         $note = trim((string) ($data['note'] ?? '')) ?: null;
 
-        // One open request per product: a second Notify just updates the note,
-        // so Admins don't get the same alert twice.
+        // 2026-11-11: each Staff member can have their own open request for
+        // a product (different Staff may have different customers/notes).
+        // The SAME person pressing Request again just updates their note,
+        // so Admins don't get the same alert twice from one person.
         $existing = RestockRequest::where('product_id', $product->id)
+            ->where('requested_by', $request->user()->id)
             ->where('status', RestockRequest::STATUS_OPEN)
             ->first();
         if ($existing) {
@@ -77,11 +81,9 @@ class RestockRequestController extends Controller
     public function done(Request $request, RestockRequest $restockRequest): JsonResponse
     {
         if ($restockRequest->status === RestockRequest::STATUS_OPEN) {
-            $restockRequest->update([
-                'status'      => RestockRequest::STATUS_DONE,
-                'resolved_by' => $request->user()->id,
-                'resolved_at' => now(),
-            ]);
+            // 2026-11-11: "Close request" closes every open request for that
+            // product (one per Staff member), like a delivery does.
+            RestockRequest::closeForProduct($restockRequest->product_id, $request->user()->id);
             $name = $restockRequest->product?->name ?? 'a product';
             ActivityLog::record('restock.done', "Closed the restock request for {$name}", 'boxes', [
                 'productId' => $restockRequest->product?->code,
@@ -107,6 +109,24 @@ class RestockRequestController extends Controller
             ->filter()
             ->unique();
 
+        // 2026-11-11: details for the email — how urgent it is (status) and
+        // the levels, supplier and lead time, so an Admin can act from it.
+        $details = [];
+        try {
+            $reorder = app(\App\Services\ReorderPointService::class);
+            $points = $reorder->statusPoints($product);
+            $details = [
+                'status' => $reorder->statusFor($product),
+                'lowPoint' => $points['low'],
+                'criticalPoint' => $points['critical'],
+                'leadTimeDays' => $reorder->leadTimeDays($product),
+            ];
+        } catch (\Throwable $exception) {
+            // The email still goes out with the basic details.
+        }
+        $supplier = $product->supplier;
+        $requestedAt = \App\Services\SalesForecastService::shopNow()->format('M j, Y · g:i A');
+
         $sent = 0;
         foreach ($admins as $email) {
             try {
@@ -116,6 +136,15 @@ class RestockRequestController extends Controller
                     $product->stock_on_hand !== null ? (int) $product->stock_on_hand : null,
                     $requester?->name ?: 'A staff member',
                     $note,
+                    status: $details['status'] ?? null,
+                    lowPoint: $details['lowPoint'] ?? null,
+                    criticalPoint: $details['criticalPoint'] ?? null,
+                    category: $product->category ?: null,
+                    supplierName: $supplier?->name ?: null,
+                    supplierContact: $supplier?->contact ?: null,
+                    leadTimeDays: $details['leadTimeDays'] ?? null,
+                    requesterEmail: $requester?->email ?: null,
+                    requestedAt: $requestedAt,
                 ));
                 $sent++;
             } catch (\Throwable $exception) {
@@ -137,6 +166,8 @@ class RestockRequestController extends Controller
             'stock'       => $r->product?->stock_on_hand,
             'note'        => $r->note,
             'requestedBy' => $r->requester?->name ?? 'A staff member',
+            // True when the signed-in user sent this request (2026-11-11).
+            'mine'        => auth()->id() !== null && (int) $r->requested_by === (int) auth()->id(),
             'status'      => $r->status,
             'createdAt'   => $r->created_at?->toIso8601String(),
         ];

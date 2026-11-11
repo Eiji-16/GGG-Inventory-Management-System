@@ -116,8 +116,8 @@ class DemandReorderService
     {
         $stock = (int) $product->stock_on_hand;
         $safetyStock = (int) ($product->safetyStock?->safety_stock ?? self::DEFAULT_SAFETY_STOCK);
-        $leadTime = $product->safetyStock?->lead_time_days ?? $product->supplier?->lead_time_days;
-        $leadTime = $leadTime === null ? null : (int) $leadTime;
+        // Same lead time as the reorder point (includes the default from Settings).
+        $leadTime = $this->reorderPoints->leadTimeDays($product);
 
         try {
             $forecast = $this->forecasts->forecast($product, 'month');

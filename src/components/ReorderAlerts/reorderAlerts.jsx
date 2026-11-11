@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import MarqueeText from '../../utils/marqueeText';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, BellRing, Calculator, Check, ClipboardList, FileText, PackageCheck, PackageX, Search, X } from 'lucide-react';
@@ -18,6 +18,85 @@ import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
 /* canNotify / canManageRequests come from Role Access ("Send restock
    requests" / "See and close restock requests"); the server checks the same
    boxes. onRequestsChanged lets the bell refresh right away. */
+/* ===== STAFF REQUEST NOTE ICON (2026-11-11) =====
+   A small bell icon beside the status badge. Hover it (or tap / Tab to it)
+   to see who requested the restock and their note (every Staff member who
+   requested it, with a number on the bell when there is more than one), in a pop-up on top of
+   the page, so the long note no longer fills the Status column. */
+function RequestNoteTip({ requests }) {
+  const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState(null);
+  const iconRef = useRef(null);
+  const tipRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const update = () => {
+      const icon = iconRef.current;
+      const tip = tipRef.current;
+      if (!icon || !tip) return;
+      const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+      const rect = icon.getBoundingClientRect();
+      const width = tip.offsetWidth * zoom;
+      const height = tip.offsetHeight * zoom;
+      const gap = 8 * zoom;
+      let top = rect.top - gap - height;              // above the icon
+      if (top < 8) top = rect.bottom + gap;            // no room: below it
+      const left = Math.max(8, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - 8));
+      setPlace({ top: top / zoom, left: left / zoom });
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [open]);
+
+  const label = requests
+    .map((request) => `Requested by ${request.requestedBy}${request.note ? `: “${request.note}”` : ''}`)
+    .join('. ');
+  return (
+    <>
+      <button
+        ref={iconRef}
+        type="button"
+        className={`ra-request-icon${open ? ' is-open' : ''}`}
+        aria-label={label}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false); }}
+      >
+        <BellRing size={12} aria-hidden="true" />
+        {requests.length > 1 && <span className="ra-request-count">{requests.length}</span>}
+      </button>
+      {open && createPortal(
+        <div
+          ref={tipRef}
+          className="ra-request-tip"
+          role="tooltip"
+          style={place ? { top: place.top, left: place.left } : { visibility: 'hidden' }}
+        >
+          {requests.map((request) => (
+            <span key={request.id} className="ra-request-tip-item">
+              <span className="ra-request-tip-title">
+                <BellRing size={11} aria-hidden="true" /> Requested by {request.requestedBy}
+              </span>
+              {request.note
+                ? <span className="ra-request-tip-note">“{request.note}”</span>
+                : <span className="ra-request-tip-empty">No note</span>}
+            </span>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
 export default function ReorderAlerts({
   onNavigate,
   safetyStock = SAFETY_STOCK_DEFAULTS,
@@ -71,8 +150,13 @@ export default function ReorderAlerts({
     return () => window.clearInterval(timer);
   }, [showRequests, catalogRevision]); // loadRequests only reads current props/state
 
-  const requestByProduct = useMemo(
-    () => Object.fromEntries(requests.map((request) => [request.productId, request])),
+  /* 2026-11-11: each Staff member can request the same product, so a
+     product can have several open requests: { "P-001": [request, …] }. */
+  const requestsByProduct = useMemo(
+    () => requests.reduce((map, request) => {
+      (map[request.productId] ||= []).push(request);
+      return map;
+    }, {}),
     [requests],
   );
 
@@ -412,15 +496,14 @@ export default function ReorderAlerts({
                   <td data-label="Reorder Point" className="ra-num">{item.reorderPoint}</td>
                   <td className="m-peek" data-label="Status">
                     <span className="ra-status-cell">
-                      <span className={`ra-status ${item.status === 'Out of Stock' ? 'is-out' : 'is-low'}`} title={`Low at ${item.points.low}${item.points.mode === 'manual' ? ' (set manually)' : ''} · safety stock ${item.safety}`}>
-                        <AlertTriangle size={11} aria-hidden="true" /> {item.status}
+                      <span className="ra-status-row">
+                        <span className={`ra-status ${item.status === 'Out of Stock' ? 'is-out' : 'is-low'}`} title={`Low at ${item.points.low}${item.points.mode === 'manual' ? ' (set manually)' : ''} · safety stock ${item.safety}`}>
+                          <AlertTriangle size={11} aria-hidden="true" /> {item.status}
+                        </span>
+                        {requestsByProduct[item.id] && (
+                          <RequestNoteTip requests={requestsByProduct[item.id]} />
+                        )}
                       </span>
-                      {requestByProduct[item.id] && (
-                        <small className="ra-request-info">
-                          <BellRing size={10} aria-hidden="true" /> Requested by {requestByProduct[item.id].requestedBy}
-                          {requestByProduct[item.id].note ? `: “${requestByProduct[item.id].note}”` : ''}
-                        </small>
-                      )}
                       {savedReports[item.id] && (
                         <small className="ra-report-info" title={`Owner's quantity ${savedReports[item.id].qty}${savedReports[item.id].savedBy ? ` · saved by ${savedReports[item.id].savedBy}` : ''}`}>
                           <FileText size={10} aria-hidden="true" /> In Restock Report{reportDate(savedReports[item.id]) ? ` (${reportDate(savedReports[item.id])})` : ''}, waiting for delivery
@@ -436,24 +519,34 @@ export default function ReorderAlerts({
                         </button>
                       )}
                       {canReceive && (
-                        <button type="button" className="ra-order-btn ra-receive-btn" onClick={() => setReceiveItem(item)} aria-label={`Received: ${item.name}`} title="The delivery arrived: add a proof photo and record it as a Stock In">
-                          <PackageCheck size={13} aria-hidden="true" /> <span className="ra-btn-label">Received</span>
+                        <button type="button" className="ra-order-btn ra-receive-btn ra-icon-btn" onClick={() => setReceiveItem(item)} aria-label={`Received: ${item.name}`} title="Received — the delivery arrived: add a proof photo and record it as a Stock In">
+                          <PackageCheck size={15} aria-hidden="true" />
                         </button>
                       )}
-                      {canManageRequests && requestByProduct[item.id] && (
-                        <button type="button" className="ra-order-btn" onClick={() => markDone(requestByProduct[item.id])} title="Close this request without a delivery (for example, the product will not be restocked). A delivery recorded with Received closes it by itself.">
-                          <X size={13} aria-hidden="true" /> <span className="ra-btn-label">Close request</span>
-                        </button>
+                      {/* Last slot keeps the same width in every row (2026-11-11), so the
+                          buttons before it line up from row to row. */}
+                      {canManageRequests && (
+                        <span className="ra-action-slot is-close">
+                          {requestsByProduct[item.id] && (
+                            <button type="button" className="ra-order-btn ra-icon-btn ra-close-btn" onClick={() => markDone(requestsByProduct[item.id][0])} aria-label={`Close request: ${item.name}`} title="Close request — closes the request(s) for this product without a delivery (for example, the product will not be restocked). A delivery recorded with Received closes them by itself.">
+                              <X size={15} aria-hidden="true" />
+                            </button>
+                          )}
+                        </span>
                       )}
-                      {canNotify && !canManageRequests && (requestByProduct[item.id] ? (
-                        <span className="ra-notified"><Check size={12} aria-hidden="true" /> Requested</span>
-                      ) : savedReports[item.id] ? (
-                        <span className="ra-notified ra-waiting" title="This product is in a saved Restock Report. The label goes away when the delivery is recorded."><FileText size={12} aria-hidden="true" /> Waiting for delivery</span>
-                      ) : (
-                        <button type="button" className="ra-order-btn" onClick={() => openNotify(item)} aria-label={`Request restock: ${item.name}`} title="Ask the Admins to restock this product (email + notification)">
-                          <BellRing size={13} aria-hidden="true" /> <span className="ra-btn-label">Request</span>
-                        </button>
-                      ))}
+                      {canNotify && !canManageRequests && (
+                        <span className="ra-action-slot is-request">
+                          {requestsByProduct[item.id]?.some((request) => request.mine) ? (
+                            <span className="ra-notified"><Check size={12} aria-hidden="true" /> Requested</span>
+                          ) : savedReports[item.id] ? (
+                            <span className="ra-notified ra-waiting" title="This product is in a saved Restock Report. The label goes away when the delivery is recorded."><FileText size={12} aria-hidden="true" /> Waiting for delivery</span>
+                          ) : (
+                            <button type="button" className="ra-order-btn" onClick={() => openNotify(item)} aria-label={`Request restock: ${item.name}`} title="Ask the Admins to restock this product (email + notification)">
+                              <BellRing size={13} aria-hidden="true" /> <span className="ra-btn-label">Request</span>
+                            </button>
+                          )}
+                        </span>
+                      )}
                       {!canOpenCalculator && !canNotify && !canManageRequests && !canReceive && <span className="ra-muted">—</span>}
                     </span>
                   </td>

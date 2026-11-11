@@ -107,7 +107,7 @@ function MovementChartCard({ rows, loading, onOpen }) {
   // The Bar / Line switch changes the chart only; it doesn't open the report.
   const pick = (type) => (event) => { event.stopPropagation(); setChartType(type); };
   return (
-    <div className="r-chart-card r-overall-chart r-clickable" {...clickableProps(onOpen, 'Stock Movement report')}>
+    <div className="r-chart-card r-overall-chart r-clickable r-feature-card" {...clickableProps(onOpen, 'Stock Movement report')}>
       <div className="r-chart-card-head">
         <h3>Stock In vs Stock Out — last {rows.length || 8} weeks</h3>
         <div className="r-chart-head-right">

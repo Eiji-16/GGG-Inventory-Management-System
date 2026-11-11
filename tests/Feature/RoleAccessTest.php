@@ -26,6 +26,7 @@ class RoleAccessTest extends TestCase
         $this->assertTrue($defaults['admin']['products.create']);
         $this->assertTrue($defaults['admin']['calculator.use']);
         $this->assertTrue($defaults['admin']['stock.clear']);
+        $this->assertFalse($defaults['admin']['settings.currency']);   // 2026-11-11
 
         $this->assertTrue($defaults['staff']['stock.view']);
         $this->assertTrue($defaults['staff']['stock.delete']);

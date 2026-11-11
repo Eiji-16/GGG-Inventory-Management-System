@@ -1912,6 +1912,12 @@ body {
     pointer-events: none;
 }
 
+/* 2026-11-11: the Staffs button (sidebar footer) shows the same badge when
+   account requests are waiting, so it needs to be the badge's anchor too. */
+.sidebar-footer-item .siderbar-item button {
+    position: relative;
+}
+
 /* ===== KEEP WIDE PAGES INSIDE THE VIEWPORT =====
    Flex children default to min-width:auto, so a wide table or tab bar
    stretched the whole shell past the screen. min-width:0 lets those

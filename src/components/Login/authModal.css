@@ -42,7 +42,7 @@
     padding: 26px 28px 24px;
     background: #fff;
     border: 1px solid rgba(19, 32, 63, 0.08);
-    border-top: 4px solid var(--am-gold);
+    /* No coloured stripe on top (2026-11-11 rule: never use it). */
     border-radius: 20px;
     box-shadow: 0 30px 80px -24px rgba(10, 21, 48, 0.55);
     animation: am-pop 0.28s var(--am-ease) both;
@@ -446,3 +446,17 @@
 }
 .am-next strong { color: var(--am-ink); }
 .am-body > .am-primary { width: 100%; }
+
+/* 2026-11-11: Chrome's autofill painted the text white (and a grey box) in
+   these windows (Request access, Forgot password, Account setup). Keep the
+   normal dark text and the box's own light background. */
+.am-input input:-webkit-autofill,
+.am-input input:-webkit-autofill:hover,
+.am-input input:-webkit-autofill:focus,
+.am-input input:-webkit-autofill:active {
+    -webkit-text-fill-color: var(--am-ink) !important;
+    caret-color: var(--am-ink);
+    -webkit-box-shadow: 0 0 0 1000px var(--am-soft) inset !important;
+    box-shadow: 0 0 0 1000px var(--am-soft) inset !important;
+    transition: background-color 9999s ease-out 0s;
+}

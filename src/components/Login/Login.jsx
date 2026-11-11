@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import ResetPass from './ResetPass/resetPass';
 import TwoFactorPrompt from './TwoFactorPrompt';
+import TwoFactorSetupPrompt from './TwoFactorSetupPrompt';
 import RequestAccess from './RequestAccess';
 import { useSystemName } from '../../systemName';
 
@@ -33,6 +34,8 @@ function Login({ onLogin }) {
     const [capsLockOn, setCapsLockOn] = useState(false);
     // 2FA: email waiting for its authenticator code (null = not needed).
     const [twoFactorEmail, setTwoFactorEmail] = useState(null);
+    // 2026-11-11: the account must connect an authenticator app now (Settings).
+    const [twoFactorSetup, setTwoFactorSetup] = useState(null);
     const [showRequestAccess, setShowRequestAccess] = useState(false);
 
     async function handleSubmit(e) {
@@ -72,6 +75,12 @@ function Login({ onLogin }) {
             const csrfMeta = document.querySelector('meta[name="csrf-token"]');
             if (csrfMeta && data.csrfToken) {
                 csrfMeta.content = data.csrfToken;
+            }
+
+            // Password OK, but the account must connect an authenticator app first.
+            if (data.twoFactorSetupRequired) {
+                setTwoFactorSetup({ email: String(email), twoFactor: data.twoFactor });
+                return;
             }
 
             // Password OK, but this account also needs its authenticator code.
@@ -243,6 +252,14 @@ function Login({ onLogin }) {
             )}
             {showRequestAccess && (
                 <RequestAccess onClose={() => setShowRequestAccess(false)} />
+            )}
+            {twoFactorSetup && (
+                <TwoFactorSetupPrompt
+                    email={twoFactorSetup.email}
+                    twoFactor={twoFactorSetup.twoFactor}
+                    onSuccess={(user) => { setTwoFactorSetup(null); onLogin(user); }}
+                    onCancel={(message) => { setTwoFactorSetup(null); setError(message || ''); }}
+                />
             )}
             {twoFactorEmail && (
                 <TwoFactorPrompt

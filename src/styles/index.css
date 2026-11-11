@@ -643,3 +643,14 @@ html .dashboard-page-wrapper {
     }
     table.m-folders > tbody[data-masonry] > tr { margin-bottom: 0 !important; }
 }
+
+/* 2026-11-11: autofill safety rule for every other box in the system —
+   the browser's autofill keeps the theme's text colour (not white on a
+   light box). :where() keeps it weaker than any page's own rule. */
+:where(input):-webkit-autofill,
+:where(input):-webkit-autofill:hover,
+:where(input):-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--text-primary);
+    caret-color: var(--text-primary);
+    transition: background-color 9999s ease-out 0s;
+}

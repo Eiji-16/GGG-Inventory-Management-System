@@ -27,6 +27,7 @@ import { CURRENCIES, useCurrency } from '../../CurrencyContext';
 import CustomSelect from '../Forecasting/CustomSelect';
 import RoleAccess from './roleAccess';
 import SystemData from './systemData';
+import SystemRules from './systemRules';
 import apiFetch from '../../apiFetch';
 import { DEFAULT_SYSTEM_NAME, SYSTEM_NAME_MAX, setSystemName, useSystemName } from '../../systemName';
 
@@ -161,7 +162,10 @@ function Settings({
      time is the override if set, else the supplier's. */
   const previewFor = (row) => {
     const safety = Number(row.safetyStock) || 0;
-    const lead = row.leadTimeDays !== '' && row.leadTimeDays != null ? Number(row.leadTimeDays) : row.supplierLeadTimeDays;
+    // Override → supplier → default lead time from "Security and defaults" (2026-11-11).
+    const lead = row.leadTimeDays !== '' && row.leadTimeDays != null
+      ? Number(row.leadTimeDays)
+      : (row.supplierLeadTimeDays ?? row.defaultLeadTimeDays ?? null);
     const daily = (Number(row.demandFromHistory) || 0) / 365;
     if (lead == null || !Number.isFinite(Number(lead)) || daily <= 0) {
       return { point: safety, detail: lead == null ? 'no lead time set' : 'no sales in the last 12 months' };
@@ -410,7 +414,9 @@ function Settings({
           </div>
         </div>
 
-        {/* Currency */}
+        {/* Currency — shown to the Super Admin only (2026-11-11). Admin and
+            Staff still see amounts in the chosen currency everywhere. */}
+        {isSuperAdmin && (
         <div className="s-pref-row s-pref-row-currency">
           <span className="s-pref-icon s-pref-icon-text" aria-hidden="true">{currencySymbol}</span>
           <div className="s-pref-text">
@@ -434,6 +440,7 @@ function Settings({
             options={CURRENCIES.map((option) => ({ value: option.code, label: option.label }))}
           />
         </div>
+        )}
 
         {/* System name (Super Admin only) */}
         {isSuperAdmin && (
@@ -527,6 +534,9 @@ function Settings({
       <div className="s-admin-col">
       {/* ===== ROLE ACCESS (Super Admin only) ===== */}
       <RoleAccess />
+
+      {/* ===== SECURITY AND DEFAULTS (Super Admin only, 2026-11-11) ===== */}
+      <SystemRules />
 
       {/* ===== DATA & SYSTEM: backup, import, reset (Super Admin only) ===== */}
       <SystemData />
@@ -639,7 +649,9 @@ function Settings({
                         aria-label={`Lead time override in days for ${row.productName}`}
                         aria-invalid={Boolean(inputError('leadTimeDays'))}
                         aria-describedby={inputError('leadTimeDays') ? `s-policy-error-${row.productId}-leadTimeDays` : undefined}
-                        placeholder={row.supplierLeadTimeDays != null ? `${row.supplierLeadTimeDays} (supplier)` : 'not set'}
+                        placeholder={row.supplierLeadTimeDays != null
+                          ? `${row.supplierLeadTimeDays} (supplier)`
+                          : row.defaultLeadTimeDays != null ? `${row.defaultLeadTimeDays} (default)` : 'not set'}
                         title={inputError('leadTimeDays') || (row.supplierName ? `Supplier: ${row.supplierName}` : 'No supplier linked')}
                       />
                       {inputError('leadTimeDays') && <small id={`s-policy-error-${row.productId}-leadTimeDays`} className="s-policy-input-error">{inputError('leadTimeDays')}</small>}

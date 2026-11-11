@@ -228,7 +228,8 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
     if (view === 'Dashboard' || view === 'Profile' || view === 'Setting') return true;
     // Super Admin, or an Admin with Role Access "Manage Staff" (Staff accounts only).
     if (view === 'Staffs') return isSuperAdminRole || (role === 'admin' && can('staff.manage'));
-    if (view === 'Trash-Archive') return isSuperAdminRole;
+    // Super Admin, or an Admin with Role Access "Open Trash Bin and restore" (2026-11-11).
+    if (view === 'Trash-Archive') return isSuperAdminRole || (role === 'admin' && can('trash.restore'));
     const key = VIEW_PERMISSION[view];
     return key ? can(key) : false;
   };
@@ -607,8 +608,12 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
      and right away when the Staffs page approves or rejects one. Clicking
      opens Staffs, where the request is approved or rejected. */
   const canSeeAccountRequests = isSuperAdminRole && can('notifications.view');
+  /* 2026-11-11: how many access requests are waiting — shown as a number
+     on the Staffs button in the sidebar (same look as the Reorder List). */
+  const [accountRequestCount, setAccountRequestCount] = useState(0);
   useEffect(() => {
     if (!canSeeAccountRequests) {
+      setAccountRequestCount(0);
       setNotifications((previous) => previous.filter((notification) => !notification.id.startsWith('account-')));
       return undefined;
     }
@@ -629,6 +634,7 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
           read: false,
           kind: 'account',
         }));
+        setAccountRequestCount(items.length);
         const prefs = notificationPreferencesRef.current;
         const readIds = new Set(prefs.readIds);
         const dismissedIds = new Set(prefs.dismissedIds);
@@ -965,15 +971,20 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
 
               {canAccess('Staffs') && (
               <div className={`siderbar-item ${activeView === 'Staffs' ? 'active' : ''}`}>
-                <button onClick={() => handleNavigate('Staffs')} title="Staff-list">
+                <button onClick={() => handleNavigate('Staffs')} title={accountRequestCount ? `${accountRequestCount} account request${accountRequestCount === 1 ? '' : 's'} waiting` : 'Staff-list'}>
                   <UsersRound className="sidebar-icon"/>
                   <span className="sidebar-label">Staffs</span>
+                  {accountRequestCount > 0 && (
+                    <span className="sidebar-count-badge" aria-label={`${accountRequestCount} account request${accountRequestCount === 1 ? '' : 's'} waiting`}>
+                      {accountRequestCount > 99 ? '99+' : accountRequestCount}
+                    </span>
+                  )}
                 </button>
               </div>
               )}
               {canAccess('Trash-Archive') && (
               <div className={`siderbar-item ${activeView === 'Trash-Archive' ? 'active' : ''}`}>
-                <button onClick={() => handleNavigate('Trash-Archive')} title="Trash Bin and Archive">
+                <button onClick={() => handleNavigate('Trash-Archive')} title={isSuperAdminRole ? 'Trash Bin and Archive' : 'Trash Bin'}>
                   <Trash2 className="sidebar-icon"/>
                   <span className="sidebar-label">Trash &amp; Archive</span>
                 </button>
@@ -1042,7 +1053,7 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
                   {activeView === 'Reports' && 'Reports & Analytics'}
 
                   {activeView === 'Staffs' && 'Staffs'}
-                  {activeView === 'Trash-Archive' && 'Trash Bin & Archive'}
+                  {activeView === 'Trash-Archive' && (isSuperAdminRole ? 'Trash Bin & Archive' : 'Trash Bin')}
                   {activeView === 'Setting' && 'Settings'}
                   {activeView === 'Profile' && 'User Profile'}
                 </p>
@@ -1057,7 +1068,7 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
                   {activeView === 'Reports' && 'Review inventory performance, optimization metrics, and forecasting trends'}
 
                   {activeView === 'Staffs' && 'Manage staffs'}
-                  {activeView === 'Trash-Archive' && 'Restore, archive, or permanently delete records'}
+                  {activeView === 'Trash-Archive' && (isSuperAdminRole ? 'Restore, archive, or permanently delete records' : 'Restore deleted records')}
                   {activeView === 'Setting' && 'Manage your workspace preferences'}
                   {activeView === 'Profile' && 'View and manage your accounts details'}
                 </p>
@@ -1323,6 +1334,7 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
                     isActive={activeView === 'Trash-Archive'}
                     refreshKey={`${policyRefreshKey}-${dataRevision}`}
                     onRestored={() => setPolicyRefreshKey((key) => key + 1)}
+                    restoreOnly={!isSuperAdminRole}
                   />
                 </div>
               )}

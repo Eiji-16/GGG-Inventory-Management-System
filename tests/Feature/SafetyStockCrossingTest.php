@@ -104,4 +104,54 @@ class SafetyStockCrossingTest extends TestCase
         $this->sell($product, 1)->assertCreated();       // → 5: Critical
         $this->getJson('/api/reports')->assertOk()->assertJsonPath('reorderPoint.rows.0.urgency', 'Critical');
     }
+
+    /* ===== Stock alert email to the Super Admin (2026-11-11) ===== */
+
+    private function manualProduct(int $stock): Product
+    {
+        $product = Product::create(['code' => 'PRD-ALERT', 'name' => 'SonicPulse Headphones', 'stock_on_hand' => $stock]);
+        SafetyStock::create([
+            'product_id' => $product->id, 'safety_stock' => 5, 'lead_time_days' => 7,
+            'status_mode' => 'manual', 'low_point' => 10, 'critical_point' => 5,
+        ]);
+
+        return $product;
+    }
+
+    public function test_super_admin_gets_one_email_each_time_the_status_gets_worse(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+        $boss = \App\Models\User::factory()->create(['role' => \App\Models\User::ROLE_SUPER_ADMIN, 'status' => \App\Models\User::STATUS_ACTIVE, 'email' => 'owner@example.com']);
+        \App\Models\User::factory()->create(['role' => \App\Models\User::ROLE_ADMIN, 'status' => \App\Models\User::STATUS_ACTIVE, 'email' => 'admin@example.com']);
+        $product = $this->manualProduct(12);
+
+        $this->sell($product, 3)->assertCreated();   // 12 → 9: Low
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\StockAlertMail::class, 1);
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\StockAlertMail::class, fn ($mail) => $mail->hasTo('owner@example.com') && $mail->status === 'low' && $mail->stock === 9);
+        \Illuminate\Support\Facades\Mail::assertNotSent(\App\Mail\StockAlertMail::class, fn ($mail) => $mail->hasTo('admin@example.com'));
+
+        $this->sell($product, 1)->assertCreated();   // 9 → 8: still Low, no new email
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\StockAlertMail::class, 1);
+
+        $this->sell($product, 4)->assertCreated();   // 8 → 4: Critical
+        $this->sell($product, 4)->assertCreated();   // 4 → 0: Out
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\StockAlertMail::class, 3);
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\StockAlertMail::class, fn ($mail) => $mail->status === 'out' && $mail->stock === 0);
+        $this->assertSame($boss->email, 'owner@example.com');
+    }
+
+    public function test_no_stock_alert_email_when_stock_stays_healthy_or_goes_up(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+        \App\Models\User::factory()->create(['role' => \App\Models\User::ROLE_SUPER_ADMIN, 'status' => \App\Models\User::STATUS_ACTIVE]);
+        $product = $this->manualProduct(30);
+
+        $this->sell($product, 5)->assertCreated();   // 30 → 25: still Healthy
+        $this->postJson('/api/stock-movements', [
+            'unitPrice' => 10,
+            'productId' => $product->code, 'type' => 'Stock In', 'qty' => 5, 'date' => now()->toDateString(),
+        ])->assertCreated();
+
+        \Illuminate\Support\Facades\Mail::assertNothingSent();
+    }
 }

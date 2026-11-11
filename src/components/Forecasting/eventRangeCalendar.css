@@ -1,0 +1,131 @@
+/* ===== DATE CALENDAR (2026-11-11) =====
+   Used by EventRangeCalendar.jsx: Seasonal Adjustments event dates (range)
+   and the Stock Control date box (single day). Moved here from
+   forecasting.css so every page that uses the calendar gets its styles. */
+.f-rcal {
+    box-sizing: border-box;
+    width: min(320px, 100%);
+    padding: 12px;
+    background: var(--input-bg, var(--static-bg-color));
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+.f-rcal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.f-rcal-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.f-rcal-nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    color: var(--text-primary);
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.f-rcal-nav:hover,
+.f-rcal-nav:focus-visible { background: var(--overlay-medium, rgba(127, 127, 127, 0.14)); outline: none; }
+
+.f-rcal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    row-gap: 2px;
+}
+.f-rcal-weekday {
+    padding: 4px 0;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+}
+.f-rcal-day {
+    height: 34px;
+    padding: 0;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.f-rcal-day:hover { background: var(--overlay-medium, rgba(127, 127, 127, 0.14)); }
+.f-rcal-day:focus-visible { outline: 2px solid var(--btn-fill-bg, var(--accent)); outline-offset: -2px; }
+.f-rcal-day.is-outside { color: var(--text-muted); opacity: 0.55; }
+.f-rcal-day.is-today { box-shadow: inset 0 0 0 1px var(--btn-fill-bg, var(--accent)); }
+
+/* Days the event covers: one light band from start to end. */
+.f-rcal-day.is-between {
+    color: var(--text-primary);
+    background: var(--background-icon-active-color-theme, var(--accent-ring, rgba(127, 127, 127, 0.16)));
+    border-radius: 0;
+    opacity: 1;
+}
+.f-rcal-day.is-start,
+.f-rcal-day.is-end {
+    color: var(--btn-fill-text, #fff);
+    font-weight: 800;
+    background: var(--btn-fill-bg, var(--accent));
+    opacity: 1;
+}
+.f-rcal-day.is-start { border-radius: 8px 0 0 8px; }
+.f-rcal-day.is-end { border-radius: 0 8px 8px 0; }
+.f-rcal-day.is-single { border-radius: 8px; }
+.f-rcal-day.is-start:hover,
+.f-rcal-day.is-end:hover { background: var(--btn-fill-bg, var(--accent)); }
+
+.f-rcal-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 10px;
+}
+.f-rcal-count { color: var(--text-muted); font-size: 12px; font-weight: 600; }
+.f-rcal-link {
+    padding: 4px 6px;
+    color: var(--info-color, var(--text-primary));
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.f-rcal-link:hover,
+.f-rcal-link:focus-visible { background: var(--overlay-medium, rgba(127, 127, 127, 0.14)); outline: none; }
+@media (max-width: 560px) {
+    .f-rcal { width: 100%; }
+}
+
+/* 2026-11-11: the event calendar floats ON TOP of everything like a layer
+   (drawn on the page body, placed under the date boxes by EventRangeCalendar.jsx),
+   so it never pushes the fields down and is never cut off by the pop-up. */
+.f-rcal.f-rcal-floating {
+    position: fixed;
+    z-index: 1100;
+    width: 320px;
+    max-width: calc(100vw - 16px);
+    color: var(--text-primary);
+    background: var(--bg-card);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.36);
+}
+
+/* Single-day mode: days after the limit (e.g. future days in Stock Control). */
+.f-rcal-day.is-disabled,
+.f-rcal-day.is-disabled:hover {
+    color: var(--text-muted);
+    background: transparent;
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+.f-rcal-link-gap { width: 1px; }

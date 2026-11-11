@@ -24,6 +24,11 @@ Route::get('/branding/name', [SystemNameController::class, 'show']);
 
 // 2FA: second step of signing in (authenticator-app code).
 Route::post('/auth/two-factor', [AuthController::class, 'verifyTwoFactor'])->middleware('throttle:10,1,two-factor');
+// 2026-11-11: connect the authenticator app at sign-in (when Settings requires it).
+Route::post('/auth/two-factor/setup', [AuthController::class, 'setupTwoFactor'])->middleware('throttle:10,1,two-factor-setup');
+// 2026-11-11: can't use the phone? Email a sign-in code instead (after the correct password).
+Route::post('/auth/two-factor/email', [AuthController::class, 'sendTwoFactorEmailCode'])->middleware('throttle:3,1,two-factor-email');
+Route::post('/auth/two-factor/email/verify', [AuthController::class, 'verifyTwoFactorEmailCode'])->middleware('throttle:10,1,two-factor-email-verify');
 
 // Account registration: request (login page) and the emailed setup link.
 Route::post('/auth/account-request', [\App\Http\Controllers\AccountRequestController::class, 'store'])->middleware('throttle:5,10,account-request');

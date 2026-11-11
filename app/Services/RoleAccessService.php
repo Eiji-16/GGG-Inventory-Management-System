@@ -107,6 +107,12 @@ class RoleAccessService
         // Super Admins, never roles). Staff can never get it.
         'staff.manage' => ['code' => 'mm', 'group' => 'Manage Staff', 'label' => 'Open Manage Staff: add, deactivate, reactivate, move Staff accounts to Trash, and change photos', 'roles' => [User::ROLE_ADMIN]],
 
+        // Trash Bin (2026-11-11): only for Admin, off by default. Open the
+        // Trash Bin and RESTORE deleted products, stock entries, suppliers
+        // and seasonal events. Accounts, the Archive and permanent delete
+        // stay Super Admin only (checked in TrashBinController).
+        'trash.restore' => ['code' => 'tr', 'group' => 'Trash Bin', 'label' => 'Open Trash Bin and restore deleted products, stock entries, suppliers and seasonal events (Archive and permanent delete stay Super Admin only)', 'roles' => [User::ROLE_ADMIN]],
+
         // Other
         'notifications.view' => ['code' => 'nv', 'group' => 'Other', 'label' => 'Notification bell'],
         'settings.currency'  => ['code' => 'sc', 'group' => 'Other', 'label' => 'Change currency'],
@@ -134,8 +140,11 @@ class RoleAccessService
         'notifications.view',
     ];
 
-    /** Manage Staff starts off until the Super Admin turns it on. */
-    private const ADMIN_OFF = ['staff.manage'];
+    /** Manage Staff starts off until the Super Admin turns it on.
+     *  Change currency is off for Admin too (2026-11-11: the currency is the
+     *  Super Admin's choice; the box can still be turned on in Role Access).
+     *  Trash Bin restore is off for Admin until the Super Admin ticks it. */
+    private const ADMIN_OFF = ['staff.manage', 'settings.currency', 'trash.restore'];
 
     /** @return array{admin: array<string,bool>, staff: array<string,bool>} */
     public static function defaults(): array

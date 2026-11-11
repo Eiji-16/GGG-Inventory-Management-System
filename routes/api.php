@@ -14,6 +14,7 @@ use App\Http\Controllers\SeasonalEventController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\SystemDataController;
+use App\Http\Controllers\SystemPreferencesController;
 use App\Http\Controllers\TrashBinController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +24,10 @@ Route::middleware(['web', 'auth', 'active'])->group(function (): void {
     Route::put('/role-access', [RoleAccessController::class, 'update']);
 
     Route::put('/settings/currency', [CurrencyPreferenceController::class, 'update'])->middleware('feature:settings.currency');
+    // System rules (2026-11-11): default lead time, required authenticator,
+    // last backup time. Everyone reads; only the Super Admin saves.
+    Route::get('/settings/system', [SystemPreferencesController::class, 'show']);
+    Route::put('/settings/system', [SystemPreferencesController::class, 'update'])->middleware('role:super_admin');
     Route::get('/dashboard/summary', DashboardSummaryController::class);
     Route::get('/reports', [ReportController::class, 'index'])->middleware('feature:reports.view');
     // Tiny "has anything changed?" check used for automatic refresh.
@@ -85,9 +90,12 @@ Route::middleware(['web', 'auth', 'active'])->group(function (): void {
     Route::post('/restock-requests', [RestockRequestController::class, 'store'])->middleware('feature:reorder.notify');
     Route::put('/restock-requests/{restockRequest}/done', [RestockRequestController::class, 'done'])->middleware('feature:reorder.requests');
 
-    // Trash and Archive management is exclusively available to the Super Admin.
-    Route::get('/trash', [TrashBinController::class, 'index'])->middleware('role:super_admin');
-    Route::post('/trash/bulk', [TrashBinController::class, 'bulk'])->middleware('role:super_admin');
+    // Trash Bin: the Super Admin, or an Admin with Role Access "Open Trash Bin
+    // and restore" (2026-11-11). Admins can only see and restore Trash Bin
+    // items (no accounts, no Archive, no permanent delete) — the controller
+    // checks that part.
+    Route::get('/trash', [TrashBinController::class, 'index'])->middleware('feature:trash.restore');
+    Route::post('/trash/bulk', [TrashBinController::class, 'bulk'])->middleware('feature:trash.restore');
 
     // Safety Stock Policy stays Super Admin only (not in Role Access).
     Route::put('/safety-stock', [SafetyStockController::class, 'update'])

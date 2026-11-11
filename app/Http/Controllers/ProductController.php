@@ -414,8 +414,9 @@ class ProductController extends Controller
             // Annual demand = real sales (trailing 12 months); the old typed
             // policy value is no longer used.
             'annualDemand'    => $demandFromHistory ?: null,
-            // Product policy lead time first, then the supplier's lead time.
-            'leadTimeDays'    => $p->safetyStock?->lead_time_days ?? $p->supplier?->lead_time_days,
+            // Product policy lead time first, then the supplier's lead time,
+            // then the default lead time from Settings (2026-11-11).
+            'leadTimeDays'    => $p->safetyStock?->lead_time_days ?? $p->supplier?->lead_time_days ?? $this->defaultLeadTime(),
             'supplierLeadTimeDays' => $p->supplier?->lead_time_days,
             'orderingCost'    => self::canSeeEoqCosts() ? $p->safetyStock?->ordering_cost : null,
             'holdingCost'     => self::canSeeEoqCosts() ? $p->safetyStock?->holding_cost : null,
@@ -450,5 +451,19 @@ class ProductController extends Controller
         $user = auth()->user();
 
         return (bool) ($user?->isAdminOrAbove() || \App\Services\RoleAccessService::allows($user, 'calculator.use'));
+    }
+
+    /** Default lead time from Settings, read once per request (2026-11-11). */
+    private bool $defaultLeadTimeLoaded = false;
+    private ?int $defaultLeadTimeValue = null;
+
+    private function defaultLeadTime(): ?int
+    {
+        if (! $this->defaultLeadTimeLoaded) {
+            $this->defaultLeadTimeValue = \App\Models\AppSetting::defaultLeadTimeDays();
+            $this->defaultLeadTimeLoaded = true;
+        }
+
+        return $this->defaultLeadTimeValue;
     }
 }

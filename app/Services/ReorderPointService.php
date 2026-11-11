@@ -15,7 +15,8 @@ use Illuminate\Support\Carbon;
  * the same rule, so the same sale is never counted twice. (A typed "annual
  * demand" in the safety stock policy was removed because it went stale and
  * overrode real sales.) Lead time is the product's override from the
- * policy, else its supplier's lead time.
+ * policy, else its supplier's lead time, else the default lead time
+ * from Settings (2026-11-11).
  */
 class ReorderPointService
 {
@@ -114,9 +115,24 @@ class ReorderPointService
         return (int) round($units);
     }
 
+    /** Default lead time from Settings, read once per service (2026-11-11). */
+    private ?int $defaultLeadTime = null;
+    private bool $defaultLeadTimeLoaded = false;
+
+    /**
+     * Lead time: the product's policy override, else its supplier's lead
+     * time, else the default lead time from Settings (2026-11-11), else none.
+     */
     public function leadTimeDays(Product $product): ?int
     {
         $leadTime = $product->safetyStock?->lead_time_days ?? $product->supplier?->lead_time_days;
+        if ($leadTime === null) {
+            if (! $this->defaultLeadTimeLoaded) {
+                $this->defaultLeadTime = \App\Models\AppSetting::defaultLeadTimeDays();
+                $this->defaultLeadTimeLoaded = true;
+            }
+            $leadTime = $this->defaultLeadTime;
+        }
 
         return $leadTime === null ? null : (int) $leadTime;
     }

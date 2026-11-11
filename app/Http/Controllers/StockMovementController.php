@@ -392,6 +392,8 @@ class StockMovementController extends Controller
         }
         $points = app(ReorderPointService::class);
         $after = (int) $product->stock_on_hand;
+        // 2026-11-11: email the Super Admin when the stock status gets worse.
+        $this->emailStockAlert($product, $movement, $stockBefore, $after, $points);
         $safety = $points->safetyStock($product);
         $wentOut = $after <= 0 && $stockBefore > 0;
         $wentCritical = $after <= $safety && $stockBefore > $safety;
@@ -416,6 +418,68 @@ class StockMovementController extends Controller
                 'outOfStock' => $wentOut,
             ]
         );
+    }
+
+    /**
+     * ===== STOCK ALERT EMAIL (2026-11-11) =====
+     * When a save makes a product's status WORSE — Healthy → Low,
+     * Low → Critical, or down to Out of stock — email the Super Admin(s)
+     * once for that step, with a "Restock this product" button. Staying at
+     * the same level (another sale while already Low) sends nothing, and a
+     * mail problem never blocks the save (it is written to the log).
+     */
+    private function emailStockAlert(Product $product, StockMovement $movement, int $before, int $after, ReorderPointService $points): void
+    {
+        $rank = ['healthy' => 0, 'low' => 1, 'critical' => 2, 'out' => 3];
+        $statusBefore = $points->statusFor($product, $before);
+        $statusAfter = $points->statusFor($product, $after);
+        if (($rank[$statusAfter] ?? 0) <= ($rank[$statusBefore] ?? 0)) {
+            return;
+        }
+
+        $superAdmins = \App\Models\User::query()
+            ->where('role', \App\Models\User::ROLE_SUPER_ADMIN)
+            ->where('status', \App\Models\User::STATUS_ACTIVE)
+            ->pluck('email')
+            ->filter()
+            ->unique();
+        if ($superAdmins->isEmpty()) {
+            return;
+        }
+
+        $statusPoints = $points->statusPoints($product);
+        // A same-day sale is merged into the existing row: use the units just added.
+        $units = (int) ($movement->mergedAddedQty ?? $movement->qty);
+        $supplier = $product->supplier;
+        $mail = new \App\Mail\StockAlertMail(
+            productName: $product->name,
+            productCode: $product->code,
+            status: $statusAfter,
+            stockBefore: $before,
+            stock: $after,
+            lowPoint: (int) $statusPoints['low'],
+            criticalPoint: (int) $statusPoints['critical'],
+            category: $product->category ?: null,
+            supplierName: $supplier?->name ?: null,
+            supplierContact: $supplier?->contact ?: null,
+            leadTimeDays: $points->leadTimeDays($product),
+            recordedBy: $movement->recorded_by ?: null,
+            change: $movement->movement_type === 'out' && ! $movement->is_adjustment
+                ? 'Sale (Stock Out) of '.$units.' '.($units === 1 ? 'unit' : 'units')
+                : 'Stock Control change',
+            happenedAt: \App\Services\SalesForecastService::shopNow()->format('M j, Y · g:i A'),
+        );
+
+        foreach ($superAdmins as $email) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($email)->send($mail);
+            } catch (\Throwable $exception) {
+                \Illuminate\Support\Facades\Log::warning('Stock alert email could not be sent to the Super Admin. Check the MAIL_* settings in .env.', [
+                    'exception' => $exception->getMessage(),
+                    'product' => $product->code,
+                ]);
+            }
+        }
     }
 
     /** Display name of the signed-in user, used for Recorded By. */

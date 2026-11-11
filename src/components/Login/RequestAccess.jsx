@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Briefcase, CircleAlert, Mail, MailCheck, UserPlus, UserRound, X } from 'lucide-react';
+import { ArrowLeft, CircleAlert, Mail, MailCheck, UserPlus, UserRound, X } from 'lucide-react';
 import './authModal.css';
 
 /* ===== REQUEST ACCOUNT ACCESS (2026-11-03) =====
    Step 1 of account registration. The person sends their work email, full
-   name and department/role (POST /auth/account-request). The Super Admin
+   name (POST /auth/account-request; department/role removed 2026-11-11 —
+   the Super Admin picks the role when approving). The Super Admin
    approves it and the system emails a one-time setup link (24 hours). */
 export default function RequestAccess({ onClose }) {
-    const [form, setForm] = useState({ name: '', email: '', department: '' });
+    const [form, setForm] = useState({ name: '', email: '' });
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
     const [sent, setSent] = useState('');
@@ -32,7 +33,7 @@ export default function RequestAccess({ onClose }) {
             const response = await fetch('/auth/account-request', {
                 method: 'POST',
                 headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken || '' },
-                body: JSON.stringify({ name: form.name.trim(), email: form.email.trim(), department: form.department.trim() }),
+                body: JSON.stringify({ name: form.name.trim(), email: form.email.trim() }),
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
@@ -85,11 +86,6 @@ export default function RequestAccess({ onClose }) {
                             <div className="am-input">
                                 <Mail size={16} aria-hidden="true" />
                                 <input id="am-req-email" type="email" value={form.email} onChange={update('email')} placeholder="name@company.com" autoComplete="email" maxLength={255} required />
-                            </div>
-                            <label className="am-label" htmlFor="am-req-dept">Department / role</label>
-                            <div className="am-input">
-                                <Briefcase size={16} aria-hidden="true" />
-                                <input id="am-req-dept" value={form.department} onChange={update('department')} placeholder="e.g. Sales staff, Warehouse" maxLength={120} required />
                             </div>
                             <button type="submit" className="am-primary" disabled={busy}>
                                 {busy ? <><span className="am-spinner" aria-hidden="true" /> Sending…</> : 'Send request'}

@@ -24,7 +24,9 @@ import CustomSelect from '../Forecasting/CustomSelect';
 
 /* ===== TRASH BIN AND ARCHIVE =====
    Trash items can be restored or archived. Archived items can be restored or
-   permanently deleted. The API is Super Admin-only. */
+   permanently deleted. The Super Admin can do everything; an Admin with
+   Role Access "Open Trash Bin and restore" gets restoreOnly: Trash Bin only
+   (no Archive tab), no Accounts tab, and only the Restore button (2026-11-11). */
 
 const KINDS = [
   { key: 'all', label: 'All', Icon: Trash2 },
@@ -52,7 +54,8 @@ const firstError = (result, fallback) => (
 const keyOf = (item) => `${item.kind}-${item.id}`;
 const signed = (n) => `${n >= 0 ? '+' : '−'}${Math.abs(n)}`;
 
-function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = false }) {
+function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = false, restoreOnly = false }) {
+  const kindTabs = restoreOnly ? KINDS.filter((tab) => tab.key !== 'account') : KINDS;
   const { formatCurrency } = useCurrency();
   // The table stretches to the bottom of the page (no empty space under it).
   const fillTableToBottom = useFillToBottom(4, { shrink: true });   // full page fills the box; a short last page shrinks
@@ -236,6 +239,7 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
 
   return (
     <div className={`sc-table-parent tb-page${embedded ? ' tb-page-embedded' : ''}`}>
+      {!restoreOnly && (
       <div className="tb-tabs tb-space-tabs" role="tablist" aria-label="Retention area">
         <button type="button" role="tab" aria-selected={space === 'trash'} className={space === 'trash' ? 'is-active' : ''} onClick={() => changeSpace('trash')}>
           <Trash2 size={13} aria-hidden="true" /> Trash Bin
@@ -244,10 +248,11 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
           <Archive size={13} aria-hidden="true" /> Archive
         </button>
       </div>
+      )}
 
       <div className="tb-toolbar">
         <div className="tb-tabs" role="tablist" aria-label="What to show">
-          {KINDS.map(({ key, label, Icon }) => (
+          {kindTabs.map(({ key, label, Icon }) => (
             <button
               key={key}
               type="button"
@@ -287,7 +292,7 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
 
       <p className="tb-hint">
         {pagination.total} {pagination.total === 1 ? 'item' : 'items'} shown.
-        <span className="hint-text"> {space === 'trash' ? 'Items can be restored or moved to Archive.' : 'Archived items can be restored or permanently deleted.'}</span>
+        <span className="hint-text"> {restoreOnly ? 'Items can be restored. Only the Super Admin can archive or permanently delete.' : space === 'trash' ? 'Items can be restored or moved to Archive.' : 'Archived items can be restored or permanently deleted.'}</span>
       </p>
 
       {error && !confirm && (
@@ -307,7 +312,7 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
               title={bulkRestorable.length < selectedItems.length ? 'Some ticked stock entries can’t be restored yet and will be skipped' : 'Restore every ticked item'}>
             <RotateCcw size={13} aria-hidden="true" /> Restore{bulkRestorable.length !== selectedItems.length ? ` ${bulkRestorable.length}` : ''}
           </button>
-          {space === 'trash' ? (
+          {restoreOnly ? null : space === 'trash' ? (
             <button type="button" className="sc-add-btn" onClick={() => openConfirm('archive', selectedItems)} disabled={busy}>
               <Archive size={13} aria-hidden="true" /> Archive
             </button>
@@ -384,7 +389,7 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
                       >
                         <RotateCcw size={14} />
                       </button>
-                      {space === 'trash' ? (
+                      {restoreOnly ? null : space === 'trash' ? (
                         <button type="button" className="sc-table-action-btn sc-history-btn" onClick={() => openConfirm('archive', [item])} disabled={busy}
                           title="Move to Archive" aria-label={`Archive ${item.type}: ${item.productName}`}>
                           <Archive size={14} />

@@ -40,6 +40,27 @@ class AppSetting extends Model
     }
 
     /**
+     * Default lead time (2026-11-11, Settings → Safety Stock Policy): days
+     * used when neither the product's policy nor its supplier has a lead
+     * time. Null = not set (then the reorder point is just the safety stock).
+     */
+    public static function defaultLeadTimeDays(): ?int
+    {
+        $value = static::get('default_lead_time_days');
+
+        return $value === null || $value === '' ? null : max(0, min(365, (int) $value));
+    }
+
+    /**
+     * Require the authenticator app for every account (2026-11-11, Settings).
+     * When on, an account without it must set it up at its next sign-in.
+     */
+    public static function requireAuthenticator(): bool
+    {
+        return static::get('require_authenticator') === '1';
+    }
+
+    /**
      * URL of the sidebar picture the Super Admin chose, or null for the
      * default icon. The file lives on the private "local" disk and is served
      * by GET /branding/logo; ?v= changes with each new picture so browsers

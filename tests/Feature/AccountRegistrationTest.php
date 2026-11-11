@@ -69,6 +69,12 @@ class AccountRegistrationTest extends TestCase
         $this->assertDatabaseHas('account_requests', ['email' => 'juan@example.com', 'status' => 'pending', 'department' => 'Sales']);
     }
 
+    public function test_request_works_without_a_department(): void
+    {
+        $this->postJson('/auth/account-request', ['name' => 'Ana Reyes', 'email' => 'ana@example.com'])->assertCreated();
+        $this->assertDatabaseHas('account_requests', ['email' => 'ana@example.com', 'status' => 'pending', 'department' => null]);
+    }
+
     public function test_only_the_company_email_domain_can_request_when_set(): void
     {
         config(['auth.account_request_domains' => ['globalgrowthguide.com']]);

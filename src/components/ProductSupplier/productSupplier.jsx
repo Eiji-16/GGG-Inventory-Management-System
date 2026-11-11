@@ -482,10 +482,29 @@ function ProductSupplier({
   }));
 
   /* ===== SUPPLIER LIST (inline editable rows) ===== */
+  /* 2026-11-11: typing or picking a saved supplier's name fills in its saved
+     contact. Only when the contact box is empty, or still shows the contact
+     of the supplier typed before, so a contact the user typed is never replaced. */
+  const findSavedSupplier = (name) => {
+    const key = String(name || '').trim().toLowerCase();
+    return key ? suppliers.find((saved) => String(saved.name || '').trim().toLowerCase() === key) || null : null;
+  };
   const updateSupplier = (index, field, value) => {
     setFormData((prev) => ({
       ...prev,
-      suppliers: prev.suppliers.map((s, i) => (i === index ? { ...s, [field]: value } : s)),
+      suppliers: prev.suppliers.map((s, i) => {
+        if (i !== index) return s;
+        const next = { ...s, [field]: value };
+        if (field === 'name') {
+          const before = findSavedSupplier(s.name);
+          const match = findSavedSupplier(value);
+          const contact = String(s.contact || '').trim();
+          const filledBefore = contact === '' || (before && contact === String(before.contact || '').trim());
+          if (match && match.contact && filledBefore) next.contact = match.contact;
+          else if (!match && before && contact !== '' && contact === String(before.contact || '').trim()) next.contact = '';
+        }
+        return next;
+      }),
     }));
   };
 
@@ -1338,7 +1357,7 @@ function ProductSupplier({
                       ))}
                     </datalist>
                     <p className="ps-field-note">
-                      Edit the supplier directly, or start typing to reuse a saved one. This supplier
+                      Edit the supplier directly, or start typing to reuse a saved one (its saved contact fills in). This supplier
                       is used by Stock Movement and the Economic Order Quantity Calculator when a reorder is raised.
                     </p>
                   </div>

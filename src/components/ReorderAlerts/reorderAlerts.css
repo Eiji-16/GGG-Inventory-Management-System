@@ -35,7 +35,6 @@
     display: grid;
     gap: 4px;
     padding: 14px 16px;
-    border-top: 3px solid var(--border-color);
 }
 
 .ra-kpi strong {
@@ -43,9 +42,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-.ra-kpi-out { border-top-color: var(--accent-low); }
 .ra-kpi-out strong { color: var(--accent-low); }
-.ra-kpi-low { border-top-color: var(--accent-med); }
 .ra-kpi-low strong { color: var(--accent-med); }
 
 .ra-kpi-label {
@@ -1293,4 +1290,154 @@
 @media (max-width: 640px) {
     .ra-close-confirm { position: fixed; z-index: 1001; }
     .ra-close-actions { display: grid; grid-template-columns: 1fr 1fr; }
+}
+
+/* 2026-11-11: Staff request note = a small bell icon beside the status badge.
+   Hover / tap / Tab shows the note in a pop-up on top of the page
+   (RequestNoteTip in reorderAlerts.jsx). */
+.ra-status-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.ra-request-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    color: var(--accent-med);
+    background: var(--accent-med-soft, transparent);
+    border: 1px solid transparent;
+    border-radius: 999px;
+    cursor: help;
+}
+.ra-request-icon:hover,
+.ra-request-icon.is-open,
+.ra-request-icon:focus-visible {
+    border-color: var(--accent-med);
+    outline: none;
+}
+.ra-request-tip {
+    position: fixed;
+    z-index: 1300;
+    display: grid;
+    gap: 4px;
+    box-sizing: border-box;
+    max-width: min(280px, calc(100vw - 16px));
+    padding: 9px 11px;
+    color: var(--text-primary);
+    font-size: 12px;
+    line-height: 1.45;
+    text-align: left;
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong, var(--border-color));
+    border-radius: 8px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
+    pointer-events: none;
+}
+.ra-request-tip-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--accent-med);
+    font-size: 11px;
+    font-weight: 800;
+}
+.ra-request-tip-note { overflow-wrap: anywhere; }
+.ra-request-tip-empty { color: var(--text-muted); }
+
+/* 2026-11-11: rows line up.
+   1. The bell icon sits beside the badge without pushing it, so every
+      status badge stays centred in the same place.
+   2. The last action slot (Request / Requested / Waiting for delivery, or
+      Close request) has the same width in every row, so Received and
+      Calculate Now line up from row to row. */
+.ra-status-row { position: relative; }
+.ra-status-row .ra-request-icon {
+    position: absolute;
+    top: 50%;
+    left: calc(100% + 6px);
+    transform: translateY(-50%);
+}
+.ra-action-slot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+.ra-action-slot.is-request { min-width: 10rem; }
+.ra-action-slot.is-close { min-width: 8.75rem; }
+.ra-action-slot:empty { visibility: hidden; }
+/* Icon-only buttons (zoomed in) and phone cards: no fixed width needed. */
+@container ra-list (min-width: 901px) and (max-width: 1120px) {
+    .ra-action-slot.is-close { min-width: 32px; }
+}
+@media (max-width: 900px) {
+    .ra-action-slot.is-request,
+    .ra-action-slot.is-close { min-width: 0; }
+    .ra-action-slot:empty { display: none; }
+}
+/* 2026-11-11: items inside the last slot are centred, so the whole Action
+   group sits in the middle of the column (Received still lines up). */
+.ra-action-slot { justify-content: center; }
+/* 2026-11-11: last slot only as wide as the Request button, so
+   "Received + Request" and "Received + ✓ Requested" sit centred under
+   ACTION and still line up. (A longer label such as "Waiting for delivery"
+   just makes that one row a little wider.) */
+.ra-action-slot.is-request { min-width: 6rem; }
+
+/* 2026-11-11: several Staff can request the same product — the pop-up lists
+   each one, and the bell shows how many. */
+.ra-request-icon { position: relative; }
+.ra-request-count {
+    position: absolute;
+    top: -5px;
+    right: -6px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    box-sizing: border-box;
+    color: var(--btn-fill-text, #0b1426);
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 14px;
+    text-align: center;
+    background: var(--accent-med);
+    border-radius: 999px;
+}
+.ra-request-tip-item { display: grid; gap: 2px; }
+.ra-request-tip-item + .ra-request-tip-item {
+    padding-top: 7px;
+    margin-top: 3px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* 2026-11-11: theme text fix. On hover the button takes the theme's active
+   colour, so its text must take the matching active text colour (before,
+   the text stayed the normal text colour: white on white in the Noir theme,
+   so "Received" disappeared). */
+.ra-order-btn:hover:not(:disabled) { color: var(--icon-active-color); }
+
+/* 2026-11-11: less crowded Action column — "Received" and "Close request"
+   are icon-only square buttons (the name shows on hover and is read aloud);
+   "Calculate Now" and "Request" keep their text. The Status column keeps
+   room on both sides of the badge for the bell, so it never overlaps. */
+.ra-actions .ra-icon-btn {
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+}
+.ra-action-slot.is-close { min-width: 34px; }
+.ra-action-slot.is-close .ra-close-btn:hover:not(:disabled) {
+    color: #fff;
+    background: var(--accent-low);
+    border-color: var(--accent-low);
+}
+.ra-status-row { margin: 0 30px; }
+@media (max-width: 900px) {
+    .ra-status-row { margin: 0; }
+    .ra-status-row .ra-request-icon { position: static; transform: none; }
 }

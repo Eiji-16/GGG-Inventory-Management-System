@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X, CalendarDays } from 'lucide-react';
 import { limitDigits } from '../../utils/numberLimit';
 import MarqueeText from '../../utils/marqueeText';
 import './forecasting.css';
@@ -11,6 +11,7 @@ import PastSalesPanel from './pastSales';
 import AutoCalculator from '../AutoCalculator/autoCal';
 import CustomSelect from './CustomSelect';
 import ProductSearchPicker from './ProductSearchPicker';
+import EventRangeCalendar, { formatEventDate } from './EventRangeCalendar';
 
 const FORECAST_METHOD = 'Weighted Moving Average';
 const FORECAST_METHOD_NOTE = 'Uses the three most recent completed periods with weights 1, 2 and 3; the newest period receives the greatest weight.';
@@ -573,6 +574,14 @@ export default function DemandForecastDesign({
   };
 
   const updateDraft = (changes) => setEventDraft((current) => ({ ...current, ...changes }));
+  // Event date calendar (2026-11-11): 'start' | 'end' while open, null when closed.
+  const [eventDatePick, setEventDatePick] = useState(null);
+  const eventDateRowRef = useRef(null);
+  useEffect(() => { if (!eventDraft) setEventDatePick(null); }, [eventDraft]);
+  const pickEventDates = ({ startDate, endDate, next }) => {
+    updateDraft({ startDate, endDate });
+    setEventDatePick(next);
+  };
 
   /* ===== SUGGEST ADJUSTMENT =====
      Asks the server how the affected products sold in the same month(s) of
@@ -1164,19 +1173,49 @@ export default function DemandForecastDesign({
                     <label htmlFor="event-name">Event name</label>
                     <input id="event-name" type="text" maxLength="120" placeholder="e.g. Christmas Sale" value={eventDraft.name} onChange={(e) => updateDraft({ name: e.target.value })} />
                   </div>
-                  <div className="f-event-form-row">
+                  <div className="f-event-form-row" ref={eventDateRowRef}>
+                    {/* Date boxes open our range calendar below the row (2026-11-11). */}
                     <div className="f-field">
                       <label htmlFor="event-start">Start date</label>
-                      <input id="event-start" type="date" value={eventDraft.startDate} onChange={(e) => updateDraft({ startDate: e.target.value })} />
+                      <button
+                        id="event-start"
+                        type="button"
+                        className={`f-date-trigger${eventDatePick === 'start' ? ' is-active' : ''}${eventDraft.startDate ? '' : ' is-empty'}`}
+                        aria-expanded={eventDatePick === 'start'}
+                        onClick={() => setEventDatePick((current) => (current === 'start' ? null : 'start'))}
+                      >
+                        <span>{formatEventDate(eventDraft.startDate) || 'Pick a date'}</span>
+                        <CalendarDays size={15} aria-hidden="true" />
+                      </button>
                     </div>
                     <div className="f-field">
                       <label htmlFor="event-end">End date</label>
-                      <input id="event-end" type="date" min={eventDraft.startDate || undefined} value={eventDraft.endDate} onChange={(e) => updateDraft({ endDate: e.target.value })} />
+                      <button
+                        id="event-end"
+                        type="button"
+                        className={`f-date-trigger${eventDatePick === 'end' ? ' is-active' : ''}${eventDraft.endDate ? '' : ' is-empty'}`}
+                        aria-expanded={eventDatePick === 'end'}
+                        onClick={() => setEventDatePick((current) => (current === 'end' ? null : 'end'))}
+                      >
+                        <span>{formatEventDate(eventDraft.endDate) || 'Pick a date'}</span>
+                        <CalendarDays size={15} aria-hidden="true" />
+                      </button>
                     </div>
                     <div className="f-field">
                       <label htmlFor="event-pct">Adjustment (%)</label>
                       <input id="event-pct" type="number" min="-100" max="1000" step="0.01" placeholder="e.g. 35 or -10" value={eventDraft.adjustmentPct} onChange={(e) => updateDraft({ adjustmentPct: limitDigits(e.target.value, { whole: 4, decimals: 2, negative: true }) })} />
                     </div>
+                    {/* Floats on top of the form (2026-11-11), so nothing below moves. */}
+                    {eventDatePick && (
+                      <EventRangeCalendar
+                        startDate={eventDraft.startDate}
+                        endDate={eventDraft.endDate}
+                        picking={eventDatePick}
+                        onPick={pickEventDates}
+                        onClose={() => setEventDatePick(null)}
+                        anchorRef={eventDateRowRef}
+                      />
+                    )}
                   </div>
 
                   <div className="f-suggest">

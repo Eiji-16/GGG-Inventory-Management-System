@@ -9,6 +9,7 @@ use App\Models\StockMovement;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Services\ProductPhotoService;
+use App\Services\RoleAccessService;
 use App\Services\StockMovementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -37,6 +38,18 @@ class TrashBinController extends Controller
     /** The kinds of things that can be in the Trash Bin (tab order on screen). */
     public const KINDS = ['product', 'account', 'entry', 'supplier', 'event'];
 
+    /**
+     * False for an Admin with "Open Trash Bin and restore" (2026-11-11):
+     * they see only Trash Bin items that are not accounts and can only
+     * restore them. The Super Admin has full access.
+     */
+    private bool $fullAccess = true;
+
+    private function setAccess(Request $request): void
+    {
+        $this->fullAccess = RoleAccessService::isSuperAdmin($request->user());
+    }
+
     public function index(Request $request): JsonResponse
     {
         $filters = $request->validate([
@@ -51,6 +64,9 @@ class TrashBinController extends Controller
         $search = mb_strtolower(trim($filters['search'] ?? ''));
         $space = $filters['space'] ?? 'trash';
         $kind = $filters['kind'] ?? 'all';
+        $this->setAccess($request);
+        abort_if(! $this->fullAccess && $space === 'archive', 403, 'Only the Super Admin can open the Archive.');
+        abort_if(! $this->fullAccess && $kind === 'account', 403, 'Only the Super Admin can see deleted accounts.');
         $actorFilter = $space === 'archive'
             ? ($filters['archived_by'] ?? null)
             : ($filters['deleted_by'] ?? null);
@@ -104,7 +120,7 @@ class TrashBinController extends Controller
     ): \Illuminate\Support\Collection {
         $queries = $this->recordQueries($space, $search, $actorFilter);
         $dateColumn = $space === 'archive' ? 'archived_at' : 'deleted_at';
-        $kinds = $kind === 'all' ? self::KINDS : [$kind];
+        $kinds = $kind === 'all' ? array_keys($queries) : [$kind];
         $union = null;
 
         foreach ($kinds as $recordKind) {
@@ -279,6 +295,9 @@ class TrashBinController extends Controller
             'event' => SeasonalEvent::onlyTrashed(),
             'account' => User::onlyTrashed(),
         ];
+        if (! $this->fullAccess) {
+            unset($queries['account']); // deleted accounts: Super Admin only
+        }
 
         foreach ($queries as $kind => $query) {
             $query->when($space === 'archive', fn ($builder) => $builder->whereNotNull('archived_at'), fn ($builder) => $builder->whereNull('archived_at'));
@@ -340,7 +359,11 @@ class TrashBinController extends Controller
     {
         $column = $space === 'archive' ? 'archived_by_name' : 'deleted_by_name';
         $names = collect();
-        foreach (['products', 'stock_movements', 'suppliers', 'seasonal_events', 'users'] as $table) {
+        $tables = ['products', 'stock_movements', 'suppliers', 'seasonal_events', 'users'];
+        if (! $this->fullAccess) {
+            array_pop($tables); // no account names for an Admin
+        }
+        foreach ($tables as $table) {
             $names = $names->merge(DB::table($table)
                 ->whereNotNull('deleted_at')
                 ->when($space === 'archive', fn ($query) => $query->whereNotNull('archived_at'), fn ($query) => $query->whereNull('archived_at'))
@@ -408,6 +431,11 @@ class TrashBinController extends Controller
             'items.*.kind' => ['required', 'in:'.implode(',', self::KINDS)],
             'items.*.id' => ['required'],
         ]);
+        $this->setAccess($request);
+        if (! $this->fullAccess) {
+            abort_unless($data['action'] === 'restore' && $data['space'] === 'trash', 403, 'Only the Super Admin can archive or permanently delete.');
+            abort_if(collect($data['items'])->contains('kind', 'account'), 403, 'Only the Super Admin can restore accounts.');
+        }
         abort_if($data['action'] === 'archive' && $data['space'] !== 'trash', 422, 'Only Trash Bin items can be archived.');
         abort_if($data['action'] === 'purge' && $data['space'] !== 'archive', 422, 'Only archived items can be permanently deleted.');
         $order = match ($data['action']) {

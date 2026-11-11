@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { PageToast } from '../../utils/toast';
 import {
   User,
@@ -16,8 +17,11 @@ import {
   LogIn,
   Activity,
   Camera,
+  Trash2,
 } from 'lucide-react';
 import './profile.css';
+/* The system's own confirm window (same look as Staffs → Account requests). */
+import '../Staffs/staff.css';
 
 /* ===== ROLE PERMISSIONS =====
    The Super Admin can always do everything. Admin and Staff see what the
@@ -172,7 +176,11 @@ export default function Profile() {
     }
   };
 
+  /* 2026-11-11: "Remove photo" asks first in the system's own confirm window. */
+  const [confirmRemove, setConfirmRemove] = useState(false);
+
   const removePhoto = async () => {
+    setConfirmRemove(false);
     setPhotoBusy(true);
     setPhotoError('');
     try {
@@ -308,9 +316,40 @@ export default function Profile() {
             <h2>{user.fullName}</h2>
             <p className="pf-sub">{user.email}{user.department ? ` · ${user.department}` : ''}</p>
             {user.avatarUrl && (
-              <button type="button" className="pf-photo-remove" onClick={removePhoto} disabled={photoBusy}>
-                Remove photo
+              <button type="button" className="pf-photo-remove" onClick={() => setConfirmRemove(true)} disabled={photoBusy}>
+                <Trash2 size={12} aria-hidden="true" /> Remove photo
               </button>
+            )}
+            {confirmRemove && createPortal(
+              <div
+                className="st-modal-overlay st-account-confirm-overlay"
+                onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmRemove(false); }}
+                onKeyDown={(event) => { if (event.key === 'Escape') setConfirmRemove(false); }}
+              >
+                <section className="st-modal st-account-confirm" role="dialog" aria-modal="true" aria-labelledby="pf-remove-photo-title">
+                  <header className="st-modal-header">
+                    <div>
+                      <p className="st-modal-eyebrow">Profile photo</p>
+                      <h2 id="pf-remove-photo-title">Remove your photo?</h2>
+                    </div>
+                    <button type="button" className="st-modal-close" aria-label="Close confirmation" onClick={() => setConfirmRemove(false)}>
+                      <X size={18} />
+                    </button>
+                  </header>
+                  <div className="st-account-confirm-body">
+                    <p>The default picture will show instead, here and in the sidebar. You can upload a new photo any time.</p>
+                    <div className="st-account-confirm-identity">
+                      <span>{user.fullName}</span>
+                      <span>{user.email}</span>
+                    </div>
+                  </div>
+                  <footer className="st-account-confirm-actions">
+                    <button type="button" className="st-confirm-cancel" onClick={() => setConfirmRemove(false)} autoFocus>Keep photo</button>
+                    <button type="button" className="st-confirm-danger" onClick={removePhoto}>Remove photo</button>
+                  </footer>
+                </section>
+              </div>,
+              document.body,
             )}
             <PageToast message={photoError} type="error" onShown={() => setPhotoError('')} />
             <span className={`pf-role-pill pf-role-${(user.role || '').replace(/\s+/g, '')}`}>

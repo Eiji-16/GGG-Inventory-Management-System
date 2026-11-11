@@ -1,23 +1,68 @@
+@php
+    $system = \App\Models\AppSetting::systemName();
+    $rows = array_filter([
+        ['Product', '<strong>'.e($productName).'</strong> <span style="color:#5b6785">('.e($productCode).')</span>'],
+        $category ? ['Category', e($category)] : null,
+        ['Stock on hand', '<strong style="color:'.$level['color'].'">'.e($stock ?? '—').'</strong>'],
+        $lowPoint !== null ? ['Low level (reorder point)', e($lowPoint)] : null,
+        $criticalPoint !== null ? ['Critical level (safety stock)', e($criticalPoint)] : null,
+        $supplierName ? ['Supplier', e($supplierName).($supplierContact ? '<br><span style="color:#5b6785">'.e($supplierContact).'</span>' : '')] : null,
+        $leadTimeDays !== null ? ['Delivery lead time', e($leadTimeDays).' '.($leadTimeDays === 1 ? 'day' : 'days')] : null,
+    ]);
+@endphp
 <!DOCTYPE html>
 <html lang="en">
-<body style="margin:0;padding:32px 16px;background:#eef1f7;font-family:Arial,sans-serif;color:#13203f">
-    <main style="max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border-top:4px solid #e8c547">
-        <div style="padding:28px 28px 8px">
-            <p style="margin:0;color:#5b6785;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">{{ \App\Models\AppSetting::systemName() }} · Reorder List</p>
-            <h1 style="margin:8px 0 12px;font-size:22px">Restock request</h1>
-            <p style="line-height:1.6;margin:0 0 16px"><strong>{{ $requestedBy }}</strong> asked to restock this product:</p>
-            <table style="width:100%;border-collapse:collapse;font-size:14px">
-                <tr><td style="padding:8px 0;color:#5b6785">Product</td><td style="padding:8px 0;text-align:right"><strong>{{ $productName }}</strong> ({{ $productCode }})</td></tr>
-                <tr><td style="padding:8px 0;color:#5b6785;border-top:1px solid #dfe4ee">Stock on hand</td><td style="padding:8px 0;text-align:right;border-top:1px solid #dfe4ee">{{ $stock ?? '—' }}</td></tr>
-                @if ($note)
-                <tr><td style="padding:8px 0;color:#5b6785;border-top:1px solid #dfe4ee">Note</td><td style="padding:8px 0;text-align:right;border-top:1px solid #dfe4ee">“{{ $note }}”</td></tr>
-                @endif
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ $level['label'] }}: {{ $productName }}</title></head>
+{{-- 2026-11-11: urgent, professional layout — status banner, stock levels,
+     supplier and who asked. Inline styles only (email apps ignore <style>). --}}
+<body style="margin:0;padding:28px 12px;background:#eef1f7;font-family:Arial,Helvetica,sans-serif;color:#13203f">
+    <div style="display:none;max-height:0;overflow:hidden">{{ $level['label'] }}: {{ $productName }} — {{ $stock ?? '—' }} on hand. Requested by {{ $requestedBy }}.</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;margin:0 auto;border-collapse:collapse">
+        <tr><td style="padding:0 4px 12px;color:#5b6785;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Global Growth Guide · {{ $system }}</td></tr>
+        <tr><td style="background:#ffffff;border:1px solid #dfe4ee;border-radius:14px;overflow:hidden">
+
+            {{-- Status banner --}}
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+                <tr><td style="padding:16px 24px;background:{{ $level['soft'] }};border-bottom:1px solid {{ $level['line'] }}">
+                    <span style="display:inline-block;padding:4px 10px;background:{{ $level['color'] }};color:#ffffff;font-size:11px;font-weight:700;letter-spacing:.08em;border-radius:999px">{{ $level['tag'] }}</span>
+                    <span style="margin-left:8px;color:{{ $level['color'] }};font-size:14px;font-weight:700">{{ $level['label'] }}</span>
+                </td></tr>
             </table>
-        </div>
-        <div style="padding:16px 28px 28px">
-            <p style="line-height:1.6;color:#5b6785;font-size:13px;margin:0 0 16px">Open the Reorder List to order it or mark the request as done. The request also shows in the notification bell.</p>
-            <a href="{{ $appUrl }}" style="display:inline-block;padding:12px 20px;background:#e8c547;color:#0a1530;text-decoration:none;font-weight:700;border-radius:10px">Open the inventory system</a>
-        </div>
-    </main>
+
+            <div style="padding:22px 24px 6px">
+                <h1 style="margin:0 0 8px;font-size:21px;line-height:1.3">Restock request: {{ $productName }}</h1>
+                <p style="margin:0 0 6px;line-height:1.6;font-size:14px">{{ $level['lead'] }}</p>
+                <p style="margin:0 0 18px;line-height:1.6;font-size:14px;color:#5b6785">
+                    Requested by <strong style="color:#13203f">{{ $requestedBy }}</strong>{{ $requesterEmail ? ' ('.$requesterEmail.')' : '' }}{{ $requestedAt ? ' on '.$requestedAt : '' }}.
+                </p>
+
+                @if ($note)
+                <div style="margin:0 0 18px;padding:12px 14px;background:#f6f8fc;border:1px solid #dfe4ee;border-radius:10px">
+                    <div style="margin:0 0 4px;color:#5b6785;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase">Note from {{ $requestedBy }}</div>
+                    <div style="font-size:14px;line-height:1.55">“{{ $note }}”</div>
+                </div>
+                @endif
+
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px">
+                    @foreach ($rows as $i => $row)
+                    <tr>
+                        <td style="padding:10px 0;color:#5b6785;vertical-align:top;{{ $i ? 'border-top:1px solid #edf0f6;' : '' }}">{{ $row[0] }}</td>
+                        <td style="padding:10px 0;text-align:right;vertical-align:top;{{ $i ? 'border-top:1px solid #edf0f6;' : '' }}">{!! $row[1] !!}</td>
+                    </tr>
+                    @endforeach
+                </table>
+            </div>
+
+            <div style="padding:18px 24px 24px">
+                <p style="margin:0 0 14px;line-height:1.6;font-size:13px;color:#5b6785">
+                    <strong style="color:#13203f">What to do:</strong> open the Reorder List, click <em>Calculate Now</em> to see how many to buy, then record the delivery with <em>Received</em> when it arrives. Recording the delivery closes this request.
+                </p>
+                <a href="{{ $appUrl }}" style="display:inline-block;padding:12px 22px;background:{{ $level['color'] }};color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;border-radius:10px">Open the Reorder List</a>
+            </div>
+        </td></tr>
+        <tr><td style="padding:14px 6px 0;color:#8a94ab;font-size:11.5px;line-height:1.6;text-align:center">
+            This message was sent by {{ $system }}, the inventory system of Global Growth Guide, to every Admin. Please do not reply to this email.
+        </td></tr>
+    </table>
 </body>
 </html>

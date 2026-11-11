@@ -402,8 +402,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
   const confirmMoveToTrash = async () => {
     if (
       !accountDialog ||
-      accountDialog.step !== 'delete-final' ||
-      deleteConfirmation !== 'DELETE' ||
+      accountDialog.step !== 'delete-initial' ||
       isAccountActionLoading
     ) return;
 
@@ -418,7 +417,9 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
           'Content-Type': 'application/json',
           'X-CSRF-TOKEN': csrf(),
         },
-        body: JSON.stringify({ confirmation: deleteConfirmation }),
+        // 2026-11-11: one confirmation is enough (the account only goes to the
+        // Trash Bin and can be restored), so the word is sent for the person.
+        body: JSON.stringify({ confirmation: 'DELETE' }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -498,7 +499,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
 
       {/* ===== KPI CARDS ===== */}
       <div className="st-kpi-row">
-        <div className="st-kpi-card">
+        <div className="st-kpi-card st-kpi-feature">
           <div className="st-kpi-icon"><Users size={18} /></div>
           <div>
             <p className="st-kpi-value"><MarqueeText>{Number(total).toLocaleString()}</MarqueeText></p>
@@ -864,7 +865,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
                 onClick={() => openAccountDialog('delete-initial', menuRow)}
               >
                 <Trash2 size={14} />
-                Permanently Delete
+                Move to Trash Bin
               </button>
             </>
           )}
@@ -882,9 +883,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
           }}
         >
           <section
-            className={`st-modal st-account-confirm ${
-              accountDialog.step === 'delete-final' ? 'st-account-confirm-final' : ''
-            }`}
+            className="st-modal st-account-confirm"
             role="dialog"
             aria-modal="true"
             aria-labelledby="st-account-confirm-title"
@@ -892,14 +891,10 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
             <header className="st-modal-header">
               <div>
                 <p className="st-modal-eyebrow">
-                  {accountDialog.step === 'reactivate' ? 'Reactivate account' : 'Permanent deletion'}
+                  {accountDialog.step === 'reactivate' ? 'Reactivate account' : 'Move to Trash Bin'}
                 </p>
                 <h2 id="st-account-confirm-title">
-                  {accountDialog.step === 'reactivate'
-                    ? 'Reactivate Account?'
-                    : accountDialog.step === 'delete-initial'
-                      ? 'Move Account to Trash Bin?'
-                      : 'Final Confirmation'}
+                  {accountDialog.step === 'reactivate' ? 'Reactivate Account?' : 'Move Account to Trash Bin?'}
                 </h2>
               </div>
               <button
@@ -913,30 +908,15 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
               </button>
             </header>
             <div className="st-account-confirm-body">
-              <p className={accountDialog.step === 'delete-final' ? 'st-delete-warning' : ''}>
+              <p>
                 {accountDialog.step === 'reactivate'
                   ? `Are you sure you want to reactivate ${accountDialog.account.name}'s account?`
-                  : accountDialog.step === 'delete-initial'
-                    ? `Move ${accountDialog.account.name}'s deactivated account to the Trash Bin? It can be restored by a Super Admin.`
-                    : 'This account will be moved to the Trash Bin and its active sessions will be revoked.'}
+                  : `Move ${accountDialog.account.name}'s deactivated account to the Trash Bin? They are signed out, and a Super Admin can restore the account from the Trash Bin.`}
               </p>
               <div className="st-account-confirm-identity">
                 <span>{accountDialog.account.name}</span>
                 <span>{accountDialog.account.email}</span>
               </div>
-
-              {accountDialog.step === 'delete-final' && (
-                <label className="st-delete-confirm-label">
-                  Type <strong>DELETE</strong> to confirm
-                  <input
-                    autoComplete="off"
-                    autoFocus
-                    value={deleteConfirmation}
-                    onChange={(event) => setDeleteConfirmation(event.target.value)}
-                    aria-label="Type DELETE to confirm moving the account to Trash Bin"
-                  />
-                </label>
-              )}
 
               <PageToast message={accountActionError} type="error" onShown={() => setAccountActionError('')} />
             </div>
@@ -958,26 +938,14 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
                 >
                   {isAccountActionLoading ? 'Reactivating…' : 'Reactivate'}
                 </button>
-              ) : accountDialog.step === 'delete-initial' ? (
-                <button
-                  type="button"
-                  className="st-confirm-danger"
-                  onClick={() => {
-                    setAccountActionError('');
-                    setDeleteConfirmation('');
-                    setAccountDialog((current) => ({ ...current, step: 'delete-final' }));
-                  }}
-                >
-                  Continue
-                </button>
               ) : (
                 <button
                   type="button"
                   className="st-confirm-danger"
                   onClick={confirmMoveToTrash}
-                  disabled={isAccountActionLoading || deleteConfirmation !== 'DELETE'}
+                  disabled={isAccountActionLoading}
                 >
-                  {isAccountActionLoading ? 'Deleting…' : 'Permanently Delete Account'}
+                  {isAccountActionLoading ? 'Moving…' : 'Move to Trash Bin'}
                 </button>
               )}
             </footer>

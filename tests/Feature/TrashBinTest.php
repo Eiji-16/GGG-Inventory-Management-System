@@ -291,11 +291,14 @@ class TrashBinTest extends TestCase
         $this->assertSame(2, $product->fresh()->stock_on_hand);
     }
 
-    public function test_only_super_admin_can_access_trash_and_archive(): void
+    public function test_trash_bin_is_super_admin_only_by_default(): void
     {
+        // 2026-11-11: Admins can get "Open Trash Bin and restore", but it
+        // starts OFF; Staff can never get it; there is no archive/purge box.
         $defaults = RoleAccessService::defaults();
         $this->assertArrayNotHasKey('trash.view', $defaults['admin']);
-        $this->assertArrayNotHasKey('trash.restore', $defaults['admin']);
+        $this->assertFalse($defaults['admin']['trash.restore']);
+        $this->assertFalse($defaults['staff']['trash.restore']);
         $this->assertArrayNotHasKey('trash.purge', $defaults['admin']);
 
         $product = $this->product();

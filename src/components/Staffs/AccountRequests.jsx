@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import CustomSelect from '../Forecasting/CustomSelect';
 import { PageToast } from '../../utils/toast';
-import { CheckCircle2, Clock3, MailCheck, RefreshCw, Send, UserPlus, XCircle } from 'lucide-react';
+import { CheckCircle2, Clock3, MailCheck, RefreshCw, Send, UserPlus, X, XCircle } from 'lucide-react';
 
 /* ===== ACCOUNT REQUESTS (Super Admin, Staffs page, 2026-11-03) =====
    People who clicked "Request Account Access" on the login page.
@@ -61,10 +63,16 @@ export default function AccountRequests({ onChanged, onCount, hidden = false }) 
     return () => window.clearInterval(timer);
   }, [load]);
 
-  const act = async (request, action) => {
-    if (action === 'reject' && !window.confirm(request.status === 'approved'
-      ? `Cancel ${request.name}'s account? It was never verified, so it moves to the Trash Bin.`
-      : `Reject the account request of ${request.name}?`)) return;
+  /* Reject / Cancel asks first in the system's own confirm window
+     (2026-11-11; was the browser's confirm box). */
+  const [confirmItem, setConfirmItem] = useState(null);
+
+  const act = async (request, action, confirmed = false) => {
+    if (action === 'reject' && !confirmed) {
+      setConfirmItem(request);
+      return;
+    }
+    setConfirmItem(null);
     setBusyId(request.id);
     setNotice(null);
     try {
@@ -119,7 +127,6 @@ export default function AccountRequests({ onChanged, onCount, hidden = false }) 
           <thead>
             <tr>
               <th>Name</th>
-              <th>Department</th>
               <th>Asked</th>
               <th>Status</th>
               <th className="st-th-actions">Details / Actions</th>
@@ -127,9 +134,9 @@ export default function AccountRequests({ onChanged, onCount, hidden = false }) 
           </thead>
           <tbody>
             {loading && !requests.length ? (
-              <tr><td colSpan={5} className="st-empty">Loading account requests…</td></tr>
+              <tr><td colSpan={4} className="st-empty">Loading account requests…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={5} className="st-empty">{error ? 'Could not load the requests.' : 'No account requests yet.'}</td></tr>
+              <tr><td colSpan={4} className="st-empty">{error ? 'Could not load the requests.' : 'No account requests yet.'}</td></tr>
             ) : rows.map((request) => {
               const meta = STATUS[request.status] || STATUS.pending;
               const left = request.status === 'approved' ? hoursLeft(request.linkExpiresAt) : null;
@@ -142,32 +149,36 @@ export default function AccountRequests({ onChanged, onCount, hidden = false }) 
                       <span>{request.email}</span>
                     </span>
                   </td>
-                  <td className="st-cell-muted" data-label="Department">{request.department || '—'}</td>
                   <td className="st-cell-muted" data-label="Asked">{when(request.createdAt) || '—'}</td>
                   <td className="st-cell-status" data-label="Status">
                     <span className={`st-request-status ${meta.cls}`}><meta.Icon size={12} aria-hidden="true" /> {meta.label}</span>
                   </td>
                   <td className="st-cell-actions" data-label="Details / Actions">
                     {request.status === 'pending' ? (
-                      <div className="st-request-actions">
-                        <label className="st-request-role">
-                          <span>Role</span>
-                          <select
+                      <div className="st-request-actions is-pending">
+                        {/* Themed dropdown (2026-11-11), same as the rest of the system. */}
+                        <div className="st-request-role">
+                          <span id={`st-role-label-${request.id}`}>Role</span>
+                          <CustomSelect
+                            id={`st-role-${request.id}`}
+                            className="st-role-select"
+                            ariaLabel={`Role for ${request.name}`}
                             value={roles[request.id] || 'staff'}
-                            onChange={(event) => setRoles((prev) => ({ ...prev, [request.id]: event.target.value }))}
+                            onChange={(role) => setRoles((prev) => ({ ...prev, [request.id]: role }))}
                             disabled={busy}
-                          >
-                            <option value="staff">Staff</option>
-                            <option value="admin">Admin</option>
-                          </select>
-                        </label>
+                            options={[
+                              { value: 'staff', label: 'Staff' },
+                              { value: 'admin', label: 'Admin' },
+                            ]}
+                          />
+                        </div>
                         <button type="button" className="st-create-account-button" onClick={() => act(request, 'approve')} disabled={busy}>
                           <Send size={14} aria-hidden="true" /> {busy ? 'Sending…' : 'Approve & Invite'}
                         </button>
                         <button type="button" className="st-request-reject" onClick={() => act(request, 'reject')} disabled={busy}>Reject</button>
                       </div>
                     ) : request.status === 'approved' ? (
-                      <div className="st-request-actions">
+                      <div className="st-request-actions is-approved">
                         <small className="st-request-link">
                           As {request.role === 'admin' ? 'Admin' : 'Staff'} · {left === 'expired' ? 'verification link expired' : `verification link ${left}`}{request.linkOpened ? ' · opened' : ''}
                         </small>
@@ -188,6 +199,43 @@ export default function AccountRequests({ onChanged, onCount, hidden = false }) 
           </tbody>
         </table>
       </div>
+      {confirmItem && createPortal(
+        <div
+          className="st-modal-overlay st-account-confirm-overlay"
+          onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmItem(null); }}
+          onKeyDown={(event) => { if (event.key === 'Escape') setConfirmItem(null); }}
+        >
+          <section className="st-modal st-account-confirm" role="dialog" aria-modal="true" aria-labelledby="st-request-confirm-title">
+            <header className="st-modal-header">
+              <div>
+                <p className="st-modal-eyebrow">{confirmItem.status === 'approved' ? 'Cancel account' : 'Account request'}</p>
+                <h2 id="st-request-confirm-title">{confirmItem.status === 'approved' ? 'Cancel this account?' : 'Reject this request?'}</h2>
+              </div>
+              <button type="button" className="st-modal-close" aria-label="Close confirmation" onClick={() => setConfirmItem(null)}>
+                <X size={18} />
+              </button>
+            </header>
+            <div className="st-account-confirm-body">
+              <p>
+                {confirmItem.status === 'approved'
+                  ? `${confirmItem.name}'s account was never verified, so it moves to the Trash Bin. The verification link stops working.`
+                  : `${confirmItem.name} will not get an account. They can send a new request later.`}
+              </p>
+              <div className="st-account-confirm-identity">
+                <span>{confirmItem.name}</span>
+                <span>{confirmItem.email}</span>
+              </div>
+            </div>
+            <footer className="st-account-confirm-actions">
+              <button type="button" className="st-confirm-cancel" onClick={() => setConfirmItem(null)} autoFocus>Keep</button>
+              <button type="button" className="st-confirm-danger" onClick={() => act(confirmItem, 'reject', true)}>
+                {confirmItem.status === 'approved' ? 'Cancel account' : 'Reject request'}
+              </button>
+            </footer>
+          </section>
+        </div>,
+        document.body,
+      )}
     </section>
   );
 }

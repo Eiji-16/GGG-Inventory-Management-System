@@ -6,6 +6,10 @@ import React, { useEffect, useRef, useState } from 'react';
    products show under it like a dropdown; typing narrows them.
    ↑ ↓ move, Enter picks, Esc closes. Picking closes it again. */
 const PICKER_LIMIT = 200;   // long lists: type to narrow
+/* 2026-11-11: remembers the last product the user picked, so the name still
+   shows after switching between Sales Forecasting, Past Sales and Economic
+   Order Quantity (each tab makes a new search bar). */
+let rememberedPickId = '';
 
 /* label (optional): a small heading above the icon, like "FORECAST BY". */
 export default function ProductSearchPicker({ id, products, value, onChange, disabled = false, label = '' }) {
@@ -13,7 +17,7 @@ export default function ProductSearchPicker({ id, products, value, onChange, dis
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   // Placeholder first: the name shows only after the user picks (2026-11-10).
-  const [picked, setPicked] = useState(false);
+  const [picked, setPicked] = useState(() => Boolean(value) && String(value) === rememberedPickId);
   const inputRef = useRef(null);
   const listRef = useRef(null);
 
@@ -33,11 +37,24 @@ export default function ProductSearchPicker({ id, products, value, onChange, dis
   const choose = (product) => {
     if (!product) return;
     onChange(product.id);
+    rememberedPickId = String(product.id);
     setPicked(true);
     setQuery('');
     setOpen(false);
     inputRef.current?.blur();
   };
+  /* X button (2026-11-11): clears the typed text and the chosen product. */
+  const clear = () => {
+    setQuery('');
+    if (current) {
+      rememberedPickId = '';
+      setPicked(false);
+      onChange('');
+    }
+    inputRef.current?.focus();
+  };
+  const showClear = !disabled && (query !== '' || Boolean(current));
+
   const onKeyDown = (event) => {
     if (event.key === 'ArrowDown') { event.preventDefault(); setOpen(true); setActive((i) => Math.min(i + 1, shown.length - 1)); }
     else if (event.key === 'ArrowUp') { event.preventDefault(); setActive((i) => Math.max(i - 1, 0)); }
@@ -46,7 +63,7 @@ export default function ProductSearchPicker({ id, products, value, onChange, dis
   };
 
   return (
-    <div className={`fx-psearch${label ? ' has-label' : ''}${current && !open ? ' has-value' : ''}`}>
+    <div className={`fx-psearch${label ? ' has-label' : ''}${current && !open ? ' has-value' : ''}${showClear ? ' has-clear' : ''}`}>
       {label && <label className="fx-psearch-label" htmlFor={id}>{label}</label>}
       <div className="f-search-wrap">
         <svg className="fx-psearch-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
@@ -70,6 +87,20 @@ export default function ProductSearchPicker({ id, products, value, onChange, dis
           onBlur={() => setOpen(false)}
           onKeyDown={onKeyDown}
         />
+        {showClear && (
+          <button
+            type="button"
+            className="fx-psearch-clear"
+            aria-label="Clear search"
+            title="Clear search"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={clear}
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
       {open && (
         <div ref={listRef} id={`${id}-list`} className="cs-menu fx-psearch-menu" role="listbox">

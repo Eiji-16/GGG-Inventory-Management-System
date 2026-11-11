@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { CommaNumberInput } from '../AutoCalculator/autoCal';
 import MarqueeText from '../../utils/marqueeText';
 import useFillToBottom from '../../utils/fillToBottom';
@@ -28,7 +28,8 @@ import {
   RotateCcw,
   ChevronLeft,
   ChevronRight,
-  Package } from 'lucide-react';
+  Package,
+  CalendarDays } from 'lucide-react';
 
 import './stockControl.css';
 import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
@@ -38,6 +39,7 @@ import { useCurrency } from '../../CurrencyContext';
 import { buildForecastHandoff } from '../../utils/forecastHandoff';
 import { PageToast } from '../../utils/toast';
 import CustomSelect from '../Forecasting/CustomSelect';
+import EventRangeCalendar, { formatEventDate } from '../Forecasting/EventRangeCalendar';
 import {
   SAFETY_STOCK_DEFAULTS,
   reorderPointFor,
@@ -60,6 +62,71 @@ const limitQtyDigits = (value) => String(value ?? '').replace(/\D/g, '').slice(0
 
 /* ===== PAGE BUTTONS under the Stock / History tables =====
    Same look as the Products page: ‹ Page 1 of 3 ›, centred. */
+/* ===== NOTE WITH HOVER POP-UP (2026-11-11) =====
+   The Notes column shows a short note ("…" when long). Hover it (or Tab to
+   it) to read the whole note in a pop-up on top of the page, so the row
+   never gets taller. */
+function NoteText({ text }) {
+  const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState(null);
+  const textRef = useRef(null);
+  const tipRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const update = () => {
+      const anchor = textRef.current;
+      const tip = tipRef.current;
+      if (!anchor || !tip) return;
+      const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+      const rect = anchor.getBoundingClientRect();
+      const width = tip.offsetWidth * zoom;
+      const height = tip.offsetHeight * zoom;
+      const gap = 6 * zoom;
+      let top = rect.top - gap - height;               // above the note
+      if (top < 8) top = rect.bottom + gap;             // no room: below it
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+      setPlace({ top: top / zoom, left: left / zoom });
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [open]);
+
+  if (!text) return <span className="sc-notes-text">—</span>;
+  return (
+    <>
+      <span
+        ref={textRef}
+        className="sc-notes-text is-hoverable"
+        tabIndex={0}
+        aria-label={`Note: ${text}`}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+      >
+        {text}
+      </span>
+      {open && createPortal(
+        <div
+          ref={tipRef}
+          className="sc-note-tip"
+          role="tooltip"
+          style={place ? { top: place.top, left: place.left } : { visibility: 'hidden' }}
+        >
+          {text}
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
 function TablePager({ label, page, pageCount, onPage }) {
   return (
     <nav className="sc-pager" aria-label={label}>
@@ -1125,6 +1192,12 @@ function StockControl({
     setEditId(null);
   };
 
+  /* Date box calendar (2026-11-11): our own calendar instead of the
+     browser's, same look as Seasonal Adjustments; future days blocked. */
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const dateTriggerRef = useRef(null);
+  useEffect(() => { if (!isModalOpen) setDatePickerOpen(false); }, [isModalOpen]);
+
   const handleFormChange = (e) => {
     const { name } = e.target;
     const value = name === 'qty' ? limitQtyDigits(e.target.value) : e.target.value;
@@ -1905,12 +1978,21 @@ function StockControl({
                       </span>
                     ) : '—'}
                   </td>
-                  <td className="sc-td-left sc-td-muted" data-label="Notes" title={stock.notes}>
-                    <span className="sc-notes-text">{stock.notes || '—'}</span>
+                  <td className="sc-td-left sc-td-muted" data-label="Notes">
+                    <NoteText text={stock.notes} />
                     {/* Received in the Reorder List with a proof photo (2026-11-03). */}
                     {stock.hasProof && (
-                      <a className="sc-proof-link" href={`/api/stock-movements/${stock.id}/proof`} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}>
-                        View proof photo
+                      <a
+                        className="sc-proof-link"
+                        href={`/api/stock-movements/${stock.id}/proof`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(event) => event.stopPropagation()}
+                        aria-label="View proof photo (opens in a new tab)"
+                        title="View proof photo"
+                      >
+                        {/* Small arrow instead of the "View proof photo" text (2026-11-11). */}
+                        <ArrowUpRight size={13} aria-hidden="true" />
                       </a>
                     )}
                   </td>
@@ -2108,7 +2190,33 @@ function StockControl({
                       <label htmlFor="date">
                         Date <span className="sc-required">*</span>
                       </label>
-                      <input id="date" name="date" type="date" value={formData.date} onChange={handleFormChange} max={todayLocal()} required disabled={editId !== null} />
+                      <button
+                        id="date"
+                        ref={dateTriggerRef}
+                        type="button"
+                        className={`sc-date-trigger${datePickerOpen ? ' is-active' : ''}`}
+                        aria-expanded={datePickerOpen}
+                        disabled={editId !== null}
+                        onClick={() => setDatePickerOpen((open) => !open)}
+                      >
+                        <span>{formatEventDate(formData.date) || 'Pick a date'}</span>
+                        <CalendarDays size={15} aria-hidden="true" />
+                      </button>
+                      {datePickerOpen && editId === null && (
+                        <EventRangeCalendar
+                          single
+                          maxDate={todayLocal()}
+                          startDate={formData.date}
+                          endDate=""
+                          picking="start"
+                          anchorRef={dateTriggerRef}
+                          onPick={({ startDate }) => {
+                            setFormData((prev) => ({ ...prev, date: startDate }));
+                            setDatePickerOpen(false);
+                          }}
+                          onClose={() => setDatePickerOpen(false)}
+                        />
+                      )}
                     </div>
                     <div className="sc-form-group">
                       <label htmlFor="recordedBy">Recorded by</label>

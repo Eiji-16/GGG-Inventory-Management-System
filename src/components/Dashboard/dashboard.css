@@ -2023,3 +2023,51 @@ grid-column: 5 / span 2;
 .db-order-row.is-static,
 .db-cov-row.is-static,
 .db-act-row.is-static { cursor: default; }
+
+/* ===== BACKUP REMINDER (2026-11-11, Super Admin) ===== */
+.db-backup-note {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-size: 13px;
+    line-height: 1.45;
+    background: var(--accent-med-soft, rgba(240, 192, 90, 0.14));
+    border: 1px solid color-mix(in srgb, var(--accent-med) 45%, transparent);
+    border-radius: 10px;
+}
+.db-backup-icon { display: inline-flex; flex-shrink: 0; color: var(--accent-med); }
+.db-backup-text { flex: 1 1 auto; min-width: 0; }
+.db-backup-go {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    color: var(--btn-fill-text, #0b1426);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--btn-fill-bg, var(--accent));
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.db-backup-close {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    color: var(--text-muted);
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.db-backup-close:hover { color: var(--text-primary); background: var(--overlay-medium, rgba(127, 127, 127, 0.14)); }
+@media (max-width: 560px) {
+    .db-backup-note { flex-wrap: wrap; }
+    .db-backup-go { margin-left: 26px; }
+}
