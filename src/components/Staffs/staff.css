@@ -1176,6 +1176,17 @@
 .st-requests-table .st-role-select .cs-menu,
 .st-requests-table .st-role-select .cs-button { text-align: left; }
 
+/* 2026-11-12: the open Role list was covered by the request below it (each
+   row is its own layer because of its entrance animation), so "Admin" could
+   not be clicked. The row with the open list now sits above the others, and
+   the card no longer cuts the list off on phones either. */
+.st-requests-table tbody tr:has(.cs-button.is-open) {
+    position: relative;
+    z-index: 30;
+}
+.st-requests-view.st-table-card:has(.cs-button.is-open),
+.st-requests-view:has(.cs-button.is-open) .st-table-scroll { overflow: visible; }
+
 
 /* Featured KPI card (2026-11-11): "Total staff" gets the same frosted look
    as the Dashboard's Sales Trend Overview card — soft light top-left, the
@@ -1209,4 +1220,82 @@
         linear-gradient(160deg, #ffffff 0%, var(--bg-card) 70%);
     border-color: rgba(255, 255, 255, 0.85);
     box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* ==========DEACTIVATED ACCOUNTS: MULTI-SELECT (2026-11-12)==========
+   Tick boxes in the first column; the bar beside the heading reactivates
+   or moves every ticked account to the Trash Bin at once. */
+.st-accounts-view .st-table-heading:has(.st-bulk-bar) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+}
+.st-th-select,
+.st-cell-select { width: 40px; text-align: center !important; }
+.st-select-box {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    vertical-align: middle;
+    accent-color: var(--accent, #E8C547);
+    cursor: pointer;
+}
+.st-select-box:disabled { cursor: not-allowed; opacity: 0.5; }
+.st-table tbody tr.is-selected td { background: color-mix(in srgb, var(--accent, #E8C547) 9%, transparent); }
+.st-bulk-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+.st-bulk-count {
+    color: var(--text-primary);
+    font-size: 12.5px;
+    font-weight: 700;
+}
+.st-bulk-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 0 12px;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    background: var(--static-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+}
+.st-bulk-button:hover { border-color: var(--border-strong, var(--border-color)); }
+.st-bulk-button.is-danger { color: #fff; background: #b91c1c; border-color: #b91c1c; }
+.st-bulk-button.is-danger:hover { background: #991b1b; border-color: #991b1b; }
+.st-bulk-clear {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+}
+.st-bulk-clear:hover { color: var(--text-primary); }
+.st-bulk-list {
+    display: grid;
+    gap: 6px;
+    max-height: 220px;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+@media (max-width: 640px) {
+    .st-table tbody td.st-cell-select { order: 0; flex: 0 0 auto; width: auto; }
+    .st-bulk-bar { flex: 1 1 100%; }
+    .st-bulk-button { flex: 1 1 0; justify-content: center; }
 }

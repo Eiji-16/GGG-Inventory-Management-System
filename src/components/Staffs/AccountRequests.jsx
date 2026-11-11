@@ -57,10 +57,20 @@ export default function AccountRequests({ onChanged, onCount, hidden = false }) 
     }
   }, []);
 
+  /* 2026-11-12: refreshes by itself (no Refresh button): right away when the
+     main page sees new data (event from LandingPage, checked every 5 s),
+     every 15 seconds, and when you come back to this browser tab. */
   useEffect(() => {
     load();
-    const timer = window.setInterval(load, 30000);
-    return () => window.clearInterval(timer);
+    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') load(); }, 15000);
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    window.addEventListener('ggg-account-requests-changed', load);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('ggg-account-requests-changed', load);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [load]);
 
   /* Reject / Cancel asks first in the system's own confirm window
@@ -117,7 +127,6 @@ export default function AccountRequests({ onChanged, onCount, hidden = false }) 
           </h3>
           <p className="hint-text">From “Request Account Access” on the login page. Approve & Invite creates the account at once and emails a verification link (valid 24 hours). The person can sign in after verifying their email, setting a password and an authenticator app.</p>
         </div>
-        <button type="button" className="st-requests-refresh" onClick={load} aria-label="Refresh account requests" title="Refresh"><RefreshCw size={14} /></button>
       </div>
 
       {error && <p className="st-create-account-error" role="alert">{error}</p>}

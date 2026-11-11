@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import { Mail, Smartphone, X } from 'lucide-react';
@@ -13,7 +13,14 @@ import './authModal.css';
    2026-11-11: "Can't use your phone? Send a code to my email" — the system
    emails a 6-digit code (10 minutes, works once) and the person types it
    here instead (POST /auth/two-factor/email, then /auth/two-factor/email/verify).
-   It only works right after the correct password. */
+   It only works right after the correct password.
+
+   2026-11-12: method 'email' = the account chose email codes instead of the
+   app: the code is emailed as soon as this window opens and there is no
+   "Use the authenticator app" link. setup = it was chosen just now on the
+   "Connect your authenticator app" window (the code is already sent).
+   rememberDays > 0 shows "Remember this device for N days" (Staff 30,
+   Admin 7; the Super Admin never sees it). */
 const RESEND_SECONDS = 60;
 
 function csrf() {
@@ -30,14 +37,17 @@ async function postJson(url, body) {
     return { response, data };
 }
 
-export default function TwoFactorPrompt({ email, onSuccess, onCancel }) {
-    const [mode, setMode] = useState('app');          // 'app' | 'email'
+export default function TwoFactorPrompt({ email, method = 'app', rememberDays = 0, setup = false, initialResendIn = 0, onSuccess, onCancel }) {
+    const appAvailable = method !== 'email';
+    const [mode, setMode] = useState(appAvailable ? 'app' : 'email');   // 'app' | 'email'
+    const [remember, setRemember] = useState(false);
     const [code, setCode] = useState('');
     const [error, setError] = useState('');
     const [invalid, setInvalid] = useState(false);
     const [busy, setBusy] = useState(false);
     const [sending, setSending] = useState(false);
-    const [resendIn, setResendIn] = useState(0);      // seconds before "Send a new code" works
+    const [resendIn, setResendIn] = useState(setup ? initialResendIn : 0);   // seconds before "Send a new code" works
+    const autoSent = useRef(false);
 
     // Count down the wait before another email can be sent.
     useEffect(() => {
@@ -80,6 +90,13 @@ export default function TwoFactorPrompt({ email, onSuccess, onCancel }) {
         }
     }
 
+    // Email-code accounts: send the code as soon as the window opens (once).
+    useEffect(() => {
+        if (appAvailable || setup || autoSent.current) return;
+        autoSent.current = true;
+        sendEmailCode();
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
     async function submit(typed = code) {
         if (busy) return;
         if (typed.length !== 6) {
@@ -90,7 +107,7 @@ export default function TwoFactorPrompt({ email, onSuccess, onCancel }) {
         setBusy(true);
         setError('');
         try {
-            const { response, data } = await postJson(isEmail ? '/auth/two-factor/email/verify' : '/auth/two-factor', { code: typed });
+            const { response, data } = await postJson(isEmail ? '/auth/two-factor/email/verify' : '/auth/two-factor', { code: typed, remember: rememberDays > 0 && remember });
             if (!response.ok) {
                 if (data.code === 'two_factor_expired') {
                     onCancel(data.message);
@@ -122,7 +139,11 @@ export default function TwoFactorPrompt({ email, onSuccess, onCancel }) {
                 <div className="am-body">
                     <div className="am-icon" aria-hidden="true">{isEmail ? <Mail size={24} /> : <Smartphone size={24} />}</div>
                     <h2 id="am-2fa-title" className="am-title">Two-step verification</h2>
-                    {isEmail ? (
+                    {isEmail && sending && resendIn === 0 && !code ? (
+                        <p className="am-text">
+                            Sending a 6-digit code to <strong>{email}</strong>…
+                        </p>
+                    ) : isEmail ? (
                         <p className="am-text">
                             We sent a 6-digit code to <strong>{email}</strong>. Type it below. It works for 10 minutes. Check the spam folder too.
                         </p>
@@ -143,15 +164,28 @@ export default function TwoFactorPrompt({ email, onSuccess, onCancel }) {
                             disabled={locked}
                             invalid={invalid}
                         />
+                        {rememberDays > 0 && (
+                            <label className="am-remember">
+                                <input
+                                    type="checkbox"
+                                    checked={remember}
+                                    onChange={(event) => setRemember(event.target.checked)}
+                                    disabled={locked}
+                                />
+                                <span>Remember this device for {rememberDays} days</span>
+                            </label>
+                        )}
                         <button type="submit" className="am-primary" disabled={locked || code.length !== 6}>
                             {busy ? <><span className="am-spinner" aria-hidden="true" /> Checking…</> : 'Verify and sign in'}
                         </button>
 
                         {isEmail ? (
-                            <div className="am-row">
-                                <button type="button" className="am-link" onClick={() => { setMode('app'); setCode(''); setInvalid(false); }} disabled={locked}>
-                                    <Smartphone size={13} aria-hidden="true" /> Use the authenticator app
-                                </button>
+                            <div className={`am-row${appAvailable ? '' : ' is-center'}`}>
+                                {appAvailable && (
+                                    <button type="button" className="am-link" onClick={() => { setMode('app'); setCode(''); setInvalid(false); }} disabled={locked}>
+                                        <Smartphone size={13} aria-hidden="true" /> Use the authenticator app
+                                    </button>
+                                )}
                                 <button type="button" className="am-link" onClick={sendEmailCode} disabled={locked || resendIn > 0}>
                                     {sending ? 'Sending…' : resendIn > 0 ? `Send a new code (${resendIn}s)` : 'Send a new code'}
                                 </button>
@@ -163,9 +197,13 @@ export default function TwoFactorPrompt({ email, onSuccess, onCancel }) {
                         )}
 
                         <p className="am-help hint-text">
-                            {isEmail
-                                ? 'Lost your phone for good? After signing in, ask the Super Admin to turn off the authenticator app for your account so you can set it up again.'
-                                : 'The code changes every 30 seconds.'}
+                            {!appAvailable
+                                ? (setup
+                                    ? 'After this, every sign-in sends a new code to your email.'
+                                    : 'Each sign-in sends a new code to your email.')
+                                : isEmail
+                                    ? 'Lost your phone for good? After signing in, ask the Super Admin to turn off the authenticator app for your account so you can set it up again.'
+                                    : 'The code changes every 30 seconds.'}
                         </p>
                     </form>
                 </div>

@@ -25,6 +25,7 @@ class DataVersionController extends Controller
         'activity_logs',
         'restock_requests',   // Staff Notify
         'app_settings',       // currency, logo, Role Access
+        'account_requests',   // 2026-11-12: new "Request Account Access" shows without a reload
     ];
 
     public function __invoke(): JsonResponse

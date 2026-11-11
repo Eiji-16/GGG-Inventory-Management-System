@@ -48,7 +48,8 @@ class AuthController extends Controller
         // 2026-11-11: "Require the authenticator app for every account" is on
         // (Settings) and this account has none yet: it must set one up now.
         // Nobody is signed in until the QR code is scanned and a code typed.
-        if (! $user->hasTwoFactor() && \App\Models\AppSetting::requireAuthenticator()) {
+        // 2026-11-12: an account that chose email codes counts as set up too.
+        if (! $user->needsSecondStep() && \App\Models\AppSetting::requireAuthenticator()) {
             $request->session()->regenerate();
             $secret = \App\Support\Totp::newSecret();
             $request->session()->put(self::TWO_FACTOR_SETUP_KEY, [
@@ -65,6 +66,7 @@ class AuthController extends Controller
                     'secret' => trim(chunk_split($secret, 4, ' ')),
                     'uri' => \App\Support\Totp::uri($secret, $user->email, \App\Models\AppSetting::systemName()),
                 ],
+                'rememberDays' => $user->rememberDeviceDays(),
                 'csrfToken' => csrf_token(),
             ]);
         }
@@ -72,17 +74,29 @@ class AuthController extends Controller
         // 2FA (2026-11-03): accounts with an authenticator app must also type
         // its 6-digit code. Until then nobody is signed in; the session only
         // remembers "password OK for user X" for 5 minutes.
-        if ($user->hasTwoFactor()) {
+        // 2026-11-12: or an emailed code (accounts that chose email codes).
+        if ($user->needsSecondStep()) {
+            // "Remember this device" (Staff 30 days, Admin 7, Super Admin
+            // never): this browser already passed the second step recently.
+            if ($this->deviceIsTrusted($request, $user)) {
+                return $this->completeLogin($request, $user, viaTwoFactor: true, method: 'trusted');
+            }
+
             $request->session()->regenerate();
             $request->session()->put(self::TWO_FACTOR_KEY, [
                 'id' => $user->id,
                 'expires' => now()->addMinutes(5)->timestamp,
                 'tries' => 0,
             ]);
+            $method = $user->hasTwoFactor() ? 'app' : 'email';
 
             return response()->json([
                 'twoFactorRequired' => true,
-                'message' => 'Enter the 6-digit code from your authenticator app.',
+                'method' => $method,
+                'rememberDays' => $user->rememberDeviceDays(),
+                'message' => $method === 'app'
+                    ? 'Enter the 6-digit code from your authenticator app.'
+                    : 'We will email you a 6-digit code.',
                 'csrfToken' => csrf_token(),
             ]);
         }
@@ -91,6 +105,8 @@ class AuthController extends Controller
     }
 
     private const TWO_FACTOR_KEY = 'two_factor_login';
+    /** Cookie name prefix for "Remember this device" (one cookie per account). */
+    private const TRUSTED_COOKIE = 'ggg_trusted_';
     private const TWO_FACTOR_SETUP_KEY = 'two_factor_setup';
     private const TWO_FACTOR_TRIES = 5;
 
@@ -150,7 +166,45 @@ class AuthController extends Controller
         $request->session()->forget(self::TWO_FACTOR_SETUP_KEY);
         \App\Models\ActivityLog::record('account.2fa_setup', 'Connected an authenticator app at sign-in', 'shield', [], $user->id);
 
-        return $this->completeLogin($request, $user, viaTwoFactor: true);
+        return $this->completeLogin($request, $user, viaTwoFactor: true, remember: $request->boolean('remember'));
+    }
+
+    /**
+     * POST /auth/two-factor/setup/email — 2026-11-12: "Use email codes
+     * instead" on the "Connect your authenticator app" window. No phone app
+     * needed: the system emails a 6-digit code now, and the person types it
+     * (POST /auth/two-factor/email/verify). After that code, every sign-in
+     * of this account emails a new code.
+     */
+    public function setupTwoFactorByEmail(Request $request): JsonResponse
+    {
+        $pending = $request->session()->get(self::TWO_FACTOR_SETUP_KEY);
+        if (! is_array($pending) || ($pending['expires'] ?? 0) < now()->timestamp) {
+            $request->session()->forget(self::TWO_FACTOR_SETUP_KEY);
+
+            return response()->json([
+                'code' => 'two_factor_expired',
+                'message' => 'The setup took too long. Enter your email and password again.',
+            ], 422);
+        }
+        $user = User::find($pending['id']);
+        if (! $user || $user->status !== User::STATUS_ACTIVE) {
+            $request->session()->forget(self::TWO_FACTOR_SETUP_KEY);
+
+            return response()->json(['code' => 'two_factor_expired', 'message' => 'This account cannot sign in right now. Contact the Super Admin.'], 422);
+        }
+
+        // Same "password OK for user X" step as a normal email-code sign-in,
+        // marked so the correct code also saves the choice.
+        $request->session()->forget(self::TWO_FACTOR_SETUP_KEY);
+        $request->session()->put(self::TWO_FACTOR_KEY, [
+            'id' => $user->id,
+            'expires' => now()->addMinutes(self::EMAIL_CODE_MINUTES)->timestamp,
+            'tries' => 0,
+            'setup_email' => true,
+        ]);
+
+        return $this->sendTwoFactorEmailCode($request);
     }
 
     /** POST /auth/two-factor  { code } — second step of signing in. */
@@ -202,7 +256,7 @@ class AuthController extends Controller
 
         $request->session()->forget(self::TWO_FACTOR_KEY);
 
-        return $this->completeLogin($request, $user, viaTwoFactor: true);
+        return $this->completeLogin($request, $user, viaTwoFactor: true, remember: $request->boolean('remember'));
     }
 
     private const EMAIL_CODE_MINUTES = 10;
@@ -245,7 +299,9 @@ class AuthController extends Controller
 
             return response()->json([
                 'code' => 'mail_failed',
-                'message' => 'The code could not be emailed because the system\'s email settings are not working. Use your authenticator app, or tell the Super Admin.',
+                'message' => ! empty($pending['setup_email'])
+                    ? 'The code could not be emailed because the system\'s email settings are not working. Sign in again and use the authenticator app, or tell the Super Admin.'
+                    : 'The code could not be emailed because the system\'s email settings are not working. Use your authenticator app, or tell the Super Admin.',
             ], 503);
         }
 
@@ -311,22 +367,95 @@ class AuthController extends Controller
 
         $request->session()->forget(self::TWO_FACTOR_KEY);
 
-        return $this->completeLogin($request, $user, viaTwoFactor: true, method: 'email');
+        // 2026-11-12: chosen on the setup window — from now on this account
+        // signs in with emailed codes.
+        if (! empty($pending['setup_email'])) {
+            \App\Models\AppSetting::put($user->emailTwoFactorKey(), '1');
+            \App\Models\ActivityLog::record('account.2fa_email_setup', 'Chose email codes for two-step sign-in', 'mail', [], $user->id);
+        }
+
+        return $this->completeLogin($request, $user, viaTwoFactor: true, method: 'email', remember: $request->boolean('remember'));
     }
 
-    private function completeLogin(Request $request, User $user, bool $viaTwoFactor = false, string $method = 'app'): JsonResponse
+    private function completeLogin(Request $request, User $user, bool $viaTwoFactor = false, string $method = 'app', bool $remember = false): JsonResponse
     {
         Auth::login($user);
         $request->session()->regenerate();
         $request->session()->put('_account_auth_version', (int) $user->auth_version);
 
-        $how = $method === 'email' ? 'Signed in (with a code sent by email)' : 'Signed in (with authenticator code)';
+        $how = match ($method) {
+            'email' => 'Signed in (with a code sent by email)',
+            'trusted' => 'Signed in (remembered device, no code needed)',
+            default => 'Signed in (with authenticator code)',
+        };
         \App\Models\ActivityLog::record('login', $viaTwoFactor ? $how : 'Signed in', 'login', [], $user->id);
+
+        if ($remember && $method !== 'trusted') {
+            $this->rememberDevice($request, $user);
+        }
 
         return response()->json([
             'user' => $this->userPayload($user),
             'csrfToken' => csrf_token(),
         ]);
+    }
+
+    /* ===== REMEMBER THIS DEVICE (2026-11-12) =====
+       After a correct code, "Remember this device" saves a cookie in this
+       browser: secure (https), HTTP-only (scripts can't read it) and
+       encrypted with APP_KEY by Laravel. While it is valid, signing in from
+       this browser needs only the password. Staff 30 days, Admin 7 days,
+       Super Admin never. It stops working when the password, the role or
+       the two-step method changes (the fingerprint no longer matches). */
+
+    private function trustedFingerprint(User $user): string
+    {
+        return substr(hash_hmac('sha256', implode('|', [
+            $user->id,
+            $user->role,
+            (string) $user->getAuthPassword(),
+            (int) $user->auth_version,
+            optional($user->two_factor_confirmed_at)->timestamp,
+            $user->usesEmailTwoFactor() ? 'email' : 'app',
+        ]), (string) config('app.key')), 0, 40);
+    }
+
+    private function rememberDevice(Request $request, User $user): void
+    {
+        $days = $user->rememberDeviceDays();
+        if ($days <= 0) {
+            return;   // Super Admin: always ask for the code
+        }
+        $value = json_encode(['u' => $user->id, 't' => now()->timestamp, 'f' => $this->trustedFingerprint($user)]);
+        \Illuminate\Support\Facades\Cookie::queue(cookie(
+            self::TRUSTED_COOKIE.$user->id,
+            $value,
+            $days * 24 * 60,
+            '/',
+            null,
+            (bool) config('session.secure') || $request->isSecure(),
+            true,      // HTTP-only
+            false,
+            'lax',
+        ));
+    }
+
+    private function deviceIsTrusted(Request $request, User $user): bool
+    {
+        $days = $user->rememberDeviceDays();
+        if ($days <= 0) {
+            return false;
+        }
+        $data = json_decode((string) $request->cookie(self::TRUSTED_COOKIE.$user->id), true);
+        if (! is_array($data) || (int) ($data['u'] ?? 0) !== (int) $user->id || ! is_string($data['f'] ?? null)) {
+            return false;
+        }
+        $savedAt = (int) ($data['t'] ?? 0);
+        if ($savedAt > now()->timestamp + 60 || $savedAt + $days * 86400 < now()->timestamp) {
+            return false;   // too old for this role (or a clock trick)
+        }
+
+        return hash_equals($this->trustedFingerprint($user), $data['f']);
     }
 
     public function currentUser(Request $request): JsonResponse
@@ -542,6 +671,7 @@ class AuthController extends Controller
             // Own profile photo for the sidebar account row (null = initials).
             'avatarUrl' => $user->ownAvatarUrl(),
             'twoFactorEnabled' => $user->hasTwoFactor(),
+            'twoFactorEmail' => $user->usesEmailTwoFactor(),
             // Role Access: which features this account may use (Settings).
             'permissions' => \App\Services\RoleAccessService::effectiveFor($user),
         ];

@@ -32,7 +32,7 @@ function Login({ onLogin }) {
     const [showPasswordReset, setShowPasswordReset] = useState(false);
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [capsLockOn, setCapsLockOn] = useState(false);
-    // 2FA: email waiting for its authenticator code (null = not needed).
+    // 2FA: { email, method: 'app' | 'email', rememberDays } waiting for its code (null = not needed).
     const [twoFactorEmail, setTwoFactorEmail] = useState(null);
     // 2026-11-11: the account must connect an authenticator app now (Settings).
     const [twoFactorSetup, setTwoFactorSetup] = useState(null);
@@ -79,13 +79,13 @@ function Login({ onLogin }) {
 
             // Password OK, but the account must connect an authenticator app first.
             if (data.twoFactorSetupRequired) {
-                setTwoFactorSetup({ email: String(email), twoFactor: data.twoFactor });
+                setTwoFactorSetup({ email: String(email), twoFactor: data.twoFactor, rememberDays: data.rememberDays || 0 });
                 return;
             }
 
             // Password OK, but this account also needs its authenticator code.
             if (data.twoFactorRequired) {
-                setTwoFactorEmail(String(email));
+                setTwoFactorEmail({ email: String(email), method: data.method === 'email' ? 'email' : 'app', rememberDays: data.rememberDays || 0 });
                 return;
             }
 
@@ -257,13 +257,24 @@ function Login({ onLogin }) {
                 <TwoFactorSetupPrompt
                     email={twoFactorSetup.email}
                     twoFactor={twoFactorSetup.twoFactor}
+                    rememberDays={twoFactorSetup.rememberDays}
                     onSuccess={(user) => { setTwoFactorSetup(null); onLogin(user); }}
                     onCancel={(message) => { setTwoFactorSetup(null); setError(message || ''); }}
+                    onChooseEmail={(sent) => {
+                        // 2026-11-12: "Use email codes instead" — the code is already emailed.
+                        const { email: setupEmail, rememberDays } = twoFactorSetup;
+                        setTwoFactorSetup(null);
+                        setTwoFactorEmail({ email: setupEmail, method: 'email', rememberDays, setup: true, resendIn: sent?.resendInSeconds || 60 });
+                    }}
                 />
             )}
             {twoFactorEmail && (
                 <TwoFactorPrompt
-                    email={twoFactorEmail}
+                    email={twoFactorEmail.email}
+                    method={twoFactorEmail.method}
+                    rememberDays={twoFactorEmail.rememberDays}
+                    setup={Boolean(twoFactorEmail.setup)}
+                    initialResendIn={twoFactorEmail.resendIn || 0}
                     onSuccess={(user) => { setTwoFactorEmail(null); onLogin(user); }}
                     onCancel={(message) => { setTwoFactorEmail(null); setError(message || ''); }}
                 />

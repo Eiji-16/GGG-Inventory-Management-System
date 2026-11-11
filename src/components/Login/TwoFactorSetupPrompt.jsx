@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Copy, ShieldCheck, Smartphone, X } from 'lucide-react';
+import { Check, Copy, Mail, ShieldCheck, Smartphone, X } from 'lucide-react';
 import { PageToast } from '../../utils/toast';
 import { qrDataUrl } from '../../utils/qrCode';
 import OtpInput from './OtpInput';
@@ -11,13 +11,20 @@ import './authModal.css';
    "Require the authenticator app for every account" and this account has
    none yet. Scan the QR code, type the 6-digit code, then you are signed in
    (POST /auth/two-factor/setup). Until then nobody is signed in. Same look
-   as the account setup page. */
-export default function TwoFactorSetupPrompt({ email, twoFactor, onSuccess, onCancel }) {
+   as the account setup page.
+
+   2026-11-12: "Use email codes instead" — no phone app needed. The system
+   emails a code (POST /auth/two-factor/setup/email) and the two-step window
+   opens in email mode (onChooseEmail). rememberDays > 0 shows
+   "Remember this device for N days". */
+export default function TwoFactorSetupPrompt({ email, twoFactor, rememberDays = 0, onSuccess, onCancel, onChooseEmail }) {
     const [code, setCode] = useState('');
     const [error, setError] = useState('');
     const [invalid, setInvalid] = useState(false);
     const [busy, setBusy] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [remember, setRemember] = useState(false);
+    const [emailBusy, setEmailBusy] = useState(false);
     const qr = useMemo(() => (twoFactor?.uri ? qrDataUrl(twoFactor.uri) : ''), [twoFactor]);
 
     const copyKey = async () => {
@@ -44,7 +51,7 @@ export default function TwoFactorSetupPrompt({ email, twoFactor, onSuccess, onCa
             const response = await fetch('/auth/two-factor/setup', {
                 method: 'POST',
                 headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken || '' },
-                body: JSON.stringify({ code: typed }),
+                body: JSON.stringify({ code: typed, remember: rememberDays > 0 && remember }),
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
@@ -71,10 +78,43 @@ export default function TwoFactorSetupPrompt({ email, twoFactor, onSuccess, onCa
         }
     }
 
+    async function chooseEmail() {
+        if (busy || emailBusy) return;
+        setEmailBusy(true);
+        setError('');
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            const response = await fetch('/auth/two-factor/setup/email', {
+                method: 'POST',
+                headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken || '' },
+                body: '{}',
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                if (data.code === 'two_factor_expired' || data.code === 'mail_failed') {
+                    onCancel(data.message);
+                    return;
+                }
+                throw new Error(response.status === 429
+                    ? 'Too many tries. Please wait a minute, then try again.'
+                    : (data.message || 'The code could not be sent. Please try again.'));
+            }
+            onChooseEmail?.(data);
+        } catch (requestError) {
+            setError(requestError.message === 'Failed to fetch'
+                ? 'Can’t reach the server. Check your internet connection, then try again.'
+                : requestError.message);
+        } finally {
+            setEmailBusy(false);
+        }
+    }
+
+    const locked = busy || emailBusy;
+
     return createPortal(
         <div className="am-overlay">
             <section className="am-modal is-wide" role="dialog" aria-modal="true" aria-labelledby="am-2fa-setup-title">
-                <button type="button" className="am-close" aria-label="Cancel sign-in" onClick={() => onCancel('')} disabled={busy}>
+                <button type="button" className="am-close" aria-label="Cancel sign-in" onClick={() => onCancel('')} disabled={locked}>
                     <X size={18} />
                 </button>
                 <div className="am-body">
@@ -109,14 +149,34 @@ export default function TwoFactorSetupPrompt({ email, twoFactor, onSuccess, onCa
                             value={code}
                             onChange={(next) => { setCode(next); if (invalid) setInvalid(false); }}
                             onComplete={(full) => submit(full)}
-                            disabled={busy}
+                            disabled={locked}
                             invalid={invalid}
                             autoFocus={false}
                         />
-                        <button type="submit" className="am-primary" disabled={busy || code.length !== 6}>
+                        {rememberDays > 0 && (
+                            <label className="am-remember">
+                                <input
+                                    type="checkbox"
+                                    checked={remember}
+                                    onChange={(event) => setRemember(event.target.checked)}
+                                    disabled={locked}
+                                />
+                                <span>Remember this device for {rememberDays} days</span>
+                            </label>
+                        )}
+                        <button type="submit" className="am-primary" disabled={locked || code.length !== 6}>
                             {busy ? <><span className="am-spinner" aria-hidden="true" /> Connecting…</> : <><ShieldCheck size={16} aria-hidden="true" /> Connect and sign in</>}
                         </button>
                         <p className="am-help hint-text">The code changes every 30 seconds. You have 10 minutes to finish.</p>
+                        {onChooseEmail && (<>
+                            <p className="am-divider">or</p>
+                            <button type="button" className="am-secondary" onClick={chooseEmail} disabled={locked}>
+                                {emailBusy
+                                    ? <><span className="am-spinner" aria-hidden="true" /> Sending the code…</>
+                                    : <><Mail size={16} aria-hidden="true" /> Use email codes instead</>}
+                            </button>
+                            <p className="am-help hint-text">No phone app needed: each sign-in sends a 6-digit code to <strong>{email}</strong>.</p>
+                        </>)}
                     </form>
                 </div>
             </section>

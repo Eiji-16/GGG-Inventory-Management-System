@@ -679,6 +679,9 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
           setPolicyRefreshKey((key) => key + 1);      // Stock Control, Reorder Alerts, calculator, Forecasting, Reports, bell
           setRequestsVersion((version) => version + 1); // restock requests in the bell
           refreshPermissions();                          // Role Access may have changed
+          // 2026-11-12: a new account request appears in the Staffs badge,
+          // the bell and the Account requests list within a few seconds.
+          window.dispatchEvent(new Event('ggg-account-requests-changed'));
         }
         knownVersion = version;
       } catch {

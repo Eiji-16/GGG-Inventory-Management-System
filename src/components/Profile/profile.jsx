@@ -496,7 +496,8 @@ export default function Profile() {
       </div>
 
       {/* ===== CHANGE PASSWORD MODAL ===== */}
-      {showPwd && (
+      {/* 2026-11-12: drawn on the page body so it is always centred on phones. */}
+      {showPwd && createPortal(
         <div className="pf-modal-overlay" onClick={() => setShowPwd(false)}>
           <div className="pf-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <div className="pf-modal-header">
@@ -526,7 +527,8 @@ export default function Profile() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

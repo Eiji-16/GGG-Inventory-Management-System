@@ -179,8 +179,11 @@ class StaffController extends Controller
      */
     public function resetTwoFactor(Request $request, User $user): JsonResponse
     {
-        abort_unless($user->hasTwoFactor(), 422, 'This account does not use an authenticator app.');
+        abort_unless($user->needsSecondStep(), 422, 'This account does not use two-step sign-in.');
         $user->forceFill(['two_factor_secret' => null, 'two_factor_confirmed_at' => null])->save();
+        // 2026-11-12: email codes are turned off too (the person sets up
+        // two-step sign-in again at the next sign-in when Settings requires it).
+        \App\Models\AppSetting::query()->whereKey($user->emailTwoFactorKey())->delete();
         ActivityLog::record('staff.2fa_reset', "Turned off the authenticator app (2FA) for {$user->name}", 'key', [
             'userId' => $user->id,
             'email' => $user->email,
@@ -370,6 +373,7 @@ class StaffController extends Controller
             'avatarUrl'  => $photo ? "/staff/{$u->id}/avatar?v=".substr(md5($photo), 0, 10) : null,
             // Authenticator app (2FA) is on for this account.
             'twoFactor'  => $u->hasTwoFactor(),
+            'twoFactorEmail' => $u->usesEmailTwoFactor(),
             // Made by "Approve & Invite"; the email link has not been clicked yet.
             'waitingVerification' => AccountRequestController::isWaitingForVerification($u),
         ];

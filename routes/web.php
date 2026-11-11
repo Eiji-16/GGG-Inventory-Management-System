@@ -26,6 +26,8 @@ Route::get('/branding/name', [SystemNameController::class, 'show']);
 Route::post('/auth/two-factor', [AuthController::class, 'verifyTwoFactor'])->middleware('throttle:10,1,two-factor');
 // 2026-11-11: connect the authenticator app at sign-in (when Settings requires it).
 Route::post('/auth/two-factor/setup', [AuthController::class, 'setupTwoFactor'])->middleware('throttle:10,1,two-factor-setup');
+// 2026-11-12: or choose email codes instead of the app (no phone app needed).
+Route::post('/auth/two-factor/setup/email', [AuthController::class, 'setupTwoFactorByEmail'])->middleware('throttle:3,1,two-factor-setup-email');
 // 2026-11-11: can't use the phone? Email a sign-in code instead (after the correct password).
 Route::post('/auth/two-factor/email', [AuthController::class, 'sendTwoFactorEmailCode'])->middleware('throttle:3,1,two-factor-email');
 Route::post('/auth/two-factor/email/verify', [AuthController::class, 'verifyTwoFactorEmailCode'])->middleware('throttle:10,1,two-factor-email-verify');

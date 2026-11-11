@@ -2612,3 +2612,21 @@
 .sc-proof-link:hover,
 .sc-proof-link:focus-visible { color: var(--text-primary); }
 .sc-proof-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/*==========STOCK CARDS ON PHONES/TABLETS: TAP TO OPEN/CLOSE (2026-11-12)==========
+   The product name was a link to the history, so tapping it on an open card
+   opened the history instead of closing the card (and was a small target).
+   On cards the name is now plain text: tapping anywhere on the title opens or
+   closes the card, like Suppliers. History stays on the History button in
+   the card's actions. The product picture is hidden to give the name room. */
+@media (max-width: 900px) {
+    table.m-folders.sc-stock-table > tbody > tr > td.m-title .sc-product-link {
+        pointer-events: none;
+        cursor: inherit;
+        border-bottom: 0;
+        color: inherit;
+    }
+    table.m-folders.sc-stock-table > tbody > tr > td.m-title { cursor: pointer; }
+    table.m-folders.sc-stock-table > tbody > tr > td.m-title .sc-thumb { display: none !important; }
+    table.m-folders.sc-stock-table > tbody > tr > td.m-title .sc-name-cell { gap: 0; }
+}

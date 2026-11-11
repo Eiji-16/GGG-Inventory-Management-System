@@ -91,10 +91,43 @@ class AccountRequestController extends Controller
             'accountRequestId' => $accountRequest->id,
             'email' => $email,
         ]);
+        $this->notifyReviewers($accountRequest);
 
         return response()->json([
             'message' => 'Your request was sent. The Super Admin will review it, and you will get an email with a setup link once it is approved.',
         ], 201);
+    }
+
+    /**
+     * 2026-11-12: email the people who manage accounts about a new request:
+     * every active Super Admin, plus active Admins whose Role Access has
+     * "Manage Staff" on. A failed email never stops the request.
+     */
+    private function notifyReviewers(AccountRequest $accountRequest): void
+    {
+        $when = now()->timezone(config('app.business_timezone', 'Asia/Manila'))->format('M j, Y g:i A');
+        $reviewers = User::query()
+            ->where('status', User::STATUS_ACTIVE)
+            ->whereIn('role', [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN])
+            ->get()
+            ->filter(fn (User $user) => $user->isSuperAdmin()
+                || \App\Services\RoleAccessService::allows($user, 'staff.manage'));
+
+        foreach ($reviewers as $reviewer) {
+            try {
+                Mail::to($reviewer->email)->send(new \App\Mail\AccountRequestMail(
+                    $accountRequest->name,
+                    $accountRequest->email,
+                    $when,
+                    $reviewer->isSuperAdmin(),
+                ));
+            } catch (Throwable $exception) {
+                Log::error('Account request email could not be sent. Check the MAIL_* settings in .env, then run php artisan config:clear.', [
+                    'to' => $reviewer->email,
+                    'exception' => $exception,
+                ]);
+            }
+        }
     }
 
     /* ---------- Step 2: Super Admin review ---------- */
@@ -250,20 +283,25 @@ class AccountRequestController extends Controller
     /** POST /auth/account-setup/complete  { token, password, password_confirmation, code } */
     public function complete(Request $request): JsonResponse
     {
+        // 2026-11-12: method "email" = no authenticator app; every sign-in
+        // emails a code instead. No code is typed here: opening this one-time
+        // link from the inbox already proved the email belongs to the person.
+        $viaEmail = $request->input('method') === 'email';
         $data = $request->validate([
             'token' => ['required', 'string', 'size:64'],
             'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
-            'code' => ['required', 'digits:6'],
+            'method' => ['nullable', Rule::in(['app', 'email'])],
+            'code' => [$viaEmail ? 'nullable' : 'required', 'digits:6'],
         ], [
             'password.confirmed' => 'The two passwords do not match.',
             'code.required' => 'Enter the 6-digit code from your authenticator app.',
             'code.digits' => 'The code must be exactly 6 numbers.',
         ]);
 
-        $user = DB::transaction(function () use ($request, $data) {
+        $user = DB::transaction(function () use ($request, $data, $viaEmail) {
             $accountRequest = $this->findByToken($request, $data['token'], claim: false, lock: true);
             $secret = $accountRequest->two_factor_secret;
-            if (! $secret || Totp::verify($secret, $data['code']) === null) {
+            if (! $viaEmail && (! $secret || Totp::verify($secret, (string) $data['code']) === null)) {
                 throw ValidationException::withMessages([
                     'code' => 'That code is incorrect. Make sure you scanned the QR code on this page, then type the newest 6-digit code.',
                 ]);
@@ -289,9 +327,12 @@ class AccountRequestController extends Controller
             $user->password = $data['password'];
             $user->forceFill([
                 'email_verified_at' => now(),           // the link proved the email is theirs
-                'two_factor_secret' => $secret,
-                'two_factor_confirmed_at' => now(),
+                'two_factor_secret' => $viaEmail ? null : $secret,
+                'two_factor_confirmed_at' => $viaEmail ? null : now(),
             ])->save();
+            if ($viaEmail) {
+                \App\Models\AppSetting::put($user->emailTwoFactorKey(), '1');
+            }
 
             // One-time: the link and the pending secret are wiped.
             $accountRequest->forceFill([
@@ -307,13 +348,15 @@ class AccountRequestController extends Controller
             return $user;
         });
 
-        ActivityLog::record('account.setup', "{$user->name} finished the account setup (password + authenticator app)", 'user', [
+        ActivityLog::record('account.setup', "{$user->name} finished the account setup (password + ".($viaEmail ? 'email codes' : 'authenticator app').')', 'user', [
             'email' => $user->email,
             'role' => $user->role,
         ], $user->id);
 
         return response()->json([
-            'message' => 'Your account is ready. Sign in with your email, your new password and the code from your authenticator app.',
+            'message' => $viaEmail
+                ? 'Your account is ready. Sign in with your email and new password, then type the code we email you.'
+                : 'Your account is ready. Sign in with your email, your new password and the code from your authenticator app.',
         ]);
     }
 

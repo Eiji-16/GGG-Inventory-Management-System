@@ -1702,3 +1702,36 @@
     background: transparent;
     opacity: 0.7;
 }
+
+/*==========RESULT POP-UP ON PHONES (2026-11-12)==========
+   - The window is centred on the screen (was stuck to the bottom).
+   - Its middle part scrolls: a flex child needs min-height: 0 to shrink,
+     otherwise it was as tall as its content and nothing could scroll.
+   - Height uses the visible screen (dvh), so the browser's address bar
+     never hides the top or the buttons.
+   - The big Economic Order Quantity number was invisible: the number box
+     (contain: inline-size) took 0 width inside the centred grid. It now
+     uses the full width of the card. */
+.ac-modal { max-height: calc(85dvh / var(--ui-zoom, 1)); }
+.ac-modal.eq-result-modal { max-height: calc(90dvh / var(--ui-zoom, 1)); }
+.ac-modal-header,
+.ac-modal-footer { flex-shrink: 0; }
+.ac-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+.eq-hero strong {
+    justify-self: stretch;
+    width: 100%;
+    min-width: 0;
+    text-align: center;
+}
+@media (max-width: 560px) {
+    .ac-modal-overlay { align-items: center; padding: 0.75rem; }
+    .ac-modal.eq-result-modal {
+        max-height: calc(calc(100dvh / var(--ui-zoom, 1)) - 1.5rem);
+        border-radius: 0.75rem;
+    }
+}

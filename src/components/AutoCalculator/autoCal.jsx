@@ -272,6 +272,7 @@ export default function AutoCalculatorDesign({
   const [showHistory, setShowHistory] = useState(false);
   // Results open in a pop-up (no empty result panel taking space on the page).
   const [showResult, setShowResult] = useState(false);
+  const resultOverlayDown = useRef(false);   // the tap started on the dark area around the result
 
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
@@ -920,7 +921,14 @@ export default function AutoCalculatorDesign({
 
       {/* ===== RESULT POP-UP ===== */}
       {showResult && result && createPortal(
-        <div className="ac-modal-overlay" onClick={() => setShowResult(false)}>
+        /* 2026-11-12: closes only when a tap both starts and ends on the dark
+           area. On phones a scroll that ended outside the window used to
+           count as a tap there and closed the result. */
+        <div
+          className="ac-modal-overlay"
+          onPointerDown={(e) => { resultOverlayDown.current = e.target === e.currentTarget; }}
+          onClick={(e) => { if (resultOverlayDown.current && e.target === e.currentTarget) setShowResult(false); resultOverlayDown.current = false; }}
+        >
           <section
             className="ac-modal eq-result-modal"
             onClick={(e) => e.stopPropagation()}

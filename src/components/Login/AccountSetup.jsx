@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PageToast } from '../../utils/toast';
 import {
-    ArrowRight, Boxes, Check, CircleAlert, Copy, Eye, EyeOff, LinkIcon, LockKeyhole, ShieldCheck, Smartphone, UserCheck,
+    ArrowRight, Boxes, Check, CircleAlert, Copy, Eye, EyeOff, LinkIcon, LockKeyhole, Mail, ShieldCheck, Smartphone, UserCheck,
 } from 'lucide-react';
 import OtpInput from './OtpInput';
 import { useSystemName } from '../../systemName';
@@ -16,7 +16,9 @@ import './authModal.css';
      2. Choose a password.
      3. Scan the QR code with Google / Microsoft Authenticator and type the
         6-digit code (POST /auth/account-setup/complete). Only now is the
-        account made — with 2FA already on — and the link stops working. */
+        account made — with 2FA already on — and the link stops working.
+        2026-11-12: or "Use email codes instead" — no phone app: every
+        sign-in emails a 6-digit code (this link already proved the email). */
 const STEPS = [
     { key: 'password', label: 'Password' },
     { key: 'authenticator', label: 'Authenticator' },
@@ -56,6 +58,7 @@ export default function AccountSetup({ token }) {
     const [confirmation, setConfirmation] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [code, setCode] = useState('');
+    const [useEmail, setUseEmail] = useState(false);   // email codes instead of the app
     const [codeInvalid, setCodeInvalid] = useState(false);
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
@@ -93,15 +96,15 @@ export default function AccountSetup({ token }) {
         setStep('authenticator');
     };
 
-    async function finish(typed = code) {
+    async function finish(typed = code, viaEmail = useEmail) {
         if (busy) return;
-        if (typed.length !== 6) { setError('Enter all 6 numbers from your authenticator app.'); setCodeInvalid(true); return; }
+        if (!viaEmail && typed.length !== 6) { setError('Enter all 6 numbers from your authenticator app.'); setCodeInvalid(true); return; }
         setBusy(true);
         setError('');
         try {
-            const data = await postJson('/auth/account-setup/complete', {
-                token, password, password_confirmation: confirmation, code: typed,
-            });
+            const data = await postJson('/auth/account-setup/complete', viaEmail
+                ? { token, password, password_confirmation: confirmation, method: 'email' }
+                : { token, password, password_confirmation: confirmation, code: typed });
             setDoneMessage(data.message);
             setStep('done');
         } catch (finishError) {
@@ -110,6 +113,7 @@ export default function AccountSetup({ token }) {
             if (finishError.field === 'token') { setLinkError(finishError.message); setStatus('invalid'); }
             setCodeInvalid(finishError.field === 'code');
             setCode('');
+            setUseEmail(false);
         } finally {
             setBusy(false);
         }
@@ -237,6 +241,11 @@ export default function AccountSetup({ token }) {
                                     <button type="submit" className="am-primary" disabled={busy || code.length !== 6}>
                                         {busy ? <><span className="am-spinner" aria-hidden="true" /> Finishing…</> : <><ShieldCheck size={16} aria-hidden="true" /> Finish setup</>}
                                     </button>
+                                    <p className="am-divider">or</p>
+                                    <button type="button" className="am-secondary" onClick={() => { setUseEmail(true); finish('', true); }} disabled={busy}>
+                                        <Mail size={16} aria-hidden="true" /> Use email codes instead
+                                    </button>
+                                    <p className="am-help hint-text">No phone app needed: each sign-in sends a 6-digit code to <strong>{info.email}</strong>.</p>
                                     <button type="button" className="am-link" onClick={() => { setError(''); setStep('password'); }} disabled={busy}>Back to password</button>
                                 </form>
                             </div>
@@ -247,7 +256,9 @@ export default function AccountSetup({ token }) {
                                 <div className="am-icon is-success" aria-hidden="true"><ShieldCheck size={24} /></div>
                                 <h1 id="am-setup-title" className="am-title">You’re all set</h1>
                                 <p className="am-alert is-success" role="status"><Check size={14} aria-hidden="true" /> {doneMessage}</p>
-                                <p className="am-text">This setup link no longer works. Keep your phone safe: you’ll need the authenticator app every time you sign in.</p>
+                                <p className="am-text">{useEmail
+                                    ? 'This setup link no longer works. Each time you sign in, we will email you a 6-digit code.'
+                                    : 'This setup link no longer works. Keep your phone safe: you’ll need the authenticator app every time you sign in.'}</p>
                                 <button type="button" className="am-primary" onClick={goToSignIn}>Go to sign in <ArrowRight size={16} aria-hidden="true" /></button>
                             </div>
                         )}

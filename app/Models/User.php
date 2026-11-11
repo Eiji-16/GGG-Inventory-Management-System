@@ -88,6 +88,42 @@ class User extends Authenticatable
         return $this->two_factor_confirmed_at !== null && ! empty($this->two_factor_secret);
     }
 
+    /**
+     * 2026-11-12: two-step sign-in by EMAIL instead of the authenticator app.
+     * Chosen by the person on the "Connect your authenticator app" window
+     * ("Use email codes instead"). Kept in app_settings (no users column),
+     * like the profile photo. Each sign-in then emails a 6-digit code.
+     */
+    public function emailTwoFactorKey(): string
+    {
+        return 'two_factor_email.user.'.$this->id;
+    }
+
+    public function usesEmailTwoFactor(): bool
+    {
+        return AppSetting::get($this->emailTwoFactorKey()) === '1';
+    }
+
+    /** Signing in needs a second step: the authenticator app or an emailed code. */
+    public function needsSecondStep(): bool
+    {
+        return $this->hasTwoFactor() || $this->usesEmailTwoFactor();
+    }
+
+    /**
+     * "Remember this device" (2026-11-12): how many days a browser may skip
+     * the second step after a correct code. Staff 30, Admin 7, Super Admin
+     * never (0 = always ask for the code).
+     */
+    public function rememberDeviceDays(): int
+    {
+        return match ($this->role) {
+            self::ROLE_STAFF => 30,
+            self::ROLE_ADMIN => 7,
+            default => 0,
+        };
+    }
+
     /** True for admin and super_admin (i.e. "admin or above"). */
     /**
      * The SUPER_ADMIN_EMAIL in .env counts as Super Admin ONLY while no

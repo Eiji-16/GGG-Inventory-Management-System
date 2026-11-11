@@ -18,6 +18,7 @@ import {
   Trash2,
   KeyRound,
   UserPlus,
+  RotateCcw,
 } from 'lucide-react';
 import './staff.css';
 import AccountRequests from './AccountRequests';
@@ -62,6 +63,8 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
   const [isAccountActionLoading, setIsAccountActionLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeactivated, setShowDeactivated] = useState(false);
+  // 2026-11-12: tick several deactivated accounts, then Reactivate or Move to Trash Bin at once.
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
   // Tabs (Super Admin, 2026-11-06): 'accounts' | 'requests' — same style as Stock | History.
   const [staffView, setStaffView] = useState('accounts');
   const [requestCount, setRequestCount] = useState(0);
@@ -111,6 +114,28 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
         s.role.toLowerCase().includes(q)
     );
   }, [query, visibleAccounts]);
+
+  /* ===== MULTI-SELECT (Deactivated Accounts, 2026-11-12) ===== */
+  const canSelect = canManage && showDeactivated;
+  const selectableRows = canSelect ? filtered.filter((account) => canActOn(account)) : [];
+  const selectedAccounts = deactivatedStaff.filter((account) => selectedIds.has(account.id) && canActOn(account));
+  const allSelected = selectableRows.length > 0 && selectableRows.every((account) => selectedIds.has(account.id));
+  const toggleSelected = (id) => setSelectedIds((previous) => {
+    const next = new Set(previous);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const toggleAllSelected = () => setSelectedIds((previous) => {
+    const next = new Set(previous);
+    if (allSelected) selectableRows.forEach((account) => next.delete(account.id));
+    else selectableRows.forEach((account) => next.add(account.id));
+    return next;
+  });
+  // Leaving the Deactivated view clears the ticks.
+  useEffect(() => { if (!showDeactivated) setSelectedIds(new Set()); }, [showDeactivated]);
+  const tableColumns = (canManage ? 6 : 5) + (canSelect ? 1 : 0);
+  const bulkCount = accountDialog?.accounts ? accountDialog.accounts.length : 0;
+  const isReactivateStep = accountDialog?.step === 'reactivate' || accountDialog?.step === 'bulk-reactivate';
 
   const allAccounts = [...staff, ...deactivatedStaff];
   const total = allAccounts.length;
@@ -212,7 +237,8 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
      their phone. They then sign in with the password only. */
   const resetTwoFactor = async (account) => {
     setMenu(null);
-    if (!window.confirm(`Turn off the authenticator app for ${account.name}? They will sign in with their password only.`)) return;
+    const what = account.twoFactor ? 'the authenticator app' : 'email codes';
+    if (!window.confirm(`Turn off ${what} for ${account.name}? They will sign in with their password only.`)) return;
     try {
       const response = await fetch(`/staff/${account.id}/two-factor`, {
         method: 'DELETE',
@@ -222,7 +248,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
       if (!response.ok) throw new Error(data.message || `Could not turn off the authenticator (${response.status}).`);
       replaceAccount(data);
       setActionError('');
-      setActionMessage(`The authenticator app is off for ${account.name}.`);
+      setActionMessage(`Two-step sign-in is off for ${account.name}.`);
     } catch (error) {
       setActionMessage('');
       setActionError(error.message || 'Could not turn off the authenticator.');
@@ -436,6 +462,55 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
     } finally {
       setIsAccountActionLoading(false);
     }
+  };
+
+  /* Reactivate / Move to Trash Bin for every ticked account (one by one,
+     the same requests as the row menu, so the server checks each one). */
+  const confirmBulk = async () => {
+    if (!accountDialog?.accounts || isAccountActionLoading) return;
+    const reactivating = accountDialog.step === 'bulk-reactivate';
+    setIsAccountActionLoading(true);
+    setAccountActionError('');
+    const done = [];
+    const failed = [];
+    for (const account of accountDialog.accounts) {
+      try {
+        const response = await fetch(`/staff/${account.id}`, {
+          method: reactivating ? 'PATCH' : 'DELETE',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
+          body: JSON.stringify(reactivating ? { status: 'active' } : { confirmation: 'DELETE' }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const message = data.errors ? Object.values(data.errors).flat()[0] : data.message;
+          throw new Error(message || `Error ${response.status}`);
+        }
+        done.push(reactivating ? data : account);
+      } catch (error) {
+        failed.push(`${account.name}: ${error.message}`);
+      }
+    }
+
+    const doneIds = new Set(done.map((account) => account.id));
+    setDeactivatedStaff((previous) => previous.filter((item) => !doneIds.has(item.id)));
+    if (reactivating && done.length) {
+      setStaff((previous) => (
+        [...previous.filter((item) => !doneIds.has(item.id)), ...done]
+          .sort((a, b) => a.name.localeCompare(b.name))
+      ));
+    }
+    setSelectedIds((previous) => new Set([...previous].filter((id) => !doneIds.has(id))));
+    setIsAccountActionLoading(false);
+
+    if (failed.length) {
+      setAccountActionError(`${done.length ? `${done.length} done. ` : ''}Not changed: ${failed.join(' · ')}`);
+      setAccountDialog((previous) => previous && ({ ...previous, accounts: previous.accounts.filter((account) => !doneIds.has(account.id)) }));
+      return;
+    }
+    const count = `${done.length} account${done.length === 1 ? '' : 's'}`;
+    setActionError('');
+    setActionMessage(reactivating ? `${count} reactivated.` : `${count} moved to the Trash Bin.`);
+    closeAccountDialog();
   };
 
   const createAccount = async (event) => {
@@ -681,12 +756,46 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
               <h3>Deactivated Accounts</h3>
               <p>These accounts cannot sign in until they are activated again.</p>
             </div>
+            {canSelect && selectedAccounts.length > 0 && (
+              <div className="st-bulk-bar" role="toolbar" aria-label="Selected accounts">
+                <span className="st-bulk-count">{selectedAccounts.length} selected</span>
+                <button
+                  type="button"
+                  className="st-bulk-button"
+                  onClick={() => { setMenu(null); setAccountActionError(''); setAccountDialog({ step: 'bulk-reactivate', accounts: selectedAccounts }); }}
+                >
+                  <RotateCcw size={14} aria-hidden="true" /> Reactivate
+                </button>
+                <button
+                  type="button"
+                  className="st-bulk-button is-danger"
+                  onClick={() => { setMenu(null); setAccountActionError(''); setAccountDialog({ step: 'bulk-delete', accounts: selectedAccounts }); }}
+                >
+                  <Trash2 size={14} aria-hidden="true" /> Move to Trash Bin
+                </button>
+                <button type="button" className="st-bulk-clear" onClick={() => setSelectedIds(new Set())} aria-label="Clear selection" title="Clear selection">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
           </div>
         )}
         <div className="st-table-scroll">
           <table className="st-table">
             <thead>
               <tr>
+                {canSelect && (
+                  <th className="st-th-select">
+                    <input
+                      type="checkbox"
+                      className="st-select-box"
+                      checked={allSelected}
+                      onChange={toggleAllSelected}
+                      disabled={selectableRows.length === 0}
+                      aria-label="Select all deactivated accounts"
+                    />
+                  </th>
+                )}
                 <th>Name</th>
                 <th>Email</th>
                 <th>Role</th>
@@ -698,13 +807,26 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={canManage ? 6 : 5} className="st-empty ui-loading">Loading staff…</td>
+                  <td colSpan={tableColumns} className="st-empty ui-loading">Loading staff…</td>
                 </tr>
               ) : filtered.map((s) => {
                 const role = ROLE_META[s.role] || ROLE_META.Staff;
                 const RoleIcon = role.Icon;
                 return (
-                  <tr key={s.id}>
+                  <tr key={s.id} className={canSelect && selectedIds.has(s.id) ? 'is-selected' : undefined}>
+                    {canSelect && (
+                      <td className="st-cell-select">
+                        {canActOn(s) && (
+                          <input
+                            type="checkbox"
+                            className="st-select-box"
+                            checked={selectedIds.has(s.id)}
+                            onChange={() => toggleSelected(s.id)}
+                            aria-label={`Select ${s.name}`}
+                          />
+                        )}
+                      </td>
+                    )}
                     <td className="st-cell-name" data-label="Name">
                       <span className="st-name-wrap">
                         <span className={`st-avatar${photoBusyId === s.id ? ' is-busy' : ''}`} aria-hidden="true">
@@ -757,7 +879,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
 
               {filtered.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={canManage ? 6 : 5} className="st-empty">
+                  <td colSpan={tableColumns} className="st-empty">
                     {visibleAccounts.length === 0
                       ? (showDeactivated ? 'No deactivated accounts.' : 'No active staff accounts.')
                       : `No staff match “${query}”.`}
@@ -788,7 +910,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
           style={{ top: menu.top, left: Math.max(12, menu.left) }}
           role="menu"
         >
-          {isSuperAdmin && menuRow.twoFactor && (<>
+          {isSuperAdmin && (menuRow.twoFactor || menuRow.twoFactorEmail) && (<>
             <p className="st-menu-head">Sign-in security</p>
             <button
               type="button"
@@ -797,7 +919,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
               onClick={() => resetTwoFactor(menuRow)}
             >
               <KeyRound size={14} />
-              Turn off authenticator (lost phone)
+              {menuRow.twoFactor ? 'Turn off authenticator (lost phone)' : 'Turn off email codes'}
             </button>
             <div className="st-menu-divider" />
           </>)}
@@ -891,10 +1013,12 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
             <header className="st-modal-header">
               <div>
                 <p className="st-modal-eyebrow">
-                  {accountDialog.step === 'reactivate' ? 'Reactivate account' : 'Move to Trash Bin'}
+                  {isReactivateStep ? (bulkCount ? 'Reactivate accounts' : 'Reactivate account') : 'Move to Trash Bin'}
                 </p>
                 <h2 id="st-account-confirm-title">
-                  {accountDialog.step === 'reactivate' ? 'Reactivate Account?' : 'Move Account to Trash Bin?'}
+                  {bulkCount
+                    ? (isReactivateStep ? `Reactivate ${bulkCount} Account${bulkCount === 1 ? '' : 's'}?` : `Move ${bulkCount} Account${bulkCount === 1 ? '' : 's'} to Trash Bin?`)
+                    : (isReactivateStep ? 'Reactivate Account?' : 'Move Account to Trash Bin?')}
                 </h2>
               </div>
               <button
@@ -908,6 +1032,21 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
               </button>
             </header>
             <div className="st-account-confirm-body">
+              {bulkCount ? (<>
+                <p>
+                  {isReactivateStep
+                    ? 'These accounts can sign in again right away.'
+                    : 'These deactivated accounts move to the Trash Bin. A Super Admin can restore them from the Trash Bin.'}
+                </p>
+                <ul className="st-bulk-list">
+                  {accountDialog.accounts.map((account) => (
+                    <li key={account.id} className="st-account-confirm-identity">
+                      <span>{account.name}</span>
+                      <span>{account.email}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>) : (<>
               <p>
                 {accountDialog.step === 'reactivate'
                   ? `Are you sure you want to reactivate ${accountDialog.account.name}'s account?`
@@ -917,6 +1056,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
                 <span>{accountDialog.account.name}</span>
                 <span>{accountDialog.account.email}</span>
               </div>
+              </>)}
 
               <PageToast message={accountActionError} type="error" onShown={() => setAccountActionError('')} />
             </div>
@@ -929,11 +1069,11 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
               >
                 Cancel
               </button>
-              {accountDialog.step === 'reactivate' ? (
+              {isReactivateStep ? (
                 <button
                   type="button"
                   className="st-confirm-primary"
-                  onClick={confirmReactivate}
+                  onClick={bulkCount ? confirmBulk : confirmReactivate}
                   disabled={isAccountActionLoading}
                 >
                   {isAccountActionLoading ? 'Reactivating…' : 'Reactivate'}
@@ -942,7 +1082,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
                 <button
                   type="button"
                   className="st-confirm-danger"
-                  onClick={confirmMoveToTrash}
+                  onClick={bulkCount ? confirmBulk : confirmMoveToTrash}
                   disabled={isAccountActionLoading}
                 >
                   {isAccountActionLoading ? 'Moving…' : 'Move to Trash Bin'}
