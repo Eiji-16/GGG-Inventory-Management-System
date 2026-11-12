@@ -22,7 +22,9 @@ class TwoFactorEmailCodeMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Your sign-in code');
+        // 2026-11-12: the code is in the subject, so it shows in the inbox and
+        // phone notification (Gmail may offer its own "Copy code" there).
+        return new Envelope(subject: "{$this->code} is your sign-in code");
     }
 
     public function content(): Content

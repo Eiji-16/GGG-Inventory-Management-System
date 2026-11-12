@@ -19,7 +19,8 @@ class PasswordResetOtpMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Your password reset code',
+            // 2026-11-12: code in the subject (shows in the inbox / notification).
+            subject: "{$this->otp} is your password reset code",
         );
     }
 
