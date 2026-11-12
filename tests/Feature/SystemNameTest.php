@@ -59,7 +59,7 @@ class SystemNameTest extends TestCase
         $owner = $this->user(User::ROLE_SUPER_ADMIN);
         $this->actingAs($owner)->putJson('/branding/name', ['name' => '   '])->assertUnprocessable()->assertJsonValidationErrors('name');
         $this->actingAs($owner)->putJson('/branding/name', ['name' => 'A'])->assertUnprocessable()->assertJsonValidationErrors('name');
-        $this->actingAs($owner)->putJson('/branding/name', ['name' => str_repeat('x', 61)])->assertUnprocessable()->assertJsonValidationErrors('name');
+        $this->actingAs($owner)->putJson('/branding/name', ['name' => str_repeat('x', 41)])->assertUnprocessable()->assertJsonValidationErrors('name');
         $this->actingAs($owner)->putJson('/branding/name', ['name' => '<b>Shop</b>'])->assertUnprocessable()->assertJsonValidationErrors('name');
         $this->assertSame(AppSetting::DEFAULT_SYSTEM_NAME, AppSetting::systemName());
     }

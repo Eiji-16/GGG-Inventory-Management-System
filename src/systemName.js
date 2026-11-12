@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
    the login page. After a change, setSystemName() updates the tab and tells
    every screen that uses useSystemName() to show the new name at once. */
 export const DEFAULT_SYSTEM_NAME = 'GGG Inventory Management System';
-export const SYSTEM_NAME_MAX = 60;
+export const SYSTEM_NAME_MAX = 40;   // 2026-11-12: was 60; same limit as the server (AppSetting)
 const EVENT = 'ggg-system-name-changed';
 
 let current = (typeof document !== 'undefined' && document.title.trim()) || DEFAULT_SYSTEM_NAME;

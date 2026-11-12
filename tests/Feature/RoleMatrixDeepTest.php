@@ -92,7 +92,7 @@ class RoleMatrixDeepTest extends TestCase
             ['trash: bulk', 'POST', '/api/trash/bulk', ['space' => 'trash', 'action' => 'restore', 'items' => [['kind' => 'entry', 'id' => 1]]], 'trash.restore'],
             ['trash: open archive', 'GET', '/api/trash?space=archive', [], null],
             ['trash: archive', 'POST', '/api/trash/bulk', ['space' => 'trash', 'action' => 'archive', 'items' => [['kind' => 'entry', 'id' => 1]]], null],
-            ['staffs: account requests', 'GET', '/staff/account-requests', [], null],
+            ['staffs: account requests', 'GET', '/staff/account-requests', [], 'staff.requests'],
             ['staffs: list', 'GET', '/staff', [], 'staff.manage'],
             ['staffs: add staff', 'POST', '/staff', ['name' => 'New One', 'email' => 'new.one@example.com', 'role' => 'staff', 'password' => 'Password123!', 'password_confirmation' => 'Password123!'], 'staff.manage'],
             ['dashboard', 'GET', '/api/dashboard/summary', [], 'ALWAYS'],

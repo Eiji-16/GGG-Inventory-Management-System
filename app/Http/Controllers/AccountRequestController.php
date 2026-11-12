@@ -119,7 +119,8 @@ class AccountRequestController extends Controller
                     $accountRequest->name,
                     $accountRequest->email,
                     $when,
-                    $reviewer->isSuperAdmin(),
+                    // 2026-11-12: Admins with "Approve account requests" may approve too.
+                    $reviewer->isSuperAdmin() || \App\Services\RoleAccessService::allows($reviewer, 'staff.requests'),
                 ));
             } catch (Throwable $exception) {
                 Log::error('Account request email could not be sent. Check the MAIL_* settings in .env, then run php artisan config:clear.', [
@@ -132,9 +133,36 @@ class AccountRequestController extends Controller
 
     /* ---------- Step 2: Super Admin review ---------- */
 
-    /** GET /staff/account-requests — pending first, then the latest others. */
-    public function index(): JsonResponse
+    /**
+     * 2026-11-12: who may review requests. The Super Admin always; an Admin
+     * only with Role Access "Approve account requests" (and then as Staff
+     * only). Returns true for the Super Admin.
+     */
+    private function reviewer(Request $request): bool
     {
+        $user = $request->user();
+        if (\App\Services\RoleAccessService::isSuperAdmin($user)) {
+            return true;
+        }
+        abort_unless(
+            $user && $user->role === User::ROLE_ADMIN && \App\Services\RoleAccessService::allows($user, 'staff.requests'),
+            403,
+            'Only the Super Admin can review account requests.'
+        );
+
+        return false;
+    }
+
+    /** An Admin may not resend or cancel an invite that makes someone an Admin. */
+    private function abortIfAdminInvite(bool $isSuperAdmin, AccountRequest $accountRequest): void
+    {
+        abort_if(! $isSuperAdmin && $accountRequest->role === User::ROLE_ADMIN, 403, 'Only the Super Admin can change an Admin invite.');
+    }
+
+    /** GET /staff/account-requests — pending first, then the latest others. */
+    public function index(Request $request): JsonResponse
+    {
+        $this->reviewer($request);
         if (! \Illuminate\Support\Facades\Schema::hasTable('account_requests')) {
             // The 2026_11_03_000003 migration has not been run yet.
             return response()->json([
@@ -156,9 +184,11 @@ class AccountRequestController extends Controller
     /** POST /staff/account-requests/{accountRequest}/approve  { role } */
     public function approve(Request $request, AccountRequest $accountRequest): JsonResponse
     {
+        $isSuperAdmin = $this->reviewer($request);
         $data = $request->validate([
             'role' => ['required', Rule::in([User::ROLE_STAFF, User::ROLE_ADMIN])],
         ]);
+        abort_if(! $isSuperAdmin && $data['role'] !== User::ROLE_STAFF, 403, 'Only the Super Admin can approve someone as Admin.');
         abort_unless($accountRequest->status === AccountRequest::PENDING, 422, 'This request was already approved, finished or rejected.');
         $existing = User::withTrashed()->whereRaw('LOWER(email) = ?', [strtolower($accountRequest->email)])->first();
         abort_if($existing !== null, 422, 'This email already has an account.');
@@ -202,6 +232,7 @@ class AccountRequestController extends Controller
     /** POST /staff/account-requests/{accountRequest}/resend — new link, old one stops working. */
     public function resend(Request $request, AccountRequest $accountRequest): JsonResponse
     {
+        $this->abortIfAdminInvite($this->reviewer($request), $accountRequest);
         abort_unless($accountRequest->status === AccountRequest::APPROVED, 422, 'Only approved requests can get a new link.');
         $token = $this->issueToken($accountRequest, $request->user(), $accountRequest->role ?: User::ROLE_STAFF);
         $sent = $this->sendInvite($accountRequest, $token);
@@ -217,6 +248,7 @@ class AccountRequestController extends Controller
     /** POST /staff/account-requests/{accountRequest}/reject */
     public function reject(Request $request, AccountRequest $accountRequest): JsonResponse
     {
+        $this->abortIfAdminInvite($this->reviewer($request), $accountRequest);
         abort_if($accountRequest->status === AccountRequest::COMPLETED, 422, 'This account was already set up.');
         // Cancelled after approval: the account that was made but never
         // verified is moved to the Trash Bin (it was never used).

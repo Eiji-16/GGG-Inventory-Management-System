@@ -23,6 +23,7 @@ import {
 import './staff.css';
 import AccountRequests from './AccountRequests';
 import CustomSelect from '../Forecasting/CustomSelect';
+import PromoteConfirm from './PromoteConfirm';
 import { uiZoom } from '../../fontSize';
 
 const ALL_ROLES = ['Staff', 'Admin', 'Super Admin'];
@@ -46,7 +47,9 @@ const ROLE_META = {
 /* isSuperAdmin = everything. canManageStaff = an Admin with Role Access
    "Manage Staff": Staff accounts only, no role changes (the server checks
    the same rules). */
-function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked }) {
+function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequests = false, onSessionRevoked }) {
+  // 2026-11-12: an Admin with Role Access "Approve account requests" also sees the requests tab.
+  const showRequestsTab = isSuperAdmin || canReviewRequests;
   const canManage = isSuperAdmin || canManageStaff;
   // An Admin can act only on Staff rows.
   const canActOn = (account) => isSuperAdmin || (canManageStaff && account?.role === 'Staff');
@@ -64,13 +67,16 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
   const [isAccountActionLoading, setIsAccountActionLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createRole, setCreateRole] = useState('staff');   // Create staff account → Role (themed dropdown, 2026-11-12)
+  /* 2026-11-12: "Yes / No" before giving more power (Admin or Super Admin). */
+  const [promote, setPromote] = useState(null);
+  const promoteOk = useRef(false);
   const [showDeactivated, setShowDeactivated] = useState(false);
   // 2026-11-12: tick several deactivated accounts, then Reactivate or Move to Trash Bin at once.
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   // Tabs (Super Admin, 2026-11-06): 'accounts' | 'requests' — same style as Stock | History.
   const [staffView, setStaffView] = useState('accounts');
   const [requestCount, setRequestCount] = useState(0);
-  const showRequests = isSuperAdmin && staffView === 'requests';
+  const showRequests = showRequestsTab && staffView === 'requests';
   const [createError, setCreateError] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
@@ -363,7 +369,27 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
     }
   };
 
-  const changeRole = (id, role) => patchStaff(id, { role: ROLE_TO_API[role] });
+  const ROLE_RANK = { Staff: 1, Admin: 2, 'Super Admin': 3 };
+  const changeRole = (id, role) => {
+    const row = allAccounts.find((s) => s.id === id);
+    if (row && (ROLE_RANK[role] || 0) > (ROLE_RANK[row.role] || 0)) {
+      setMenu(null);
+      setPromote({ kind: 'role', id, role, name: row.name, email: row.email, roleLabel: role });
+      return;
+    }
+    patchStaff(id, { role: ROLE_TO_API[role] });
+  };
+  const confirmPromote = () => {
+    const item = promote;
+    setPromote(null);
+    if (!item) return;
+    if (item.kind === 'create') {
+      promoteOk.current = true;
+      item.form?.requestSubmit();
+    } else {
+      patchStaff(item.id, { role: ROLE_TO_API[item.role] });
+    }
+  };
   const toggleStatus = (id) => {
     const row = allAccounts.find((s) => s.id === id);
     if (!row) return;
@@ -526,11 +552,26 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
 
   const createAccount = async (event) => {
     event.preventDefault();
-    setCreateError('');
-    setIsCreating(true);
-
     const formElement = event.currentTarget;
     const formData = new FormData(formElement);
+
+    // Admin / Super Admin: ask "Yes / No" first (2026-11-12).
+    const confirmed = promoteOk.current;
+    promoteOk.current = false;
+    const pickedRole = formData.get('role') || 'staff';
+    if (pickedRole !== 'staff' && !confirmed) {
+      setPromote({
+        kind: 'create',
+        form: formElement,
+        name: String(formData.get('name') || '').trim(),
+        email: String(formData.get('email') || '').trim(),
+        roleLabel: pickedRole === 'super_admin' ? 'Super Admin' : 'Admin',
+      });
+      return;
+    }
+
+    setCreateError('');
+    setIsCreating(true);
 
     try {
       const response = await fetch('/staff', {
@@ -610,7 +651,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
 
       {/* ===== TABS + SEARCH ===== */}
       <div className="st-controls-bar">
-        {isSuperAdmin && (
+        {showRequestsTab && (
           <div className="st-view-tabs" role="tablist" aria-label="Staffs view">
             <button type="button" role="tab" aria-selected={!showRequests} className={!showRequests ? 'is-active' : ''} onClick={() => setStaffView('accounts')}>
               <Users size={13} aria-hidden="true" /> Accounts
@@ -758,8 +799,9 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
       {/* ===== ACCOUNT REQUESTS TAB (Super Admin) =====
           Stays mounted while the Accounts tab is open so the tab badge keeps
           counting new requests; it only draws its table on its own tab. */}
-      {isSuperAdmin && (
+      {showRequestsTab && (
         <AccountRequests
+          canApproveAdmin={isSuperAdmin}
           hidden={!showRequests}
           onCount={setRequestCount}
           onChanged={() => window.dispatchEvent(new Event('ggg-account-requests-changed'))}
@@ -1115,6 +1157,8 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
         </div>,
         document.body
       )}
+
+      <PromoteConfirm item={promote} onYes={confirmPromote} onNo={() => setPromote(null)} />
     </div>
   );
 }

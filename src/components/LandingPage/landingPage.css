@@ -3391,3 +3391,30 @@ body {
    Profile, Settings) is removed, on laptops and phones. */
 .sidebar-footer-item,
 .sidebar-body.is-expanded .sidebar-footer-item { border-top: 0 !important; }
+
+/* 2026-11-12: sidebar name — a long name shows its second part as a smaller
+   line under it. Hovering (or focusing) the name shows the full text,
+   wrapped, instead of cutting it with "…". */
+.sidebar-brand { cursor: default; border-radius: 6px; }
+.sidebar-brand:hover strong,
+.sidebar-brand:hover small,
+.sidebar-brand:focus-visible strong,
+.sidebar-brand:focus-visible small,
+.sidebar-body.is-expanded .sidebar-brand:hover strong,
+.sidebar-body.is-expanded .sidebar-brand:hover small,
+.sidebar-body.is-expanded .sidebar-brand:focus-visible strong,
+.sidebar-body.is-expanded .sidebar-brand:focus-visible small {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+}
+.sidebar-brand:focus-visible { outline: 2px solid var(--accent-ring, #60a5fa); outline-offset: 2px; }
+.sidebar-brand strong,
+.sidebar-brand small {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

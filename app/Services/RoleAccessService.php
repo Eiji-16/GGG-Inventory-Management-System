@@ -106,6 +106,10 @@ class RoleAccessService
         // can open Staffs and manage STAFF accounts only (never Admins or
         // Super Admins, never roles). Staff can never get it.
         'staff.manage' => ['code' => 'mm', 'group' => 'Manage Staff', 'label' => 'Open Manage Staff: add, deactivate, reactivate, move Staff accounts to Trash, and change photos', 'roles' => [User::ROLE_ADMIN]],
+        // 2026-11-12: Admin only, off by default. Approve or reject "Request
+        // Account Access" — as Staff only. Approving someone as Admin stays
+        // Super Admin only (checked in AccountRequestController).
+        'staff.requests' => ['code' => 'ma', 'group' => 'Manage Staff', 'label' => 'Approve account requests (as Staff only; only the Super Admin can approve an Admin)', 'parent' => 'staff.manage', 'roles' => [User::ROLE_ADMIN]],
 
         // Trash Bin (2026-11-11): only for Admin, off by default. Open the
         // Trash Bin and RESTORE deleted products, stock entries, suppliers
@@ -143,8 +147,9 @@ class RoleAccessService
     /** Manage Staff starts off until the Super Admin turns it on.
      *  Change currency is off for Admin too (2026-11-11: the currency is the
      *  Super Admin's choice; the box can still be turned on in Role Access).
-     *  Trash Bin restore is off for Admin until the Super Admin ticks it. */
-    private const ADMIN_OFF = ['staff.manage', 'settings.currency', 'trash.restore'];
+     *  Trash Bin restore is off for Admin until the Super Admin ticks it.
+     *  Approve account requests is off for Admin too (2026-11-12). */
+    private const ADMIN_OFF = ['staff.manage', 'staff.requests', 'settings.currency', 'trash.restore'];
 
     /** @return array{admin: array<string,bool>, staff: array<string,bool>} */
     public static function defaults(): array

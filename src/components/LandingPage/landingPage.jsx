@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
 import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import {
@@ -281,6 +281,19 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
      top of the sidebar and in the browser tab. The tab icon follows the
      system logo while signed in (the default icon otherwise). */
   const systemName = useSystemName();
+  /* Sidebar name in two lines when long: the first words (up to 16
+     characters) on top, the rest below as a smaller line. */
+  const brandLines = useMemo(() => {
+    const words = String(systemName || '').trim().split(/\s+/).filter(Boolean);
+    if (words.join(' ').length <= 16 || words.length < 2) return [words.join(' '), ''];
+    let top = words[0];
+    let next = 1;
+    while (next < words.length && `${top} ${words[next]}`.length <= 16) {
+      top = `${top} ${words[next]}`;
+      next += 1;
+    }
+    return [top, words.slice(next).join(' ')];
+  }, [systemName]);
   useEffect(() => { if (user?.systemName) setSystemName(user.systemName); }, [user?.systemName]);
   useEffect(() => {
     const icon = document.querySelector('link[rel="icon"]');
@@ -607,7 +620,8 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
      "Request Account Access" from the login page. Checked every 30 seconds,
      and right away when the Staffs page approves or rejects one. Clicking
      opens Staffs, where the request is approved or rejected. */
-  const canSeeAccountRequests = isSuperAdminRole && can('notifications.view');
+  // 2026-11-12: also an Admin with Role Access "Approve account requests".
+  const canSeeAccountRequests = (isSuperAdminRole || (role === 'admin' && can('staff.requests'))) && can('notifications.view');
   /* 2026-11-11: how many access requests are waiting — shown as a number
      on the Staffs button in the sidebar (same look as the Reorder List). */
   const [accountRequestCount, setAccountRequestCount] = useState(0);
@@ -896,8 +910,11 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
         ) : (
           <span id="sidebar-logo" aria-hidden="true">{logoContent}</span>
         )}
-        <span className="sidebar-brand" title={systemName}>
-          <strong>{systemName}</strong>
+        {/* 2026-11-12: a long name continues on a second, smaller line
+            (e.g. "GGG Inventory" / "Management System"). Hover shows it all. */}
+        <span className="sidebar-brand" title={systemName} tabIndex={0}>
+          <strong>{brandLines[0]}</strong>
+          {brandLines[1] && <small>{brandLines[1]}</small>}
         </span>
         {/* ===== ICONS ONLY / ICONS WITH NAMES (desktop) ===== */}
         <button
@@ -1331,7 +1348,7 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
               )}
               {visitedViews.has('Staffs') && canAccess('Staffs') && (
                 <div className="app-view-panel" hidden={activeView !== 'Staffs'}>
-                  <Staffs isSuperAdmin={user?.isSuperAdmin === true} canManageStaff={role === 'admin' && can('staff.manage')} onSessionRevoked={onSessionRevoked} />
+                  <Staffs isSuperAdmin={user?.isSuperAdmin === true} canManageStaff={role === 'admin' && can('staff.manage')} canReviewRequests={role === 'admin' && can('staff.requests')} onSessionRevoked={onSessionRevoked} />
                 </div>
               )}
               {visitedViews.has('Reports') && canAccess('Reports') && (

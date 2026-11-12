@@ -449,6 +449,8 @@ function Settings({
             <div className="s-pref-text">
               <label className="s-pref-title" htmlFor="s-system-name">System name</label>
               <span className="s-pref-desc hint-text">Shown in the browser tab, the sidebar, the login page, reports and emails, for every account.</span>
+              {/* 2026-11-12: the limit (40 characters) and how many are used. */}
+              <span className="s-pref-desc hint-text s-name-count" aria-live="polite">{nameDraft.length}/{SYSTEM_NAME_MAX} characters</span>
               {nameSaving && <span className="s-pref-status" role="status">Saving name…</span>}
               {nameSaved && <span className="s-pref-status" role="status"><Check size={11} /> Saved for the whole system</span>}
               <PageToast message={nameError} type="error" onShown={() => setNameError('')} />

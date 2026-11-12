@@ -14,7 +14,7 @@ class AppSetting extends Model
     public const DEFAULT_CURRENCY = 'PHP';
     /** Name used until the Super Admin chooses another (Settings → System name). */
     public const DEFAULT_SYSTEM_NAME = 'GGG Inventory Management System';
-    public const SYSTEM_NAME_MAX = 60;
+    public const SYSTEM_NAME_MAX = 40;   // 2026-11-12: was 60 (fits the sidebar in two lines)
 
     protected $primaryKey = 'key';
     public $incrementing = false;

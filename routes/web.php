@@ -42,11 +42,13 @@ Route::post('/auth/account-setup/complete', [\App\Http\Controllers\AccountReques
 Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/staff', [StaffController::class, 'index']);
     // Account requests (Super Admin): approve & invite, send the link again, reject.
+    // Account requests: Super Admin, or an Admin with Role Access "Approve
+    // account requests" (as Staff only) — checked in the controller (2026-11-12).
+    Route::get('/staff/account-requests', [\App\Http\Controllers\AccountRequestController::class, 'index']);
+    Route::post('/staff/account-requests/{accountRequest}/approve', [\App\Http\Controllers\AccountRequestController::class, 'approve']);
+    Route::post('/staff/account-requests/{accountRequest}/resend', [\App\Http\Controllers\AccountRequestController::class, 'resend']);
+    Route::post('/staff/account-requests/{accountRequest}/reject', [\App\Http\Controllers\AccountRequestController::class, 'reject']);
     Route::middleware('role:super_admin')->group(function () {
-        Route::get('/staff/account-requests', [\App\Http\Controllers\AccountRequestController::class, 'index']);
-        Route::post('/staff/account-requests/{accountRequest}/approve', [\App\Http\Controllers\AccountRequestController::class, 'approve']);
-        Route::post('/staff/account-requests/{accountRequest}/resend', [\App\Http\Controllers\AccountRequestController::class, 'resend']);
-        Route::post('/staff/account-requests/{accountRequest}/reject', [\App\Http\Controllers\AccountRequestController::class, 'reject']);
         Route::delete('/staff/{user}/two-factor', [StaffController::class, 'resetTwoFactor']);
     });
     Route::post('/staff', [StaffController::class, 'store']);

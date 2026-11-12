@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import CustomSelect from '../Forecasting/CustomSelect';
 import { PageToast } from '../../utils/toast';
 import useFillToBottom from '../../utils/fillToBottom';
+import PromoteConfirm from './PromoteConfirm';
 import { CheckCircle2, Clock3, MailCheck, RefreshCw, Send, UserPlus, X, XCircle } from 'lucide-react';
 
 /* ===== ACCOUNT REQUESTS (Super Admin, Staffs page, 2026-11-03) =====
@@ -33,7 +34,9 @@ const hoursLeft = (iso) => {
    requests") as one table: waiting requests first, finished ones below.
    onCount(n) tells the page how many are waiting (badge on the tab);
    hidden keeps it loading in the background while the Accounts tab is open. */
-export default function AccountRequests({ onChanged, onCount, hidden = false }) {
+/* canApproveAdmin (2026-11-12): only the Super Admin. An Admin with Role
+   Access "Approve account requests" approves as Staff only. */
+export default function AccountRequests({ onChanged, onCount, hidden = false, canApproveAdmin = false }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -80,20 +83,26 @@ export default function AccountRequests({ onChanged, onCount, hidden = false }) 
   /* Reject / Cancel asks first in the system's own confirm window
      (2026-11-11; was the browser's confirm box). */
   const [confirmItem, setConfirmItem] = useState(null);
+  const [promoteItem, setPromoteItem] = useState(null);   // "Yes / No" before approving as Admin
 
   const act = async (request, action, confirmed = false) => {
     if (action === 'reject' && !confirmed) {
       setConfirmItem(request);
       return;
     }
+    if (action === 'approve' && (roles[request.id] || 'staff') === 'admin' && !confirmed) {
+      setPromoteItem(request);
+      return;
+    }
     setConfirmItem(null);
+    setPromoteItem(null);
     setBusyId(request.id);
     setNotice(null);
     try {
       const response = await fetch(`/staff/account-requests/${request.id}/${action}`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
-        body: JSON.stringify(action === 'approve' ? { role: roles[request.id] || 'staff' } : {}),
+        body: JSON.stringify(action === 'approve' ? { role: canApproveAdmin ? (roles[request.id] || 'staff') : 'staff' } : {}),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error((data.errors ? Object.values(data.errors).flat()[0] : data.message) || `Error ${response.status}`);
@@ -129,7 +138,7 @@ export default function AccountRequests({ onChanged, onCount, hidden = false }) 
             <UserPlus size={16} aria-hidden="true" /> Account requests
             {pendingCount > 0 && <span className="st-requests-badge">{pendingCount} new</span>}
           </h3>
-          <p className="hint-text">From “Request Account Access” on the login page. Approve & Invite creates the account at once and emails a verification link (valid 24 hours). The person can sign in after verifying their email, setting a password and an authenticator app.</p>
+          <p className="hint-text">From “Request Account Access” on the login page. Approve & Invite creates the account at once and emails a verification link (valid 24 hours). The person can sign in after verifying their email, setting a password and an authenticator app.{!canApproveAdmin && ' You can approve people as Staff; only the Super Admin can approve an Admin.'}</p>
         </div>
       </div>
 
@@ -181,7 +190,7 @@ export default function AccountRequests({ onChanged, onCount, hidden = false }) 
                             disabled={busy}
                             options={[
                               { value: 'staff', label: 'Staff' },
-                              { value: 'admin', label: 'Admin' },
+                              ...(canApproveAdmin ? [{ value: 'admin', label: 'Admin' }] : []),
                             ]}
                           />
                         </div>
@@ -195,10 +204,13 @@ export default function AccountRequests({ onChanged, onCount, hidden = false }) 
                         <small className="st-request-link">
                           As {request.role === 'admin' ? 'Admin' : 'Staff'} · {left === 'expired' ? 'verification link expired' : `verification link ${left}`}{request.linkOpened ? ' · opened' : ''}
                         </small>
+                        {/* An Admin cannot change an Admin invite (Super Admin only). */}
+                        {(canApproveAdmin || request.role !== 'admin') && (<>
                         <button type="button" className="st-deactivated-button" onClick={() => act(request, 'resend')} disabled={busy}>
                           <RefreshCw size={14} aria-hidden="true" /> Send link again
                         </button>
                         <button type="button" className="st-request-reject" onClick={() => act(request, 'reject')} disabled={busy} title="Cancel: the unverified account moves to the Trash Bin">Cancel</button>
+                        </>)}
                       </div>
                     ) : (
                       <small className="st-request-link">
@@ -249,6 +261,11 @@ export default function AccountRequests({ onChanged, onCount, hidden = false }) 
         </div>,
         document.body,
       )}
+      <PromoteConfirm
+        item={promoteItem && { name: promoteItem.name, email: promoteItem.email, roleLabel: 'Admin' }}
+        onYes={() => act(promoteItem, 'approve', true)}
+        onNo={() => setPromoteItem(null)}
+      />
     </section>
   );
 }

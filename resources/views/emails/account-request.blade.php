@@ -38,7 +38,7 @@
                     <a href="{{ $appUrl }}" style="display:inline-block;padding:12px 22px;background:#16295c;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;border-radius:10px">Review the request</a>
                 @else
                     <p style="margin:0 0 4px;font-size:15px;font-weight:700">For your information</p>
-                    <p style="margin:0;line-height:1.6;font-size:13px;color:#5b6785">The Super Admin approves or rejects account requests. If you know this person, you can tell the Super Admin.</p>
+                    <p style="margin:0;line-height:1.6;font-size:13px;color:#5b6785">The Super Admin (or an Admin allowed in Role Access) approves or rejects account requests. If you know this person, you can tell the Super Admin.</p>
                 @endif
             </div>
             <div style="height:24px"></div>
