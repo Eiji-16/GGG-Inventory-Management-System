@@ -1343,3 +1343,18 @@
     .st-requests-table .st-request-actions.is-pending .st-request-approve { flex: 1 1 auto; order: 0; grid-column: auto; }
     .st-requests-table .st-request-actions.is-pending .st-request-reject { flex: 0 0 auto; }
 }
+
+/* 2026-11-12: the account requests list scrolls inside its own box (about
+   7 rows) instead of making the whole page long. The column titles stay
+   at the top while scrolling. Also applies while the Role list is open. */
+.st-requests-view .st-table-scroll,
+.st-requests-view:has(.cs-button.is-open) .st-table-scroll {
+    max-height: min(470px, 62dvh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.st-requests-view .st-requests-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+}
