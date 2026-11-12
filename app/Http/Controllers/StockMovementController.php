@@ -178,7 +178,55 @@ class StockMovementController extends Controller
             'choice' => $choice,
         ]);
 
-        return response()->json($body + ['hasProof' => (bool) $path], 201);
+        // 2026-11-12: a Staff member received it → email the Admins and
+        // Super Admins, with the proof photo (or "No picture was attached").
+        $emailed = 0;
+        if ($product && $request->user()?->role === \App\Models\User::ROLE_STAFF) {
+            $emailed = $this->emailDeliveryReceived($request, $product, $note, $path);
+        }
+
+        return response()->json($body + ['hasProof' => (bool) $path, 'emailed' => $emailed], 201);
+    }
+
+    /** Sends the "Delivery received" email; a failed email never stops the delivery. */
+    private function emailDeliveryReceived(Request $request, Product $product, string $note, ?string $photoPath): int
+    {
+        $user = $request->user();
+        $when = now()->timezone(config('app.business_timezone', 'Asia/Manila'))->format('M j, Y g:i A');
+        $date = $request->input('date');
+        $recipients = \App\Models\User::query()
+            ->whereIn('role', [\App\Models\User::ROLE_ADMIN, \App\Models\User::ROLE_SUPER_ADMIN])
+            ->where('status', \App\Models\User::STATUS_ACTIVE)
+            ->pluck('email')
+            ->filter()
+            ->unique();
+
+        $sent = 0;
+        foreach ($recipients as $email) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($email)->send(new \App\Mail\DeliveryReceivedMail(
+                    productName: (string) $product->name,
+                    productCode: (string) $product->code,
+                    variantName: trim((string) $request->input('variantName', '')) ?: null,
+                    qty: (int) $request->input('qty'),
+                    stockNow: (int) $product->fresh()?->stock_on_hand,
+                    receivedBy: (string) ($user->name ?: $user->email),
+                    receiverEmail: $user->email,
+                    receivedAt: $when,
+                    deliveryDate: $date ? \Illuminate\Support\Carbon::parse($date)->format('M j, Y') : null,
+                    note: $note !== '' ? $note : null,
+                    photoPath: $photoPath,
+                ));
+                $sent++;
+            } catch (\Throwable $exception) {
+                \Illuminate\Support\Facades\Log::warning('Delivery received email could not be sent. Check the MAIL_* settings in .env.', [
+                    'to' => $email,
+                    'exception' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        return $sent;
     }
 
     /** GET /api/stock-movements/{stockMovement}/proof — newest proof photo. */

@@ -1368,3 +1368,9 @@
     font-size: 12px;
 }
 .st-create-role .cs-button { min-height: 39px; border-radius: 7px; }
+
+/* 2026-11-12: the open Role list floats over the bottom edge of the Create
+   staff account window instead of being cut off inside it. While the list
+   is open the window does not clip (it scrolls again once it closes). */
+.st-modal:has(.st-create-role .cs-button.is-open) { overflow: visible; }
+.st-create-role .cs-menu { z-index: 80; }
