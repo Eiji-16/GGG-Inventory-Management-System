@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import CustomSelect from '../Forecasting/CustomSelect';
 import { PageToast } from '../../utils/toast';
+import useFillToBottom from '../../utils/fillToBottom';
 import { CheckCircle2, Clock3, MailCheck, RefreshCw, Send, UserPlus, X, XCircle } from 'lucide-react';
 
 /* ===== ACCOUNT REQUESTS (Super Admin, Staffs page, 2026-11-03) =====
@@ -38,6 +39,9 @@ export default function AccountRequests({ onChanged, onCount, hidden = false }) 
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(null);   // { type, text }
   const [busyId, setBusyId] = useState(null);
+  // 2026-11-12: the table stops at the bottom of the screen and scrolls inside,
+  // so the whole Staffs page does not scroll (same helper as the Trash Bin).
+  const fillTableToBottom = useFillToBottom(4, { shrink: true });
   const [roles, setRoles] = useState({});        // request id → 'staff' | 'admin'
 
   const load = useCallback(async () => {
@@ -131,7 +135,7 @@ export default function AccountRequests({ onChanged, onCount, hidden = false }) 
 
       {error && <p className="st-create-account-error" role="alert">{error}</p>}
 
-      <div className="st-table-scroll">
+      <div className="st-table-scroll" ref={fillTableToBottom}>
         <table className="st-table st-requests-table">
           <thead>
             <tr>

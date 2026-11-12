@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import useFillToBottom from '../../utils/fillToBottom';
 import {
   Archive,
-  AlertTriangle,
+  Ban,
   CalendarDays,
   Package,
   RotateCcw,
@@ -314,11 +314,11 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
           </button>
           {restoreOnly ? null : space === 'trash' ? (
             <button type="button" className="sc-add-btn" onClick={() => openConfirm('archive', selectedItems)} disabled={busy}>
-              <Archive size={13} aria-hidden="true" /> Archive
+              <Trash2 size={13} aria-hidden="true" /> Archive
             </button>
           ) : (
             <button type="button" className="sc-add-btn tb-danger-outline" onClick={() => openConfirm('purge', selectedItems)} disabled={busy}>
-              <Trash2 size={13} aria-hidden="true" /> Delete permanently
+              <Ban size={13} aria-hidden="true" /> Delete permanently
             </button>
           )}
           <button type="button" className="sc-add-btn" onClick={() => setSelected(new Map())}>Clear</button>
@@ -392,12 +392,12 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
                       {restoreOnly ? null : space === 'trash' ? (
                         <button type="button" className="sc-table-action-btn sc-history-btn" onClick={() => openConfirm('archive', [item])} disabled={busy}
                           title="Move to Archive" aria-label={`Archive ${item.type}: ${item.productName}`}>
-                          <Archive size={14} />
+                          <Trash2 size={14} />
                         </button>
                       ) : (
                         <button type="button" className="sc-table-action-btn sc-delete-btn" onClick={() => openConfirm('purge', [item])} disabled={busy}
                           title="Delete permanently" aria-label={`Permanently delete ${item.type}: ${item.productName}`}>
-                          <Trash2 size={14} />
+                          <Ban size={14} />
                         </button>
                       )}
                     </div>
@@ -424,7 +424,7 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
         <div className="sc-modal-overlay sc-confirm-overlay" onClick={closeConfirm}>
           <div className={`sc-modal sc-confirm-modal${isPurge ? ' tb-purge-modal' : ''}`} onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true" aria-labelledby="tb-confirm-title" aria-describedby="tb-confirm-text">
             <span className={`sc-confirm-icon ${isPurge ? 'is-out' : 'is-safe'}`} aria-hidden="true">
-              {isPurge ? <AlertTriangle size={22} /> : confirm.action === 'archive' ? <Archive size={22} /> : <RotateCcw size={22} />}
+              {isPurge ? <Ban size={22} /> : confirm.action === 'archive' ? <Trash2 size={22} /> : <RotateCcw size={22} />}
             </span>
             <h3 id="tb-confirm-title">{confirmTitle}</h3>
             <div id="tb-confirm-text" className="tb-confirm-text">

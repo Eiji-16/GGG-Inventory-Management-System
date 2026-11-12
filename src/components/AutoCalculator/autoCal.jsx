@@ -430,8 +430,14 @@ export default function AutoCalculatorDesign({
 
   /* Handoffs: "Compute EOQ from Forecast" (type forecast-eoq) and "Order Now" /
      the Stock Control EOQ shortcut (productId only). */
+  /* 2026-11-12: a handoff is applied only once. Saving the result reloads the
+     product list, which used to apply the forecast handoff again: the inputs
+     were filled again and the result window closed by itself. */
+  const appliedHandoff = useRef(null);
   useEffect(() => {
     if (!handoff || productsLoading) return;
+    if (appliedHandoff.current === handoff) return;
+    appliedHandoff.current = handoff;
     const product = products.find((item) => String(item.id) === String(handoff.productId));
     if (!product) {
       if (handoff.productId) {

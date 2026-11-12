@@ -1358,3 +1358,15 @@
     top: 0;
     z-index: 40;
 }
+
+/* 2026-11-12: Create staff account → Role uses the themed dropdown. Same
+   label look as the other fields; the list opens upward so it is not cut
+   off by the bottom of the window. */
+.st-create-role {
+    display: grid;
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+.st-create-role .cs-button { min-height: 39px; border-radius: 7px; }
+.st-create-role .cs-menu { top: auto; bottom: calc(100% + 6px); }

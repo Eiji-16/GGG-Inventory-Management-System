@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import './staff.css';
 import AccountRequests from './AccountRequests';
+import CustomSelect from '../Forecasting/CustomSelect';
 import { uiZoom } from '../../fontSize';
 
 const ALL_ROLES = ['Staff', 'Admin', 'Super Admin'];
@@ -62,6 +63,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
   const [accountActionError, setAccountActionError] = useState('');
   const [isAccountActionLoading, setIsAccountActionLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createRole, setCreateRole] = useState('staff');   // Create staff account → Role (themed dropdown, 2026-11-12)
   const [showDeactivated, setShowDeactivated] = useState(false);
   // 2026-11-12: tick several deactivated accounts, then Reactivate or Move to Trash Bin at once.
   const [selectedIds, setSelectedIds] = useState(() => new Set());
@@ -638,6 +640,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
               className="st-create-account-button"
               onClick={() => {
                 setCreateError('');
+                setCreateRole('staff');
                 setShowCreateModal(true);
               }}
             >
@@ -713,14 +716,24 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, onSessionRevoked
                   Confirm password
                   <input name="password_confirmation" type="password" autoComplete="new-password" minLength="8" required onInput={(event) => { event.currentTarget.value = event.currentTarget.value.replace(/\s/g, ''); }} />
                 </label>
-                <label>
-                  Role
-                  <select name="role" defaultValue="staff">
-                    <option value="staff">Staff</option>
-                    {isSuperAdmin && <option value="admin">Admin</option>}
-                    {isSuperAdmin && <option value="super_admin">Super Admin</option>}
-                  </select>
-                </label>
+                {/* 2026-11-12: the system's themed dropdown instead of the
+                    browser's list (a div, not a label, so picking an option
+                    does not open the list again). */}
+                <div className="st-create-role">
+                  <span id="st-create-role-label">Role</span>
+                  <CustomSelect
+                    id="st-create-role"
+                    ariaLabel="Role"
+                    value={createRole}
+                    onChange={setCreateRole}
+                    disabled={isCreating}
+                    options={[
+                      { value: 'staff', label: 'Staff' },
+                      ...(isSuperAdmin ? [{ value: 'admin', label: 'Admin' }, { value: 'super_admin', label: 'Super Admin' }] : []),
+                    ]}
+                  />
+                  <input type="hidden" name="role" value={createRole} />
+                </div>
               </div>
               <PageToast message={createError} type="error" onShown={() => setCreateError('')} />
               <div className="st-modal-actions">
