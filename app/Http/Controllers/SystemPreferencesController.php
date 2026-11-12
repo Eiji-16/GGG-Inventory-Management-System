@@ -38,9 +38,13 @@ class SystemPreferencesController extends Controller
             $body['lastBackupAt'] = $lastAt?->toIso8601String();
             $body['backupReminderDays'] = self::BACKUP_REMINDER_DAYS;
             $body['backupDue'] = $lastAt === null || $lastAt->lt(now()->subDays(self::BACKUP_REMINDER_DAYS));
+            // 2026-11-12: accounts that chose email codes have two-step
+            // sign-in too, so they are not counted as missing.
             $body['accountsWithoutAuthenticator'] = User::query()
                 ->where('status', User::STATUS_ACTIVE)
                 ->where(fn ($q) => $q->whereNull('two_factor_confirmed_at')->orWhereNull('two_factor_secret'))
+                ->get()
+                ->reject(fn (User $user) => $user->usesEmailTwoFactor())
                 ->count();
         }
 
@@ -77,8 +81,8 @@ class SystemPreferencesController extends Controller
             AppSetting::put('require_authenticator', $after ? '1' : '0');
             if ($before !== $after) {
                 ActivityLog::record('settings.require_2fa', $after
-                    ? 'Turned on: every account must use the authenticator app'
-                    : 'Turned off: the authenticator app is no longer required', 'shield');
+                    ? 'Turned on: every account must use two-step sign-in (authenticator app or email codes)'
+                    : 'Turned off: two-step sign-in is no longer required', 'shield');
             }
         }
 

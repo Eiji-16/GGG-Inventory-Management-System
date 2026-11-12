@@ -1,6 +1,6 @@
 {
   "node_modules/xlsx-js-style/dist/xlsx.min.js": {
-    "file": "assets/xlsx.min-BxZZmycr.js",
+    "file": "assets/xlsx.min-BcKuoCsJ.js",
     "name": "xlsx.min",
     "src": "node_modules/xlsx-js-style/dist/xlsx.min.js",
     "isDynamicEntry": true,
@@ -9,7 +9,7 @@
     ]
   },
   "src/layouts/App.jsx": {
-    "file": "assets/App-DDYDpLIq.js",
+    "file": "assets/App-D48Pe3q2.js",
     "name": "App",
     "src": "src/layouts/App.jsx",
     "isEntry": true,

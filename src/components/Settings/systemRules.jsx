@@ -5,8 +5,9 @@ import { limitDigits } from '../../utils/numberLimit';
 import apiFetch from '../../apiFetch';
 
 /* ===== SECURITY AND DEFAULTS (2026-11-11, Super Admin) =====
-   1. Require the authenticator app for every account: accounts without it
-      must set it up (QR code + 6-digit code) at their next sign-in.
+   1. Require two-step sign-in for every account: accounts without it must
+      set up the authenticator app or email codes at their next sign-in
+      (wording updated 2026-11-12, when email codes were added).
    2. Default lead time: days used when neither the product's policy nor
       its supplier has a lead time, so the reorder point is not just the
       safety stock.
@@ -89,17 +90,17 @@ export default function SystemRules() {
 
       {open && settings && (
         <div className="s-rules-body" id="s-rules-body">
-          {/* Require the authenticator app */}
+          {/* Require two-step sign-in (authenticator app or email codes) */}
           <div className="s-pref-row">
             <span className="s-pref-icon" aria-hidden="true"><ShieldCheck size={15} /></span>
             <div className="s-pref-text">
-              <span className="s-pref-title" id="s-rules-2fa-title">Require the authenticator app for every account</span>
+              <span className="s-pref-title" id="s-rules-2fa-title">Require two-step sign-in for every account</span>
               <span className="s-pref-desc hint-text">
-                Accounts without it must scan a QR code with Google or Microsoft Authenticator at their next sign-in.
+                Accounts without it must set up the authenticator app or email codes at their next sign-in.
               </span>
               {missing > 0 && (
                 <span className="s-pref-status s-rules-note">
-                  {missing} active {missing === 1 ? 'account does' : 'accounts do'} not have the authenticator app yet.
+                  {missing} active {missing === 1 ? 'account has' : 'accounts have'} no two-step sign-in yet.
                 </span>
               )}
               {saving === '2fa' && <span className="s-pref-status" role="status">Saving…</span>}
