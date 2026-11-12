@@ -450,3 +450,28 @@ select:not([multiple]):focus-visible {
         overflow-y: auto;
     }
 }
+
+/* ==========================================================================
+   POP-UP DIM FOLLOWS THE THEME (2026-11-12)
+   The dark layer behind every pop-up was a fixed navy blue on every theme.
+   Now it takes the theme's own colours (the blur stays the same):
+   - dark themes: the theme's card colour, a little see-through
+   - light themes: the theme's text colour, see-through, so the white
+     window still stands out
+   ========================================================================== */
+:is([data-theme="midnight-blue"], [data-theme="graphite"], [data-theme="emerald"],
+    [data-theme="magenta"], [data-theme="ember"], [data-theme="noir"])
+:is(.st-modal-overlay, .sc-modal-overlay, .sc-drawer-overlay, .sc-reorder-fullscreen-overlay,
+    .ps-modal-overlay, .ps-photo-overlay, .ra-modal-overlay, .r-modal-overlay,
+    .pf-modal-overlay, .ac-modal-overlay, .s-sys-overlay, .f-event-modal-backdrop,
+    .logout-confirm-overlay, .sidebar-backdrop, .app-deactivation-overlay) {
+    background: color-mix(in srgb, var(--bg-card) 78%, transparent);
+}
+
+:is([data-theme="soft-white"], [data-theme="lavender"], [data-theme="citrus"], [data-theme="olive"])
+:is(.st-modal-overlay, .sc-modal-overlay, .sc-drawer-overlay, .sc-reorder-fullscreen-overlay,
+    .ps-modal-overlay, .ps-photo-overlay, .ra-modal-overlay, .r-modal-overlay,
+    .pf-modal-overlay, .ac-modal-overlay, .s-sys-overlay, .f-event-modal-backdrop,
+    .logout-confirm-overlay, .sidebar-backdrop, .app-deactivation-overlay) {
+    background: color-mix(in srgb, var(--text-primary) 42%, transparent);
+}
