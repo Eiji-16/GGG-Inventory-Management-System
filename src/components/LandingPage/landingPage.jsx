@@ -839,7 +839,7 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
   /* ===== NAVIGATION ===== */
   const handleNavigate = (requestedView, payload = null) => {
     // The calculator now lives inside Forecasting (Economic Order Quantity
-    // tab). "Order Now" and the Stock Control shortcut still ask for
+    // tab). "Order Now" and the Stock Control shortcut still asks for
     // 'Auto-Calculator': open Forecasting with that product instead.
     const view = requestedView === 'Auto-Calculator' ? 'Forecasting' : requestedView;
     if (requestedView === 'Auto-Calculator' && !canAccess('Auto-Calculator')) return;
