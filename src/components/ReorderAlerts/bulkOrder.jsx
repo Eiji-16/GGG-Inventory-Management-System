@@ -358,7 +358,7 @@ export default function BulkOrder({ items, onClose, onSaved }) {
                 <tr key={row.id} className={row.listQty === null ? 'is-incomplete' : ''}>
                   <td data-label="Product">
                     <span className="ra-product">
-                      <strong>{row.name}</strong>
+                      <strong title={row.name}>{row.name}</strong>
                       <small>{row.supplierName || 'No supplier'} · reorder point {row.reorderPoint}</small>
                     </span>
                   </td>

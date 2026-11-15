@@ -1441,3 +1441,35 @@
     .ra-status-row { margin: 0; }
     .ra-status-row .ra-request-icon { position: static; transform: none; }
 }
+
+/* ==========RESTOCK REPORT: NO OVERLAPPING (2026-11-15)==========
+   Long product names ran over the Stock and Annual demand columns (the
+   name could not shrink inside its cell). Now each cell keeps its text
+   inside: the name wraps to at most 2 lines (full name on hover), and the
+   small "Economic Order Quantity" note wraps instead of being cut. */
+@media (min-width: 901px) {
+    .ra-bulk-modal .ra-bulk-table td { overflow: hidden; }
+    .ra-bulk-modal .ra-bulk-table td[data-label="Product"] { min-width: 0 !important; }
+    .ra-bulk-modal .ra-bulk-table .ra-product {
+        grid-template-columns: minmax(0, 1fr);
+        min-width: 0;
+    }
+    .ra-bulk-modal .ra-bulk-table .ra-product > * { min-width: 0; }
+    .ra-bulk-modal .ra-bulk-table td[data-label="Product"] strong {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        overflow: hidden;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        line-height: 1.3;
+    }
+    .ra-bulk-modal .ra-bulk-table td[data-label="System suggested"] .ra-product small {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        line-height: 1.2;
+    }
+    .ra-bulk-modal .ra-bulk-table td[data-label="Remove"] { overflow: visible; }
+}
