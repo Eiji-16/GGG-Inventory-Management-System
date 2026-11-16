@@ -25,6 +25,7 @@ import AccountRequests from './AccountRequests';
 import CustomSelect from '../Forecasting/CustomSelect';
 import PromoteConfirm from './PromoteConfirm';
 import { uiZoom } from '../../fontSize';
+import useFillToBottom from '../../utils/fillToBottom';
 
 const ALL_ROLES = ['Staff', 'Admin', 'Super Admin'];
 
@@ -71,6 +72,12 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
   const [promote, setPromote] = useState(null);
   const promoteOk = useRef(false);
   const [showDeactivated, setShowDeactivated] = useState(false);
+  // Role filter (2026-11-16): '' = all roles, or 'Super Admin' / 'Admin' / 'Staff'.
+  const [roleFilter, setRoleFilter] = useState('');
+  // 2026-11-16: the accounts table stops at the bottom of the screen and
+  // scrolls inside, so the whole Staffs page does not scroll (same helper as
+  // Account requests and Stock Control).
+  const fillTableToBottom = useFillToBottom(4, { shrink: true });
   // 2026-11-12: tick several deactivated accounts, then Reactivate or Move to Trash Bin at once.
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   // Tabs (Super Admin, 2026-11-06): 'accounts' | 'requests' — same style as Stock | History.
@@ -123,14 +130,15 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
   const visibleAccounts = showDeactivated ? deactivatedStaff : staff;
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return visibleAccounts;
-    return visibleAccounts.filter(
+    const byRole = roleFilter ? visibleAccounts.filter((s) => s.role === roleFilter) : visibleAccounts;
+    if (!q) return byRole;
+    return byRole.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
         s.email.toLowerCase().includes(q) ||
         s.role.toLowerCase().includes(q)
     );
-  }, [query, visibleAccounts]);
+  }, [query, visibleAccounts, roleFilter]);
 
   /* ===== MULTI-SELECT (Deactivated Accounts, 2026-11-12) ===== */
   const canSelect = canManage && showDeactivated;
@@ -675,6 +683,20 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
           />
         </div>
         <div className="st-controls-actions">
+          <CustomSelect
+            id="st-role-filter"
+            className="st-role-filter"
+            floating
+            ariaLabel="Show accounts by role"
+            value={roleFilter}
+            onChange={setRoleFilter}
+            options={[
+              { value: '', label: 'All roles' },
+              { value: 'Super Admin', label: 'Super Admin' },
+              { value: 'Admin', label: 'Admin' },
+              { value: 'Staff', label: 'Staff' },
+            ]}
+          />
           {canManage && !showDeactivated && (
             <button
               type="button"
@@ -844,7 +866,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
             )}
           </div>
         )}
-        <div className="st-table-scroll">
+        <div className="st-table-scroll" ref={fillTableToBottom}>
           <table className="st-table">
             <thead>
               <tr>
@@ -946,7 +968,9 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
                   <td colSpan={tableColumns} className="st-empty">
                     {visibleAccounts.length === 0
                       ? (showDeactivated ? 'No deactivated accounts.' : 'No active staff accounts.')
-                      : `No staff match “${query}”.`}
+                      : query.trim()
+                        ? `No ${roleFilter ? `${roleFilter} ` : ''}accounts match “${query}”.`
+                        : `No ${roleFilter} accounts${showDeactivated ? ' here' : ''}.`}
                   </td>
                 </tr>
               )}
