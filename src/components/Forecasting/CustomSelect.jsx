@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import './customSelect.css';
 
 /* ==========================================================================
@@ -10,6 +11,11 @@ import './customSelect.css';
    searchable (2026-11-06, off by default): a search box at the top of the
    list for long lists (e.g. products). Typing filters by name and tag;
    ↑ ↓ and Enter still work while typing.
+
+   floating (2026-11-16, off by default): the list is drawn on the page body
+   and placed under the button, like a layer on top. Used inside pop-ups
+   that scroll (Update Stock), so opening the list no longer makes the
+   pop-up grow or scroll. It opens upward when there is no room below.
    ========================================================================== */
 export default function CustomSelect({
   id,
@@ -23,6 +29,7 @@ export default function CustomSelect({
   className = '',
   searchable = false,
   searchPlaceholder = 'Search…',
+  floating = false,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -31,6 +38,7 @@ export default function CustomSelect({
   const buttonRef = useRef(null);
   const listRef = useRef(null);
   const searchRef = useRef(null);
+  const [place, setPlace] = useState(null);
 
   const selected = options.find((option) => String(option.value) === String(value));
   const typed = query.trim().toLowerCase();
@@ -42,11 +50,41 @@ export default function CustomSelect({
   useEffect(() => {
     if (!isOpen) return undefined;
     const closeOnOutside = (event) => {
-      if (!wrapRef.current?.contains(event.target)) setIsOpen(false);
+      if (!wrapRef.current?.contains(event.target) && !listRef.current?.contains(event.target)) setIsOpen(false);
     };
     document.addEventListener('pointerdown', closeOnOutside);
     return () => document.removeEventListener('pointerdown', closeOnOutside);
   }, [isOpen]);
+
+  /* Floating list: place it under (or above) the button. Positions are
+     divided by the page zoom (Settings font size uses CSS zoom on <html>). */
+  useLayoutEffect(() => {
+    if (!isOpen || !floating) { setPlace(null); return undefined; }
+    const update = () => {
+      const button = buttonRef.current;
+      if (!button) return;
+      const root = document.documentElement;
+      const zoom = Number(root.currentCSSZoom) || parseFloat(getComputedStyle(root).zoom) || 1;
+      const rect = button.getBoundingClientRect();
+      const menuHeight = (listRef.current?.offsetHeight || 280) * zoom;
+      const gap = 6 * zoom;
+      const roomBelow = window.innerHeight - rect.bottom;
+      const up = roomBelow < menuHeight + gap + 8 && rect.top > roomBelow;
+      setPlace({
+        left: rect.left / zoom,
+        width: rect.width / zoom,
+        top: up ? null : (rect.bottom + gap) / zoom,
+        bottom: up ? (window.innerHeight - rect.top + gap) / zoom : null,
+      });
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [isOpen, floating, query]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -106,11 +144,17 @@ export default function CustomSelect({
         {selected?.sub && <span className="cs-sub">{selected.sub}</span>}
         <svg className="cs-caret" viewBox="0 0 10 6" aria-hidden="true"><path d="M0 0l5 6 5-6z" /></svg>
       </button>
-      {isOpen && (
+      {isOpen && (() => {
+        const menu = (
         <div
           ref={listRef}
           id={`${id}-options`}
-          className={`cs-menu${searchable ? ' has-search' : ''}`}
+          className={`cs-menu${searchable ? ' has-search' : ''}${floating ? ' cs-menu-floating' : ''}`}
+          style={floating
+            ? (place
+              ? { top: place.top ?? 'auto', bottom: place.bottom ?? 'auto', left: place.left, minWidth: place.width }
+              : { visibility: 'hidden' })
+            : undefined}
           role="listbox"
           tabIndex={-1}
           aria-activedescendant={shown.length ? `${id}-opt-${activeIndex}` : undefined}
@@ -152,7 +196,9 @@ export default function CustomSelect({
             );
           }) : <div className="cs-empty">{searchable && typed ? `No match for “${query.trim()}”` : emptyText}</div>}
         </div>
-      )}
+        );
+        return floating ? createPortal(menu, document.body) : menu;
+      })()}
     </div>
   );
 }

@@ -2246,6 +2246,7 @@ function StockControl({
                       <CustomSelect
                         id="productName"
                         className="sc-form-select"
+                        floating
                         value={formData.productId}
                         onChange={(productId) => handleProductSelect({ target: { name: 'productName', value: productId } })}
                         disabled={editId !== null}
@@ -2262,6 +2263,7 @@ function StockControl({
                       <CustomSelect
                         id="variantName"
                         className="sc-form-select"
+                        floating
                         value={formData.variantName}
                         onChange={(variantName) => setFormData((prev) => ({ ...prev, variantName }))}
                         disabled={!formData.productId}
@@ -2329,6 +2331,7 @@ function StockControl({
                           <CustomSelect
                             id="type"
                             className="sc-form-select"
+                            floating
                             value={formData.type}
                             onChange={(type) => setFormData((prev) => ({ ...prev, type }))}
                             options={[

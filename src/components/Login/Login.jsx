@@ -123,6 +123,10 @@ function Login({ onLogin }) {
 
     return (
         <div className="lg-page">
+            {/* Warehouse background (2026-11-16): decoration only. */}
+            <div className="lg-scene lg-scene-lines" aria-hidden="true" />
+            <div className="lg-scene lg-scene-left" aria-hidden="true" />
+            <div className="lg-scene lg-scene-right" aria-hidden="true" />
             <div className="lg-shell">
                 {/* ===== BRAND PANEL ===== */}
                 <aside className="lg-brand" aria-label="About the system">

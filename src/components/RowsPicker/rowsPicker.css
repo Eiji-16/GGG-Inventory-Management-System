@@ -87,3 +87,12 @@
     .rows-footer > :first-child { display: none; }
     .rows-footer > :nth-child(2) { justify-self: start; }
 }
+
+/* Same button size for every choice (2026-11-16): "All" was narrower than
+   "50" / "Fit screen", so its arrow sat right after the text. The text now
+   sits on the left and the arrow on the right with a steady gap. */
+.rows-picker-button {
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 62px;
+}
