@@ -2630,3 +2630,59 @@
     table.m-folders.sc-stock-table > tbody > tr > td.m-title .sc-thumb { display: none !important; }
     table.m-folders.sc-stock-table > tbody > tr > td.m-title .sc-name-cell { gap: 0; }
 }
+
+/* ===== UPDATE STOCK: QUANTITY + TYPE SIDE BY SIDE (2026-11-16) =====
+   Beside Category: Quantity on the left, Type on the right (each a quarter
+   of the window), Type as two small In / Out buttons instead of a long
+   dropdown. The "units on hand" note runs under both. */
+.sc-qty-type {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem 0.7rem;
+    min-width: 0;
+}
+.sc-qty-type-field { display: grid; align-content: start; gap: 0.35rem; min-width: 0; }
+.sc-qty-type > .sc-field-hint { grid-column: 1 / -1; }
+.sc-qty-type .sc-stepper { gap: 0.3rem; }
+.sc-qty-type .sc-stepper-btn { flex-basis: 2rem; }
+.sc-qty-type .sc-stepper-value { padding-left: 0.2rem; padding-right: 0.2rem; }
+.sc-type-toggle {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px;
+    min-height: 38px;
+    padding: 3px;
+    background: var(--static-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 0.55rem;
+}
+.sc-type-toggle button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+    padding: 0 4px;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+    background: transparent;
+    border: 0;
+    border-radius: 0.4rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.sc-type-toggle button:hover { color: var(--text-primary); }
+.sc-type-toggle button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.sc-type-toggle button.is-in {
+    color: var(--accent-high);
+    background: var(--accent-high-soft);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-high) 45%, transparent);
+}
+.sc-type-toggle button.is-out {
+    color: var(--accent-low);
+    background: var(--accent-low-soft);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-low) 45%, transparent);
+}

@@ -29,7 +29,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Package,
-  CalendarDays } from 'lucide-react';
+  CalendarDays,
+  ArrowDownToLine,
+  ArrowUpFromLine } from 'lucide-react';
 
 import './stockControl.css';
 import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
@@ -362,12 +364,29 @@ function StockControl({
       category: picked ? (picked.category || '') : prev.category,
       // Variants belong to a product, so clear one that the new product lacks.
       variantName: variantChoicesFor(picked).includes(prev.variantName) ? prev.variantName : '',
+      unitPrice: suggestedPrice(productId, prev.type, prev.unitPrice),
     }));
     // Seed the opening-stock editor with the product's current balance.
     setOpeningStock(picked ? String(picked.stock ?? 0) : '');
   };
 
   const productById = useMemo(() => new Map(productOptions.map((product) => [product.id, product])), [productOptions]);
+
+  /* ===== UNIT PRICE FILLED IN (2026-11-16) =====
+     Products have no saved price, so a new Stock In / Stock Out starts with
+     the last price used for that product and type (last cost price for
+     Stock In, last selling price for Stock Out) — the same price the quick
+     − / + buttons use. It can still be changed. Once the person types a
+     price, picking another product or type no longer replaces it. */
+  const priceTypedRef = useRef(false);
+  const suggestedPrice = (productId, type, current) => {
+    if (priceTypedRef.current) return current;
+    const last = productId ? lastPriceFor(productId, type) : null;
+    return last == null ? '' : String(last);
+  };
+  const chooseType = (type) => {
+    setFormData((prev) => ({ ...prev, type, unitPrice: suggestedPrice(prev.productId, type, prev.unitPrice) }));
+  };
 
   /* ===== VARIANT CHOICES =====
      Picked from the product's own list (set in Product & Supplier). Products
@@ -974,6 +993,7 @@ function StockControl({
 
   const openAddModal = () => {
     setFormData({ ...emptyForm, date: todayLocal(), qty: '1', recordedBy: currentUserName });
+    priceTypedRef.current = false;
     setEditId(null);
     setOpeningStock('');
     approvedUnusualRef.current.clear();
@@ -1201,6 +1221,7 @@ function StockControl({
   const handleFormChange = (e) => {
     const { name } = e.target;
     const value = name === 'qty' ? limitQtyDigits(e.target.value) : e.target.value;
+    if (name === 'unitPrice') priceTypedRef.current = true;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -1611,9 +1632,12 @@ function StockControl({
                             return 'Required · cost per unit (Stock In) or selling price per unit (Stock Out).';
                           }
                           const units = canSetOpeningStock ? Number(openingStock) : Math.abs(Number(projectedChange));
-                          return Number.isFinite(units) && units > 0
+                          const fromLast = editId === null && !priceTypedRef.current
+                            ? ` · last ${formData.type === 'Stock Out' ? 'selling' : 'cost'} price, you can change it`
+                            : '';
+                          return (Number.isFinite(units) && units > 0
                             ? `Total: ${formatCurrency(Number(formData.unitPrice) * units)} for ${units} unit${units === 1 ? '' : 's'}`
-                            : `${formatCurrency(Number(formData.unitPrice))} per unit`;
+                            : `${formatCurrency(Number(formData.unitPrice))} per unit`) + fromLast;
                         })()}
                       </span>
     </>
@@ -2324,67 +2348,84 @@ function StockControl({
                            Unit Price takes this spot, beside Category. */
                         unitPriceField
                       ) : (
-                        <>
-                          <label htmlFor="type">
-                            Type <span className="sc-required">*</span>
-                          </label>
-                          <CustomSelect
-                            id="type"
-                            className="sc-form-select"
-                            floating
-                            value={formData.type}
-                            onChange={(type) => setFormData((prev) => ({ ...prev, type }))}
-                            options={[
-                              { value: 'Stock In', label: 'Stock In (Added)' },
-                              { value: 'Stock Out', label: 'Stock Out (Sold)' },
-                            ]}
-                          />
-                          <label htmlFor="qty">
-                            Quantity <span className="sc-required">*</span>
-                          </label>
-                          <div className="sc-stepper">
-                            <button
-                              type="button"
-                              className="sc-stepper-btn sc-stepper-minus"
-                              aria-label="Decrease quantity by one"
-                              onClick={() => adjustQuantity(-1)}
-                              disabled={!(Number(formData.qty) > 1)}
-                              title="Decrease quantity by one"
-                            >
-                              <span>−</span>
-                            </button>
-                            <input
-                              id="qty"
-                              name="qty"
-                              type="number"
-                              className="sc-stepper-value"
-                              aria-describedby="sc-qty-hint"
-                              min="1"
-                              max={isOut && currentOnHand !== null ? Math.min(currentOnHand, MAX_QTY) : MAX_QTY}
-                              step="1"
-                              value={formData.qty}
-                              onChange={handleFormChange}
-                              required
-                            />
-                            <button
-                              type="button"
-                              className="sc-stepper-btn sc-stepper-plus"
-                              aria-label="Increase quantity by one"
-                              onClick={() => adjustQuantity(1)}
-                              disabled={isOut && currentOnHand !== null && Number(formData.qty) >= currentOnHand}
-                              title="Increase quantity by one"
-                            >
-                              <span>+</span>
-                            </button>
+                        /* Compact (2026-11-16): Quantity and Type share this half,
+                           Quantity on the left, Type as two small In / Out buttons. */
+                        <div className="sc-qty-type">
+                          <div className="sc-qty-type-field">
+                            <label htmlFor="qty">
+                              Quantity <span className="sc-required">*</span>
+                            </label>
+                              <div className="sc-stepper">
+                                <button
+                                  type="button"
+                                  className="sc-stepper-btn sc-stepper-minus"
+                                  aria-label="Decrease quantity by one"
+                                  onClick={() => adjustQuantity(-1)}
+                                  disabled={!(Number(formData.qty) > 1)}
+                                  title="Decrease quantity by one"
+                                >
+                                  <span>−</span>
+                                </button>
+                                <input
+                                  id="qty"
+                                  name="qty"
+                                  type="number"
+                                  className="sc-stepper-value"
+                                  aria-describedby="sc-qty-hint"
+                                  min="1"
+                                  max={isOut && currentOnHand !== null ? Math.min(currentOnHand, MAX_QTY) : MAX_QTY}
+                                  step="1"
+                                  value={formData.qty}
+                                  onChange={handleFormChange}
+                                  required
+                                />
+                                <button
+                                  type="button"
+                                  className="sc-stepper-btn sc-stepper-plus"
+                                  aria-label="Increase quantity by one"
+                                  onClick={() => adjustQuantity(1)}
+                                  disabled={isOut && currentOnHand !== null && Number(formData.qty) >= currentOnHand}
+                                  title="Increase quantity by one"
+                                >
+                                  <span>+</span>
+                                </button>
+                              </div>
                           </div>
-                          <span className="sc-field-hint" id="sc-qty-hint">
-                            {!formData.productName
-                              ? 'Select a product first.'
-                              : isOut
-                                ? `${currentOnHand} units on hand. You can sell up to ${currentOnHand}.`
-                                : `${currentOnHand} units on hand. This many will be added.`}
-                          </span>
-                        </>
+                          <div className="sc-qty-type-field">
+                            <span className="sc-form-label" id="sc-type-label">
+                              Type <span className="sc-required">*</span>
+                            </span>
+                            <div className="sc-type-toggle" role="radiogroup" aria-labelledby="sc-type-label">
+                              <button
+                                type="button"
+                                role="radio"
+                                aria-checked={!isOut}
+                                className={!isOut ? 'is-in' : ''}
+                                onClick={() => chooseType('Stock In')}
+                                title="Stock In (Added)"
+                              >
+                                <ArrowDownToLine size={14} aria-hidden="true" /> In
+                              </button>
+                              <button
+                                type="button"
+                                role="radio"
+                                aria-checked={isOut}
+                                className={isOut ? 'is-out' : ''}
+                                onClick={() => chooseType('Stock Out')}
+                                title="Stock Out (Sold)"
+                              >
+                                <ArrowUpFromLine size={14} aria-hidden="true" /> Out
+                              </button>
+                            </div>
+                          </div>
+                            <span className="sc-field-hint" id="sc-qty-hint">
+                              {!formData.productName
+                                ? 'Select a product first.'
+                                : isOut
+                                  ? `${currentOnHand} units on hand. You can sell up to ${currentOnHand}.`
+                                  : `${currentOnHand} units on hand. This many will be added.`}
+                            </span>
+                        </div>
                       )}
                     </div>
                   </div>
