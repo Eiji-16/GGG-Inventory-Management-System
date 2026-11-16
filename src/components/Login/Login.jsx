@@ -1,9 +1,9 @@
 import './index.css';
 import { PageToast } from '../../utils/toast';
 import './login.css';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-    ArrowRight, Boxes, Eye, EyeOff, LineChart, Lock, Mail, PackageCheck, ShieldCheck, TriangleAlert, UserPlus,
+    ArrowRight, Boxes, Eye, EyeOff, LineChart, Lock, Mail, Moon, PackageCheck, ShieldCheck, Sun, TriangleAlert, UserPlus,
 } from 'lucide-react';
 import ResetPass from './ResetPass/resetPass';
 import TwoFactorPrompt from './TwoFactorPrompt';
@@ -21,9 +21,25 @@ const FEATURES = [
     { Icon: PackageCheck, title: 'Reorder Planning', text: 'Reorder points and Economic Order Quantity for every product.' },
 ];
 
+/* Night look (2026-11-16): from 6:00 PM to 5:59 AM on this computer's clock
+   the sign-in page shows the stock room at night (one small lamp). */
+const isNightHour = () => {
+    const hour = new Date().getHours();
+    return hour >= 18 || hour < 6;
+};
+
 function Login({ onLogin }) {
     // The system's name chosen by the Super Admin (Settings → System name).
     const systemName = useSystemName();
+    // Day or night look, following the clock (checked every minute). The
+    // sun / moon button switches it for this visit only.
+    const [isNight, setIsNight] = useState(isNightHour);
+    const [lookPicked, setLookPicked] = useState(false);
+    useEffect(() => {
+        if (lookPicked) return undefined;
+        const timer = window.setInterval(() => setIsNight(isNightHour()), 60000);
+        return () => window.clearInterval(timer);
+    }, [lookPicked]);
     const [error, setError] = useState('');
     // Account made by "Approve & Invite" but the email link not clicked yet.
     const [unverifiedEmail, setUnverifiedEmail] = useState('');
@@ -122,10 +138,23 @@ function Login({ onLogin }) {
     };
 
     return (
-        <div className="lg-page">
-            {/* Warehouse background (2026-11-16): decoration only. */}
+        <div className={`lg-page${isNight ? ' is-night' : ''}`}>
+            <button
+                type="button"
+                className="lg-look-btn"
+                onClick={() => { setLookPicked(true); setIsNight((night) => !night); }}
+                aria-label={isNight ? 'Show the day look' : 'Show the night look'}
+                title={isNight ? 'Day look' : 'Night look'}
+            >
+                {isNight ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
+            </button>
+            {/* Warehouse background (2026-11-16): decoration only. At night a
+                small lamp hangs over the shelf. */}
             <div className="lg-scene lg-scene-lines" aria-hidden="true" />
-            <div className="lg-scene lg-scene-left" aria-hidden="true" />
+            <div className="lg-scene lg-scene-left" aria-hidden="true">
+                <span className="lg-lamp-light" />
+                <span className="lg-lamp" />
+            </div>
             <div className="lg-scene lg-scene-right" aria-hidden="true" />
             <div className="lg-shell">
                 {/* ===== BRAND PANEL ===== */}
