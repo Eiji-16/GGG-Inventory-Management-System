@@ -1002,12 +1002,14 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
  {/* ===== FOOTER ===== */}
         <div className="sidebar-footer-item">
             <div className = "sub-sidebar-footer-item">
+              {/* Phone menu only (2026-11-16): a "System" heading above Staff. */}
+              <span className="sidebar-section-label sidebar-section-system" aria-hidden="true">System</span>
 
               {canAccess('Staffs') && (
               <div className={`siderbar-item ${activeView === 'Staffs' ? 'active' : ''}`}>
                 <button onClick={() => handleNavigate('Staffs')} title={accountRequestCount ? `${accountRequestCount} account request${accountRequestCount === 1 ? '' : 's'} waiting` : 'Staff-list'}>
                   <UsersRound className="sidebar-icon"/>
-                  <span className="sidebar-label">Staffs</span>
+                  <span className="sidebar-label">Staff</span>
                   {accountRequestCount > 0 && (
                     <span className="sidebar-count-badge" aria-label={`${accountRequestCount} account request${accountRequestCount === 1 ? '' : 's'} waiting`}>
                       {accountRequestCount > 99 ? '99+' : accountRequestCount}

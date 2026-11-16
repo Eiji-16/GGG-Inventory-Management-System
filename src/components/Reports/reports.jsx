@@ -31,6 +31,17 @@ const BADGE = {
   Aging: 'r-badge-warn', Watch: 'r-badge-warn', Medium: 'r-badge-warn', Unknown: 'r-badge-warn',
   'No Stock Records': 'r-badge-neutral',   // no Stock Control entries yet
 };
+/* Phone cards in the report pop-up (2026-11-16): shorter labels so they fit
+   on one line, the status badge in the top-right corner, and Units Needed
+   in bold gold when more than 0 (0 stays grey). Laptop tables and exports
+   keep the full column names. */
+const SHORT_LABEL = { 'Forecasted Demand': 'Forecast' };
+const cellClass = (header, cell, index) => {
+  if (index === 0) return 'r-cell-first';
+  if (typeof cell === 'string' && BADGE[cell]) return 'r-cell-badge';
+  if (header === 'Units Needed') return Number(cell) > 0 ? 'r-cell-need' : 'r-cell-zero';
+  return '';
+};
 const Badge = ({ label }) => (
   <span className={`r-badge ${BADGE[label] || 'r-badge-warn'}`}><span className="r-dot" />{label}</span>
 );
@@ -606,8 +617,8 @@ function ReportModal({ section, canExport, onClose }) {
                         {row.map((cell, cellIndex) => (
                           <td
                             key={cellIndex}
-                            className={cellIndex === 0 ? 'r-cell-first' : undefined}
-                            data-label={cellIndex === listColumn ? 'Actions' : section.headers[cellIndex]}
+                            className={cellClass(section.headers[cellIndex], cell, cellIndex) || undefined}
+                            data-label={cellIndex === listColumn ? 'Actions' : (SHORT_LABEL[section.headers[cellIndex]] || section.headers[cellIndex])}
                           >
                             {cellIndex === listColumn ? (
                               hasList ? (
