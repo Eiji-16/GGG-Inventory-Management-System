@@ -178,6 +178,8 @@ class StaffController extends Controller
      * DELETE /staff/{user}/two-factor (Super Admin) — turn off the
      * authenticator app for someone who lost their phone. They can sign in
      * with the password only until 2FA is set up again.
+     * 2026-11-16: the person is also signed out everywhere right away (in
+     * case someone has the lost phone with the system open).
      */
     public function resetTwoFactor(Request $request, User $user): JsonResponse
     {
@@ -186,12 +188,29 @@ class StaffController extends Controller
         // 2026-11-12: email codes are turned off too (the person sets up
         // two-step sign-in again at the next sign-in when Settings requires it).
         \App\Models\AppSetting::query()->whereKey($user->emailTwoFactorKey())->delete();
+        // Signed out everywhere, and "remember me" cookies stop working.
+        $user->setRememberToken(\Illuminate\Support\Str::random(60));
+        $user->save();
+        if ($user->id !== $request->user()->id) {
+            $this->revokeDatabaseSessions($user, \App\Support\AccountSignout::TWO_FACTOR_RESET);
+        }
         ActivityLog::record('staff.2fa_reset', "Turned off the authenticator app (2FA) for {$user->name}", 'key', [
             'userId' => $user->id,
             'email' => $user->email,
         ]);
 
         return response()->json($this->format($user->fresh(), $this->lastActivityByUser()));
+    }
+
+    /**
+     * GET /staff/two-factor-policy (Super Admin, 2026-11-16) — is two-step
+     * sign-in required in Settings? The "Turn off authenticator" window uses
+     * it to say what happens next (new QR code at the next sign-in, or
+     * password only until a new phone is connected).
+     */
+    public function twoFactorPolicy(): JsonResponse
+    {
+        return response()->json(['requireAuthenticator' => \App\Models\AppSetting::requireAuthenticator()]);
     }
 
     /**

@@ -19,6 +19,9 @@ class AccountSignout
     public const DEACTIVATED = 'account_deactivated';
     public const DELETED = 'account_deleted';
     public const ENDED = 'account_session_ended';
+    // 2026-11-16: the password was changed on another device / two-step sign-in was reset.
+    public const PASSWORD_CHANGED = 'account_password_changed';
+    public const TWO_FACTOR_RESET = 'account_two_factor_reset';
 
     private const PREFIX = 'account_signout:';
 
@@ -45,6 +48,8 @@ class AccountSignout
         $message = match ($reason) {
             self::DEACTIVATED => 'Your account has been deactivated by a Super Admin. You have been signed out. Please contact the Super Admin if you think this is a mistake.',
             self::DELETED => 'Your account has been deleted by a Super Admin. You have been signed out and can no longer use this account.',
+            self::PASSWORD_CHANGED => 'The password of this account was changed on another device, so you have been signed out here. Sign in with the new password.',
+            self::TWO_FACTOR_RESET => 'A Super Admin reset two-step sign-in for this account, so you have been signed out. Sign in again and connect your authenticator app.',
             default => 'This account session is no longer active. Please sign in again.',
         };
 

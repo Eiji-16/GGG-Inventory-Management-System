@@ -50,6 +50,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/staff/account-requests/{accountRequest}/reject', [\App\Http\Controllers\AccountRequestController::class, 'reject']);
     Route::middleware('role:super_admin')->group(function () {
         Route::delete('/staff/{user}/two-factor', [StaffController::class, 'resetTwoFactor']);
+        // 2026-11-16: is two-step sign-in required in Settings? (for the turn-off confirm window)
+        Route::get('/staff/two-factor-policy', [StaffController::class, 'twoFactorPolicy']);
     });
     Route::post('/staff', [StaffController::class, 'store']);
     Route::match(['put', 'patch'], '/staff/{user}', [StaffController::class, 'update']);
@@ -62,7 +64,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     // The signed-in user's own profile, password, and activity feed.
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::match(['put', 'patch'], '/profile', [ProfileController::class, 'update']);
-    Route::post('/profile/password', [ProfileController::class, 'changePassword']);
+    // 2026-11-16: at most 5 tries a minute (nobody can keep guessing the current password).
+    Route::post('/profile/password', [ProfileController::class, 'changePassword'])->middleware('throttle:5,1,profile-password');
     Route::get('/profile/activity', [ProfileController::class, 'activity']);
     // Your own Appearance theme (saved per account, see ThemePreferenceController).
     Route::put('/profile/theme', [\App\Http\Controllers\ThemePreferenceController::class, 'update']);

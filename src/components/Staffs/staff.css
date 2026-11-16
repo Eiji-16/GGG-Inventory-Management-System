@@ -1403,3 +1403,29 @@
     .st-role-filter { width: 104px; }
     .st-role-filter .cs-button { min-height: 32px; height: 32px; padding: 4px 8px; font-size: 11.5px; }
 }
+
+/* ==========TURN OFF AUTHENTICATOR: WHAT HAPPENS NEXT (2026-11-16)==========
+   Green note when Settings requires two-step sign-in (a new QR code at the
+   next sign-in), yellow warning when it doesn't (password only for now). */
+.st-2fa-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 10px 0 0;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    text-align: left;
+    border-radius: 10px;
+}
+.st-2fa-note svg { flex: 0 0 auto; margin-top: 1px; }
+.st-2fa-note.is-safe {
+    color: var(--accent-high);
+    background: var(--accent-high-soft);
+    border: 1px solid color-mix(in srgb, var(--accent-high) 35%, transparent);
+}
+.st-2fa-note.is-warning {
+    color: var(--accent-med);
+    background: var(--accent-med-soft, color-mix(in srgb, var(--accent-med) 12%, transparent));
+    border: 1px solid color-mix(in srgb, var(--accent-med) 40%, transparent);
+}

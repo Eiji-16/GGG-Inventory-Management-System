@@ -18,7 +18,11 @@ import {
   Activity,
   Camera,
   Trash2,
+  Eye,
+  EyeOff,
+  ShieldCheck,
 } from 'lucide-react';
+import OtpInput from '../Login/OtpInput';
 import './profile.css';
 /* The system's own confirm window (same look as Staffs → Account requests). */
 import '../Staffs/staff.css';
@@ -139,6 +143,11 @@ export default function Profile() {
   /* ===== PASSWORD MODAL ===== */
   const [showPwd, setShowPwd] = useState(false);
   const [pwdError, setPwdError] = useState('');
+  // 2026-11-16: Change Password security — typed values (for the rule chips),
+  // show / hide each password, and the authenticator code.
+  const [pwd, setPwd] = useState({ current: '', next: '', confirm: '' });
+  const [pwdCode, setPwdCode] = useState('');
+  const [pwdShown, setPwdShown] = useState({});
   const [pwdSuccess, setPwdSuccess] = useState('');
   const [pwdSaving, setPwdSaving] = useState(false);
 
@@ -255,16 +264,23 @@ export default function Profile() {
           current_password: form.get('current_password'),
           password: form.get('password'),
           password_confirmation: form.get('password_confirmation'),
+          code: user?.twoFactorApp ? pwdCode : undefined,
         }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const msg = data.errors ? Object.values(data.errors).flat()[0] : data.message;
+        if (data.errors?.code) setPwdCode('');
+        const msg = response.status === 429
+          ? 'Too many tries. Wait a minute, then try again.'
+          : data.errors ? Object.values(data.errors).flat()[0] : data.message;
         throw new Error(msg || `Could not change password (${response.status}).`);
       }
       setPwdSuccess(data.message || 'Your password has been updated.');
       event.target.reset();
-      setTimeout(() => { setShowPwd(false); setPwdSuccess(''); }, 1200);
+      setPwd({ current: '', next: '', confirm: '' });
+      setPwdCode('');
+      setPwdShown({});
+      setTimeout(() => { setShowPwd(false); setPwdSuccess(''); }, 1600);
     } catch (e) {
       setPwdError(e.message || 'Could not change the password.');
     } finally {
@@ -505,23 +521,81 @@ export default function Profile() {
               <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" onClick={() => setShowPwd(false)} aria-label="Close"><X size={16} /></button>
             </div>
             <form className="pf-pwd-form" onSubmit={changePassword}>
-              <label>
-                Current password
-                <input name="current_password" type="password" autoComplete="current-password" required />
-              </label>
-              <label>
-                New password
-                <input name="password" type="password" autoComplete="new-password" minLength={8} required onInput={(event) => { event.currentTarget.value = event.currentTarget.value.replace(/\s/g, ''); }} />
-              </label>
-              <label>
-                Confirm new password
-                <input name="password_confirmation" type="password" autoComplete="new-password" minLength={8} required onInput={(event) => { event.currentTarget.value = event.currentTarget.value.replace(/\s/g, ''); }} />
-              </label>
+              {[
+                { key: 'current', name: 'current_password', label: 'Current password', auto: 'current-password' },
+                { key: 'next', name: 'password', label: 'New password', auto: 'new-password' },
+                { key: 'confirm', name: 'password_confirmation', label: 'Confirm new password', auto: 'new-password' },
+              ].map((field) => (
+                <label key={field.key}>
+                  {field.label}
+                  <span className="pf-pwd-input">
+                    <input
+                      name={field.name}
+                      type={pwdShown[field.key] ? 'text' : 'password'}
+                      autoComplete={field.auto}
+                      minLength={field.key === 'current' ? undefined : 8}
+                      required
+                      value={pwd[field.key]}
+                      onChange={(event) => {
+                        const value = field.key === 'current' ? event.target.value : event.target.value.replace(/\s/g, '');
+                        setPwd((prev) => ({ ...prev, [field.key]: value }));
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="pf-pwd-eye"
+                      onClick={() => setPwdShown((prev) => ({ ...prev, [field.key]: !prev[field.key] }))}
+                      aria-label={pwdShown[field.key] ? `Hide ${field.label.toLowerCase()}` : `Show ${field.label.toLowerCase()}`}
+                      title={pwdShown[field.key] ? 'Hide' : 'Show'}
+                    >
+                      {pwdShown[field.key] ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </span>
+                  {field.key === 'next' && (
+                    <span className="pf-pwd-rules" aria-live="polite">
+                      {[
+                        { ok: pwd.next.length >= 8, text: '8+ characters', must: true },
+                        { ok: pwd.next.length > 0 && !/\s/.test(pwd.next), text: 'No spaces', must: true },
+                        { ok: pwd.next.length > 0 && pwd.next !== pwd.current, text: 'Not the same as now', must: true },
+                        { ok: /\d/.test(pwd.next), text: 'A number' },
+                        { ok: /[^A-Za-z0-9\s]/.test(pwd.next), text: 'A special character like ! or #' },
+                      ].map((rule) => (
+                        <span key={rule.text} className={`pf-pwd-rule${rule.ok ? ' is-ok' : ''}${rule.must ? '' : ' is-tip'}`}>
+                          {rule.ok && <Check size={11} aria-hidden="true" />} {rule.text}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                  {field.key === 'confirm' && pwd.confirm && (
+                    <span className={`pf-pwd-match${pwd.confirm === pwd.next ? ' is-ok' : ' is-bad'}`}>
+                      {pwd.confirm === pwd.next ? <><Check size={12} aria-hidden="true" /> Passwords match</> : 'Passwords do not match yet'}
+                    </span>
+                  )}
+                </label>
+              ))}
+              {user?.twoFactorApp && (
+                <div className="pf-pwd-code">
+                  <span className="pf-pwd-code-label">6-digit code from your authenticator app</span>
+                  <OtpInput value={pwdCode} onChange={setPwdCode} autoFocus={false} idPrefix="pf-pwd-code" label="6-digit code from your authenticator app" />
+                </div>
+              )}
+              <p className="pf-pwd-note hint-text">
+                <ShieldCheck size={14} aria-hidden="true" />
+                <span>After saving, you stay signed in here but are <strong>signed out on all other devices</strong>, and we email you a notice.</span>
+              </p>
               <PageToast message={pwdError} type="error" onShown={() => setPwdError('')} />
               <PageToast message={pwdSuccess} type="success" onShown={() => setPwdSuccess('')} />
               <div className="pf-modal-actions">
                 <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" onClick={() => setShowPwd(false)}>Cancel</button>
-                <button type="submit" className="pf-btn pf-btn-primary pf-btn-sm" disabled={pwdSaving}>
+                <button
+                  type="submit"
+                  className="pf-btn pf-btn-primary pf-btn-sm"
+                  disabled={pwdSaving
+                    || pwd.next.length < 8
+                    || pwd.next !== pwd.confirm
+                    || pwd.next === pwd.current
+                    || (user?.twoFactorApp && pwdCode.length !== 6)}
+                >
                   {pwdSaving ? 'Saving…' : 'Update password'}
                 </button>
               </div>

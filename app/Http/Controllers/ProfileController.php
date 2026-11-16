@@ -53,7 +53,20 @@ class ProfileController extends Controller
         return response()->json($this->format($user->fresh()));
     }
 
-    /** POST /profile/password — change own password (requires current one). */
+    /**
+     * POST /profile/password — change own password.
+     *
+     * 2026-11-16 security checks:
+     *  - the current password (as before);
+     *  - accounts with the authenticator app also type its 6-digit code
+     *    (a code can't be used twice), so someone at an unlocked computer
+     *    can't change the password without the phone;
+     *  - the new password must be different from the current one;
+     *  - after saving, every OTHER device is signed out ("remember me"
+     *    cookies stop working too); this browser stays signed in;
+     *  - the owner gets an email "Your password was changed";
+     *  - at most 5 tries a minute (routes/web.php).
+     */
     public function changePassword(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -61,8 +74,10 @@ class ProfileController extends Controller
         $data = $request->validate([
             'current_password' => ['required', 'string'],
             'password'         => ['required', 'confirmed', Password::min(8), 'not_regex:/\s/'],   // 2026-11-12: no spaces
+            'code'             => ['nullable', 'digits:6'],
         ], [
             'password.not_regex' => 'The password cannot contain spaces.',
+            'code.digits'        => 'The code must be exactly 6 numbers.',
         ]);
 
         if (! Hash::check($data['current_password'], $user->password)) {
@@ -71,12 +86,106 @@ class ProfileController extends Controller
             ]);
         }
 
+        if (Hash::check($data['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => 'Your new password must be different from your current password.',
+            ]);
+        }
+
+        if ($user->hasTwoFactor()) {
+            $code = (string) ($data['code'] ?? '');
+            if ($code === '') {
+                throw ValidationException::withMessages([
+                    'code' => 'Enter the 6-digit code from your authenticator app.',
+                ]);
+            }
+            $step = \App\Support\Totp::verify((string) $user->two_factor_secret, $code);
+            if ($step === null) {
+                throw ValidationException::withMessages([
+                    'code' => 'That code is incorrect. Check the time on your phone and type the newest code.',
+                ]);
+            }
+            // The same code cannot be used twice (same rule as signing in).
+            if (! \Illuminate\Support\Facades\Cache::add("totp_used:{$user->id}:{$step}", 1, now()->addMinutes(3))) {
+                throw ValidationException::withMessages([
+                    'code' => 'This code was already used. Wait for the next code in your app, then type it.',
+                ]);
+            }
+        }
+
         $user->password = $data['password'];
+        // "Remember me" on other browsers stops working.
+        $user->setRememberToken(\Illuminate\Support\Str::random(60));
         $user->save();
 
-        ActivityLog::record('password.change', 'Changed account password', 'key');
+        $signedOut = $this->signOutOtherDevices($request, $user);
 
-        return response()->json(['message' => 'Your password has been updated.']);
+        ActivityLog::record('password.change', 'Changed account password'.($signedOut > 0 ? " (signed out {$signedOut} other ".($signedOut === 1 ? 'device' : 'devices').')' : ''), 'key');
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\PasswordChangedMail(
+                $user->name,
+                now()->timezone(config('app.business_timezone', 'Asia/Manila'))->format('M j, Y g:i A'),
+                $this->deviceLabel((string) $request->userAgent()),
+            ));
+        } catch (\Throwable $exception) {
+            \Illuminate\Support\Facades\Log::error('Password changed email could not be sent. Check the MAIL_* settings in .env, then run php artisan config:clear.', [
+                'to' => $user->email,
+                'exception' => $exception,
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Your password has been updated. Other devices were signed out.',
+            'signedOutDevices' => $signedOut,
+        ]);
+    }
+
+    /**
+     * Remove this account's other sessions (database sessions only), leaving
+     * a note so those browsers show why they were signed out. Returns how
+     * many were removed.
+     */
+    private function signOutOtherDevices(Request $request, User $user): int
+    {
+        if (config('session.driver') !== 'database') {
+            return 0;
+        }
+        $current = $request->hasSession() ? $request->session()->getId() : '';
+        $others = DB::table(config('session.table', 'sessions'))
+            ->where('user_id', $user->id)
+            ->when($current !== '', fn ($query) => $query->where('id', '!=', $current));
+        $ids = (clone $others)->pluck('id');
+        foreach ($ids as $sessionId) {
+            \App\Support\AccountSignout::remember((string) $sessionId, \App\Support\AccountSignout::PASSWORD_CHANGED);
+        }
+        $others->delete();
+
+        return $ids->count();
+    }
+
+    /** "Chrome on Windows", "Safari on iPhone"… for the email (best guess). */
+    private function deviceLabel(string $agent): string
+    {
+        $browser = match (true) {
+            str_contains($agent, 'Edg/') => 'Microsoft Edge',
+            str_contains($agent, 'OPR/') || str_contains($agent, 'Opera') => 'Opera',
+            str_contains($agent, 'Firefox/') => 'Firefox',
+            str_contains($agent, 'Chrome/') => 'Chrome',
+            str_contains($agent, 'Safari/') => 'Safari',
+            default => 'a web browser',
+        };
+        $system = match (true) {
+            str_contains($agent, 'iPhone') => 'iPhone',
+            str_contains($agent, 'iPad') => 'iPad',
+            str_contains($agent, 'Android') => 'Android',
+            str_contains($agent, 'Windows') => 'Windows',
+            str_contains($agent, 'Mac OS') => 'Mac',
+            str_contains($agent, 'Linux') => 'Linux',
+            default => '',
+        };
+
+        return $system !== '' ? "{$browser} on {$system}" : $browser;
     }
 
     /*
@@ -184,6 +293,8 @@ class ProfileController extends Controller
             'joined'     => $user->created_at?->format('F j, Y'),
             'lastLogin'  => $lastLogin,
             'avatarUrl'  => $this->avatarUrl($user),
+            // 2026-11-16: Change Password asks for the authenticator code when this is on.
+            'twoFactorApp' => $user->hasTwoFactor(),
         ];
     }
 

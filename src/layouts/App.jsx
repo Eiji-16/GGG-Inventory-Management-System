@@ -154,7 +154,9 @@ function MainApp() {
     // The account was deactivated or deleted while signed in: show the pop-up
     // (its "Okay" button unlocks after 5 seconds).
     function showSignedOutNotice(code) {
-        if (code !== 'account_deactivated' && code !== 'account_deleted') return;
+        // 2026-11-16: also when the password was changed on another device, or
+        // a Super Admin reset two-step sign-in for this account.
+        if (!['account_deactivated', 'account_deleted', 'account_password_changed', 'account_two_factor_reset'].includes(code)) return;
         setDeactivationCountdown(5);
         setDeactivationNotice(code);
     }
@@ -274,13 +276,19 @@ function MainApp() {
                             <CircleAlert size={30} strokeWidth={1.8} />
                         </div>
                         <p className="app-error-eyebrow">
-                            {deactivationNotice === 'account_deleted' ? 'ACCOUNT DELETED' : 'ACCOUNT DEACTIVATED'}
+                            {{
+                                account_deleted: 'ACCOUNT DELETED',
+                                account_password_changed: 'PASSWORD CHANGED',
+                                account_two_factor_reset: 'SIGN-IN SECURITY',
+                            }[deactivationNotice] || 'ACCOUNT DEACTIVATED'}
                         </p>
                         <h1 id="app-deactivation-title">You’ve been signed out</h1>
                         <p id="app-deactivation-message" className="app-error-message">
-                            {deactivationNotice === 'account_deleted'
-                                ? 'Your account has been deleted by a Super Admin, so this session has ended and the account can no longer be used.'
-                                : 'Your account has been deactivated by a Super Admin, so this session has ended.'}
+                            {{
+                                account_deleted: 'Your account has been deleted by a Super Admin, so this session has ended and the account can no longer be used.',
+                                account_password_changed: 'The password of this account was changed on another device, so this session has ended. Sign in with the new password.',
+                                account_two_factor_reset: 'A Super Admin reset two-step sign-in for this account, so this session has ended. Sign in again and connect your authenticator app.',
+                            }[deactivationNotice] || 'Your account has been deactivated by a Super Admin, so this session has ended.'}
                             {' '}Please contact the Super Admin if you think this is a mistake.
                         </p>
                         <button

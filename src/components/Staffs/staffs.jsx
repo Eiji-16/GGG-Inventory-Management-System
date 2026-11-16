@@ -13,7 +13,7 @@ import {
   Power,
   Lock,
   X,
-  Archive,
+  UserX,
   UserRoundPlus,
   Trash2,
   KeyRound,
@@ -260,10 +260,24 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
 
   /* Super Admin: turn off the authenticator app (2FA) for someone who lost
      their phone. They then sign in with the password only. */
-  const resetTwoFactor = async (account) => {
+  /* 2026-11-16: the system's own confirm window (was the browser's box).
+     It says what happens next: a new QR code at the next sign-in when
+     Settings requires two-step sign-in, or password only until a new phone
+     is connected. The person is also signed out everywhere. */
+  const [twoFactorDialog, setTwoFactorDialog] = useState(null);   // { account, required: true|false|null }
+  const [twoFactorBusy, setTwoFactorBusy] = useState(false);
+  const askResetTwoFactor = (account) => {
     setMenu(null);
-    const what = account.twoFactor ? 'the authenticator app' : 'email codes';
-    if (!window.confirm(`Turn off ${what} for ${account.name}? They will sign in with their password only.`)) return;
+    setTwoFactorDialog({ account, required: null });
+    fetch('/staff/two-factor-policy', { headers: { Accept: 'application/json' } })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => setTwoFactorDialog((current) => (current && current.account.id === account.id
+        ? { ...current, required: data ? data.requireAuthenticator === true : null }
+        : current)))
+      .catch(() => {});
+  };
+  const resetTwoFactor = async (account) => {
+    setTwoFactorBusy(true);
     try {
       const response = await fetch(`/staff/${account.id}/two-factor`, {
         method: 'DELETE',
@@ -273,10 +287,13 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
       if (!response.ok) throw new Error(data.message || `Could not turn off the authenticator (${response.status}).`);
       replaceAccount(data);
       setActionError('');
-      setActionMessage(`Two-step sign-in is off for ${account.name}.`);
+      setActionMessage(`Two-step sign-in is off for ${account.name}. They were signed out everywhere.`);
+      setTwoFactorDialog(null);
     } catch (error) {
       setActionMessage('');
       setActionError(error.message || 'Could not turn off the authenticator.');
+    } finally {
+      setTwoFactorBusy(false);
     }
   };
 
@@ -722,7 +739,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
                 setShowDeactivated((shown) => !shown);
               }}
             >
-              {showDeactivated ? <Users size={15} /> : <Archive size={15} />}
+              {showDeactivated ? <Users size={15} /> : <UserX size={15} />}
               <span className="st-label-long">{showDeactivated ? 'Active Accounts' : 'Deactivated Accounts'}</span>
               <span className="st-label-short">{showDeactivated ? 'Active' : 'Deactivated'}</span>
               {!showDeactivated && deactivatedStaff.length > 0 && (
@@ -1004,7 +1021,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
               type="button"
               className="st-menu-item"
               role="menuitem"
-              onClick={() => resetTwoFactor(menuRow)}
+              onClick={() => askResetTwoFactor(menuRow)}
             >
               <KeyRound size={14} />
               {menuRow.twoFactor ? 'Turn off authenticator (lost phone)' : 'Turn off email codes'}
@@ -1176,6 +1193,82 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
                   {isAccountActionLoading ? 'Moving…' : 'Move to Trash Bin'}
                 </button>
               )}
+            </footer>
+          </section>
+        </div>,
+        document.body
+      )}
+
+      {twoFactorDialog && createPortal(
+        <div
+          className="st-modal-overlay st-account-confirm-overlay"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !twoFactorBusy) setTwoFactorDialog(null);
+          }}
+        >
+          <section
+            className="st-modal st-account-confirm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="st-2fa-confirm-title"
+          >
+            <header className="st-modal-header">
+              <div>
+                <p className="st-modal-eyebrow">Sign-in security</p>
+                <h2 id="st-2fa-confirm-title">
+                  {twoFactorDialog.account.twoFactor ? 'Turn Off Authenticator?' : 'Turn Off Email Codes?'}
+                </h2>
+              </div>
+              <button
+                type="button"
+                className="st-modal-close"
+                aria-label="Close confirmation"
+                onClick={() => setTwoFactorDialog(null)}
+                disabled={twoFactorBusy}
+              >
+                <X size={18} />
+              </button>
+            </header>
+            <div className="st-account-confirm-body">
+              <p>
+                {twoFactorDialog.account.twoFactor
+                  ? 'Use this when the person lost their phone. Their old authenticator stops working and they are signed out everywhere.'
+                  : 'Their email codes stop and they are signed out everywhere.'}
+              </p>
+              <div className="st-account-confirm-identity">
+                <span>{twoFactorDialog.account.name}</span>
+                <span>{twoFactorDialog.account.email} · {twoFactorDialog.account.role}</span>
+              </div>
+              {twoFactorDialog.required === true && (
+                <p className="st-2fa-note is-safe">
+                  <ShieldCheck size={15} aria-hidden="true" />
+                  <span>Two-step sign-in is required in Settings, so they must scan a new QR code at their next sign-in.</span>
+                </p>
+              )}
+              {twoFactorDialog.required === false && (
+                <p className="st-2fa-note is-warning">
+                  <Shield size={15} aria-hidden="true" />
+                  <span>They will sign in with their password only until they connect a new phone. Turn on “Require the authenticator app” in Settings to stay safe.</span>
+                </p>
+              )}
+            </div>
+            <footer className="st-account-confirm-actions">
+              <button
+                type="button"
+                className="st-confirm-cancel"
+                onClick={() => setTwoFactorDialog(null)}
+                disabled={twoFactorBusy}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="st-confirm-danger"
+                onClick={() => resetTwoFactor(twoFactorDialog.account)}
+                disabled={twoFactorBusy}
+              >
+                {twoFactorBusy ? 'Turning off…' : 'Turn off'}
+              </button>
             </footer>
           </section>
         </div>,
