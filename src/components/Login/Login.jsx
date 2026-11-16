@@ -1,7 +1,8 @@
 import './index.css';
 import { PageToast } from '../../utils/toast';
 import './login.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import {
     ArrowRight, Boxes, Eye, EyeOff, LineChart, Lock, Mail, Moon, PackageCheck, ShieldCheck, Sun, TriangleAlert, UserPlus,
 } from 'lucide-react';
@@ -35,11 +36,57 @@ function Login({ onLogin }) {
     // sun / moon button switches it for this visit only.
     const [isNight, setIsNight] = useState(isNightHour);
     const [lookPicked, setLookPicked] = useState(false);
+    const [lampLeaving, setLampLeaving] = useState(false);   // night → day: the lamp goes up first
+    const lookBtnRef = useRef(null);
+    const isNightRef = useRef(isNight);
+    isNightRef.current = isNight;
+    const switchingRef = useRef(false);
+
+    /* Switch day ↔ night with a circle that grows from the sun / moon button
+       (2026-11-16, sign-in page only). Night → day: the lamp's light goes
+       off and the lamp is pulled up first. Browsers without this effect (or
+       "reduce motion") just switch. */
+    const switchLook = (nextNight) => {
+        if (switchingRef.current || nextNight === isNightRef.current) return;
+        const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        const reveal = () => {
+            const apply = () => { setLampLeaving(false); setIsNight(nextNight); };
+            if (reduceMotion || typeof document.startViewTransition !== 'function') {
+                apply();
+                switchingRef.current = false;
+                return;
+            }
+            const button = lookBtnRef.current?.getBoundingClientRect();
+            const x = button ? ((button.left + button.width / 2) / window.innerWidth) * 100 : 100;
+            const y = button ? ((button.top + button.height / 2) / window.innerHeight) * 100 : 0;
+            const root = document.documentElement;
+            root.classList.add('lg-revealing');
+            const transition = document.startViewTransition(() => flushSync(apply));
+            transition.ready.then(() => {
+                root.animate(
+                    { clipPath: [`circle(0% at ${x}% ${y}%)`, `circle(150% at ${x}% ${y}%)`] },
+                    { duration: 750, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', pseudoElement: '::view-transition-new(root)' },
+                );
+            }).catch(() => {});
+            transition.finished.finally(() => {
+                root.classList.remove('lg-revealing');
+                switchingRef.current = false;
+            });
+        };
+        switchingRef.current = true;
+        if (isNightRef.current && !nextNight && !reduceMotion) {
+            setLampLeaving(true);
+            window.setTimeout(reveal, 750);
+        } else {
+            reveal();
+        }
+    };
+
     useEffect(() => {
         if (lookPicked) return undefined;
-        const timer = window.setInterval(() => setIsNight(isNightHour()), 60000);
+        const timer = window.setInterval(() => switchLook(isNightHour()), 60000);
         return () => window.clearInterval(timer);
-    }, [lookPicked]);
+    }, [lookPicked]); // switchLook reads the latest look from refs
     const [error, setError] = useState('');
     // Account made by "Approve & Invite" but the email link not clicked yet.
     const [unverifiedEmail, setUnverifiedEmail] = useState('');
@@ -138,11 +185,12 @@ function Login({ onLogin }) {
     };
 
     return (
-        <div className={`lg-page${isNight ? ' is-night' : ''}`}>
+        <div className={`lg-page${isNight ? ' is-night' : ''}${lampLeaving ? ' is-lamp-leaving' : ''}`}>
             <button
+                ref={lookBtnRef}
                 type="button"
                 className="lg-look-btn"
-                onClick={() => { setLookPicked(true); setIsNight((night) => !night); }}
+                onClick={() => { setLookPicked(true); switchLook(!isNight); }}
                 aria-label={isNight ? 'Show the day look' : 'Show the night look'}
                 title={isNight ? 'Day look' : 'Night look'}
             >
