@@ -1,6 +1,6 @@
 {
   "node_modules/xlsx-js-style/dist/xlsx.min.js": {
-    "file": "assets/xlsx.min-DWjJoyyp.js",
+    "file": "assets/xlsx.min-D1jenf3g.js",
     "name": "xlsx.min",
     "src": "node_modules/xlsx-js-style/dist/xlsx.min.js",
     "isDynamicEntry": true,
@@ -9,7 +9,7 @@
     ]
   },
   "src/layouts/App.jsx": {
-    "file": "assets/App-DiGNajl3.js",
+    "file": "assets/App-PS93aB8z.js",
     "name": "App",
     "src": "src/layouts/App.jsx",
     "isEntry": true,
@@ -17,7 +17,7 @@
       "node_modules/xlsx-js-style/dist/xlsx.min.js"
     ],
     "css": [
-      "assets/App-cjCPkfS8.css"
+      "assets/App-Dt5xJxd0.css"
     ]
   },
   "src/styles/index.css": {

@@ -604,7 +604,11 @@ function ReportModal({ section, canExport, onClose }) {
                           </td>
                         )}
                         {row.map((cell, cellIndex) => (
-                          <td key={cellIndex}>
+                          <td
+                            key={cellIndex}
+                            className={cellIndex === 0 ? 'r-cell-first' : undefined}
+                            data-label={cellIndex === listColumn ? 'Actions' : section.headers[cellIndex]}
+                          >
                             {cellIndex === listColumn ? (
                               hasList ? (
                                 <button type="button" className="r-details-link" onClick={toggle} aria-expanded={isOpen}>

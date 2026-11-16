@@ -1243,3 +1243,73 @@
         linear-gradient(160deg, #ffffff 0%, var(--bg-card) 70%);
     box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
+
+/*==========REPORT POP-UP ON PHONES: X TOP RIGHT, COMPACT CARDS (2026-11-16)==========
+   Phones: the close X stays in the top-right corner (it used to drop under
+   the export buttons). Each table row becomes a small card — the name on
+   top, the other values in three columns with their small labels — so the
+   list no longer needs scrolling sideways. */
+@media (max-width: 640px) {
+    .r-modal-header { position: relative; }
+    .r-modal-header .r-panel-title { padding-right: 40px; }
+    .r-modal-header .r-modal-close {
+        position: absolute;
+        top: 0.85rem;
+        right: 0.9rem;
+    }
+    .r-modal-header .r-modal-actions { width: 100%; }
+    .r-modal-header .r-modal-actions .r-export-btn { flex: 1 1 0; justify-content: center; }
+
+    .r-modal-body .r-table,
+    .r-modal-body .r-table tbody { display: block; width: 100%; }
+    .r-modal-body .r-table thead { display: none; }
+    .r-modal-body .r-table tbody tr:not(.r-list-row) {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px 12px;
+        padding: 10px 4px;
+        border-bottom: 0.5px solid var(--border-color, rgba(0,0,0,0.1));
+    }
+    .r-modal-body .r-table tbody td {
+        min-width: 0;
+        padding: 0;
+        font-size: 12px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        text-align: left;
+        border-bottom: none;
+    }
+    .r-modal-body .r-table tbody td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 1px;
+        color: var(--text-muted, #888);
+        font-size: 9.5px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+    /* The name / first value: full width on top, no label. */
+    .r-modal-body .r-table tbody td.r-cell-first {
+        grid-column: 1 / -1;
+        padding-right: 36px;
+        font-size: 12.5px;
+        font-weight: 700;
+    }
+    .r-modal-body .r-table tbody td.r-cell-first::before { display: none; }
+    /* Show / hide products chevron: top right of its card. */
+    .r-modal-body .r-table tbody td.r-expand-td {
+        position: absolute;
+        top: 6px;
+        right: 2px;
+        width: auto;
+    }
+    .r-modal-body .r-table tbody td:last-child { min-width: 0; }
+    .r-modal-body .r-table tr.r-row-open { border-bottom-color: transparent; }
+    .r-modal-body .r-table tr.r-list-row { display: block; }
+    .r-modal-body .r-table tr.r-list-row > td { display: block; padding: 0 0 10px; }
+    /* "No records" row stays a simple centred line. */
+    .r-modal-body .r-table tbody td[colspan] { grid-column: 1 / -1; text-align: center; }
+    .r-modal-body .r-table tbody td[colspan]::before { display: none; }
+}

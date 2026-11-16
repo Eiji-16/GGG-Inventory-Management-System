@@ -1308,3 +1308,54 @@
     .s-rules-body .s-pref-row { flex-wrap: wrap; }
     .s-rules-lead { flex: 1 1 100%; margin-left: 30px; }
 }
+
+/*==========SAFETY STOCK POLICY ON PHONES: ONE CARD PER PRODUCT (2026-11-16)==========
+   The wide table needed sideways scrolling on phones. Each product is now a
+   small card: name on top (reset button at its right), then Safety Stock ·
+   Lead Time · Reorder Point in one row, then Status Points full width. */
+@media (max-width: 640px) {
+    .s-policy-head { display: none; }
+    .s-policy-row {
+        position: relative;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        min-width: 0;
+        align-items: start;
+        gap: 8px 10px;
+        padding: 12px 10px;
+    }
+    .s-policy-product { grid-column: 1 / -1; padding-right: 34px; }
+    .s-policy-product strong,
+    .s-policy-product small { white-space: normal; overflow-wrap: anywhere; }
+    .s-policy-row > .s-policy-input-wrap::before,
+    .s-policy-row > .s-policy-point::before,
+    .s-policy-row > .s-policy-status::before {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--text-muted);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+    .s-policy-row > .s-policy-input-wrap:nth-child(2)::before { content: 'Safety stock'; }
+    .s-policy-row > .s-policy-input-wrap:nth-child(3)::before { content: 'Lead time (days)'; }
+    .s-policy-row > .s-policy-point::before { content: 'Reorder point'; }
+    .s-policy-row > .s-policy-status::before { content: 'Status points'; margin-bottom: 0; }
+    .s-policy-row input { font-size: 12px; padding: 6px 8px; }
+    .s-policy-point small { white-space: normal; }
+    .s-policy-status {
+        grid-column: 1 / -1;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 8px;
+    }
+    .s-policy-status::before { flex-basis: 100%; }
+    .s-policy-status .s-manual-points { flex-direction: row; flex-wrap: wrap; gap: 6px 10px; }
+    .s-policy-row > .s-icon-btn {
+        position: absolute;
+        top: 10px;
+        right: 8px;
+    }
+}
