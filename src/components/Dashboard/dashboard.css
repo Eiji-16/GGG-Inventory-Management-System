@@ -1338,6 +1338,8 @@ grid-column: 5 / span 2;
 .db-kpi-bar-seg.is-good, .db-kpi-legend i.is-good { background: var(--accent-high); }
 .db-kpi-bar-seg.is-warn, .db-kpi-legend i.is-warn { background: var(--accent-med); }
 .db-kpi-bar-seg.is-bad,  .db-kpi-legend i.is-bad  { background: var(--accent-low); }
+/* No stock entries yet (2026-11-17) — neutral, follows each theme. */
+.db-kpi-bar-seg.is-none, .db-kpi-legend i.is-none { background: color-mix(in srgb, var(--text-muted) 55%, transparent); }
 .db-kpi-legend {
     display: flex;
     flex-wrap: wrap;

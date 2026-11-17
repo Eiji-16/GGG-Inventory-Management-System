@@ -431,13 +431,16 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
        at/below the reorder point = Low, otherwise In stock. (It used to count
        products with no stock entries yet as "in stock", so the two pages
        showed different numbers.) */
+    // 2026-11-17: a product with no stock entries yet is "No records" (like
+    // Reports and the Reorder List), not "Out of stock".
     const health = stock.reduce((counts, product) => {
-      if (product.quantity <= 0) counts.out += 1;
+      if (!product.inStockControl) counts.none += 1;
+      else if (product.quantity <= 0) counts.out += 1;
       else if (product.quantity <= product.criticalAt) counts.critical += 1;
       else if (product.quantity <= product.threshold) counts.low += 1;
       else counts.in += 1;
       return counts;
-    }, { in: 0, low: 0, critical: 0, out: 0 });
+    }, { in: 0, low: 0, critical: 0, out: 0, none: 0 });
     const categories = Object.entries(stock.reduce((totals, product) => {
       const category = product.category || 'Uncategorized';
       totals[category] = (totals[category] || 0) + 1;
@@ -485,24 +488,15 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
       const count = stockMovements.filter((movement) => movement.date === key).length;
       return { key, count, label: date.toLocaleDateString('en', { weekday: 'short' }) };
     });
-    const firstMonth = `${monthly[0]?.key || ''}-01`;
-    const todayKey = [
-      now.getFullYear(),
-      String(now.getMonth() + 1).padStart(2, '0'),
-      String(now.getDate()).padStart(2, '0'),
-    ].join('-');
-    const topProducts = Object.values(stockMovements
-      .filter((movement) => (
-        movement.type === 'out'
-        && !movement.isAdjustment
-        && movement.date >= firstMonth
-        && movement.date <= todayKey
-        && Number(movement.qty) > 0
-      ))
-      .reduce((totals, movement) => {
-        const id = movement.productId || movement.productName || 'Unknown product';
-        if (!totals[id]) totals[id] = { id, name: movement.productName || id, units: 0 };
-        totals[id].units += Number(movement.qty);
+    /* 2026-11-17: from the monthly sales of the last 12 months (Stock Out +
+       Past Sales, the same numbers as Sales Trend Overview). It counted
+       Stock Out only, so imported sales history was missing. */
+    const topProducts = Object.values(visibleSales
+      .filter((record) => Number(record.unitsSold) > 0)
+      .reduce((totals, record) => {
+        const id = record.productId || record.productName || 'Unknown product';
+        if (!totals[id]) totals[id] = { id, name: record.productName || id, units: 0 };
+        totals[id].units += Number(record.unitsSold);
         return totals;
       }, {}))
       .sort((a, b) => b.units - a.units)
@@ -796,7 +790,7 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
             {kpi.total ? (
               <>
                 <span className="db-kpi-bar db-kpi-bar-hover" aria-hidden="true">
-                  {[['is-good', derived.health.in, 'In stock'], ['is-warn', derived.health.low, 'Low stock'], ['is-crit', derived.health.critical, 'Critical'], ['is-bad', derived.health.out, 'Out of stock']]
+                  {[['is-good', derived.health.in, 'In stock'], ['is-warn', derived.health.low, 'Low stock'], ['is-crit', derived.health.critical, 'Critical'], ['is-bad', derived.health.out, 'Out of stock'], ['is-none', derived.health.none, 'No stock records']]
                     .filter(([, count]) => count > 0)
                     .map(([level, count, name]) => (
                       <span
@@ -812,6 +806,7 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
                   <span data-tip={`Low stock\n${fmt(derived.health.low)} of ${fmt(kpi.total)} products (${pct(derived.health.low, kpi.total)}%)\nAt or below the reorder point`}><i className="is-warn" />{fmt(derived.health.low)} low</span>
                   <span data-tip={`Critical\n${fmt(derived.health.critical)} of ${fmt(kpi.total)} products (${pct(derived.health.critical, kpi.total)}%)\nAt or below safety stock`}><i className="is-crit" />{fmt(derived.health.critical)} critical</span>
                   <span data-tip={`Out of stock\n${fmt(derived.health.out)} of ${fmt(kpi.total)} products (${pct(derived.health.out, kpi.total)}%)`}><i className="is-bad" />{fmt(derived.health.out)} out</span>
+                  {derived.health.none > 0 && <span data-tip={`No stock records\n${fmt(derived.health.none)} of ${fmt(kpi.total)} products (${pct(derived.health.none, kpi.total)}%)\nNo Stock In or Stock Out entries yet`}><i className="is-none" />{fmt(derived.health.none)} no records</span>}
                   {derived.health.low + derived.health.critical + derived.health.out > 0 && <span className="db-kpi-pulse" aria-hidden="true" />}
                 </span>
               </>

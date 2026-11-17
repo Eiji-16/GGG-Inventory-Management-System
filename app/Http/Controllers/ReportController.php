@@ -15,7 +15,7 @@ use Illuminate\Http\Request;
  * ReportController — /api/reports
  *
  * Computes every Reports & Analytics tab from real data in one call:
- * stock summary, movement trend, top movers, demand forecast, AutoCalculator
+ * stock summary, movement trend, top movers (last 12 months), demand forecast, AutoCalculator
  * log, inventory aging, and reorder-point. Read-only / derived — no new tables.
  */
 class ReportController extends Controller
@@ -49,7 +49,7 @@ class ReportController extends Controller
         $builders = [
             'stockSummary'   => fn () => $this->stockSummary($products, $tracked),
             'stockMovement'  => fn () => $this->stockMovement(),
-            'topMoving'      => fn () => $this->topMoving(),
+            'topMoving'      => fn () => $this->topMoving($products),
             'fastSlowMoving' => fn () => $this->fastSlowMoving($products),
             'demandForecast' => fn () => $this->demandForecast($products),
             'autoCalculator' => fn () => $this->autoCalculatorLog(),
@@ -101,7 +101,7 @@ class ReportController extends Controller
         $latestInPrice = StockMovement::query()
             ->where('movement_type', 'in')
             ->where('is_adjustment', false)
-            ->whereNotNull('unit_price')
+            ->where('unit_price', '>', 0)   // a price of 0 is "no price" (2026-11-17)
             ->orderBy('movement_date')
             ->orderBy('id')
             ->get(['product_id', 'unit_price'])
@@ -110,7 +110,7 @@ class ReportController extends Controller
 
         $costs = [];
         foreach ($products as $p) {
-            $cost = $p->unit_cost !== null ? (float) $p->unit_cost : ($latestInPrice[$p->id] ?? null);
+            $cost = $p->unit_cost !== null && (float) $p->unit_cost > 0 ? (float) $p->unit_cost : ($latestInPrice[$p->id] ?? null);
             if ($cost !== null) {
                 $costs[$p->id] = $cost;
             }
@@ -221,37 +221,125 @@ class ReportController extends Controller
     }
 
     /**
-     * Rank products by total units sold (Stock Out, not corrections).
-     * Sales Value = units × the selling price recorded on each sale; sales
-     * without a price add units but no value.
+     * Past Sales units of one product from $start (a plain date) up to today.
+     * Months fully inside count fully; the month $start falls in counts only
+     * for its days from $start (same rule as the annual demand). Only months
+     * before the product's Stock Control records begin are given, so a sale
+     * is never counted twice with Stock Out (2026-11-17).
      */
-    private function topMoving(): array
+    private function pastUnitsSince(Product $p, \Illuminate\Support\Carbon $start): float
     {
+        $units = 0.0;
+        foreach ($this->forecasts->pastMonthlyTotals($p) as $month => $row) {
+            $monthStart = \Illuminate\Support\Carbon::parse($month)->startOfMonth();
+            $monthEnd = $monthStart->copy()->endOfMonth()->startOfDay();
+            if ($monthEnd->lt($start)) {
+                continue;
+            }
+            $share = 1.0;
+            if ($monthStart->lt($start)) {
+                $daysInside = (int) round($start->diffInDays($monthEnd, true)) + 1;
+                $share = $daysInside / $monthStart->daysInMonth;
+            }
+            $units += (float) $row['unitsSold'] * $share;
+        }
+
+        return $units;
+    }
+
+    /**
+     * Rank products by units sold in the last 12 months (this month and the
+     * 11 before it — the same months as the Dashboard's Top Products Sold):
+     * Stock Out (not corrections) plus Past Sales (2026-11-17; it used to
+     * count Stock Out only, so imported sales history was missing).
+     *
+     * Sales Value = units × the selling price saved on each sale. Sales
+     * without a price (and Past Sales, which have no price) use the product's
+     * latest selling price, or its latest Stock In price if it was never sold
+     * with a price — the row says which, so $0 is never shown for a product
+     * that has a price.
+     */
+    private function topMoving($products): array
+    {
+        $today = $this->shopToday();
+        $since = $today->copy()->startOfMonth()->subMonthsNoOverflow(11);
+
         $out = StockMovement::where('movement_type', 'out')
             ->where('is_adjustment', false)
-            ->selectRaw('product_id, SUM(qty) as units, SUM(CASE WHEN unit_price IS NULL THEN 0 ELSE qty * unit_price END) as sales_value')
+            ->whereBetween('movement_date', [$since->toDateString(), $today->toDateString()])
+            ->selectRaw('product_id, SUM(qty) as units,
+                SUM(CASE WHEN unit_price > 0 THEN qty ELSE 0 END) as priced_units,
+                SUM(CASE WHEN unit_price > 0 THEN qty * unit_price ELSE 0 END) as priced_value')
             ->groupBy('product_id')
-            ->orderByDesc('units')
-            ->get();
+            ->get()
+            ->keyBy('product_id');
 
-        // Include deleted products: their sales history still counts.
-        $products = Product::withTrashed()->withoutPhoto()->whereIn('id', $out->pluck('product_id'))->get()->keyBy('id');
+        // Latest selling price of each product (any date).
+        $lastSellingPrice = StockMovement::query()
+            ->where('movement_type', 'out')
+            ->where('is_adjustment', false)
+            ->where('unit_price', '>', 0)
+            ->orderBy('movement_date')
+            ->orderBy('id')
+            ->get(['product_id', 'unit_price'])
+            ->keyBy('product_id')        // last one wins = latest
+            ->map(fn ($row) => (float) $row->unit_price);
+        $costs = $this->unitCosts($products);
 
         $rows = [];
-        $rank = 1;
-        foreach ($out as $o) {
-            $product = $products[$o->product_id] ?? null;
+        foreach ($products as $p) {
+            $o = $out[$p->id] ?? null;
+            $pastUnits = (int) round($this->pastUnitsSince($p, $since));
+            $units = (int) ($o->units ?? 0) + $pastUnits;
+            if ($units <= 0) {
+                continue;
+            }
+            $pricedUnits = (int) ($o->priced_units ?? 0);
+            $recordedValue = round((float) ($o->priced_value ?? 0), 2);
+            $missingUnits = $units - $pricedUnits;
+
+            $fallback = $lastSellingPrice[$p->id] ?? null;
+            $estimateFrom = $fallback !== null ? 'selling' : null;
+            if ($fallback === null && isset($costs[$p->id])) {
+                $fallback = $costs[$p->id];
+                $estimateFrom = 'stockIn';
+            }
+
+            if ($missingUnits <= 0) {
+                $value = $recordedValue;
+                $estimateFrom = null;
+            } elseif ($fallback !== null) {
+                $value = round($recordedValue + $missingUnits * $fallback, 2);
+            } else {
+                // No price anywhere for this product: no value instead of $0.
+                $value = $pricedUnits > 0 ? $recordedValue : null;
+                $estimateFrom = null;
+            }
+
             $rows[] = [
-                'rank'      => $rank++,
-                'productId' => $product?->code,
-                'product'   => $product?->name ?? '—',
-                'deleted'   => (bool) $product?->trashed(),
-                'unitsSold' => (int) $o->units,
-                'value'     => round((float) $o->sales_value, 2),
+                'productId'     => $p->code,
+                'product'       => $p->name,
+                'deleted'       => false,
+                'unitsSold'     => $units,
+                'pastUnits'     => $pastUnits,
+                'value'         => $value,
+                // Part of the value saved on the sales themselves.
+                'recordedValue' => $recordedValue,
+                // Units valued at the latest price ('selling' | 'stockIn'), or
+                // units with no price at all (estimateFrom null).
+                'estimatedUnits' => $missingUnits > 0 ? $missingUnits : 0,
+                'estimateFrom'  => $estimateFrom,
+                'estimatePrice' => $estimateFrom ? $fallback : null,
             ];
         }
 
-        return ['rows' => $rows];
+        usort($rows, fn ($a, $b) => $b['unitsSold'] <=> $a['unitsSold'] ?: strcasecmp($a['product'], $b['product']));
+        foreach ($rows as $i => &$row) {
+            $row = ['rank' => $i + 1] + $row;
+        }
+        unset($row);
+
+        return ['periodStart' => $since->toDateString(), 'rows' => $rows];
     }
 
     /**
@@ -268,15 +356,19 @@ class ReportController extends Controller
         $sold = StockMovement::where('movement_type', 'out')
             ->where('is_adjustment', false)
             ->where('movement_date', '>=', $since)
+            ->where('movement_date', '<=', $this->shopToday()->toDateString())
             ->selectRaw('product_id, SUM(qty) as units')
             ->groupBy('product_id')
             ->pluck('units', 'product_id');
+        $sinceDate = \Illuminate\Support\Carbon::parse($since);
 
+        // Units sold = Stock Out + Past Sales in the same 90 days (2026-11-17;
+        // Past Sales were missing, so imported sales history looked like 0 sold).
         $items = $products->map(fn (Product $p) => [
             'productId' => $p->code,
             'product'   => $p->name,
             'category'  => $p->category ?? '—',
-            'unitsSold' => (int) ($sold[$p->id] ?? 0),
+            'unitsSold' => (int) ($sold[$p->id] ?? 0) + (int) round($this->pastUnitsSince($p, $sinceDate)),
             'stock'     => (int) $p->stock_on_hand,
         ]);
 
@@ -335,7 +427,7 @@ class ReportController extends Controller
     }
 
     /**
-     * Next month's forecast for each product — the same number the
+     * This month's forecast for each product — the same number the
      * Forecasting page shows (3-period WMA, plus any active seasonal event).
      * Suggested Reorder uses the same rule as the Dashboard's Order Soon card:
      * enough to cover the lead time and next month while keeping safety stock.
@@ -396,7 +488,12 @@ class ReportController extends Controller
             'date'    => $log->created_at?->format('n/j/Y g:i A'),
         ])->all();
 
-        return ['rows' => $rows];
+        // The table shows the newest 50; the card shows how many there are in all (2026-11-17).
+        return [
+            'total' => ActivityLog::where('action', 'formula.compute')->count(),
+            'limit' => 50,
+            'rows'  => $rows,
+        ];
     }
 
     /** Use the latest stock-in date, falling back to product creation as an estimate. */
@@ -462,7 +559,9 @@ class ReportController extends Controller
                 // The stock level where the product turns Low.
                 'reorderPoint'  => (int) $points['low'],
                 'criticalPoint' => (int) $points['critical'],
-                'mode'          => $points['mode'],
+                // No Safety Stock Policy yet = the default 10 / 5 points, not
+                // points typed by hand (2026-11-17: it said "manual").
+                'mode'          => $p->safetyStock ? $points['mode'] : 'default',
                 'urgency'       => $urgency,
             ];
         }

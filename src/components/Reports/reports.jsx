@@ -249,14 +249,30 @@ function buildSections(report, formatCurrency) {
       'No movements recorded yet.');
   }
   if (report?.topMoving) {
-    add('topMoving', 'Top Moving Products', 'Ranked by units sold (Stock Out). Sales Value uses the selling price recorded on each sale.',
-      ['Rank', 'Product', 'Units Sold', 'Sales Value'],
-      (report.topMoving.rows || []).map((r) => [r.rank, `${r.product}${r.deleted ? ' (deleted)' : ''}`, r.unitsSold, formatCurrency(r.value)]),
-      'No sales recorded yet.');
+    /* 2026-11-17: last 12 months, Stock Out + Past Sales (like the Dashboard).
+       Sales with no saved price are valued at the product's latest price and
+       "Price Used" says which, so a product with a price never shows $0. */
+    const priceUsed = (r) => {
+      if (r.value == null) return 'No price yet';
+      if (!r.estimateFrom) return 'Saved on each sale';
+      const label = r.estimateFrom === 'selling' ? 'Last selling price' : 'Stock In price';
+      return r.recordedValue > 0
+        ? `Saved price + ${label.toLowerCase()} ${formatCurrency(r.estimatePrice)} for ${Number(r.estimatedUnits).toLocaleString()} units`
+        : `${label} ${formatCurrency(r.estimatePrice)}`;
+    };
+    add('topMoving', 'Top Moving Products',
+      'Units sold in the last 12 months (Stock Out + Past Sales). Sales Value = units × the price saved on each sale; units with no saved price (and Past Sales) use the product\'s latest selling price, or its Stock In price if it was never sold with a price. "Price Used" shows which.',
+      ['Rank', 'Product', 'Units Sold', 'Sales Value', 'Price Used'],
+      (report.topMoving.rows || []).map((r) => [
+        r.rank, `${r.product}${r.deleted ? ' (deleted)' : ''}`, r.unitsSold,
+        r.value != null ? formatCurrency(r.value) : '—',
+        priceUsed(r),
+      ]),
+      'No sales recorded in the last 12 months.');
   }
   if (report?.fastSlowMoving) {
     const days = report.fastSlowMoving.windowDays || 90;
-    add('fastSlowMoving', 'Fast & Slow Moving Products', `Units sold (Stock Out) in the last ${days} days.`,
+    add('fastSlowMoving', 'Fast & Slow Moving Products', `Units sold (Stock Out + Past Sales) in the last ${days} days.`,
       ['Movement', 'Rank', 'Product', 'Category', `Units Sold (${days} days)`, 'Current Stock'],
       (report.fastSlowMoving.rows || []).map((r) => [r.movement, r.rank, r.product, r.category, r.unitsSold, r.stock]),
       'No products to rank yet.');
@@ -271,7 +287,12 @@ function buildSections(report, formatCurrency) {
       ]), 'No completed month of sales yet — record Stock Out in Stock Control or add Past Sales in Forecasting.');
   }
   if (report?.autoCalculator) {
-    add('autoCalculator', 'Economic Order Quantity Calculator Summary', 'Every Economic Order Quantity calculation logged to date.',
+    const calcTotal = Number(report.autoCalculator.total ?? (report.autoCalculator.rows || []).length);
+    const calcShown = (report.autoCalculator.rows || []).length;
+    add('autoCalculator', 'Economic Order Quantity Calculator Summary',
+      calcTotal > calcShown
+        ? `The newest ${calcShown} of ${calcTotal.toLocaleString()} Economic Order Quantity calculations.`
+        : 'Every Economic Order Quantity calculation logged to date.',
       ['Product', 'Product ID', 'Formula', 'Demand Source', 'Annual Demand', 'Result', 'Computed By', 'Date Computed'],
       (report.autoCalculator.rows || []).map((r) => [
         r.product || '—', r.productId || '—',
@@ -299,7 +320,7 @@ function buildSections(report, formatCurrency) {
     add('reorderPoint', 'Reorder Point Report', 'Products at or below their reorder point (safety stock + daily sales × lead time).',
       ['Product', 'Current Stock', 'Reorder Point (Low at)', 'Critical at', 'Urgency'],
       (report.reorderPoint.rows || []).map((r) => [
-        r.product, r.currentStock, `${r.reorderPoint}${r.mode === 'manual' ? ' (manual)' : ''}`, r.criticalPoint ?? '—', r.urgency,
+        r.product, r.currentStock, `${r.reorderPoint}${r.mode === 'manual' ? ' (manual)' : r.mode === 'default' ? ' (default)' : ''}`, r.criticalPoint ?? '—', r.urgency,
       ]), 'All products are above their reorder point.');
   }
   /* Two extra views made from the Stock Summary rows, so every card on the
@@ -367,7 +388,7 @@ function buildCards(report, formatCurrency) {
   }
   if (report?.topMoving) {
     const rows = report.topMoving.rows || [];
-    cards.push({ key: 'sold', report: 'topMoving', Icon: ShoppingBag, tone: 'violet', label: 'Units Sold', value: sumBy(rows, 'unitsSold').toLocaleString(), sub: `${rows.length} product${rows.length === 1 ? '' : 's'} sold` });
+    cards.push({ key: 'sold', report: 'topMoving', Icon: ShoppingBag, tone: 'violet', label: 'Units Sold', value: sumBy(rows, 'unitsSold').toLocaleString(), sub: `last 12 months · ${rows.length} product${rows.length === 1 ? '' : 's'}` });
   }
   if (report?.demandForecast) {
     const rows = report.demandForecast.rows || [];
@@ -375,7 +396,9 @@ function buildCards(report, formatCurrency) {
   }
   if (report?.autoCalculator) {
     const rows = report.autoCalculator.rows || [];
-    cards.push({ key: 'eoq', report: 'autoCalculator', Icon: Calculator, tone: 'violet', label: 'Order Quantity Calculations', value: rows.length.toLocaleString(), sub: 'Economic Order Quantity results logged' });
+    // All calculations, not only the 50 newest shown in the table (2026-11-17).
+    const total = Number(report.autoCalculator.total ?? rows.length);
+    cards.push({ key: 'eoq', report: 'autoCalculator', Icon: Calculator, tone: 'violet', label: 'Order Quantity Calculations', value: total.toLocaleString(), sub: 'Economic Order Quantity results logged' });
   }
   if (report?.inventoryAging) {
     const rows = report.inventoryAging.rows || [];

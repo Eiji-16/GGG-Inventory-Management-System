@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActivityLog;
+use App\Models\PastSale;
 use App\Models\Product;
 use App\Models\SafetyStock;
 use App\Models\SeasonalEvent;
@@ -112,13 +114,90 @@ class ReportsAccuracyTest extends TestCase
         $p = $this->product('PRD-T', 0);
         $this->move($p, 'out', 2, now()->toDateString(), 500);
         $this->move($p, 'out', 3, now()->toDateString(), 450);
-        $this->move($p, 'out', 1, now()->toDateString());          // no price: units only
+        $this->move($p, 'out', 1, now()->toDateString());          // no price: valued at the latest selling price (450)
         $this->move($p, 'out', 9, now()->toDateString(), 999, true); // correction: ignored
 
+        // 2026-11-17: a sale with no price no longer adds $0 — it uses the latest selling price.
         $this->getJson('/api/reports')->assertOk()
             ->assertJsonPath('topMoving.rows.0.productId', 'PRD-T')
             ->assertJsonPath('topMoving.rows.0.unitsSold', 6)
-            ->assertJsonPath('topMoving.rows.0.value', 2350);
+            ->assertJsonPath('topMoving.rows.0.recordedValue', 2350)
+            ->assertJsonPath('topMoving.rows.0.estimatedUnits', 1)
+            ->assertJsonPath('topMoving.rows.0.estimateFrom', 'selling')
+            ->assertJsonPath('topMoving.rows.0.value', 2800);
+    }
+
+    public function test_top_moving_counts_past_sales_of_the_last_12_months(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-17 10:00', 'Asia/Manila'));
+        $p = $this->product('PRD-PS', 20);
+        $this->move($p, 'out', 5, '2026-11-12', 10);
+        PastSale::create(['product_id' => $p->id, 'period_type' => 'month', 'period_date' => '2026-10-01', 'units_sold' => 60]);
+        PastSale::create(['product_id' => $p->id, 'period_type' => 'month', 'period_date' => '2025-12-01', 'units_sold' => 30]);
+        PastSale::create(['product_id' => $p->id, 'period_type' => 'month', 'period_date' => '2025-11-01', 'units_sold' => 99]); // older than 12 months
+
+        $report = $this->getJson('/api/reports')->assertOk()->json();
+        $row = $report['topMoving']['rows'][0];
+
+        $this->assertSame(95, $row['unitsSold']);             // 5 + 60 + 30
+        $this->assertSame(90, $row['pastUnits']);
+        $this->assertEquals(950, $row['value']);               // 5 × $10 saved + 90 × $10 latest selling price
+        $this->assertSame('2025-12-01', $report['topMoving']['periodStart']);
+        // Fast & Slow (90 days): October's past sales count, December 2025 does not.
+        $this->assertSame(65, $report['fastSlowMoving']['fast'][0]['unitsSold']);
+    }
+
+    public function test_top_moving_uses_the_stock_in_price_when_never_sold_with_a_price(): void
+    {
+        $p = $this->product('PRD-IN', 15);
+        $this->move($p, 'in', 26, now()->subDay()->toDateString(), 8.26);
+        $this->move($p, 'out', 11, now()->toDateString());   // no selling price saved
+
+        $this->getJson('/api/reports')->assertOk()
+            ->assertJsonPath('topMoving.rows.0.estimateFrom', 'stockIn')
+            ->assertJsonPath('topMoving.rows.0.value', 90.86);
+    }
+
+    public function test_top_moving_shows_no_value_instead_of_zero_when_there_is_no_price_at_all(): void
+    {
+        $p = $this->product('PRD-NP', 0);
+        $this->move($p, 'out', 4, now()->toDateString());
+
+        $this->getJson('/api/reports')->assertOk()
+            ->assertJsonPath('topMoving.rows.0.unitsSold', 4)
+            ->assertJsonPath('topMoving.rows.0.value', null);
+    }
+
+    public function test_calculator_card_counts_every_calculation_not_only_the_newest_50(): void
+    {
+        foreach (range(1, 52) as $i) {
+            ActivityLog::create(['action' => 'formula.compute', 'description' => 'EOQ', 'icon' => 'calculator', 'meta' => ['formula' => 'EOQ', 'result' => $i]]);
+        }
+
+        $calc = $this->getJson('/api/reports')->assertOk()->json('autoCalculator');
+
+        $this->assertSame(52, $calc['total']);
+        $this->assertCount(50, $calc['rows']);
+    }
+
+    public function test_reorder_point_report_says_default_when_there_is_no_policy(): void
+    {
+        $p = $this->product('PRD-DEF', 3);
+        $this->move($p, 'in', 3, now()->toDateString());
+
+        $this->getJson('/api/reports')->assertOk()
+            ->assertJsonPath('reorderPoint.rows.0.reorderPoint', 10)
+            ->assertJsonPath('reorderPoint.rows.0.mode', 'default');
+    }
+
+    public function test_a_stock_in_price_of_zero_counts_as_no_price(): void
+    {
+        $p = $this->product('PRD-Z', 5);
+        $this->move($p, 'in', 5, now()->toDateString(), 0);
+
+        $kpis = $this->getJson('/api/reports')->assertOk()->json('stockSummary.kpis');
+
+        $this->assertSame(1, $kpis['unpricedProducts']);
     }
 
     public function test_renamed_product_stays_one_row_in_top_moving(): void
