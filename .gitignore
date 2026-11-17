@@ -34,3 +34,6 @@ Thumbs.db
 
 # Local backups (database dumps and project zips) stay on this computer only
 /database backup folder/
+
+# A tool download that landed in a folder literally named "~" (2026-11-17): never commit it
+/~/
