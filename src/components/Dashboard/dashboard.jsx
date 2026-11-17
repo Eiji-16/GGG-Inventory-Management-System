@@ -1019,11 +1019,14 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
                     <button
                       key={item.productId}
                       type="button"
-                      className={`db-order-row is-${tag.level}${index >= reorderVisible ? ' db-fit-hidden' : ''}${canStock ? '' : ' is-static'}`}
-                      {...rowLink(canStock)}
+                      className={`db-order-row is-${tag.level}${index >= reorderVisible ? ' db-fit-hidden' : ''}${canReorder ? '' : ' is-static'}`}
+                      {...rowLink(canReorder)}
                       aria-hidden={index >= reorderVisible || undefined}
                       tabIndex={index >= reorderVisible ? -1 : undefined}
-                      onClick={() => go('Stock', { highlightProductId: item.productId })}
+                      /* ===== OPEN IN REORDER LIST =====
+                         Same list as the Reorder List page, so the row opens there
+                         and that product lights up (2026-11-17; it opened Stock Control). */
+                      onClick={() => go('Reorder-Alerts', { highlightProductId: item.productId })}
                       title={item.reasons.join('\n')}
                     >
                       <span className="db-order-info">

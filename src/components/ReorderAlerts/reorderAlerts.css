@@ -1473,3 +1473,17 @@
     }
     .ra-bulk-modal .ra-bulk-table td[data-label="Remove"] { overflow: visible; }
 }
+
+/* ===== FLASH FROM THE DASHBOARD =====
+   The product clicked on the Dashboard lights up for a moment (same look as
+   Stock Control). */
+.ra-table tbody tr.ra-row-highlight {
+    animation: ra-row-flash 2.4s ease-out;
+}
+@keyframes ra-row-flash {
+    0%, 30%   { background-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+    100%      { background-color: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ra-table tbody tr.ra-row-highlight { animation: none; outline: 2px solid var(--accent); outline-offset: -2px; }
+}

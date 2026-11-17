@@ -108,6 +108,7 @@ export default function ReorderAlerts({
   canReceive = false,
   onRequestsChanged,
   onStockChanged,
+  handoff = null,
 }) {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -121,6 +122,24 @@ export default function ReorderAlerts({
   // "Mark as received": the product whose delivery is being recorded.
   const [receiveItem, setReceiveItem] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+
+  /* ===== LIGHT UP A PRODUCT FROM THE DASHBOARD =====
+     Clicking a product in the Dashboard's Reorder List card opens this page:
+     clear the search and filter so it is listed, scroll to it and flash it. */
+  const [highlightId, setHighlightId] = useState(null);
+  useEffect(() => {
+    const targetId = handoff?.highlightProductId;
+    if (!targetId || loading) return undefined;
+    setQuery('');
+    setStatusFilter('all');
+    setHighlightId(targetId);
+    const scroll = setTimeout(() => {
+      document.querySelector(`[data-reorder-row="${CSS.escape(String(targetId))}"]`)
+        ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 60);
+    const done = setTimeout(() => setHighlightId(null), 2600);
+    return () => { clearTimeout(scroll); clearTimeout(done); };
+  }, [handoff, loading]);
 
   /* ===== RESTOCK REQUESTS (Staff "Notify") ===== */
   const [requests, setRequests] = useState([]);          // open requests
@@ -471,7 +490,7 @@ export default function ReorderAlerts({
                   </td>
                 </tr>
               ) : visible.map((item) => (
-                <tr key={item.id} className={selectedIds.has(item.id) ? 'is-selected' : ''}>
+                <tr key={item.id} data-reorder-row={item.id} className={`${selectedIds.has(item.id) ? 'is-selected' : ''}${highlightId === item.id ? ' ra-row-highlight' : ''}`.trim() || undefined}>
                   {canComputeEoq && (
                     <td className="ra-check m-keep" data-label="Restock Report">
                       <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} aria-label={`Select ${item.name} for the restock report`} />

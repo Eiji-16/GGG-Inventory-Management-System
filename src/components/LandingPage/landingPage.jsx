@@ -1312,6 +1312,7 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
                 <div className="app-view-panel reorder-alerts-panel" hidden={activeView !== 'Reorder-Alerts'}>
                   <ReorderAlerts
                     onNavigate={handleNavigate}
+                    handoff={activeView === 'Reorder-Alerts' ? handoff : null}
                     safetyStock={safetyStock}
                     catalogRevision={policyRefreshKey}
                     canComputeEoq={canAccess('Auto-Calculator')}
