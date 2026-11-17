@@ -1359,3 +1359,63 @@
         right: 8px;
     }
 }
+
+/* ===== RESET BUTTON A LITTLE IN FROM THE EDGE =====
+   Laptop and tablet only: the reset column is wider and the button sits in
+   its middle, so it no longer touches the right edge (2026-11-17). */
+@media (min-width: 641px) {
+    .s-policy-head,
+    .s-policy-row {
+        grid-template-columns: minmax(130px, 1.5fr) minmax(62px, 0.55fr) minmax(96px, 0.8fr) minmax(100px, 0.9fr) minmax(176px, 1.5fr) 44px;
+    }
+    .s-policy-row > .s-icon-btn { justify-self: center; }
+}
+
+/* ===== STATUS DOTS (every screen size) =====
+   ● >8  ● 4–8  ● 1–3 instead of word labels (2026-11-17). */
+.s-policy-bands:has(.s-dot) { gap: 4px 8px; }
+.s-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.s-dot i {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+.s-dot.is-healthy i { background: var(--accent-high, #3fbf8a); }
+.s-dot.is-low i { background: var(--accent-med, #e0a33a); }
+.s-dot.is-critical i { background: var(--accent-low, #e05d4b); }
+
+/* ===== COMPACT SAFETY STOCK TABLE (laptop and tablet) =====
+   Shorter rows and no sideways scroll at the usual width (2026-11-17).
+   The Reorder Point working ("3 + 0.3/day × 14 days") shows on hover.
+   A very narrow card (under 500 px) still scrolls sideways instead of
+   squeezing the product names. Phones keep their one-card-per-product look. */
+@media (min-width: 641px) {
+    .s-policy-head,
+    .s-policy-row {
+        grid-template-columns: minmax(96px, 1fr) 48px 96px 46px 124px 30px;
+        min-width: 500px;
+        gap: 7px;
+        padding: 6px 10px;
+    }
+    .s-policy-row input { height: 30px; padding: 4px 7px; }
+    .s-policy-row input::placeholder { font-size: 11px; }
+    .s-policy-point small { display: none; }
+    .s-policy-point strong { font-size: 14px; }
+    .s-policy-status { gap: 5px; }
+    .s-policy-bands:has(.s-dot) { flex-wrap: nowrap; gap: 6px; }
+    .s-policy-row > .s-icon-btn { justify-self: center; }
+}
+/* Wide screens: a little more room for the numbers. */
+@media (min-width: 1280px) {
+    .s-policy-head,
+    .s-policy-row { grid-template-columns: minmax(110px, 1fr) 52px 100px 52px 136px 32px; }
+}

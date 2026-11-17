@@ -177,13 +177,20 @@ function Settings({
   };
 
   /* Status bands from the Low and Critical points (same rule as the server). */
-  const bandsFor = (critical, low) => (
-    <>
-      <span className="s-band is-healthy">Healthy &gt; {low}</span>
-      {low > critical && <span className="s-band is-low">Low {critical + 1}–{low}</span>}
-      {critical >= 1 && <span className="s-band is-critical">Critical {critical === 1 ? '1' : `1–${critical}`}</span>}
-    </>
-  );
+  /* ===== STATUS DOTS =====
+     Compact look (2026-11-17): a coloured dot and the numbers, e.g.
+     ● >8  ● 4–8  ● 1–3. The Healthy / Low / Critical key is in the toolbar,
+     and the full name shows on hover and is read aloud. */
+  const bandsFor = (critical, low) => {
+    const criticalText = critical === 1 ? '1' : `1–${critical}`;
+    return (
+      <>
+        <span className="s-dot is-healthy" title={`Healthy: above ${low}`} aria-label={`Healthy above ${low}`}><i aria-hidden="true" />&gt;{low}</span>
+        {low > critical && <span className="s-dot is-low" title={`Low: ${critical + 1}–${low}`} aria-label={`Low ${critical + 1} to ${low}`}><i aria-hidden="true" />{critical + 1}–{low}</span>}
+        {critical >= 1 && <span className="s-dot is-critical" title={`Critical: ${criticalText}`} aria-label={`Critical ${criticalText}`}><i aria-hidden="true" />{criticalText}</span>}
+      </>
+    );
+  };
 
   /* Automatic = Low at the reorder point, Critical at safety stock.
      Manual    = the owner types the Low and Critical points. */
