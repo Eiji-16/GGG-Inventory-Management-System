@@ -2656,12 +2656,18 @@ body {
    tables, forms and pop-ups are easy to tell apart. Borders take a hint of
    each theme's accent. Only colours change. */
 [data-theme="midnight-blue"] {
-    --bg-main: linear-gradient(180deg, #1b2646 0%, #1a2e62 100%);
-    --bg-card: #17264b;
-    --border-color: rgba(232, 197, 71, 0.14);
-    --static-bg-color: #223459;
-    --input-bg: #1f3054;
-    --hairline: rgba(248, 250, 252, 0.12);
+    /* 2026-11-17: follows the sign-in page night look — blue panel like the
+       left side of the sign-in card, dark navy cards like the form side,
+       sign-in input / line / text shades. Was #1b2646 → #1a2e62 / #17264b. */
+    --bg-main: linear-gradient(160deg, #16295c 0%, #0f1f45 45%, #0a1530 100%);
+    --bg-card: #0c1426;
+    --bg-sidebar: #0c1426;
+    --text-primary: #eef2fb;
+    --text-muted: #8f9bb8;
+    --border-color: rgba(150, 170, 220, 0.12);
+    --static-bg-color: #111c35;
+    --input-bg: #111c35;
+    --hairline: rgba(150, 170, 220, 0.12);
 }
 [data-theme="graphite"] {
     --bg-main: linear-gradient(180deg, #16181c 0%, #1a1d23 100%);
@@ -2690,7 +2696,7 @@ body {
    Sizes, spacing and the open / close animation are unchanged. */
 @media (min-width: 821px) {
     [data-theme="soft-white"]    .dashboard-page-wrapper { --shell-bg: #0f1f45; }  /* login navy, gold accent (2026-11-09: Soft White now follows the Login page look) */
-    [data-theme="midnight-blue"] .dashboard-page-wrapper { --shell-bg: #0b1329; }
+    [data-theme="midnight-blue"] .dashboard-page-wrapper { --shell-bg: #060b18; }  /* sign-in page night background (2026-11-17) */
     [data-theme="lavender"]      .dashboard-page-wrapper { --shell-bg: #16142a; }
     [data-theme="citrus"]        .dashboard-page-wrapper { --shell-bg: #082d28; }
     [data-theme="graphite"]      .dashboard-page-wrapper { --shell-bg: #101216; }
