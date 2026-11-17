@@ -718,3 +718,19 @@ body::before {
     background: var(--bg-main, #f1f5fa);
     pointer-events: none;
 }
+
+/* ==========NO VISIBLE SCROLLBARS (2026-11-17)==========
+   Every scrollbar in the system is hidden; scrolling still works the same
+   (mouse wheel, touchpad, finger, keyboard). !important wins over the older
+   thin / coloured scrollbar rules in each page's CSS. */
+*,
+*::before,
+*::after {
+    scrollbar-width: none !important;
+}
+::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+}
