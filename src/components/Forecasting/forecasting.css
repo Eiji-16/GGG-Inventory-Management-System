@@ -3835,3 +3835,22 @@
     background: var(--bg-card);
 }
 .fx-table-modal .fx-table-close svg { display: block; }
+
+/* 2026-11-17: + Add Event is exactly as tall as the search bar (40 px; it was 43). */
+.f-seasonal-head > .f-btn {
+    align-self: flex-end;
+    height: 40px;
+    min-height: 40px;
+    padding-top: 0;
+    padding-bottom: 0;
+    box-sizing: border-box;
+}
+/* 2026-11-17: Edit and Delete are icon-only square buttons (the name shows
+   on hover and is read aloud). Delete still turns red on hover. */
+.f-event-actions .f-event-icon-btn {
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    padding: 0;
+    box-sizing: border-box;
+}

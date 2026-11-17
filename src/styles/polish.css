@@ -157,8 +157,11 @@ select:not([multiple]):focus-visible {
         border-color: color-mix(in srgb, var(--accent, #E8C547) 26%, var(--border-color, transparent));
         box-shadow: var(--shadow-card), 0 10px 26px -14px rgba(0, 0, 0, 0.45);
     }
+    /* 2026-11-17: the glow takes the card's own theme colour (a soft lamp-like
+       gold on Midnight Blue, blue on Graphite, orange on Ember …). It was a
+       fixed orange-red left from when the card was orange in every theme. */
     .parent.db-grid > .card.db-tone:hover {
-        box-shadow: var(--shadow-card), 0 12px 28px -12px rgba(232, 56, 15, 0.55);
+        box-shadow: var(--shadow-card), 0 12px 30px -10px color-mix(in srgb, var(--tone-bg, var(--background-icon-active-color, #E8C547)) 60%, transparent);
     }
 }
 

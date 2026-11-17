@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
-import { X, CalendarDays } from 'lucide-react';
+import { X, CalendarDays, Pencil, Trash2 } from 'lucide-react';
 import { limitDigits } from '../../utils/numberLimit';
 import MarqueeText from '../../utils/marqueeText';
 import './forecasting.css';
@@ -395,6 +395,13 @@ export default function DemandForecastDesign({
 
   /* "Order Now" / Stock Control shortcut: select that product, open the tab. */
   useEffect(() => {
+    // Dashboard → Top Products Sold (2026-11-17): open Sales Forecasting
+    // (not the calculator), with that product chosen when one was clicked.
+    if (handoff?.type === 'forecast-product') {
+      if (handoff.productId) setProductId(String(handoff.productId));
+      setView('forecast');
+      return;
+    }
     if (!handoff?.productId || !canComputeEoq) return;
     setProductId(String(handoff.productId));
     setEoqHandoff(handoff);
@@ -1147,8 +1154,13 @@ export default function DemandForecastDesign({
                       <span className={`f-event-status is-${event.status.toLowerCase()}`}>{event.status}</span>
                       {canManageEvents && (
                       <div className="f-event-actions">
-                        <button type="button" className="f-btn f-btn-ghost f-btn-sm" onClick={() => openEventForm(event)}>Edit</button>
-                        <button type="button" className="f-btn f-btn-ghost f-btn-sm f-event-delete" onClick={() => setDeleteTarget(event)}>Delete</button>
+                        {/* Icon-only buttons (2026-11-17); the name shows on hover and is read aloud. */}
+                        <button type="button" className="f-btn f-btn-ghost f-btn-sm f-event-icon-btn" onClick={() => openEventForm(event)} aria-label={`Edit ${event.name}`} title="Edit">
+                          <Pencil size={15} aria-hidden="true" />
+                        </button>
+                        <button type="button" className="f-btn f-btn-ghost f-btn-sm f-event-icon-btn f-event-delete" onClick={() => setDeleteTarget(event)} aria-label={`Delete ${event.name}`} title="Delete">
+                          <Trash2 size={15} aria-hidden="true" />
+                        </button>
                       </div>
                       )}
                     </li>

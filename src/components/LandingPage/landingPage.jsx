@@ -1361,6 +1361,7 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
                     isActive={activeView === 'Reports'}
                     canTab={(key) => can(`reports.tab.${key}`)}
                     canExport={can('reports.export')}
+                    handoff={activeView === 'Reports' ? handoff : null}
                   />
                 </div>
               )}

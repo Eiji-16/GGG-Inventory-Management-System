@@ -1598,6 +1598,7 @@ grid-column: 5 / span 2;
 .db-ps-row:not(.db-ps-head):hover,
 .db-ps-row:not(.db-ps-head):focus-visible { background: var(--overlay-soft, rgba(255, 255, 255, 0.06)); }
 .db-ps-row:not(.db-ps-head):focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+.db-ps-row.is-link { cursor: pointer; }   /* opens the product's sales forecast (2026-11-17) */
 .db-ps-head {
     padding-top: 0;
     padding-bottom: 3px;

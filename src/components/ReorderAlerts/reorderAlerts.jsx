@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import MarqueeText from '../../utils/marqueeText';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BellRing, Calculator, Check, ClipboardList, FileText, PackageCheck, PackageX, Search, X } from 'lucide-react';
+import { AlertTriangle, BellRing, Calculator, Check, ClipboardList, FileText, PackageCheck, PackageX, Search, UserX } from 'lucide-react';
 import apiFetch from '../../apiFetch';
 import { PageToast } from '../../utils/toast';
 import './reorderAlerts.css';
@@ -529,7 +529,8 @@ export default function ReorderAlerts({
                         <span className="ra-action-slot is-close">
                           {requestsByProduct[item.id] && (
                             <button type="button" className="ra-order-btn ra-icon-btn ra-close-btn" onClick={() => markDone(requestsByProduct[item.id][0])} aria-label={`Close request: ${item.name}`} title="Close request — closes the request(s) for this product without a delivery (for example, the product will not be restocked). A delivery recorded with Received closes them by itself.">
-                              <X size={15} aria-hidden="true" />
+                              {/* 2026-11-17: person with X = the staff request is turned down (was a plain X). */}
+                              <UserX size={15} aria-hidden="true" />
                             </button>
                           )}
                         </span>

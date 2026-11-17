@@ -368,6 +368,15 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
   // Arrows, cards and rows only open pages this role may open (Role Access).
   const go = (tab, payload = null) => { if (onNavigate && canOpen(tab)) onNavigate(tab, payload); };
 
+  /* Top Products Sold (2026-11-17): a product opens Forecasting → Sales
+     Forecasting with that product chosen; the arrow opens the Top Moving
+     Products report (or Sales Forecasting when Reports is not allowed). */
+  const canReports = canOpen('Reports');
+  const openProductForecast = (productId) => go('Forecasting', { type: 'forecast-product', productId });
+  const openTopProductsReport = () => (canReports
+    ? go('Reports', { type: 'open-report', report: 'topMoving' })
+    : go('Forecasting', { type: 'forecast-product' }));
+
   /* Backup reminder removed on 2026-11-11 (the user asked). */
   const canProducts = canOpen('Product-Supplier');
   const canStock = canOpen('Stock');
@@ -1240,7 +1249,9 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
 
           {/* ===== TOP PRODUCTS SOLD: photo, name, stock now, units sold ===== */}
           <div className="productSales-card card">
-            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Top Products Sold</span><span className="db-card-sub">Last {range} months · units</span></div>{canForecast && <button className="db-open-arrow-btn" onClick={() => go('Forecasting')} aria-label="Open sales history" type="button"><OpenArrow /></button>}</div>
+            {/* 2026-11-17: the arrow opens the full Top Moving Products report
+                (Reports); each product opens its own sales forecast. */}
+            <div className="db-card-head"><div className="db-card-titles"><span className="db-card-title">Top Products Sold</span><span className="db-card-sub">Last {range} months · units</span></div>{(canReports || canForecast) && <button className="db-open-arrow-btn" onClick={openTopProductsReport} aria-label={canReports ? 'Open the Top Moving Products report' : 'Open Sales Forecasting'} title={canReports ? 'Open the Top Moving Products report' : 'Open Sales Forecasting'} type="button"><OpenArrow /></button>}</div>
             {derived.topProducts.length ? (
               <div className="db-ps" role="table" aria-label="Top products sold">
                 <div className="db-ps-row db-ps-head" role="row">
@@ -1251,9 +1262,12 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
                 {derived.topProducts.map((product, index) => (
                   <div
                     key={product.id}
-                    className="db-ps-row"
+                    className={`db-ps-row${canForecast ? ' is-link' : ''}`}
                     role="row"
                     tabIndex={0}
+                    aria-label={canForecast ? `Open the sales forecast of ${product.name}` : undefined}
+                    onClick={canForecast ? () => openProductForecast(product.id) : undefined}
+                    onKeyDown={canForecast ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openProductForecast(product.id); } } : undefined}
                     data-tip={`#${index + 1} ${product.name}\nSold: ${fmt(product.units)} units (${pct(product.units, derived.topProductsTotal)}% of the top ${derived.topProducts.length})\nIn stock now: ${product.stock == null ? '—' : fmt(product.stock)}`}
                   >
                     <span className="db-ps-item" role="cell">

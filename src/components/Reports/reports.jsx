@@ -681,7 +681,7 @@ function ReportModal({ section, canExport, onClose }) {
    background, so it reloads on either (the main page checks for changes every
    few seconds). canTab(key) = Role Access for each report; canExport = may
    export. */
-export default function ReportsAnalyticsDesign({ safetyStock, refreshKey = 0, isActive = true, canTab = () => true, canExport = true }) {
+export default function ReportsAnalyticsDesign({ safetyStock, refreshKey = 0, isActive = true, canTab = () => true, canExport = true, handoff = null }) {
   const { formatCurrency } = useCurrency();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -712,6 +712,17 @@ export default function ReportsAnalyticsDesign({ safetyStock, refreshKey = 0, is
   const cards = useMemo(() => buildCards(report, formatCurrency), [report, formatCurrency]);
   const sectionByKey = useMemo(() => new Map(sections.map((section) => [section.key, section])), [sections]);
   const openSection = openKey ? sectionByKey.get(openKey) : null;
+
+  /* Opened from another page with one report in mind (Dashboard → Top
+     Products Sold arrow, 2026-11-17): open that report's pop-up once the
+     data is in. Each click is a new handoff, so it opens every time. */
+  const [handledHandoff, setHandledHandoff] = useState(null);
+  useEffect(() => {
+    if (handoff?.type !== 'open-report' || handoff === handledHandoff) return;
+    if (!sectionByKey.has(handoff.report)) return;   // still loading, or hidden by Role Access
+    setOpenKey(handoff.report);
+    setHandledHandoff(handoff);
+  }, [handoff, handledHandoff, sectionByKey]);
   const opener = (key) => (sectionByKey.has(key) ? () => setOpenKey(key) : null);
 
   const firstLoad = loading && !report;   // keep old numbers on screen while refreshing
