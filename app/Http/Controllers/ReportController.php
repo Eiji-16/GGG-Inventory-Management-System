@@ -266,7 +266,10 @@ class ReportController extends Controller
 
         $out = StockMovement::where('movement_type', 'out')
             ->where('is_adjustment', false)
-            ->whereBetween('movement_date', [$since->toDateString(), $today->toDateString()])
+            // "Before tomorrow" instead of "up to today": some databases save the
+            // date with a time (2026-11-17 00:00:00), which is after "2026-11-17".
+            ->where('movement_date', '>=', $since->toDateString())
+            ->where('movement_date', '<', $today->copy()->addDay()->toDateString())
             ->selectRaw('product_id, SUM(qty) as units,
                 SUM(CASE WHEN unit_price > 0 THEN qty ELSE 0 END) as priced_units,
                 SUM(CASE WHEN unit_price > 0 THEN qty * unit_price ELSE 0 END) as priced_value')
@@ -356,7 +359,7 @@ class ReportController extends Controller
         $sold = StockMovement::where('movement_type', 'out')
             ->where('is_adjustment', false)
             ->where('movement_date', '>=', $since)
-            ->where('movement_date', '<=', $this->shopToday()->toDateString())
+            ->where('movement_date', '<', $this->shopToday()->addDay()->toDateString())   // up to today (see topMoving)
             ->selectRaw('product_id, SUM(qty) as units')
             ->groupBy('product_id')
             ->pluck('units', 'product_id');
