@@ -1429,3 +1429,40 @@
     background: var(--accent-med-soft, color-mix(in srgb, var(--accent-med) 12%, transparent));
     border: 1px solid color-mix(in srgb, var(--accent-med) 40%, transparent);
 }
+
+/* ===== TWO-STEP SIGN-IN BADGE =====
+   Shows at a glance how each account signs in (2026-11-17):
+   App = authenticator app on, Email code = codes by email, Off = none yet. */
+.st-2fa {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+.st-2fa-app {
+    color: var(--accent-high);
+    background: var(--accent-high-soft);
+}
+.st-2fa-email {
+    color: var(--info-color);
+    background: var(--info-soft);
+    border-color: var(--info-border);
+}
+.st-2fa-off {
+    color: var(--accent-med);
+    background: color-mix(in srgb, var(--accent-med) 14%, transparent);
+    border-color: color-mix(in srgb, var(--accent-med) 35%, transparent);
+}
+
+/* ===== TWO-STEP BADGE ON PHONES =====
+   Sits next to the Active badge on line 2. Icon only to save space. */
+@media (max-width: 640px) {
+    .st-table tbody td.st-cell-2fa { order: 6; }
+    .st-2fa { padding: 3px 6px; }
+    .st-2fa-label { display: none; }
+}

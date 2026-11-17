@@ -19,6 +19,9 @@ import {
   KeyRound,
   UserPlus,
   RotateCcw,
+  Smartphone,
+  Mail,
+  ShieldOff,
 } from 'lucide-react';
 import './staff.css';
 import AccountRequests from './AccountRequests';
@@ -158,7 +161,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
   });
   // Leaving the Deactivated view clears the ticks.
   useEffect(() => { if (!showDeactivated) setSelectedIds(new Set()); }, [showDeactivated]);
-  const tableColumns = (canManage ? 6 : 5) + (canSelect ? 1 : 0);
+  const tableColumns = (canManage ? 7 : 6) + (canSelect ? 1 : 0);
   const bulkCount = accountDialog?.accounts ? accountDialog.accounts.length : 0;
   const isReactivateStep = accountDialog?.step === 'reactivate' || accountDialog?.step === 'bulk-reactivate';
 
@@ -903,6 +906,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
                 <th>Email</th>
                 <th>Role</th>
                 <th>Status</th>
+                <th>Two-Step</th>
                 <th>Last active</th>
                 {canManage && <th className="st-th-actions">Actions</th>}
               </tr>
@@ -956,6 +960,22 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
                       {s.waitingVerification && !showDeactivated && (
                         <span className="st-status st-status-unverified" title="Created by Approve & Invite. Can sign in after clicking the email link.">
                           Not verified
+                        </span>
+                      )}
+                    </td>
+                    {/* ===== TWO-STEP SIGN-IN BADGE ===== */}
+                    <td className="st-cell-2fa" data-label="Two-Step">
+                      {s.twoFactor ? (
+                        <span className="st-2fa st-2fa-app" title="Authenticator app is on">
+                          <Smartphone size={12} /><span className="st-2fa-label">App</span>
+                        </span>
+                      ) : s.twoFactorEmail ? (
+                        <span className="st-2fa st-2fa-email" title="Sign-in codes are sent by email">
+                          <Mail size={12} /><span className="st-2fa-label">Email code</span>
+                        </span>
+                      ) : (
+                        <span className="st-2fa st-2fa-off" title="No two-step sign-in yet">
+                          <ShieldOff size={12} /><span className="st-2fa-label">Off</span>
                         </span>
                       )}
                     </td>
