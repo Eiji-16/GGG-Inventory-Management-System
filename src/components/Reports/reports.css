@@ -1496,3 +1496,14 @@
     .r-modal-body .r-table tbody td[data-label]::before { margin-bottom: 3px; }
     .r-modal-body .r-table tbody td.r-cell-first { margin-bottom: 2px; }
 }
+
+/* ===== TOP MOVING PHONE CARD: "#24" ON ONE LINE (2026-11-18) =====
+   The "…" wrapper made the rank number drop under the "#". Keep the tag
+   on one line. */
+@media (max-width: 640px) {
+    .r-modal-body .r-table tbody tr > td.r-cell-first[data-label="Rank"] { white-space: nowrap; }
+    .r-modal-body .r-table tbody tr > td.r-cell-first[data-label="Rank"] .ui-ellipsis {
+        display: inline;
+        max-width: none;
+    }
+}

@@ -379,6 +379,9 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
     clearLogoDraft();
   };
 
+  /* ===== LOGO SIZE LIMIT: 10 MB (2026-11-18, was 2 MB). Same limit on the server. ===== */
+  const LOGO_MAX_BYTES = 10 * 1024 * 1024;
+
   // Step 1: a picture was chosen — check it and show the preview.
   const pickLogo = (event) => {
     const file = event.target.files?.[0];
@@ -388,8 +391,8 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
       setLogoError('Please choose an image file (JPG, PNG, WEBP or GIF).');
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      setLogoError('The picture must be 2 MB or smaller.');
+    if (file.size > LOGO_MAX_BYTES) {
+      setLogoError('The picture must be 10 MB or smaller.');
       return;
     }
     setLogoError('');
@@ -404,8 +407,8 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
     const file = useCleaned
       ? new File([logoCleaned.blob], 'logo.png', { type: 'image/png' })
       : logoDraft.file;
-    if (file.size > 2 * 1024 * 1024) {
-      setLogoError('The picture must be 2 MB or smaller.');
+    if (file.size > LOGO_MAX_BYTES) {
+      setLogoError('The picture must be 10 MB or smaller.');
       return;
     }
     setLogoBusy(true);
@@ -1485,7 +1488,7 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
                 )}
               </>
             ) : (
-              <p>The system’s logo at the top of the sidebar, shown to every account. JPG, PNG, WEBP or GIF, up to 2 MB.</p>
+              <p>The system’s logo at the top of the sidebar, shown to every account. JPG, PNG, WEBP or GIF, up to 10 MB.</p>
             )}
             <PageToast message={logoError} type="error" onShown={() => setLogoError('')} />
             <input

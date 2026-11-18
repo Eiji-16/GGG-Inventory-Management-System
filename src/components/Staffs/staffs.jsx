@@ -860,6 +860,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
 
       {/* ===== STAFF TABLE ===== */}
       {!showRequests && (
+      <>
       <div
         key={showDeactivated ? 'deactivated-accounts' : 'active-accounts'}
         className="st-table-card st-accounts-view"
@@ -1022,8 +1023,10 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
             </tbody>
           </table>
         </div>
-        {!loading && <RowsFooter pager={pager} noun={pager.total === 1 ? 'account' : 'accounts'} label="Accounts per page" />}
       </div>
+      {/* Page bar under the box, like Products (2026-11-18). */}
+      {!loading && <RowsFooter pager={pager} noun={pager.total === 1 ? 'account' : 'accounts'} label="Accounts per page" className="rows-footer-outside" />}
+      </>
       )}
 
       {/* Hidden picker for "Add / Change photo" in the row menu. */}

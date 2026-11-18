@@ -586,7 +586,6 @@ export default function ReorderAlerts({
             </tbody>
           </table>
         </div>
-        {!loading && <RowsFooter pager={pager} noun={pager.total === 1 ? 'product' : 'products'} label="Products per page" />}
         {notifyTarget && createPortal(
           <div className="ra-modal-overlay" onClick={() => !notifyBusy && setNotifyTarget(null)}>
             <form className="ra-modal" onClick={(event) => event.stopPropagation()} onSubmit={sendNotify} role="dialog" aria-modal="true" aria-labelledby="ra-notify-title">
@@ -626,6 +625,8 @@ export default function ReorderAlerts({
           />
         )}
       </div>
+      {/* Page bar under the box, like Products (2026-11-18). */}
+      {!loading && <RowsFooter pager={pager} noun={pager.total === 1 ? 'product' : 'products'} label="Products per page" className="rows-footer-outside" />}
     </div>
   );
 }

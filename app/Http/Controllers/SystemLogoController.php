@@ -37,9 +37,9 @@ class SystemLogoController extends Controller
         abort_unless($request->user()?->isSuperAdmin(), 403, 'Only the Super Admin can change the system logo.');
 
         $request->validate([
-            'logo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:2048'],
+            'logo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240'],   // 10 MB (2026-11-18, was 2 MB)
         ], [
-            'logo.max' => 'The picture must be 2 MB or smaller.',
+            'logo.max' => 'The picture must be 10 MB or smaller.',
             'logo.image' => 'Please choose an image file (JPG, PNG, WEBP or GIF).',
             'logo.mimes' => 'Please choose a JPG, PNG, WEBP or GIF picture.',
         ]);

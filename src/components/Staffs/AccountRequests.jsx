@@ -133,6 +133,7 @@ export default function AccountRequests({ onChanged, onCount, hidden = false, ca
   if (hidden) return <PageToast message={notice?.text} type={notice?.type === 'error' ? 'error' : 'success'} onShown={() => setNotice(null)} />;
 
   return (
+    <>
     <section className="st-table-card st-requests-view" aria-labelledby="st-requests-title">
       <PageToast message={notice?.text} type={notice?.type === 'error' ? 'error' : 'success'} onShown={() => setNotice(null)} />
       <div className="st-table-heading st-requests-heading">
@@ -227,7 +228,6 @@ export default function AccountRequests({ onChanged, onCount, hidden = false, ca
           </tbody>
         </table>
       </div>
-      {!(loading && !requests.length) && <RowsFooter pager={pager} noun={pager.total === 1 ? 'request' : 'requests'} label="Requests per page" />}
       {confirmItem && createPortal(
         <div
           className="st-modal-overlay st-account-confirm-overlay"
@@ -271,5 +271,8 @@ export default function AccountRequests({ onChanged, onCount, hidden = false, ca
         onNo={() => setPromoteItem(null)}
       />
     </section>
+    {/* Page bar under the box, like Products (2026-11-18). */}
+    {!(loading && !requests.length) && <RowsFooter pager={pager} noun={pager.total === 1 ? 'request' : 'requests'} label="Requests per page" className="rows-footer-outside" />}
+    </>
   );
 }

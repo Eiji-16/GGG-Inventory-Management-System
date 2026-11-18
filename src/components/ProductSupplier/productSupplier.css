@@ -1726,3 +1726,25 @@ table.ps-table tr > td.ps-td-pic > span.ps-thumb.ps-thumb-empty:only-child {
     overflow-wrap: anywhere;
 }
 .ps-supplied-list li:nth-child(odd) { background: var(--static-bg-color); }
+
+/* ===== PRODUCTS TABLE: SUPPLIER ON ONE LINE WITH "…" (2026-11-18) =====
+   A long supplier name or contact no longer stacks into many lines; it
+   ends with "…" and the full name shows on hover. */
+.ps-table:not(.ps-supplier-table) .ps-supplier-cell {
+    display: flex;
+    max-width: 12rem;
+    overflow-wrap: normal;
+}
+.ps-supplier-name,
+.ps-supplier-contact {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow-wrap: normal;
+}
+@media (max-width: 760px) {
+    .ps-table:not(.ps-supplier-table) .ps-supplier-cell { max-width: 100%; }
+}

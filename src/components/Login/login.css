@@ -642,3 +642,20 @@ html.lg-revealing::view-transition-new(root) { z-index: 2; }
     .is-night.is-lamp-leaving .lg-lamp-light,
     .is-night.is-lamp-leaving .lg-lamp::after { animation: none; }
 }
+
+/* ===== PHONES: SUN / MOON BUTTON IN THE BLUE CARD (2026-11-18) =====
+   Laptops keep the button in the page's top-right corner. Phones show it
+   in the top-right corner of the blue card instead. */
+.lg-look-btn.lg-look-btn-card { display: none; }
+@media (max-width: 900px) {
+    .lg-page > .lg-look-btn { display: none; }
+    .lg-look-btn.lg-look-btn-card {
+        top: 14px;
+        right: 14px;
+        z-index: 2;
+        display: grid;
+        width: 34px;
+        height: 34px;
+    }
+    .lg-brand-top { padding-right: 44px; }
+}

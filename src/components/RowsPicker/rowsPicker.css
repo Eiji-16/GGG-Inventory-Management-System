@@ -143,3 +143,6 @@
     white-space: nowrap;
     user-select: none;
 }
+
+/* Page bar placed under a table box (Staffs, Account Requests, Reorder List). */
+.rows-footer-outside { padding: 8px 4px 0; }

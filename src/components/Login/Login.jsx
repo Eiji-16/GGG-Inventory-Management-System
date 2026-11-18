@@ -38,6 +38,7 @@ function Login({ onLogin }) {
     const [lookPicked, setLookPicked] = useState(false);
     const [lampLeaving, setLampLeaving] = useState(false);   // night → day: the lamp goes up first
     const lookBtnRef = useRef(null);
+    const lookBtnCardRef = useRef(null);   // phones: the same button inside the blue card (2026-11-18)
     const isNightRef = useRef(isNight);
     isNightRef.current = isNight;
     const switchingRef = useRef(false);
@@ -56,7 +57,9 @@ function Login({ onLogin }) {
                 switchingRef.current = false;
                 return;
             }
-            const button = lookBtnRef.current?.getBoundingClientRect();
+            // The circle starts from whichever sun / moon button is on screen.
+            const shown = [lookBtnRef.current, lookBtnCardRef.current].find((el) => el && el.offsetParent !== null);
+            const button = shown?.getBoundingClientRect();
             const x = button ? ((button.left + button.width / 2) / window.innerWidth) * 100 : 100;
             const y = button ? ((button.top + button.height / 2) / window.innerHeight) * 100 : 0;
             const root = document.documentElement;
@@ -209,6 +212,19 @@ function Login({ onLogin }) {
                 <aside className="lg-brand" aria-label="About the system">
                     <div className="lg-brand-grid" aria-hidden="true" />
                     <div className="lg-brand-glow" aria-hidden="true" />
+                    {/* ===== SUN / MOON BUTTON ON PHONES (2026-11-18) =====
+                        Top-right corner of the blue card; the corner button
+                        of the page is hidden on phones. */}
+                    <button
+                        ref={lookBtnCardRef}
+                        type="button"
+                        className="lg-look-btn lg-look-btn-card"
+                        onClick={() => { setLookPicked(true); switchLook(!isNight); }}
+                        aria-label={isNight ? 'Show the day look' : 'Show the night look'}
+                        title={isNight ? 'Day look' : 'Night look'}
+                    >
+                        {isNight ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
+                    </button>
 
                     <div className="lg-brand-top">
                         <span className="lg-mark" aria-hidden="true"><Boxes size={20} strokeWidth={2} /></span>

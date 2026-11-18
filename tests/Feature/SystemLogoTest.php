@@ -76,7 +76,7 @@ class SystemLogoTest extends TestCase
         $this->assertNull(AppSetting::get('logo'));
     }
 
-    public function test_only_images_up_to_2mb_are_accepted(): void
+    public function test_only_images_up_to_10mb_are_accepted(): void
     {
         $owner = $this->user(User::ROLE_SUPER_ADMIN);
 
@@ -84,7 +84,7 @@ class SystemLogoTest extends TestCase
             ->post('/branding/logo', ['logo' => UploadedFile::fake()->create('notes.pdf', 10, 'application/pdf')], ['Accept' => 'application/json'])
             ->assertUnprocessable();
         $this->actingAs($owner)
-            ->post('/branding/logo', ['logo' => UploadedFile::fake()->image('big.png')->size(3000)], ['Accept' => 'application/json'])
+            ->post('/branding/logo', ['logo' => UploadedFile::fake()->image('big.png')->size(11000)], ['Accept' => 'application/json'])
             ->assertUnprocessable();
 
         $this->assertNull(AppSetting::get('logo'));
