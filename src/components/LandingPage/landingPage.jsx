@@ -90,6 +90,32 @@ function mapSafetyStockPolicies(records) {
   }));
 }
 
+/* ===== EMAIL BUTTON LINKS (2026-11-18) =====
+   Buttons in the system's emails open a page directly, for example
+   https://ggg-inventory.store/?open=reorder&product=P-0012 opens the
+   Reorder List with that product lit up. The link is read once when the
+   app loads (it survives the sign-in screen), then removed from the address
+   bar so a page refresh does not open it again.
+     open=reorder           → Reorder List (+ product=<code> to light it up)
+     open=stock-history     → Stock Control, History tab
+     open=account-requests  → Staffs, Account Requests tab */
+const EMAIL_LINKS = {
+  reorder: (params) => ({ view: 'Reorder-Alerts', payload: params.get('product') ? { highlightProductId: params.get('product') } : null }),
+  'stock-history': () => ({ view: 'Stock', payload: { view: 'history' } }),
+  'account-requests': () => ({ view: 'Staffs', payload: { staffView: 'requests' } }),
+};
+const emailLink = { current: null };
+if (typeof window !== 'undefined') {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const make = EMAIL_LINKS[params.get('open')];
+    if (make) {
+      emailLink.current = make(params);
+      window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+    }
+  } catch { /* an odd address: just open the Dashboard */ }
+}
+
 function eoqHandoffStorageKey(userId) {
   return `ggg-inventory-forecast-eoq:${userId}`;
 }
@@ -867,6 +893,16 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
     setIsSidebarOpen(false);
   };
 
+  /* ===== OPEN THE PAGE FROM AN EMAIL BUTTON (2026-11-18) =====
+     Waits until this role's access is known; a role that may not open the
+     page simply stays on the Dashboard. */
+  useEffect(() => {
+    const link = emailLink.current;
+    if (!link || !canAccess(link.view)) return;
+    emailLink.current = null;
+    handleNavigate(link.view, link.payload);
+  }, [permissions, role]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const clearEoqHandoff = useCallback(() => {
     setHandoff(null);
     if (!user?.id) return;
@@ -1351,7 +1387,7 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
               )}
               {visitedViews.has('Staffs') && canAccess('Staffs') && (
                 <div className="app-view-panel" hidden={activeView !== 'Staffs'}>
-                  <Staffs isSuperAdmin={user?.isSuperAdmin === true} canManageStaff={role === 'admin' && can('staff.manage')} canReviewRequests={role === 'admin' && can('staff.requests')} onSessionRevoked={onSessionRevoked} />
+                  <Staffs handoff={handoff} isSuperAdmin={user?.isSuperAdmin === true} canManageStaff={role === 'admin' && can('staff.manage')} canReviewRequests={role === 'admin' && can('staff.requests')} onSessionRevoked={onSessionRevoked} />
                 </div>
               )}
               {visitedViews.has('Reports') && canAccess('Reports') && (

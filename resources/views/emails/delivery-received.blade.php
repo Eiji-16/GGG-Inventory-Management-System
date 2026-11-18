@@ -63,7 +63,8 @@
             </div>
 
             <div style="padding:16px 24px 24px">
-                <a href="{{ $appUrl }}" style="display:inline-block;padding:12px 22px;background:#16295c;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;border-radius:10px">Open the inventory system</a>
+                {{-- ===== BUTTON OPENS STOCK CONTROL HISTORY (2026-11-18) ===== --}}
+                <a href="{{ $appUrl }}/?open=stock-history" style="display:inline-block;padding:12px 22px;background:#16295c;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;border-radius:10px">Open the inventory system</a>
             </div>
         </td></tr>
         <tr><td style="padding:14px 6px 0;color:#8a94ab;font-size:11.5px;line-height:1.6;text-align:center">

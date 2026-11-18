@@ -57,7 +57,8 @@
                 <p style="margin:0 0 14px;line-height:1.6;font-size:13px;color:#5b6785">
                     <strong style="color:#13203f">What to do:</strong> open the Reorder List, click <em>Calculate Now</em> to see how many to buy, then record the delivery with <em>Received</em> when it arrives. Recording the delivery closes this request.
                 </p>
-                <a href="{{ $appUrl }}" style="display:inline-block;padding:12px 22px;background:{{ $level['color'] }};color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;border-radius:10px">Open the Reorder List</a>
+                {{-- ===== BUTTON OPENS THE REORDER LIST WITH THIS PRODUCT LIT UP (2026-11-18) ===== --}}
+                <a href="{{ $appUrl }}/?open=reorder&product={{ urlencode($productCode) }}" style="display:inline-block;padding:12px 22px;background:{{ $level['color'] }};color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;border-radius:10px">Open the Reorder List</a>
             </div>
         </td></tr>
         <tr><td style="padding:14px 6px 0;color:#8a94ab;font-size:11.5px;line-height:1.6;text-align:center">

@@ -52,7 +52,7 @@ const ROLE_META = {
 /* isSuperAdmin = everything. canManageStaff = an Admin with Role Access
    "Manage Staff": Staff accounts only, no role changes (the server checks
    the same rules). */
-function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequests = false, onSessionRevoked }) {
+function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequests = false, onSessionRevoked, handoff = null }) {
   // 2026-11-12: an Admin with Role Access "Approve account requests" also sees the requests tab.
   const showRequestsTab = isSuperAdmin || canReviewRequests;
   const canManage = isSuperAdmin || canManageStaff;
@@ -86,6 +86,11 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   // Tabs (Super Admin, 2026-11-06): 'accounts' | 'requests' — same style as Stock | History.
   const [staffView, setStaffView] = useState('accounts');
+  /* ===== OPENED FROM AN EMAIL (2026-11-18) =====
+     "Review the request" in the account request email opens this tab. */
+  useEffect(() => {
+    if (handoff?.staffView === 'requests' && showRequestsTab) setStaffView('requests');
+  }, [handoff, showRequestsTab]);
   const [requestCount, setRequestCount] = useState(0);
   const showRequests = showRequestsTab && staffView === 'requests';
   const [createError, setCreateError] = useState('');

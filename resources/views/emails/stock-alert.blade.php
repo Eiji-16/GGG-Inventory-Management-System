@@ -47,7 +47,8 @@
             <div style="margin:16px 24px 0;padding:16px;background:#f6f8fc;border:1px solid #dfe4ee;border-radius:12px">
                 <p style="margin:0 0 4px;font-size:15px;font-weight:700">Do you want to restock this product?</p>
                 <p style="margin:0 0 14px;line-height:1.6;font-size:13px;color:#5b6785">Open the Reorder List and click <em>Calculate Now</em> to see how many to buy. When the delivery arrives, record it with <em>Received</em>.</p>
-                <a href="{{ $appUrl }}" style="display:inline-block;padding:12px 22px;background:{{ $level['color'] }};color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;border-radius:10px">Yes, restock this product</a>
+                {{-- ===== BUTTON OPENS THE REORDER LIST WITH THIS PRODUCT LIT UP (2026-11-18) ===== --}}
+                <a href="{{ $appUrl }}/?open=reorder&product={{ urlencode($productCode) }}" style="display:inline-block;padding:12px 22px;background:{{ $level['color'] }};color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;border-radius:10px">Yes, restock this product</a>
                 <p style="margin:12px 0 0;line-height:1.6;font-size:12px;color:#5b6785">Not now? You can ignore this email. The product stays on the Reorder List until it is restocked.</p>
             </div>
             <div style="height:24px"></div>
