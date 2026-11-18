@@ -5,7 +5,7 @@
         $category ? ['Category', e($category)] : null,
         ['Stock on hand', '<span style="color:#5b6785">'.e($stockBefore).' →</span> <strong style="color:'.$level['color'].'">'.e($stock).'</strong>'],
         ['Low level (reorder point)', e($lowPoint)],
-        ['Critical level (safety stock)', e($criticalPoint)],
+        ['Safety stock level', e($criticalPoint)],
         $supplierName ? ['Supplier', e($supplierName).($supplierContact ? '<br><span style="color:#5b6785">'.e($supplierContact).'</span>' : '')] : null,
         $leadTimeDays !== null ? ['Delivery lead time', e($leadTimeDays).' '.($leadTimeDays === 1 ? 'day' : 'days')] : null,
     ]));
@@ -54,7 +54,7 @@
             <div style="height:24px"></div>
         </td></tr>
         <tr><td style="padding:14px 6px 0;color:#8a94ab;font-size:11.5px;line-height:1.6;text-align:center">
-            This message was sent by {{ $system }}, the inventory system of Global Growth Guide, to the Super Admin. You get one email each time a product becomes Low, Critical or Out of stock. Please do not reply to this email.
+            This message was sent by {{ $system }}, the inventory system of Global Growth Guide, to the Super Admin. You get one email each time a product becomes Low stock or Out of stock. Please do not reply to this email.
         </td></tr>
     </table>
 </body>

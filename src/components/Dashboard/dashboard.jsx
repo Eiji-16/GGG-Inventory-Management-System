@@ -22,7 +22,7 @@ const fmtShort = (value) => {
    Same products and statuses as the Reorder List page (2026-11-07). */
 function reorderTag(item) {
   if (item.currentStock <= 0) return { label: 'Out of stock', level: 'out' };
-  if (item.status === 'critical') return { label: 'Critical', level: 'out' };
+  // 2026-11-18: two statuses on screen; at safety stock is "Low stock" too.
   return { label: 'Low stock', level: 'low' };
 }
 const localDateString = () => {
@@ -470,7 +470,7 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
     const health = stock.reduce((counts, product) => {
       if (!product.inStockControl) counts.none += 1;
       else if (product.quantity <= 0) counts.out += 1;
-      else if (product.quantity <= product.criticalAt) counts.critical += 1;
+      // 2026-11-18: at or below safety stock counts as Low stock (two statuses on screen).
       else if (product.quantity <= product.threshold) counts.low += 1;
       else counts.in += 1;
       return counts;
@@ -557,7 +557,7 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
       ...outOfStock.map((product) => ({ ...product, level: 'out' })),
       ...lowStock.sort((a, b) => a.quantity - b.quantity).map((product) => ({
         ...product,
-        level: product.quantity <= product.criticalAt ? 'critical' : 'low',
+        level: 'low',   // 2026-11-18: Low stock or Out of stock only
       })),
     ];
     const assignedProducts = stock.filter((product) => product.supplierId).length;
@@ -827,7 +827,7 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
             {kpi.total ? (
               <>
                 <span className="db-kpi-bar db-kpi-bar-hover" aria-hidden="true">
-                  {[['is-good', derived.health.in, 'In stock'], ['is-warn', derived.health.low, 'Low stock'], ['is-crit', derived.health.critical, 'Critical'], ['is-bad', derived.health.out, 'Out of stock'], ['is-none', derived.health.none, 'No stock records']]
+                  {[['is-good', derived.health.in, 'In stock'], ['is-warn', derived.health.low, 'Low stock'], ['is-bad', derived.health.out, 'Out of stock'], ['is-none', derived.health.none, 'No stock records']]
                     .filter(([, count]) => count > 0)
                     .map(([level, count, name]) => (
                       <span
@@ -840,8 +840,7 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
                 </span>
                 <span className="db-kpi-legend">
                   <span data-tip={`In stock\n${fmt(derived.health.in)} of ${fmt(kpi.total)} products (${pct(derived.health.in, kpi.total)}%)`}><i className="is-good" />{fmt(derived.health.in)} in stock</span>
-                  <span data-tip={`Low stock\n${fmt(derived.health.low)} of ${fmt(kpi.total)} products (${pct(derived.health.low, kpi.total)}%)\nAt or below the reorder point`}><i className="is-warn" />{fmt(derived.health.low)} low</span>
-                  <span data-tip={`Critical\n${fmt(derived.health.critical)} of ${fmt(kpi.total)} products (${pct(derived.health.critical, kpi.total)}%)\nAt or below safety stock`}><i className="is-crit" />{fmt(derived.health.critical)} critical</span>
+                  <span data-tip={`Low stock\n${fmt(derived.health.low)} of ${fmt(kpi.total)} products (${pct(derived.health.low, kpi.total)}%)\nAt or below the reorder point (safety stock included)`}><i className="is-warn" />{fmt(derived.health.low)} low</span>
                   <span data-tip={`Out of stock\n${fmt(derived.health.out)} of ${fmt(kpi.total)} products (${pct(derived.health.out, kpi.total)}%)`}><i className="is-bad" />{fmt(derived.health.out)} out</span>
                   {derived.health.none > 0 && <span data-tip={`No stock records\n${fmt(derived.health.none)} of ${fmt(kpi.total)} products (${pct(derived.health.none, kpi.total)}%)\nNo Stock In or Stock Out entries yet`}><i className="is-none" />{fmt(derived.health.none)} no records</span>}
                   {derived.health.low + derived.health.critical + derived.health.out > 0 && <span className="db-kpi-pulse" aria-hidden="true" />}

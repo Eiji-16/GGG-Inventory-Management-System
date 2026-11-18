@@ -163,11 +163,10 @@ export default function ReorderAlerts({
     }
   };
 
+  /* 2026-11-18: no 30-second timer (the bell loaded the same list too).
+     catalogRevision changes when the 5-second data check sees new data. */
   useEffect(() => {
     loadRequests();
-    if (!showRequests) return undefined;
-    const timer = window.setInterval(loadRequests, 30000);   // same rhythm as the bell
-    return () => window.clearInterval(timer);
   }, [showRequests, catalogRevision]); // loadRequests only reads current props/state
 
   /* 2026-11-11: each Staff member can request the same product, so a
@@ -198,9 +197,7 @@ export default function ReorderAlerts({
     }
   };
   useEffect(() => {
-    loadSavedReports();
-    const timer = window.setInterval(loadSavedReports, 30000);   // same rhythm as the requests
-    return () => window.clearInterval(timer);
+    loadSavedReports();   // reloads when the data check sees new data (catalogRevision)
   }, [catalogRevision, reloadKey]); // loadSavedReports only reads current props/state
   const reportDate = (saved) => (saved?.savedAt
     ? new Date(`${saved.savedAt}T00:00:00`).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })

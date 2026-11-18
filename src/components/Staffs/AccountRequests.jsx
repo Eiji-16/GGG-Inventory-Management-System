@@ -66,16 +66,15 @@ export default function AccountRequests({ onChanged, onCount, hidden = false, ca
   }, []);
 
   /* 2026-11-12: refreshes by itself (no Refresh button): right away when the
-     main page sees new data (event from LandingPage, checked every 5 s),
-     every 15 seconds, and when you come back to this browser tab. */
+     main page sees new data (event from LandingPage, checked every 5 s)
+     and when you come back to this browser tab. 2026-11-18: the extra
+     15-second timer is gone (the data check already covers it). */
   useEffect(() => {
     load();
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') load(); }, 15000);
     const onVisible = () => { if (document.visibilityState === 'visible') load(); };
     window.addEventListener('ggg-account-requests-changed', load);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
-      window.clearInterval(timer);
       window.removeEventListener('ggg-account-requests-changed', load);
       document.removeEventListener('visibilitychange', onVisible);
     };

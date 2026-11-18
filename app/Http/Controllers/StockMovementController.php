@@ -478,9 +478,15 @@ class StockMovementController extends Controller
      */
     private function emailStockAlert(Product $product, StockMovement $movement, int $before, int $after, ReorderPointService $points): void
     {
-        $rank = ['healthy' => 0, 'low' => 1, 'critical' => 2, 'out' => 3];
+        // 2026-11-18: two statuses on screen (Low Stock / Out of Stock), so
+        // Low → at safety stock is the same step: no second email. The email
+        // says "Low stock" for both.
+        $rank = ['healthy' => 0, 'low' => 1, 'critical' => 1, 'out' => 2];
         $statusBefore = $points->statusFor($product, $before);
         $statusAfter = $points->statusFor($product, $after);
+        if ($statusAfter === 'critical') {
+            $statusAfter = 'low';
+        }
         if (($rank[$statusAfter] ?? 0) <= ($rank[$statusBefore] ?? 0)) {
             return;
         }

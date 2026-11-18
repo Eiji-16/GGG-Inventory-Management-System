@@ -61,8 +61,9 @@ export const stockStatusFor = (row, policy = SAFETY_STOCK_DEFAULTS) => {
   // Same rule as the server (ReorderPointService::statusFor).
   const { low, critical } = statusPointsFor(row, policy);
   if (remaining <= 0) return 'outofstock';
-  if (remaining <= critical) return 'critical';
-  if (remaining <= low) return 'low';
+  // 2026-11-18: two statuses on screen. At or below safety stock (critical)
+  // is shown as Low Stock; the safety stock still counts in the math.
+  if (remaining <= Math.max(low, critical)) return 'low';
   return 'healthy';
 };
 
@@ -103,4 +104,5 @@ export const safetyCrossingFor = (row, before, after, policy = SAFETY_STOCK_DEFA
   return null;
 };
 
-export const STATUS_LABEL = { outofstock: 'Out of Stock', critical: 'Critical', low: 'Low', healthy: 'Healthy' };
+/* 2026-11-18: same words as Reports and the Dashboard. */
+export const STATUS_LABEL = { outofstock: 'Out of Stock', critical: 'Low Stock', low: 'Low Stock', healthy: 'In Stock' };

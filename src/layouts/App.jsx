@@ -19,6 +19,7 @@ import { applyShowFieldHints, readShowFieldHints } from '../fieldHints';
 import { applyFontSize, readFontSize } from '../fontSize';
 import { startChartTooltip } from '../utils/chartTooltip';
 import { startOverflowTitles } from '../utils/overflowTitle';
+import { startEscapeCloses } from '../utils/escapeCloses';
 import { startScrollEdgeGlow } from '../utils/scrollEdgeGlow';
 import { startExitAnimations } from '../utils/exitAnimations';
 import { startSidebarSlider } from '../utils/sidebarSlider';
@@ -31,6 +32,8 @@ applyFontSize(readFontSize());
 startChartTooltip();
 // Full text on hover for any name or note cut off with "…".
 startOverflowTitles();
+// Esc closes the top pop-up, like a click outside it.
+startEscapeCloses();
 startScrollEdgeGlow();   // soft accent light when a panel is scrolled to its end
 startExitAnimations();   // pop-ups, menus and notifications fade out when they close
 startSidebarSlider();    // one sidebar highlight that slides to the opened page
@@ -142,14 +145,21 @@ function MainApp() {
                 checking = false;
             }
         };
-        const interval = window.setInterval(verifySession, 3000);
+        /* ===== FEWER SERVER REQUESTS (2026-11-18) =====
+           Every 30 seconds (was every 3), plus right away when the tab gets
+           focus, and right away when the 5-second data check is refused
+           (event "ggg-session-check"), so a deactivated account is still
+           signed out within a few seconds. */
+        const interval = window.setInterval(verifySession, 30000);
         window.addEventListener('focus', verifySession);
+        window.addEventListener('ggg-session-check', verifySession);
         document.addEventListener('visibilitychange', verifySession);
 
         return () => {
             disposed = true;
             window.clearInterval(interval);
             window.removeEventListener('focus', verifySession);
+            window.removeEventListener('ggg-session-check', verifySession);
             document.removeEventListener('visibilitychange', verifySession);
         };
     }, [authStatus, user?.id]);

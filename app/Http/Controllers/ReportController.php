@@ -77,13 +77,15 @@ class ReportController extends Controller
         return \Illuminate\Support\Carbon::parse(SalesForecastService::shopNow()->toDateString());
     }
 
-    /** Same four statuses as Stock Control, the Dashboard and Reorder Alerts. */
+    /* ===== TWO STOCK STATUSES ON SCREEN (2026-11-18) =====
+       Shown as Low Stock or Out of Stock everywhere (as the panel asked).
+       At or below safety stock still counts in the math (criticalStock,
+       reorder point), it is just labelled "Low Stock". */
     private function statusFor(Product $p): string
     {
         return match ($this->reorderPoints->statusFor($p)) {
             'out' => 'Out of Stock',
-            'critical' => 'Critical',
-            'low' => 'Low Stock',
+            'critical', 'low' => 'Low Stock',
             default => 'In Stock',
         };
     }
@@ -137,13 +139,15 @@ class ReportController extends Controller
             // products, like the Dashboard and the Reorder List, so the table
             // now agrees with them.
             $status = isset($tracked[$p->id]) ? $this->statusFor($p) : 'No Stock Records';
+            // Counted from the exact level, so criticalStock stays right.
+            $level = isset($tracked[$p->id]) ? $this->reorderPoints->statusFor($p) : null;
             $totalStock += $stock;
             // Low / Critical / Out counts: tracked products only, the same
             // as the Dashboard's Low Stock Items and the Reorder List.
             if (isset($tracked[$p->id])) {
-                if ($status === 'Low Stock') $low++;
-                if ($status === 'Critical') $critical++;
-                if ($status === 'Out of Stock') $out++;
+                if ($level === 'low') $low++;
+                if ($level === 'critical') $critical++;
+                if ($level === 'out') $out++;
             }
             $cost = $costs[$p->id] ?? null;
             if ($cost !== null) {
@@ -553,7 +557,8 @@ class ReportController extends Controller
             $status = $this->reorderPoints->statusFor($p, $stock);
             if ($status === 'healthy') continue;
 
-            $urgency = ['out' => 'Out of Stock', 'critical' => 'Critical', 'low' => 'Low'][$status];
+            // Two labels on screen (2026-11-18): Low Stock or Out of Stock.
+            $urgency = ['out' => 'Out of Stock', 'critical' => 'Low Stock', 'low' => 'Low Stock'][$status];
 
             $rows[] = [
                 'productId'     => $p->code,

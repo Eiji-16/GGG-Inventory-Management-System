@@ -141,11 +141,11 @@ class SafetyStockPolicyTest extends TestCase
             'statusMode' => 'manual', 'lowPoint' => 20, 'criticalPoint' => 10,
         ]]])->assertOk()->assertJsonFragment(['statusMode' => 'manual', 'lowPoint' => 20, 'criticalPoint' => 10]);
 
-        $this->getJson('/api/reports')->assertJsonPath('reorderPoint.rows.0.urgency', 'Low');
+        $this->getJson('/api/reports')->assertJsonPath('reorderPoint.rows.0.urgency', 'Low Stock');
         $this->getJson('/api/dashboard/summary')->assertJsonPath('kpis.lowStockItems', 1);
 
         $model->update(['stock_on_hand' => 10]);
-        $this->getJson('/api/reports')->assertJsonPath('reorderPoint.rows.0.urgency', 'Critical');
+        $this->getJson('/api/reports')->assertJsonPath('reorderPoint.rows.0.urgency', 'Low Stock');   // at safety stock: Low Stock (2026-11-18)
 
         // Back to Automatic clears the manual points.
         $this->putJson('/api/safety-stock', ['policies' => [[

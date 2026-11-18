@@ -166,18 +166,18 @@ function createNotifications(summary, policy) {
     const points = statusPointsFor(row, policy);
     if (stock > points.low) return;
     const safety = safetyPointFor(row, policy);
-    const level = stock <= 0 ? 'out' : stock <= points.critical ? 'critical' : 'low';
+    // 2026-11-18: two statuses on screen (Low stock / Out of stock).
+    const level = stock <= 0 ? 'out' : 'low';
     notifications.push({
       id: `stock-${product.id}-${level}`,
       type: level === 'low' ? 'warning' : 'critical',
       title: {
         out: `${product.name} is out of stock`,
-        critical: `${product.name} is critically low`,
         low: `${product.name} is running low`,
       }[level],
       meta: level === 'low'
         ? `${stock} on hand · low at ${points.low} — time to order`
-        : `${stock} on hand · critical at ${points.critical} · safety stock ${safety} · reorder point ${reorderPoint}`,
+        : `${stock} on hand · safety stock ${safety} · reorder point ${reorderPoint}`,
       time: 'Current stock',
       view: 'Reorder-Alerts',
       read: false,
@@ -233,7 +233,8 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
     }
   }, []);
   useEffect(() => {
-    const timer = window.setInterval(refreshPermissions, 60000);
+    // Once a minute, only while this tab is on screen (2026-11-18).
+    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') refreshPermissions(); }, 60000);
     window.addEventListener('focus', refreshPermissions);
     return () => {
       window.clearInterval(timer);
@@ -638,10 +639,10 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
       }
     };
     loadRequests();
-    const timer = window.setInterval(loadRequests, 30000);
+    // 2026-11-18: no 30-second timer any more. The 5-second data check below
+    // reloads this list (requestsVersion) as soon as a request changes.
     return () => {
       active = false;
-      window.clearInterval(timer);
     };
   }, [canSeeRequests, requestsVersion, notificationPreferenceKey]); // saveNotificationPreferences/ref are stable for this key
 
@@ -690,11 +691,11 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
       }
     };
     loadAccountRequests();
-    const timer = window.setInterval(loadAccountRequests, 30000);
+    // 2026-11-18: no 30-second timer; the 5-second data check sends
+    // "ggg-account-requests-changed" when a request comes in.
     window.addEventListener('ggg-account-requests-changed', loadAccountRequests);
     return () => {
       active = false;
-      window.clearInterval(timer);
       window.removeEventListener('ggg-account-requests-changed', loadAccountRequests);
     };
   }, [canSeeAccountRequests, notificationPreferenceKey]); // the preferences ref is stable for this key
@@ -714,6 +715,11 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
       busy = true;
       try {
         const response = await fetch('/api/data-version', { headers: { Accept: 'application/json' }, cache: 'no-store' });
+        // Refused (signed out or deactivated): let App check the session now.
+        if (response.status === 401 || response.status === 403) {
+          window.dispatchEvent(new Event('ggg-session-check'));
+          return;
+        }
         if (!response.ok) return;
         const { version } = await response.json();
         if (stopped || !version) return;
@@ -1236,7 +1242,7 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
                                   <span className="notif-row-top">
                                     <span className="notif-row-name">{notif.product}</span>
                                     <span className={`notif-pill is-${level}`}>
-                                      {isRequest ? 'Request' : { out: 'Out of stock', critical: 'Critical', low: 'Low' }[level]}
+                                      {isRequest ? 'Request' : { out: 'Out of stock', critical: 'Low stock', low: 'Low stock' }[level]}
                                     </span>
                                   </span>
                                   {isRequest ? (
