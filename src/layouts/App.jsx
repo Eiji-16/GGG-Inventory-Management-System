@@ -18,6 +18,7 @@ import { CurrencyProvider } from '../CurrencyContext';
 import { applyShowFieldHints, readShowFieldHints } from '../fieldHints';
 import { applyFontSize, readFontSize } from '../fontSize';
 import { startChartTooltip } from '../utils/chartTooltip';
+import { startOverflowTitles } from '../utils/overflowTitle';
 import { startScrollEdgeGlow } from '../utils/scrollEdgeGlow';
 import { startExitAnimations } from '../utils/exitAnimations';
 import { startSidebarSlider } from '../utils/sidebarSlider';
@@ -28,6 +29,8 @@ applyShowFieldHints(readShowFieldHints());
 applyFontSize(readFontSize());
 // Data box on hover for every chart (elements with data-tip="…").
 startChartTooltip();
+// Full text on hover for any name or note cut off with "…".
+startOverflowTitles();
 startScrollEdgeGlow();   // soft accent light when a panel is scrolled to its end
 startExitAnimations();   // pop-ups, menus and notifications fade out when they close
 startSidebarSlider();    // one sidebar highlight that slides to the opened page

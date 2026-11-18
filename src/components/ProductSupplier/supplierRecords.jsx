@@ -2,11 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { limitDigits } from '../../utils/numberLimit';
 import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Edit, Plus, Search, Trash2, Truck, X } from 'lucide-react';
+import { AlertTriangle, Edit, MoreHorizontal, Plus, Search, Trash2, Truck, X } from 'lucide-react';
 import apiFetch from '../../apiFetch';
 import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
 import MobileSelectBar from '../MobileSelectBar/MobileSelectBar';
 import useFillToBottom from '../../utils/fillToBottom';
+import { usePagedRows, RowsFooter } from '../RowsPicker/RowsPicker';
 
 const EMPTY_SUPPLIER = { id: null, name: '', contact: '', leadTimeDays: '' };
 
@@ -31,6 +32,16 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  /* ===== PRODUCTS SUPPLIED BOX =====
+     The table shows one product per supplier; the "..." button opens this
+     box with the full list. Holds the supplier being shown, or null. */
+  const [suppliedFor, setSuppliedFor] = useState(null);
+  useEffect(() => {
+    if (!suppliedFor) return undefined;
+    const closeOnEsc = (event) => { if (event.key === 'Escape') setSuppliedFor(null); };
+    document.addEventListener('keydown', closeOnEsc);
+    return () => document.removeEventListener('keydown', closeOnEsc);
+  }, [suppliedFor]);
 
   // dataRevision (auto-refresh) reloads quietly; other reloads show "loading".
   const quietReloadRef = useRef(false);
@@ -64,6 +75,9 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
     return !q || [supplier.name, supplier.contact, ...(supplier.products || []).map((p) => p.name)]
       .some((value) => String(value || '').toLowerCase().includes(q));
   });
+
+  /* ===== ROWS PER PAGE (2026-11-18) ===== */
+  const pager = usePagedRows('suppliers', visible, { resetKey: query.trim() });
 
   /* ----- Checklist selection ----- */
   const allSelected = visible.length > 0 && visible.every((s) => selectedIds.has(s.id));
@@ -249,7 +263,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
                   {suppliers.length === 0 ? 'No suppliers yet. Click “Add Supplier” to register one.' : 'No suppliers match your search.'}
                 </td>
               </tr>
-            ) : visible.map((supplier) => {
+            ) : pager.visible.map((supplier) => {
               const supplied = supplier.products || [];
               return (
                 <tr key={supplier.id} className={selectedIds.has(supplier.id) ? 'is-selected' : ''}>
@@ -263,13 +277,22 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
                   </td>
                   <td className="ps-td-left m-title" data-label="Supplier" title={supplier.name}><strong>{supplier.name}</strong></td>
                   <td className="ps-td-left ps-td-muted" data-label="Contact">{supplier.contact || '—'}</td>
-                  <td className="ps-td-left" data-label="Products Supplied" title={supplied.map((p) => p.name).join(', ')}>
+                  <td className="ps-td-left ps-supplied-cell" data-label="Products Supplied">
                     {supplied.length ? (
                       <span className="ps-variant-list">
-                        {supplied.slice(0, 3).map((product) => (
-                          <span className="ps-variant-chip" key={product.id}>{product.name}</span>
-                        ))}
-                        {supplied.length > 3 && <span className="ps-variant-chip ps-variant-more">+{supplied.length - 3}</span>}
+                        {/* ===== ONE PRODUCT + "..." BUTTON ===== */}
+                        <span className="ps-variant-chip ps-supplied-first" title={supplied[0].name}>{supplied[0].name}</span>
+                        {supplied.length > 1 && (
+                          <button
+                            type="button"
+                            className="ps-variant-chip ps-variant-more ps-supplied-more"
+                            onClick={() => setSuppliedFor(supplier)}
+                            title={`Show all ${supplied.length} products`}
+                            aria-label={`Show all ${supplied.length} products from ${supplier.name}`}
+                          >
+                            <MoreHorizontal size={14} aria-hidden="true" />
+                          </button>
+                        )}
                       </span>
                     ) : <span className="ps-td-muted">No products linked</span>}
                   </td>
@@ -294,6 +317,32 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
           </tbody>
         </table>
       </div>
+      {!loading && <RowsFooter pager={pager} noun={pager.total === 1 ? 'supplier' : 'suppliers'} label="Suppliers per page" />}
+
+      {suppliedFor && createPortal(
+        <div className="ps-modal-overlay" onClick={() => setSuppliedFor(null)}>
+          <div className="ps-modal ps-supplied-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="ps-supplied-title">
+            <div className="ps-modal-header">
+              <div className="ps-modal-heading">
+                <span className="ps-modal-icon" aria-hidden="true"><Truck size={18} /></span>
+                <div className="ps-modal-titles">
+                  <h3 id="ps-supplied-title">{suppliedFor.name}</h3>
+                  <p className="ps-modal-subtitle">{(suppliedFor.products || []).length} products supplied</p>
+                </div>
+              </div>
+              <button className="ps-modal-close-btn" onClick={() => setSuppliedFor(null)} type="button" aria-label="Close">
+                <X size={16} />
+              </button>
+            </div>
+            <ul className="ps-supplied-list">
+              {(suppliedFor.products || []).map((product) => (
+                <li key={product.id}>{product.name}</li>
+              ))}
+            </ul>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {draft && createPortal(
         <div className="ps-modal-overlay" onClick={() => !saving && setDraft(null)}>

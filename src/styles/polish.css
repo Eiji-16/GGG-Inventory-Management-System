@@ -537,3 +537,44 @@ select:not([multiple]):focus-visible {
         white-space: nowrap;
     }
 }
+
+/* ===== LONG TEXT: ONE LINE WITH "…" (2026-11-18) =====
+   Long names, emails, notes and details never spread over many lines or
+   fill the screen. They stay on one line and end with "…"; resting the
+   mouse on them shows the whole text (utils/overflowTitle.js does that
+   for every cut-off text in the system).
+   .ui-ellipsis is the shared class; the other selectors reuse it for the
+   name lines that already exist in the tables. */
+.ui-ellipsis,
+table .ra-product > strong,
+table .ra-product > span,
+table .ra-product > small,
+table .tb-name > strong,
+table .tb-name > small,
+table .st-name-text,
+table .st-request-who > strong,
+table .st-request-who > span {
+    display: block;
+    min-width: 0;
+    max-width: var(--ellipsis-max, 22rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+/* Details / notes columns get a little more room. */
+table td.tb-details .ui-ellipsis { --ellipsis-max: 28rem; }
+table td.st-cell-email .ui-ellipsis { --ellipsis-max: 18rem; }
+/* Phones (tables shown as cards): use the card's full width. */
+@media (max-width: 760px) {
+    .ui-ellipsis,
+    table .ra-product > strong,
+    table .ra-product > span,
+    table .ra-product > small,
+    table .tb-name > strong,
+    table .tb-name > small,
+    table .st-name-text,
+    table .st-request-who > strong,
+    table .st-request-who > span { max-width: 100%; }
+}

@@ -3,7 +3,7 @@ import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import {
   Download, FileText, X, ChevronRight, ChevronDown, Search, ArrowUpRight, Package, Wallet,
-  ShoppingBag, TrendingUp, Calculator, Hourglass, FileSpreadsheet, ShieldCheck,
+  ShoppingBag, TrendingUp, Calculator, Hourglass, FileSpreadsheet, ShieldCheck, ArrowUpDown,
 } from 'lucide-react';
 import './reports.css';
 import exportReportWorkbook, { printReportPdf } from '../../utils/exportReportWorkbook';
@@ -11,6 +11,8 @@ import { useCurrency } from '../../CurrencyContext';
 import useFillToBottom from '../../utils/fillToBottom';
 import { CountUp, CountUpText } from '../../utils/countUp';
 import MarqueeText from '../../utils/marqueeText';
+import CustomSelect from '../Forecasting/CustomSelect';
+import { usePagedRows, RowsFooter } from '../RowsPicker/RowsPicker';
 
 /* ===== REPORTS & ANALYTICS: ONE OVERALL REPORT =====
    One page, no tabs. It shows the overall picture of the system's data:
@@ -36,11 +38,51 @@ const BADGE = {
    in bold gold when more than 0 (0 stays grey). Laptop tables and exports
    keep the full column names. */
 const SHORT_LABEL = { 'Forecasted Demand': 'Forecast' };
-const cellClass = (header, cell, index) => {
+/* ===== MAIN NUMBER OF EACH REPORT (2026-11-18) =====
+   Shown in amber (like "Units Needed" on the Reorder List) so the value
+   that matters most stands out in every row. */
+const KEY_COLUMN = {
+  stockSummary: (h) => h === 'Value',
+  stockMovement: (h) => h === 'Net Change',
+  topMoving: (h) => h === 'Units Sold',
+  fastSlowMoving: (h) => h.startsWith('Units Sold'),
+  autoCalculator: (h) => h === 'Result',
+  inventoryAging: (h) => h === 'Days in Stock',
+  reorderPoint: (h) => h.startsWith('Reorder Point'),
+  categoryBreakdown: (h) => h === 'Inventory Value',
+  stockHealth: (h) => h === 'Products',
+};
+const cellClass = (header, cell, index, sectionKey) => {
   if (index === 0) return 'r-cell-first';
   if (typeof cell === 'string' && BADGE[cell]) return 'r-cell-badge';
   if (header === 'Units Needed') return Number(cell) > 0 ? 'r-cell-need' : 'r-cell-zero';
+  if (KEY_COLUMN[sectionKey]?.(header)) return 'r-cell-key';
   return '';
+};
+
+/* ===== SEARCH + SORT HELPERS (2026-11-18) =====
+   cellText: what a cell holds as plain text (lists join their names).
+   sortValue: numbers ("$1,234.50", "48 (est.)", "+12", "7%") sort as numbers,
+   dates (2026-11-18) and words sort A–Z; a list sorts by how many it holds. */
+const cellText = (cell) => (Array.isArray(cell) ? cell.join(' ') : String(cell ?? ''));
+const sortValue = (cell) => {
+  if (Array.isArray(cell)) return cell.length;
+  if (typeof cell === 'number') return cell;
+  const text = String(cell ?? '').trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text;
+  const match = text.match(/^[^\d\-−+]{0,3}([-−+]?[\d,]*\.?\d+)/);
+  if (match) return Number(match[1].replace(/,/g, '').replace('−', '-'));
+  return text.toLowerCase();
+};
+const isBlank = (value) => value === '' || value === '—';
+const compareCells = (a, b, dir = 1) => {
+  const av = sortValue(a);
+  const bv = sortValue(b);
+  if (isBlank(av) || isBlank(bv)) return isBlank(av) - isBlank(bv);   // "—" always last
+  if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+  if (typeof av === 'number') return -1;   // numbers before words
+  if (typeof bv === 'number') return 1;
+  return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' }) * dir;
 };
 const Badge = ({ label }) => (
   <span className={`r-badge ${BADGE[label] || 'r-badge-warn'}`}><span className="r-dot" />{label}</span>
@@ -532,10 +574,40 @@ function ListPanel({ items, label }) {
 }
 
 function ReportModal({ section, canExport, onClose }) {
-  const [openListRow, setOpenListRow] = useState(null);   // which row's full list is open
+  const [openListRow, setOpenListRow] = useState(null);   // which row's full list is open (its first cell)
   // The column holding a name list (Stock Health products), or -1.
   const listColumn = (section.rows || []).reduce((found, row) => (found >= 0 ? found : row.findIndex((cell) => Array.isArray(cell))), -1);
   const [exportError, setExportError] = useState('');
+
+  /* ===== SEARCH + SORT + ROWS (2026-11-18) =====
+     Search looks in every column. Sort: pick a column (or click its
+     heading on a laptop); click again to flip high→low / low→high.
+     Exports still contain every row in the report's own order. */
+  const [query, setQuery] = useState('');
+  const [sortColumn, setSortColumn] = useState('');      // '' = report's own order, else column index
+  const [sortDir, setSortDir] = useState('desc');
+  const needle = query.trim().toLowerCase();
+  const shownRows = useMemo(() => {
+    const matched = needle
+      ? section.rows.filter((row) => row.some((cell) => cellText(cell).toLowerCase().includes(needle)))
+      : section.rows;
+    if (sortColumn === '') return matched;
+    const index = Number(sortColumn);
+    return [...matched].sort((a, b) => compareCells(a[index], b[index], sortDir === 'desc' ? -1 : 1));
+  }, [section.rows, needle, sortColumn, sortDir]);
+  const pager = usePagedRows(`report-${section.key}`, shownRows, { resetKey: `${needle}|${sortColumn}|${sortDir}` });
+  const sortableHeaders = section.headers
+    .map((header, index) => ({ header, index }))
+    .filter(({ index }) => index !== listColumn);
+  const sortOptions = [
+    { value: '', label: 'Report order' },
+    ...sortableHeaders.map(({ header, index }) => ({ value: String(index), label: header })),
+  ];
+  const sortBy = (index) => {
+    if (String(index) === sortColumn) setSortDir((dir) => (dir === 'desc' ? 'asc' : 'desc'));
+    else { setSortColumn(String(index)); setSortDir('desc'); }
+  };
+  const sortMark = (index) => (String(index) === sortColumn ? (sortDir === 'desc' ? ' ▼' : ' ▲') : '');
 
   useEffect(() => {
     const onKey = (event) => { if (event.key === 'Escape') onClose(); };
@@ -597,6 +669,44 @@ function ReportModal({ section, canExport, onClose }) {
             </button>
           </div>
         </div>
+        {/* ===== SEARCH + SORT BAR ===== */}
+        {section.rows.length > 0 && (
+          <div className="r-modal-tools">
+            <span className="r-list-search-wrap r-modal-search">
+              <Search size={15} className="r-list-search-icon" aria-hidden="true" />
+              <input
+                type="search"
+                className="r-list-search"
+                placeholder={`Search ${section.title.toLowerCase()}…`}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                aria-label={`Search ${section.title}`}
+              />
+            </span>
+            <div className="r-modal-sort">
+              <span className="r-modal-sort-label">Sort</span>
+              <CustomSelect
+                value={sortColumn}
+                options={sortOptions}
+                onChange={(value) => { setSortColumn(String(value)); setSortDir('desc'); }}
+                ariaLabel="Sort by column"
+                className="r-sort-select"
+                floating
+              />
+              <button
+                type="button"
+                className="r-sort-dir"
+                onClick={() => setSortDir((dir) => (dir === 'desc' ? 'asc' : 'desc'))}
+                disabled={sortColumn === ''}
+                title={sortDir === 'desc' ? 'High to low (Z–A). Click for low to high.' : 'Low to high (A–Z). Click for high to low.'}
+                aria-label={sortDir === 'desc' ? 'Sorted high to low. Switch to low to high' : 'Sorted low to high. Switch to high to low'}
+              >
+                <ArrowUpDown size={14} aria-hidden="true" />
+                <span>{sortColumn === '' ? '—' : (sortDir === 'desc' ? 'High–Low' : 'Low–High')}</span>
+              </button>
+            </div>
+          </div>
+        )}
         <div className="r-modal-body">
           <table className="r-table">
             <thead>
@@ -605,22 +715,33 @@ function ReportModal({ section, canExport, onClose }) {
               <tr>
                 {listColumn >= 0 && <th className="r-expand-th" aria-label="Expand" />}
                 {section.headers.map((header, index) => (
-                  <th key={header}>{index === listColumn ? 'Actions' : header}</th>
+                  index === listColumn
+                    ? <th key={header}>Actions</th>
+                    : (
+                      <th key={header} aria-sort={String(index) === sortColumn ? (sortDir === 'desc' ? 'descending' : 'ascending') : undefined}>
+                        <button type="button" className="r-th-sort" onClick={() => sortBy(index)} title={`Sort by ${header}`}>
+                          {header}{sortMark(index)}
+                        </button>
+                      </th>
+                    )
                 ))}
               </tr>
             </thead>
             <tbody>
               {section.rows.length === 0 ? <EmptyRow cols={section.headers.length + (listColumn >= 0 ? 1 : 0)} text={section.emptyText} />
-                : section.rows.map((row, rowIndex) => {
+                : shownRows.length === 0 ? <EmptyRow cols={section.headers.length + (listColumn >= 0 ? 1 : 0)} text={`No row matches “${query.trim()}”.`} />
+                : pager.visible.map((row, pageIndex) => {
+                  const rowIndex = pager.offset + pageIndex;
                   // A name list (e.g. Stock Health products) opens under its row
                   // with a search box — fits shops with 2,000 products (2026-11-10).
                   const listCell = listColumn >= 0 ? row[listColumn] : null;
                   const hasList = Array.isArray(listCell) && listCell.length > 0;
-                  const isOpen = hasList && openListRow === rowIndex;
                   const statusLabel = typeof row[0] === 'string' ? row[0] : '';
-                  const toggle = () => setOpenListRow(isOpen ? null : rowIndex);
+                  const rowKey = statusLabel || rowIndex;   // stays the same when sorted
+                  const isOpen = hasList && openListRow === rowKey;
+                  const toggle = () => setOpenListRow(isOpen ? null : rowKey);
                   return (
-                    <Fragment key={rowIndex}>
+                    <Fragment key={`${rowKey}-${rowIndex}`}>
                       <tr className={isOpen ? 'r-row-open' : undefined}>
                         {listColumn >= 0 && (
                           <td className="r-expand-td">
@@ -640,7 +761,7 @@ function ReportModal({ section, canExport, onClose }) {
                         {row.map((cell, cellIndex) => (
                           <td
                             key={cellIndex}
-                            className={cellClass(section.headers[cellIndex], cell, cellIndex) || undefined}
+                            className={cellClass(section.headers[cellIndex], cell, cellIndex, section.key) || undefined}
                             data-label={cellIndex === listColumn ? 'Actions' : (SHORT_LABEL[section.headers[cellIndex]] || section.headers[cellIndex])}
                             title={typeof cell === 'string' && cellIndex !== listColumn && !BADGE[cell] ? cell : undefined}
                           >
@@ -650,8 +771,8 @@ function ReportModal({ section, canExport, onClose }) {
                                   {isOpen ? 'Hide details' : 'View details'}
                                 </button>
                               ) : '—'
-                            ) : Array.isArray(cell) ? cell.join(', ')
-                              : BADGE[cell] ? <Badge label={cell} /> : cell}
+                            ) : Array.isArray(cell) ? <span className="ui-ellipsis">{cell.join(', ')}</span>
+                              : BADGE[cell] ? <Badge label={cell} /> : <span className="ui-ellipsis">{cell}</span>}
                           </td>
                         ))}
                       </tr>
@@ -669,7 +790,9 @@ function ReportModal({ section, canExport, onClose }) {
           </table>
         </div>
         <div className="r-modal-footer">
-          {section.rows.length.toLocaleString()} {section.rows.length === 1 ? 'row' : 'rows'}
+          {pager.total > 0 ? (
+            <RowsFooter pager={pager} noun={needle ? `of ${section.rows.length.toLocaleString()} rows` : (pager.total === 1 ? 'row' : 'rows')} label="Report rows per page" />
+          ) : <>{section.rows.length.toLocaleString()} {section.rows.length === 1 ? 'row' : 'rows'}</>}
         </div>
       </div>
     </div>,

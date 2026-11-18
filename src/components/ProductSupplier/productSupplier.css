@@ -1677,3 +1677,52 @@ table.ps-table tr > td.ps-td-pic > span.ps-thumb.ps-thumb-empty:only-child {
     .ps-search-wrapper .ps-search-box.xs-search:focus-within,
     .ps-search-wrapper .ps-search-box.xs-search:has(input:not(:placeholder-shown)) { width: 100% !important; flex: none !important; }
 }
+
+/* ===== PRODUCTS SUPPLIED: ONE PRODUCT + "..." (2026-11-18) =====
+   The Suppliers table shows the first product only. The "..." button
+   opens a small box with every product from that supplier. */
+.ps-supplied-cell .ps-variant-list {
+    flex-wrap: nowrap;
+    align-items: center;
+    max-width: 240px;
+}
+.ps-supplied-first {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ps-supplied-more {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 1px 8px;
+    font: inherit;
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+}
+.ps-supplied-more:hover,
+.ps-supplied-more:focus-visible {
+    color: var(--text-primary);
+    border-color: color-mix(in srgb, var(--accent, #E8C547) 55%, transparent);
+    background: color-mix(in srgb, var(--accent, #E8C547) 14%, transparent);
+    outline: none;
+}
+.ps-modal.ps-supplied-modal { width: min(calc(94vw / var(--ui-zoom, 1)), 26rem); }
+.ps-supplied-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 0;
+    margin: 0;
+    padding: 0.75rem 1rem 1rem;
+    overflow-y: auto;
+    list-style: none;
+}
+.ps-supplied-list li {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.82rem;
+    border-radius: 6px;
+    overflow-wrap: anywhere;
+}
+.ps-supplied-list li:nth-child(odd) { background: var(--static-bg-color); }

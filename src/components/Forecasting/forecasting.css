@@ -3871,3 +3871,41 @@
         justify-self: end;
     }
 }
+
+/* ===== SEASONAL EVENTS: LIST SCROLLS INSIDE ITS CARD (2026-11-18) =====
+   Same idea as the Sales Forecasting and Past Sales tabs: the card fills the
+   space under the tabs, the heading and search stay put, and only the event
+   list scrolls. Phones and short screens keep the normal page scroll. */
+@media (min-width: 981px) and (min-height: 600px) {
+    .app-view-panel:has(> .f-root .f-seasonal-panel),
+    .f-root:has(.f-seasonal-panel),
+    .f-root:has(.f-seasonal-panel) .f-app { height: 100%; }
+    .f-root:has(.f-seasonal-panel) .f-main {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        padding-bottom: 6px;
+    }
+    .f-main > .f-seasonal-panel {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+    .f-seasonal-panel > .f-event-list {
+        flex: 1 1 auto;
+        min-height: 0;
+        align-content: start;
+        overflow-y: auto;
+        padding-right: 2px;
+        overscroll-behavior: contain;
+    }
+}
+
+/* ===== SEASONAL EVENT NAME: ONE LINE WITH "…" (2026-11-18) =====
+   Replaces the wrapping above: a long name (even one long word) stays on
+   one line and ends with "…"; resting the mouse on it shows the full name. */
+.f-event-info strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow-wrap: normal;
+}

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import useFillToBottom from '../../utils/fillToBottom';
+import RowsPicker, { useRowsChoice } from '../RowsPicker/RowsPicker';
 import {
   Archive,
   Ban,
@@ -65,6 +66,11 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
   const [deleters, setDeleters] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, perPage: 50, lastPage: 1, total: 0 });
   const [page, setPage] = useState(1);
+  /* ===== ROWS PER PAGE (2026-11-18) =====
+     The server sends one page at a time (at most 100 rows), so the choices
+     are 10 / 25 / 50 / 100 instead of "All". */
+  const [rowsChoice, setRowsChoice] = useRowsChoice('trash-bin', '50', ['10', '25', '50', '100']);
+  const perPage = Number(rowsChoice) || 50;
   const [kind, setKind] = useState('all');
   const [deletedBy, setDeletedBy] = useState('');
   const [query, setQuery] = useState('');
@@ -86,7 +92,7 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
     requestRef.current = requestId;
     setLoading(true);
     try {
-      const params = new URLSearchParams({ space, page: String(page), per_page: String(pagination.perPage), kind });
+      const params = new URLSearchParams({ space, page: String(page), per_page: String(perPage), kind });
       if (query.trim()) params.set('search', query.trim());
       if (deletedBy) params.set(space === 'trash' ? 'deleted_by' : 'archived_by', deletedBy);
       const response = await fetch(`/api/trash?${params}`, { cache: 'no-store', headers: { Accept: 'application/json' } });
@@ -109,10 +115,10 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
     if (!isActive) return undefined;
     const timeout = window.setTimeout(load, 200);
     return () => window.clearTimeout(timeout);
-  }, [isActive, refreshKey, page, query, kind, deletedBy, space]);
+  }, [isActive, refreshKey, page, query, kind, deletedBy, space, perPage]);
 
   // A new tab / filter / search starts at page 1 with nothing ticked.
-  useEffect(() => { setPage(1); setSelected(new Map());   }, [kind, deletedBy, query, space]);
+  useEffect(() => { setPage(1); setSelected(new Map());   }, [kind, deletedBy, query, space, perPage]);
 
   /* ----- what can be done with an item ----- */
   const restoreBlockedReason = (item) => {
@@ -367,7 +373,7 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
                     </span>
                   </td>
                   <td className="m-peek" data-label="Type"><span className={`tb-type tb-type-${item.kind}`}>{item.type}</span></td>
-                  <td className="sc-td-left tb-details" data-label="Details" title={detailsText(item)}>{detailsText(item)}</td>
+                  <td className="sc-td-left tb-details" data-label="Details"><span className="ui-ellipsis" title={detailsText(item)}>{detailsText(item)}</span></td>
                   <td className="sc-td-nowrap" data-label={space === 'trash' ? 'Deleted by' : 'Archived by'}>
                     {space === 'trash' ? item.deletedBy || '—' : item.archivedBy || '—'}
                   </td>
@@ -409,13 +415,18 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
         </table>
       </div>
 
-      {pagination.lastPage > 1 && (
-        <div className="tb-pagination" aria-label="Trash Bin pages">
-          <span>Page {pagination.page} of {pagination.lastPage}</span>
-          <div>
-            <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={loading || pagination.page <= 1}>Previous</button>
-            <button type="button" onClick={() => setPage((current) => Math.min(pagination.lastPage, current + 1))} disabled={loading || pagination.page >= pagination.lastPage}>Next</button>
-          </div>
+      {/* ===== PAGE BAR: count, ‹ Page › and Rows picker (2026-11-18) ===== */}
+      {pagination.total > 0 && (
+        <div className="rows-footer rows-footer-shared tb-rows-footer" aria-label="Trash Bin pages">
+          <span className="rows-footer-count">{Number(pagination.total).toLocaleString('en-PH')} {pagination.total === 1 ? 'item' : 'items'}</span>
+          {pagination.lastPage > 1 ? (
+            <div className="rows-pager">
+              <button type="button" className="rows-page-btn" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={loading || pagination.page <= 1} aria-label="Previous page">‹</button>
+              <span className="rows-page-label">Page {pagination.page} of {pagination.lastPage}</span>
+              <button type="button" className="rows-page-btn" onClick={() => setPage((current) => Math.min(pagination.lastPage, current + 1))} disabled={loading || pagination.page >= pagination.lastPage} aria-label="Next page">›</button>
+            </div>
+          ) : <span className="rows-footer-all">Page 1 of 1</span>}
+          <RowsPicker value={rowsChoice} options={['10', '25', '50', '100']} onChange={setRowsChoice} total={pagination.total} label="Items per page" />
         </div>
       )}
 

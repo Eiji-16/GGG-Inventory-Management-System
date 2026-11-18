@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import CustomSelect from '../Forecasting/CustomSelect';
 import { PageToast } from '../../utils/toast';
 import useFillToBottom from '../../utils/fillToBottom';
+import { usePagedRows, RowsFooter } from '../RowsPicker/RowsPicker';
 import PromoteConfirm from './PromoteConfirm';
 import { CheckCircle2, Clock3, MailCheck, RefreshCw, Send, UserPlus, X, XCircle } from 'lucide-react';
 
@@ -125,9 +126,11 @@ export default function AccountRequests({ onChanged, onCount, hidden = false, ca
 
   useEffect(() => { onCount?.(pendingCount); }, [pendingCount]); // badge on the tab
 
-  if (hidden) return <PageToast message={notice?.text} type={notice?.type === 'error' ? 'error' : 'success'} onShown={() => setNotice(null)} />;
-
   const rows = [...open, ...done];
+  /* ===== ROWS PER PAGE (2026-11-18) ===== (before the early return: hooks must always run) */
+  const pager = usePagedRows('account-requests', rows);
+
+  if (hidden) return <PageToast message={notice?.text} type={notice?.type === 'error' ? 'error' : 'success'} onShown={() => setNotice(null)} />;
 
   return (
     <section className="st-table-card st-requests-view" aria-labelledby="st-requests-title">
@@ -159,7 +162,7 @@ export default function AccountRequests({ onChanged, onCount, hidden = false, ca
               <tr><td colSpan={4} className="st-empty ui-loading">Loading account requests…</td></tr>
             ) : rows.length === 0 ? (
               <tr><td colSpan={4} className="st-empty">{error ? 'Could not load the requests.' : 'No account requests yet.'}</td></tr>
-            ) : rows.map((request) => {
+            ) : pager.visible.map((request) => {
               const meta = STATUS[request.status] || STATUS.pending;
               const left = request.status === 'approved' ? hoursLeft(request.linkExpiresAt) : null;
               const busy = busyId === request.id;
@@ -224,6 +227,7 @@ export default function AccountRequests({ onChanged, onCount, hidden = false, ca
           </tbody>
         </table>
       </div>
+      {!(loading && !requests.length) && <RowsFooter pager={pager} noun={pager.total === 1 ? 'request' : 'requests'} label="Requests per page" />}
       {confirmItem && createPortal(
         <div
           className="st-modal-overlay st-account-confirm-overlay"

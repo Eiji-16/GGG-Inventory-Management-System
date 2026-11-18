@@ -8,6 +8,9 @@ import './rowsPicker.css';
    that scrolls inside the table box). The choice is remembered per table
    in this browser (localStorage "ggg-rows:<table>").
    Used by: Products, Stock Control (Stock + History).
+   2026-11-18: usePagedRows + RowsFooter below give any other table the same
+   picker and page buttons in two lines (Suppliers, Staffs, Account Requests,
+   Trash Bin, Reorder List, Reports pop-ups).
    ========================================================================== */
 
 const LABELS = { fit: 'Fit screen', 10: '10', 25: '25', 50: '50', all: 'All' };
@@ -101,6 +104,47 @@ export default function RowsPicker({ value, options, onChange, total = 0, label 
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/* ===== PAGED ROWS (2026-11-18) =====
+   One hook for tables that had no page buttons yet.
+   rows      = the full (already searched / sorted) list
+   resetKey  = change it (e.g. the search text) to jump back to page 1
+   Returns the rows for this page plus what RowsFooter needs. */
+export function usePagedRows(tableKey, rows, { fallback = '25', options = ['10', '25', '50', 'all'], resetKey = '' } = {}) {
+  const [choice, setChoice] = useRowsChoice(tableKey, fallback, options);
+  const [page, setPage] = useState(0);
+  useEffect(() => { setPage(0); }, [resetKey]);
+  const total = rows.length;
+  const showAll = choice === 'all';
+  const size = showAll ? Math.max(1, total) : (Number(choice) || 10);
+  const pages = showAll ? 1 : Math.max(1, Math.ceil(total / size));
+  const current = Math.min(page, pages - 1);
+  const visible = showAll ? rows : rows.slice(current * size, current * size + size);
+  const choose = (next) => { setChoice(next); setPage(0); };
+  return { visible, total, choice, choose, options, page: current, pages, setPage, size, offset: showAll ? 0 : current * size };
+}
+
+/* ===== ROWS FOOTER (2026-11-18) =====
+   Count on the left, ‹ Page 1 of 3 › in the middle, Rows picker on the right. */
+export function RowsFooter({ pager, noun = 'rows', label = 'Rows per page', className = '' }) {
+  if (!pager || pager.total === 0) return null;
+  const { total, choice, choose, options, page, pages, setPage } = pager;
+  return (
+    <div className={`rows-footer rows-footer-shared${className ? ` ${className}` : ''}`}>
+      <span className="rows-footer-count">{total.toLocaleString('en-PH')} {noun}</span>
+      {choice === 'all' || pages <= 1 ? (
+        <span className="rows-footer-all">{choice === 'all' ? `Showing all ${total.toLocaleString('en-PH')}` : 'Page 1 of 1'}</span>
+      ) : (
+        <div className="rows-pager">
+          <button type="button" className="rows-page-btn" onClick={() => setPage(page - 1)} disabled={page <= 0} aria-label="Previous page">‹</button>
+          <span className="rows-page-label">Page {page + 1} of {pages}</span>
+          <button type="button" className="rows-page-btn" onClick={() => setPage(page + 1)} disabled={page >= pages - 1} aria-label="Next page">›</button>
+        </div>
+      )}
+      <RowsPicker value={choice} options={options} onChange={choose} total={total} label={label} />
     </div>
   );
 }

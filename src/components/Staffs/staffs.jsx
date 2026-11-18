@@ -29,6 +29,7 @@ import CustomSelect from '../Forecasting/CustomSelect';
 import PromoteConfirm from './PromoteConfirm';
 import { uiZoom } from '../../fontSize';
 import useFillToBottom from '../../utils/fillToBottom';
+import { usePagedRows, RowsFooter } from '../RowsPicker/RowsPicker';
 
 const ALL_ROLES = ['Staff', 'Admin', 'Super Admin'];
 
@@ -142,6 +143,8 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
         s.role.toLowerCase().includes(q)
     );
   }, [query, visibleAccounts, roleFilter]);
+  /* ===== ROWS PER PAGE (2026-11-18) ===== */
+  const pager = usePagedRows(showDeactivated ? 'staff-deactivated' : 'staff', filtered, { resetKey: `${query.trim()}|${roleFilter}|${showDeactivated}` });
 
   /* ===== MULTI-SELECT (Deactivated Accounts, 2026-11-12) ===== */
   const canSelect = canManage && showDeactivated;
@@ -916,7 +919,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
                 <tr>
                   <td colSpan={tableColumns} className="st-empty ui-loading">Loading staff…</td>
                 </tr>
-              ) : filtered.map((s) => {
+              ) : pager.visible.map((s) => {
                 const role = ROLE_META[s.role] || ROLE_META.Staff;
                 const RoleIcon = role.Icon;
                 return (
@@ -942,7 +945,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
                         <span className="st-name-text">{s.name}</span>
                       </span>
                     </td>
-                    <td className="st-cell-muted st-cell-email" data-label="Email">{s.email}</td>
+                    <td className="st-cell-muted st-cell-email" data-label="Email"><span className="ui-ellipsis">{s.email}</span></td>
                     <td className="st-cell-role" data-label="Role">
                       <span className={`st-role-badge ${role.cls}`}>
                         <RoleIcon size={12} />
@@ -1014,6 +1017,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
             </tbody>
           </table>
         </div>
+        {!loading && <RowsFooter pager={pager} noun={pager.total === 1 ? 'account' : 'accounts'} label="Accounts per page" />}
       </div>
       )}
 

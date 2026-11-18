@@ -11,6 +11,7 @@ import BulkOrder from './bulkOrder';
 import ReceiveDelivery from './ReceiveDelivery';
 import MobileSelectBar from '../MobileSelectBar/MobileSelectBar';
 import SearchSuggestions from '../SearchSuggestions/SearchSuggestions';
+import { usePagedRows, RowsFooter } from '../RowsPicker/RowsPicker';
 
 /* ===== REORDER LIST (Figure 9, formerly "Auto Reorder Alerts") =====
    Lists every product whose stock is at or below its reorder point.
@@ -320,6 +321,16 @@ export default function ReorderAlerts({
     return matchesQuery && matchesStatus;
   });
 
+  /* ===== ROWS PER PAGE (2026-11-18) =====
+     A product opened from the Dashboard jumps to the page it is on. */
+  const pager = usePagedRows('reorder-list', visible, { resetKey: `${query.trim()}|${statusFilter}` });
+  const { size: pageSize, setPage: setReorderPage } = pager;
+  useEffect(() => {
+    if (!highlightId) return;
+    const index = visible.findIndex((item) => item.id === highlightId);
+    if (index >= 0) setReorderPage(Math.floor(index / pageSize));
+  }, [highlightId, pageSize]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   /* ===== BULK ORDER SELECTION ===== */
   // Ticks on products that are no longer alerts are ignored.
   const selectedAlerts = alerts.filter((item) => selectedIds.has(item.id));
@@ -489,7 +500,7 @@ export default function ReorderAlerts({
                     ) : 'No products match your search.'}
                   </td>
                 </tr>
-              ) : visible.map((item) => (
+              ) : pager.visible.map((item) => (
                 <tr key={item.id} data-reorder-row={item.id} className={`${selectedIds.has(item.id) ? 'is-selected' : ''}${highlightId === item.id ? ' ra-row-highlight' : ''}`.trim() || undefined}>
                   {canComputeEoq && (
                     <td className="ra-check m-keep" data-label="Restock Report">
@@ -575,6 +586,7 @@ export default function ReorderAlerts({
             </tbody>
           </table>
         </div>
+        {!loading && <RowsFooter pager={pager} noun={pager.total === 1 ? 'product' : 'products'} label="Products per page" />}
         {notifyTarget && createPortal(
           <div className="ra-modal-overlay" onClick={() => !notifyBusy && setNotifyTarget(null)}>
             <form className="ra-modal" onClick={(event) => event.stopPropagation()} onSubmit={sendNotify} role="dialog" aria-modal="true" aria-labelledby="ra-notify-title">
