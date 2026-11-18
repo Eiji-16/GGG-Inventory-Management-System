@@ -119,7 +119,10 @@ class StockMovementController extends Controller
             // Optional since 2026-11-06: a delivery can be recorded without a picture.
             'photo' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
             'choice' => ['nullable', 'in:suggested,custom,report'],
-            'suggestedQty' => ['nullable', 'integer', 'min:0', 'max:9999'],
+            // Only written in the note (what the system suggested), never added
+            // to stock, so a big suggestion no longer blocks a custom amount
+            // (2026-11-18). The quantity itself is still at most 9,999.
+            'suggestedQty' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
         ], [
             'photo.image' => 'The proof must be a picture (JPG, PNG, WEBP or GIF).',
             'photo.mimes' => 'The proof must be a picture (JPG, PNG, WEBP or GIF).',

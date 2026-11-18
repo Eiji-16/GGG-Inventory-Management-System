@@ -1543,3 +1543,13 @@
         pointer-events: none;
     }
 }
+
+/* ===== RECEIVED: SUGGESTION TOO BIG FOR ONE DELIVERY (2026-11-18) =====
+   Over 9,999 units: the card is greyed out and can't be picked. */
+.ra-choice.is-disabled,
+.ra-choice:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.ra-choice.is-disabled:hover,
+.ra-choice:disabled:hover { transform: none; border-color: var(--border-color); }

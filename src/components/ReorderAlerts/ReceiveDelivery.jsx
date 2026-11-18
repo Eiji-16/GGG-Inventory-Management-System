@@ -11,6 +11,9 @@ import { orderPresets } from '../../utils/orderPresets';
 import { useCurrency } from '../../CurrencyContext';
 import CustomSelect from '../Forecasting/CustomSelect';
 
+/* One delivery is at most 9,999 units (same limit as Stock Control). */
+const MAX_DELIVERY_QTY = 9999;
+
 /* ===== RECEIVED (Reorder List, remodel 2026-11-03) =====
    The system does not place orders — buying happens outside it. When the
    delivery arrives, this window records it:
@@ -105,11 +108,13 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
       const first = orderPresets({ eoq: quantity, stock: item.stock, reorderPoint: item.reorderPoint, monthlyDemand: monthly })
         .find((option) => option.key === 'eoq' || option.key === 'reorder');
       // Start from the saved report when there is one, else the suggestion.
-      const startChoice = report ? 'report' : (first ? 'suggested' : 'custom');
+      // A suggestion over 9,999 can't be one delivery, so start on Custom.
+      const firstUsable = first && first.qty <= MAX_DELIVERY_QTY ? first : null;
+      const startChoice = report ? 'report' : (firstUsable ? 'suggested' : 'custom');
       setChoice(startChoice);
       setForm((prev) => ({
         ...prev,
-        qty: startChoice === 'report' ? String(report.qty) : (first ? String(first.qty) : prev.qty),
+        qty: startChoice === 'report' ? String(report.qty) : (firstUsable ? String(firstUsable.qty) : prev.qty),
         unitPrice: price !== null ? String(price) : prev.unitPrice,
       }));
       setLoading(false);
@@ -133,7 +138,13 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
     monthlyDemand,
   }).find((option) => option.key === 'eoq' || option.key === 'reorder') || null;
 
+  /* ===== SUGGESTION TOO BIG FOR ONE DELIVERY (2026-11-18) =====
+     One delivery is at most 9,999 units. A bigger suggestion is still shown
+     (and noted on the entry), but it can't be picked; type the real amount. */
+  const suggestionTooBig = Boolean(suggestion && suggestion.qty > MAX_DELIVERY_QTY);
+
   const pick = (next) => {
+    if (next === 'suggested' && suggestionTooBig) return;
     setChoice(next);
     setError('');
     if (next === 'suggested' && suggestion) setForm((prev) => ({ ...prev, qty: String(suggestion.qty) }));
@@ -217,7 +228,10 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
       Icon: Sparkles,
       title: 'System suggested',
       qty: suggestion.qty,
-      hint: suggestion.key === 'eoq' ? 'Economic Order Quantity' : 'Back above the reorder point',
+      hint: suggestionTooBig
+        ? 'Over 9,999 for one delivery: type the real amount'
+        : (suggestion.key === 'eoq' ? 'Economic Order Quantity' : 'Back above the reorder point'),
+      disabled: suggestionTooBig,
     },
     savedReport && {
       key: 'report',
@@ -254,14 +268,16 @@ export default function ReceiveDelivery({ item, onClose, onReceived }) {
             <section className="ra-receive-section">
               <h4><span>1</span> Quantity received</h4>
               <div className="ra-choice-grid" role="radiogroup" aria-label="Quantity received">
-                {options.map(({ key, Icon, title, qty, hint }) => (
+                {options.map(({ key, Icon, title, qty, hint, disabled }) => (
                   <button
                     key={key}
                     type="button"
                     role="radio"
                     aria-checked={choice === key}
-                    className={`ra-choice${choice === key ? ' is-active' : ''}`}
+                    className={`ra-choice${choice === key ? ' is-active' : ''}${disabled ? ' is-disabled' : ''}`}
                     onClick={() => pick(key)}
+                    disabled={disabled}
+                    title={disabled ? 'Too big for one delivery (at most 9,999)' : undefined}
                   >
                     <span className="ra-choice-top"><Icon size={13} aria-hidden="true" /> {title}</span>
                     <strong>{qty}</strong>

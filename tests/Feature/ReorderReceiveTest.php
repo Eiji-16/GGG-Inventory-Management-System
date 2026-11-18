@@ -55,6 +55,17 @@ class ReorderReceiveTest extends TestCase
         $this->actingAs($this->admin)->getJson('/api/stock-movements')->assertOk()->assertJsonPath('0.hasProof', true);
     }
 
+    public function test_a_big_system_suggestion_does_not_block_a_custom_amount(): void
+    {
+        // 2026-11-18: the suggestion is only written in the note, so a huge
+        // one (from big sales numbers) no longer refuses the delivery.
+        $response = $this->receive($this->staff, ['choice' => 'custom', 'qty' => 22, 'suggestedQty' => 1052845])
+            ->assertCreated();
+
+        $this->assertSame(23, (int) Product::where('code', 'PRD-R1')->value('stock_on_hand'));
+        $this->assertStringContainsString('System suggested: 1052845', $response->json('notes'));
+    }
+
     public function test_the_photo_is_optional(): void
     {
         // 2026-11-06: the proof photo is optional; the delivery is still recorded.
