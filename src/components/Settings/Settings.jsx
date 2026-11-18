@@ -44,6 +44,15 @@ const THEMES = [
 ];
 const LIGHT_THEMES = ['soft-white', 'lavender', 'citrus', 'olive'];
 const MAX_POLICY_COUNT = 1_000_000;
+/* ===== SHORT BIG NUMBERS (2026-11-18) =====
+   10,000 and up show as 83.6K / 1.2M so long reorder points fit; the full
+   number stays in the hover text. The math always uses the full number. */
+const compactNumber = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+const shortNum = (value) => {
+  const n = Number(value) || 0;
+  return Math.abs(n) >= 10000 ? compactNumber.format(n) : String(n);
+};
+const fullNum = (value) => (Number(value) || 0).toLocaleString('en-PH');
 
 const validatePolicyValue = (field, value) => {
   if (value === '' || value == null) return '';
@@ -182,12 +191,14 @@ function Settings({
      ● >8  ● 4–8  ● 1–3. The Healthy / Low / Critical key is in the toolbar,
      and the full name shows on hover and is read aloud. */
   const bandsFor = (critical, low) => {
-    const criticalText = critical === 1 ? '1' : `1–${critical}`;
+    // Short on screen (83.6K), full numbers on hover and read aloud.
+    const criticalText = critical === 1 ? '1' : `1–${shortNum(critical)}`;
+    const criticalFull = critical === 1 ? '1' : `1–${fullNum(critical)}`;
     return (
       <>
-        <span className="s-dot is-healthy" title={`Healthy: above ${low}`} aria-label={`Healthy above ${low}`}><i aria-hidden="true" />&gt;{low}</span>
-        {low > critical && <span className="s-dot is-low" title={`Low: ${critical + 1}–${low}`} aria-label={`Low ${critical + 1} to ${low}`}><i aria-hidden="true" />{critical + 1}–{low}</span>}
-        {critical >= 1 && <span className="s-dot is-critical" title={`Critical: ${criticalText}`} aria-label={`Critical ${criticalText}`}><i aria-hidden="true" />{criticalText}</span>}
+        <span className="s-dot is-healthy" title={`Healthy: above ${fullNum(low)}`} aria-label={`Healthy above ${low}`}><i aria-hidden="true" />&gt;{shortNum(low)}</span>
+        {low > critical && <span className="s-dot is-low" title={`Low: ${fullNum(critical + 1)}–${fullNum(low)}`} aria-label={`Low ${critical + 1} to ${low}`}><i aria-hidden="true" />{shortNum(critical + 1)}–{shortNum(low)}</span>}
+        {critical >= 1 && <span className="s-dot is-critical" title={`Critical: ${criticalFull}`} aria-label={`Critical ${criticalFull}`}><i aria-hidden="true" />{criticalText}</span>}
       </>
     );
   };
@@ -666,8 +677,8 @@ function Settings({
                       {inputError('leadTimeDays') && <small id={`s-policy-error-${row.productId}-leadTimeDays`} className="s-policy-input-error">{inputError('leadTimeDays')}</small>}
                     </div>
 
-                    <span className="s-policy-point" title={preview.detail}>
-                      <strong>{preview.point}</strong>
+                    <span className="s-policy-point" title={`${fullNum(preview.point)} · ${preview.detail}`}>
+                      <strong>{shortNum(preview.point)}</strong>
                       <small>{preview.detail}</small>
                     </span>
 
