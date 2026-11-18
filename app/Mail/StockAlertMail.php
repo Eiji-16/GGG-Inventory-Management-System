@@ -36,8 +36,7 @@ class StockAlertMail extends Mailable
 
     private function level(): array
     {
-        // 2026-11-18: two statuses (Low stock / Out of stock); at safety stock = Low stock.
-        return match ($this->status === 'critical' ? 'low' : $this->status) {
+        return match ($this->status) {
             'out' => ['label' => 'Out of stock', 'tag' => 'URGENT', 'color' => '#b42318', 'soft' => '#fef3f2', 'line' => '#fda29b',
                 'lead' => 'This product has run out. Customers cannot buy it until new stock arrives.'],
             'critical' => ['label' => 'Critical stock', 'tag' => 'ACTION NEEDED', 'color' => '#c4320a', 'soft' => '#fff6ed', 'line' => '#fdba74',
@@ -49,7 +48,7 @@ class StockAlertMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $prefix = match ($this->status === 'critical' ? 'low' : $this->status) {
+        $prefix = match ($this->status) {
             'out' => 'URGENT: Out of stock',
             'critical' => 'Action needed: Critical stock',
             default => 'Low stock',

@@ -166,18 +166,18 @@ function createNotifications(summary, policy) {
     const points = statusPointsFor(row, policy);
     if (stock > points.low) return;
     const safety = safetyPointFor(row, policy);
-    // 2026-11-18: two statuses on screen (Low stock / Out of stock).
-    const level = stock <= 0 ? 'out' : 'low';
+    const level = stock <= 0 ? 'out' : stock <= points.critical ? 'critical' : 'low';
     notifications.push({
       id: `stock-${product.id}-${level}`,
       type: level === 'low' ? 'warning' : 'critical',
       title: {
         out: `${product.name} is out of stock`,
+        critical: `${product.name} is critically low`,
         low: `${product.name} is running low`,
       }[level],
       meta: level === 'low'
         ? `${stock} on hand · low at ${points.low} — time to order`
-        : `${stock} on hand · safety stock ${safety} · reorder point ${reorderPoint}`,
+        : `${stock} on hand · critical at ${points.critical} · safety stock ${safety} · reorder point ${reorderPoint}`,
       time: 'Current stock',
       view: 'Reorder-Alerts',
       read: false,
@@ -1242,7 +1242,7 @@ function LandingPage({onLogout, onSessionRevoked, user, theme, onThemeChange}) {
                                   <span className="notif-row-top">
                                     <span className="notif-row-name">{notif.product}</span>
                                     <span className={`notif-pill is-${level}`}>
-                                      {isRequest ? 'Request' : { out: 'Out of stock', critical: 'Low stock', low: 'Low stock' }[level]}
+                                      {isRequest ? 'Request' : { out: 'Out of stock', critical: 'Critical', low: 'Low' }[level]}
                                     </span>
                                   </span>
                                   {isRequest ? (

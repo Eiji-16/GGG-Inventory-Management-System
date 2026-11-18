@@ -99,10 +99,10 @@ class SafetyStockCrossingTest extends TestCase
         $this->sell($product, 365)->assertCreated();     // reorder point 12
         $this->sell($product, 29)->assertCreated();      // 35 → 6: Low (old rule said Critical at ≤ 6)
 
-        $this->getJson('/api/reports')->assertOk()->assertJsonPath('reorderPoint.rows.0.urgency', 'Low Stock');
+        $this->getJson('/api/reports')->assertOk()->assertJsonPath('reorderPoint.rows.0.urgency', 'Low');
 
         $this->sell($product, 1)->assertCreated();       // → 5: Critical
-        $this->getJson('/api/reports')->assertOk()->assertJsonPath('reorderPoint.rows.0.urgency', 'Low Stock');   // at safety stock: Low Stock (2026-11-18)
+        $this->getJson('/api/reports')->assertOk()->assertJsonPath('reorderPoint.rows.0.urgency', 'Critical');
     }
 
     /* ===== Stock alert email to the Super Admin (2026-11-11) ===== */
@@ -133,10 +133,9 @@ class SafetyStockCrossingTest extends TestCase
         $this->sell($product, 1)->assertCreated();   // 9 → 8: still Low, no new email
         \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\StockAlertMail::class, 1);
 
-        $this->sell($product, 4)->assertCreated();   // 8 → 4: at safety stock, still "Low stock" (2026-11-18): no new email
-        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\StockAlertMail::class, 1);
+        $this->sell($product, 4)->assertCreated();   // 8 → 4: Critical
         $this->sell($product, 4)->assertCreated();   // 4 → 0: Out
-        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\StockAlertMail::class, 2);
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\StockAlertMail::class, 3);
         \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\StockAlertMail::class, fn ($mail) => $mail->status === 'out' && $mail->stock === 0);
         $this->assertSame($boss->email, 'owner@example.com');
     }

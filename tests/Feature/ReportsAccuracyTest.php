@@ -72,7 +72,7 @@ class ReportsAccuracyTest extends TestCase
         $status = collect($summary['rows'])->pluck('status', 'productId');
 
         $this->assertSame('Out of Stock', $status['PRD-OUT']);
-        $this->assertSame('Low Stock', $status['PRD-CRIT']);   // at safety stock: shown as Low Stock (2026-11-18)
+        $this->assertSame('Critical', $status['PRD-CRIT']);
         $this->assertSame('Low Stock', $status['PRD-LOW']);
         $this->assertSame('In Stock', $status['PRD-OK']);
         $this->assertSame(2, $summary['kpis']['lowStock']);      // Low + Critical
@@ -90,7 +90,7 @@ class ReportsAccuracyTest extends TestCase
         $status = collect($summary['rows'])->pluck('status', 'productId');
 
         $this->assertSame('No Stock Records', $status['PRD-CAP']);
-        $this->assertSame('Low Stock', $status['PRD-CRIT']);   // at safety stock: shown as Low Stock (2026-11-18)
+        $this->assertSame('Critical', $status['PRD-CRIT']);
         $this->assertSame(1, $summary['kpis']['criticalStock'], 'GGG Cap is not counted as Critical.');
         $this->assertSame(7, $summary['kpis']['totalStock'], 'Its units are still in the total.');
     }
@@ -292,7 +292,7 @@ class ReportsAccuracyTest extends TestCase
         ]);
 
         $this->getJson('/api/reports')->assertOk()
-            ->assertJsonPath('reorderPoint.rows.0.urgency', 'Low Stock')
+            ->assertJsonPath('reorderPoint.rows.0.urgency', 'Low')
             ->assertJsonPath('reorderPoint.rows.0.reorderPoint', 12)
             ->assertJsonPath('reorderPoint.rows.0.criticalPoint', 4)
             ->assertJsonPath('reorderPoint.rows.0.mode', 'manual');

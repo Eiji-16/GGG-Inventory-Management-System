@@ -5,7 +5,7 @@
         $category ? ['Category', e($category)] : null,
         ['Stock on hand', '<strong style="color:'.$level['color'].'">'.e($stock ?? '—').'</strong>'],
         $lowPoint !== null ? ['Low level (reorder point)', e($lowPoint)] : null,
-        $criticalPoint !== null ? ['Safety stock level', e($criticalPoint)] : null,
+        $criticalPoint !== null ? ['Critical level (safety stock)', e($criticalPoint)] : null,
         $supplierName ? ['Supplier', e($supplierName).($supplierContact ? '<br><span style="color:#5b6785">'.e($supplierContact).'</span>' : '')] : null,
         $leadTimeDays !== null ? ['Delivery lead time', e($leadTimeDays).' '.($leadTimeDays === 1 ? 'day' : 'days')] : null,
     ]);

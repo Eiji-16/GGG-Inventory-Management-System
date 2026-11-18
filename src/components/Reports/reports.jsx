@@ -27,8 +27,7 @@ import { usePagedRows, RowsFooter } from '../RowsPicker/RowsPicker';
 /* Status/urgency/confidence → badge colour. */
 const BADGE = {
   'In Stock': 'r-badge-good', Healthy: 'r-badge-good', High: 'r-badge-good',
-  // 2026-11-18: two stock statuses: Low Stock (amber) and Out of Stock (red).
-  'Low Stock': 'r-badge-warn', Critical: 'r-badge-bad', Low: 'r-badge-warn',
+  'Low Stock': 'r-badge-bad', Critical: 'r-badge-bad', Low: 'r-badge-warn',
   'Out of Stock': 'r-badge-bad', 'Slow Mover': 'r-badge-bad',
   'Fast-Moving': 'r-badge-good', 'Slow-Moving': 'r-badge-bad',
   Aging: 'r-badge-warn', Watch: 'r-badge-warn', Medium: 'r-badge-warn', Unknown: 'r-badge-warn',
@@ -230,7 +229,7 @@ function MovementBars({ title, items, tone, emptyText, onOpen }) {
    Each bar = current stock compared with the reorder point (full bar = at the
    reorder point). Colour follows the urgency: red = out of stock / critical,
    amber = low. Opens the Reorder Point Report. */
-const URGENCY_ORDER = { 'Out of Stock': 0, 'Low Stock': 1 };
+const URGENCY_ORDER = { 'Out of Stock': 0, Critical: 1, Low: 2 };
 function ReorderBars({ rows, emptyText, onOpen }) {
   const items = [...rows]
     .sort((a, b) => (URGENCY_ORDER[a.urgency] ?? 3) - (URGENCY_ORDER[b.urgency] ?? 3)
@@ -249,12 +248,12 @@ function ReorderBars({ rows, emptyText, onOpen }) {
           {items.map((item) => {
             const point = Math.max(1, Number(item.reorderPoint) || 0);
             const stock = Math.max(0, Number(item.currentStock) || 0);
-            const tone = item.urgency === 'Low Stock' ? 'warn' : 'slow';
+            const tone = item.urgency === 'Low' ? 'warn' : 'slow';
             return (
               <li
                 key={item.productId || item.product}
                 className="r-fs-row r-reorder-row"
-                data-tip={`${item.product}\n${item.urgency}\n${stock} in stock · reorder point ${item.reorderPoint}${item.criticalPoint != null ? ` · safety stock level ${item.criticalPoint}` : ''}${Number(item.reorderPoint) - stock + 1 > 0 ? `\nNeeds ${Number(item.reorderPoint) - stock + 1} more to get back above the reorder point` : ''}`}
+                data-tip={`${item.product}\n${item.urgency}\n${stock} in stock · reorder point ${item.reorderPoint}${item.criticalPoint != null ? ` · critical at ${item.criticalPoint}` : ''}${Number(item.reorderPoint) - stock + 1 > 0 ? `\nNeeds ${Number(item.reorderPoint) - stock + 1} more to get back above the reorder point` : ''}`}
               >
                 <span className="r-fs-name">{item.product}</span>
                 <span className="r-fs-track">
@@ -361,7 +360,7 @@ function buildSections(report, formatCurrency) {
   }
   if (report?.reorderPoint) {
     add('reorderPoint', 'Reorder Point Report', 'Products at or below their reorder point (safety stock + daily sales × lead time).',
-      ['Product', 'Current Stock', 'Reorder Point (Low at)', 'Safety Stock Level', 'Urgency'],
+      ['Product', 'Current Stock', 'Reorder Point (Low at)', 'Critical at', 'Urgency'],
       (report.reorderPoint.rows || []).map((r) => [
         r.product, r.currentStock, `${r.reorderPoint}${r.mode === 'manual' ? ' (manual)' : r.mode === 'default' ? ' (default)' : ''}`, r.criticalPoint ?? '—', r.urgency,
       ]), 'All products are above their reorder point.');
@@ -379,11 +378,11 @@ function buildSections(report, formatCurrency) {
       entry.products += 1;
       entry.units += Number(r.stock) || 0;
       if (r.value != null) entry.value += Number(r.value) || 0; else if (Number(r.stock) > 0) entry.unpriced += 1;
-      if (['Low Stock', 'Out of Stock'].includes(r.status)) entry.attention += 1;
+      if (['Low Stock', 'Critical', 'Out of Stock'].includes(r.status)) entry.attention += 1;
       byCategory.set(key, entry);
     });
     add('categoryBreakdown', 'Products by Category', 'How many products, units and how much stock value each category holds.',
-      ['Category', 'Products', 'Units in Stock', 'Inventory Value', 'Low / Out'],
+      ['Category', 'Products', 'Units in Stock', 'Inventory Value', 'Low / Critical / Out'],
       [...byCategory.entries()]
         .sort((a, b) => b[1].products - a[1].products || a[0].localeCompare(b[0]))
         .map(([category, e]) => [
@@ -394,9 +393,9 @@ function buildSections(report, formatCurrency) {
       'No products found.');
 
     // Stock Health: products grouped by stock status.
-    const order = ['Out of Stock', 'Low Stock', 'In Stock', 'No Stock Records'];
+    const order = ['Out of Stock', 'Critical', 'Low Stock', 'In Stock', 'No Stock Records'];
     const total = rows.length || 1;
-    add('stockHealth', 'Stock Health', 'Products grouped by stock status: how many are in stock, low or out of stock.',
+    add('stockHealth', 'Stock Health', 'Products grouped by stock status: how many are in stock, low, critical or out of stock.',
       ['Status', 'Products', 'Share of Products', 'Units in Stock', 'Products in this Status'],
       order
         .map((status) => [status, rows.filter((r) => r.status === status)])
@@ -457,6 +456,7 @@ function StockHealthTile({ rows, loading, onOpen }) {
   const parts = [
     { key: 'good', label: 'In stock', value: count('In Stock') },
     { key: 'warn', label: 'Low', value: count('Low Stock') },
+    { key: 'crit', label: 'Critical', value: count('Critical') },
     { key: 'bad', label: 'Out', value: count('Out of Stock') },
     // Products with no Stock Control entries yet (shown only when there are some).
     { key: 'none', label: 'No records', value: count('No Stock Records'), optional: true },
