@@ -2074,3 +2074,106 @@ grid-column: 5 / span 2;
     .db-backup-note { flex-wrap: wrap; }
     .db-backup-go { margin-left: 26px; }
 }
+
+/* ===== INVENTORY BY CATEGORY: CLICKABLE ROWS (2026-11-18) =====
+   Each list row opens Products filtered to that category. "Other" opens
+   a small box (over the pie, inside the card) listing the categories grouped in it. */
+.db-category-legend-item.is-clickable {
+    margin: 0 -5px;
+    padding: 2px 5px;
+    width: calc(100% + 10px);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease, opacity 0.18s ease;
+}
+.db-category-legend-item.is-clickable:hover,
+.db-category-legend-item.is-clickable:focus-visible {
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--category-color) 16%, transparent);
+    outline: none;
+}
+.db-other-box {
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    left: 8px;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    width: min(180px, 55%);
+    padding: 8px;
+    box-sizing: border-box;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color, rgba(255,255,255,0.12));
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    animation: db-other-box-in 0.18s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.db-other-box-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.db-other-box-head em {
+    margin-left: 4px;
+    font-style: normal;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+.db-other-box-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    color: var(--text-muted);
+    background: transparent;
+    border: 0;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.db-other-box-close:hover { color: var(--text-primary); background: var(--static-bg-color, rgba(255,255,255,0.06)); }
+.db-other-box-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 0;
+    overflow-y: auto;
+}
+.db-other-box-row {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 4px 6px;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 11px;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+.db-other-box-row:hover,
+.db-other-box-row:focus-visible {
+    color: var(--text-primary);
+    background: var(--static-bg-color, rgba(255,255,255,0.06));
+    outline: none;
+}
+@keyframes db-other-box-in {
+    from { opacity: 0; transform: translateY(4px) scale(0.98); }
+    to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .db-other-box { animation: none; } }

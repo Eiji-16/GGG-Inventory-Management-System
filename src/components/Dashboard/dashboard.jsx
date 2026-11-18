@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PageToast } from '../../utils/toast';
-import { Package, Boxes, ShieldCheck, ShoppingBag, TrendingUp, TrendingDown, Minus, ArrowUpRight, ChevronRight, RefreshCw, Download } from 'lucide-react';
+import { Package, Boxes, ShieldCheck, ShoppingBag, TrendingUp, TrendingDown, Minus, ArrowUpRight, ChevronRight, RefreshCw, Download, X } from 'lucide-react';
 import apiFetch from '../../apiFetch';
 import './dashboard.css';
 import { statusPointsFor } from '../../data/safetyStock';
@@ -297,6 +297,24 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
   // The other cards (Top Products Sold, units this month) look at the last 12 months.
   const range = 12;
   const [activeCategory, setActiveCategory] = useState(null);
+  /* ===== OTHER CATEGORIES BOX =====
+     Clicking "Other" in Inventory by Category opens a small box listing
+     the categories grouped inside it. Click outside or press Esc to close. */
+  const [otherBoxOpen, setOtherBoxOpen] = useState(false);
+  const otherBoxRef = useRef(null);
+  useEffect(() => {
+    if (!otherBoxOpen) return undefined;
+    const closeOnOutside = (event) => {
+      if (otherBoxRef.current && !otherBoxRef.current.contains(event.target) && !event.target.closest?.('.db-category-other-btn')) setOtherBoxOpen(false);
+    };
+    const closeOnEsc = (event) => { if (event.key === 'Escape') setOtherBoxOpen(false); };
+    document.addEventListener('mousedown', closeOnOutside);
+    document.addEventListener('keydown', closeOnEsc);
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutside);
+      document.removeEventListener('keydown', closeOnEsc);
+    };
+  }, [otherBoxOpen]);
   const [hoveredSalesMonth, setHoveredSalesMonth] = useState(null);
   // Sales Trend Overview: Weekly / Monthly / Yearly (saved in this browser).
   const [salesView, setSalesView] = useState(() => {
@@ -472,8 +490,10 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
       const otherCount = categories.slice(4).reduce((total, category) => total + category.count, 0);
       const usedColors = new Set(topCategories.map((category) => category.color));
       const otherColor = fallbackCategoryColors.find((color) => !usedColors.has(color)) || '#64748B';
-      topCategories.push({ name: 'Other', count: otherCount, pct: stock.length ? otherCount / stock.length : 0, color: otherColor });
+      topCategories.push({ name: 'Other', count: otherCount, pct: stock.length ? otherCount / stock.length : 0, color: otherColor, isOther: true });
     }
+    /* The categories grouped under "Other" (listed in its small pop-up box). */
+    const otherCategories = categories.slice(4);
     /* Rose pie: a slice's angle is its share of products, and bigger
        categories also reach further out, so the largest stands out at a
        glance. Each slice carries a small % tag just outside its edge. */
@@ -558,6 +578,7 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
       outOfStock,
       health,
       categories: topCategories,
+      otherCategories,
       donut,
       monthly,
       visibleSales,
@@ -1164,26 +1185,60 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
                     <div className="db-donut-details">
                       <strong className="db-donut-total">{fmt(derived.products.length)} products</strong>
                       <div className="db-legend db-legend-col">
-                        {derived.categories.map((category) => (
-                          <span
-                            key={category.name}
-                            className={`db-legend-item db-category-legend-item${activeCategory === category.name ? ' is-active' : ''}${activeCategory && activeCategory !== category.name ? ' is-dimmed' : ''}`}
-                            style={{ '--category-color': category.color }}
-                            data-tip={`${category.name}\n${fmt(category.count)} product${category.count === 1 ? '' : 's'} · ${Math.round(category.pct * 100)}% of all`}
-                            data-tip-color={category.color}
-                            onMouseEnter={() => setActiveCategory(category.name)}
-                          >
-                            <i style={{ background: category.color }} />
-                            <span className="db-legend-name">{category.name}</span>
-                            <span className="db-legend-count">{fmt(category.count)}</span>
-                          </span>
-                        ))}
+                        {derived.categories.map((category) => {
+                          /* ===== CLICKABLE CATEGORY ROW =====
+                             A category opens Products filtered to it; "Other" opens
+                             the small box. Plain text when this role can't open Products. */
+                          const Tag = canProducts ? 'button' : 'span';
+                          const openRow = () => {
+                            if (category.isOther) setOtherBoxOpen((open) => !open);
+                            else go('Product-Supplier', { section: 'products', categoryFilter: category.name });
+                          };
+                          return (
+                            <Tag
+                              key={category.name}
+                              {...(canProducts ? { type: 'button', onClick: openRow, 'aria-expanded': category.isOther ? otherBoxOpen : undefined } : {})}
+                              className={`db-legend-item db-category-legend-item${canProducts ? ' is-clickable' : ''}${category.isOther ? ' db-category-other-btn' : ''}${activeCategory === category.name || (category.isOther && otherBoxOpen) ? ' is-active' : ''}${activeCategory && activeCategory !== category.name ? ' is-dimmed' : ''}`}
+                              style={{ '--category-color': category.color }}
+                              data-tip={`${category.name}\n${fmt(category.count)} product${category.count === 1 ? '' : 's'} · ${Math.round(category.pct * 100)}% of all${canProducts ? (category.isOther ? '\nClick to see these categories' : '\nClick to view these products') : ''}`}
+                              data-tip-color={category.color}
+                              onMouseEnter={() => setActiveCategory(category.name)}
+                            >
+                              <i style={{ background: category.color }} />
+                              <span className="db-legend-name">{category.name}</span>
+                              <span className="db-legend-count">{fmt(category.count)}</span>
+                            </Tag>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
                 ) : <EmptyChart message="No products to group yet" />}
               </div>
             </div>
+            {/* ===== OTHER CATEGORIES BOX ===== */}
+            {otherBoxOpen && canProducts && derived.otherCategories.length > 0 && (
+              <div className="db-other-box" ref={otherBoxRef} role="dialog" aria-label="Other categories">
+                <div className="db-other-box-head">
+                  <span>Other categories <em>{fmt(derived.otherCategories.length)}</em></span>
+                  <button type="button" className="db-other-box-close" onClick={() => setOtherBoxOpen(false)} aria-label="Close"><X size={12} /></button>
+                </div>
+                <div className="db-other-box-list">
+                  {derived.otherCategories.map((category) => (
+                    <button
+                      key={category.name}
+                      type="button"
+                      className="db-other-box-row"
+                      onClick={() => { setOtherBoxOpen(false); go('Product-Supplier', { section: 'products', categoryFilter: category.name }); }}
+                      title={`View ${category.name} products`}
+                    >
+                      <span className="db-legend-name">{category.name}</span>
+                      <span className="db-legend-count">{fmt(category.count)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="totalOrder-card card db-tone db-tone-flame">

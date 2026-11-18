@@ -210,15 +210,19 @@ function ProductSupplier({
   /* Supplier filter from the Dashboard's Supplier Coverage card:
      '' = all, 'linked' = has a supplier, 'none' = no supplier. */
   const [supplierFilter, setSupplierFilter] = useState('');
+  /* ===== CATEGORY FILTER =====
+     From the Dashboard's Inventory by Category list: '' = all categories. */
+  const [categoryFilter, setCategoryFilter] = useState('');
   /* Dashboard links say exactly what to open (tab and filter). */
   useEffect(() => {
     // Opened another way (sidebar or another page): show the full list again.
-    if (!handoff) { setSupplierFilter(''); return; }
+    if (!handoff) { setSupplierFilter(''); setCategoryFilter(''); return; }
     if (handoff.section === 'suppliers' || handoff.section === 'products') {
       setSection(handoff.section === 'suppliers' && !canViewSuppliers ? 'products' : handoff.section);
     }
     if (handoff.section === 'products') {
       setSupplierFilter(handoff.supplierFilter === 'linked' || handoff.supplierFilter === 'none' ? handoff.supplierFilter : '');
+      setCategoryFilter(typeof handoff.categoryFilter === 'string' ? handoff.categoryFilter : '');
     }
   }, [handoff]);
   const [suppliers, setSuppliers] = useState([]); /* ===== SUPPLIER LIST (type-ahead + reuse) ===== */
@@ -298,9 +302,14 @@ function ProductSupplier({
     const bySupplier = !supplierFilter
       ? productsFromDatabase
       : productsFromDatabase.filter((p) => (supplierFilter === 'linked' ? Boolean(p.supplierId) : !p.supplierId));
-    const matched = !q
+    // Same grouping as the Dashboard: a product with no category counts as "Uncategorized".
+    const wantedCategory = categoryFilter.trim().toLowerCase();
+    const byCategory = !wantedCategory
       ? bySupplier
-      : bySupplier.filter((p) =>
+      : bySupplier.filter((p) => String(p.category || 'Uncategorized').trim().toLowerCase() === wantedCategory);
+    const matched = !q
+      ? byCategory
+      : byCategory.filter((p) =>
           [p.id, p.name, (p.variants || []).join(' '), p.category, p.brand, p.model, p.unitMeasure, p.supplierName, p.supplierContact]
             .some((field) => String(field ?? '').toLowerCase().includes(q))
         );
@@ -319,7 +328,7 @@ function ProductSupplier({
     });
 
     return sorted;
-  }, [productsFromDatabase, query, sortBy, sortDir, supplierFilter]);
+  }, [productsFromDatabase, query, sortBy, sortDir, supplierFilter, categoryFilter]);
 
   /* Little ▲/▼ beside the column that's currently the active sort key. */
   const sortIndicator = (key) => (sortBy === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
@@ -327,7 +336,7 @@ function ProductSupplier({
   /* ===== RESET PAGE ===== */
   useEffect(() => {
     setCursor(0);
-  }, [query, supplierFilter]);
+  }, [query, supplierFilter, categoryFilter]);
 
   const total = filteredProducts.length;
   /* ===== PRODUCTS PER PAGE =====
@@ -758,6 +767,18 @@ function ProductSupplier({
             {supplierFilter === 'linked' ? 'With a supplier' : 'Without a supplier'}
             <X size={12} aria-hidden="true" />
             <span className="ps-sr-only"> (remove filter)</span>
+          </button>
+        )}
+        {categoryFilter && (
+          <button
+            type="button"
+            className="ps-filter-chip"
+            onClick={() => setCategoryFilter('')}
+            title="Show all categories"
+          >
+            {categoryFilter}
+            <X size={12} aria-hidden="true" />
+            <span className="ps-sr-only"> (remove category filter)</span>
           </button>
         )}
         {canExportProducts && (
