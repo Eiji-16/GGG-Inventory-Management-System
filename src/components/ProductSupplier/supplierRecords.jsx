@@ -261,7 +261,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
                       aria-label={`Select ${supplier.name}`}
                     />
                   </td>
-                  <td className="ps-td-left m-title" data-label="Supplier"><strong>{supplier.name}</strong></td>
+                  <td className="ps-td-left m-title" data-label="Supplier" title={supplier.name}><strong>{supplier.name}</strong></td>
                   <td className="ps-td-left ps-td-muted" data-label="Contact">{supplier.contact || '—'}</td>
                   <td className="ps-td-left" data-label="Products Supplied" title={supplied.map((p) => p.name).join(', ')}>
                     {supplied.length ? (

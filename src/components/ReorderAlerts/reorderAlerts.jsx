@@ -498,7 +498,7 @@ export default function ReorderAlerts({
                   )}
                   <td className="m-title" data-label="Product">
                     <span className="ra-product">
-                      <strong>{item.name}</strong>
+                      <strong title={item.name}>{item.name}</strong>
                       <small>{[item.id, ...(item.variants || []).slice(0, 3)].join(' · ')}</small>
                     </span>
                   </td>
@@ -506,7 +506,7 @@ export default function ReorderAlerts({
                   <td data-label="Supplier">
                     {item.supplierName ? (
                       <span className="ra-product">
-                        <span>{item.supplierName}</span>
+                        <span title={item.supplierName}>{item.supplierName}</span>
                         {item.leadTimeDays != null && item.leadTimeDays !== '' && <small>{item.leadTimeDays}-day lead time</small>}
                       </span>
                     ) : '—'}

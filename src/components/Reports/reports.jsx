@@ -642,6 +642,7 @@ function ReportModal({ section, canExport, onClose }) {
                             key={cellIndex}
                             className={cellClass(section.headers[cellIndex], cell, cellIndex) || undefined}
                             data-label={cellIndex === listColumn ? 'Actions' : (SHORT_LABEL[section.headers[cellIndex]] || section.headers[cellIndex])}
+                            title={typeof cell === 'string' && cellIndex !== listColumn && !BADGE[cell] ? cell : undefined}
                           >
                             {cellIndex === listColumn ? (
                               hasList ? (

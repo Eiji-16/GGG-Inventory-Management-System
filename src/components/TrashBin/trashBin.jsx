@@ -360,7 +360,7 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
                     <span className="sc-name-cell">
                       <span className={`tb-kind-icon tb-kind-${item.kind}`} aria-hidden="true"><KindIcon size={13} /></span>
                       <span className="tb-name">
-                        <strong>{item.productName}</strong>
+                        <strong title={item.productName}>{item.productName}</strong>
                         <small>{subtitle(item)}</small>
                         {blocked && <small className="sc-deleted-tag">{item.productInTrash ? `Product is in the ${space === 'trash' ? 'Trash Bin' : 'Archive'}` : 'Product permanently deleted'}</small>}
                       </span>

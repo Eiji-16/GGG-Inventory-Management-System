@@ -478,3 +478,60 @@ select:not([multiple]):focus-visible {
     .logout-confirm-overlay, .sidebar-backdrop, .app-deactivation-overlay) {
     background: color-mix(in srgb, var(--text-primary) 42%, transparent);
 }
+
+/* ==========================================================================
+   LONG TEXT IN TABLES (2026-11-18)
+   Long names (products, suppliers, notes) no longer make a table scroll
+   sideways. On laptop / PC screens they are cut with "…" and the full
+   text shows when you hover the cell. Phones (900px and below) keep their
+   card layout, where long names wrap.
+   ========================================================================== */
+@media (min-width: 901px) {
+    /* Safety net for every table: a long word with no spaces (e.g.
+       "XXXXXXXX…") wraps instead of widening the table. */
+    td {
+        overflow-wrap: anywhere;
+    }
+
+    /* Reorder List + Restock Report: product and supplier names. */
+    .ra-table .ra-product,
+    .ra-bulk-table .ra-product {
+        grid-template-columns: minmax(0, 1fr);
+        max-width: 16rem;
+    }
+    .ra-table .ra-product > *,
+    .ra-bulk-table .ra-product > * {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Reports tables (cards and pop-ups). The name-list row and the
+       pop-up's last column keep wrapping as before. */
+    .r-table tbody tr:not(.r-list-row) > td:not(.r-expand-td) {
+        max-width: 18rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Trash Bin: item name and its small line under it. */
+    .tb-name {
+        max-width: 18rem;
+    }
+    .tb-name > strong,
+    .tb-name > small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Suppliers list: supplier name. */
+    .ps-supplier-table td[data-label="Supplier"] > strong {
+        display: block;
+        max-width: 16rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
