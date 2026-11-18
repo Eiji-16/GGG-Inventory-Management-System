@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { limitDigits } from '../../utils/numberLimit';
+import MarqueeText from '../../utils/marqueeText';
 import { PageToast } from '../../utils/toast';
 import {
   Sun,
@@ -44,15 +45,6 @@ const THEMES = [
 ];
 const LIGHT_THEMES = ['soft-white', 'lavender', 'citrus', 'olive'];
 const MAX_POLICY_COUNT = 1_000_000;
-/* ===== SHORT BIG NUMBERS (2026-11-18) =====
-   10,000 and up show as 83.6K / 1.2M so long reorder points fit; the full
-   number stays in the hover text. The math always uses the full number. */
-const compactNumber = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
-const shortNum = (value) => {
-  const n = Number(value) || 0;
-  return Math.abs(n) >= 10000 ? compactNumber.format(n) : String(n);
-};
-const fullNum = (value) => (Number(value) || 0).toLocaleString('en-PH');
 
 const validatePolicyValue = (field, value) => {
   if (value === '' || value == null) return '';
@@ -191,14 +183,12 @@ function Settings({
      ● >8  ● 4–8  ● 1–3. The Healthy / Low / Critical key is in the toolbar,
      and the full name shows on hover and is read aloud. */
   const bandsFor = (critical, low) => {
-    // Short on screen (83.6K), full numbers on hover and read aloud.
-    const criticalText = critical === 1 ? '1' : `1–${shortNum(critical)}`;
-    const criticalFull = critical === 1 ? '1' : `1–${fullNum(critical)}`;
+    const criticalText = critical === 1 ? '1' : `1–${critical}`;
     return (
       <>
-        <span className="s-dot is-healthy" title={`Healthy: above ${fullNum(low)}`} aria-label={`Healthy above ${low}`}><i aria-hidden="true" />&gt;{shortNum(low)}</span>
-        {low > critical && <span className="s-dot is-low" title={`Low: ${fullNum(critical + 1)}–${fullNum(low)}`} aria-label={`Low ${critical + 1} to ${low}`}><i aria-hidden="true" />{shortNum(critical + 1)}–{shortNum(low)}</span>}
-        {critical >= 1 && <span className="s-dot is-critical" title={`Critical: ${criticalFull}`} aria-label={`Critical ${criticalFull}`}><i aria-hidden="true" />{criticalText}</span>}
+        <span className="s-dot is-healthy" title={`Healthy: above ${low}`} aria-label={`Healthy above ${low}`}><i aria-hidden="true" />&gt;{low}</span>
+        {low > critical && <span className="s-dot is-low" title={`Low: ${critical + 1}–${low}`} aria-label={`Low ${critical + 1} to ${low}`}><i aria-hidden="true" />{critical + 1}–{low}</span>}
+        {critical >= 1 && <span className="s-dot is-critical" title={`Critical: ${criticalText}`} aria-label={`Critical ${criticalText}`}><i aria-hidden="true" />{criticalText}</span>}
       </>
     );
   };
@@ -677,8 +667,9 @@ function Settings({
                       {inputError('leadTimeDays') && <small id={`s-policy-error-${row.productId}-leadTimeDays`} className="s-policy-input-error">{inputError('leadTimeDays')}</small>}
                     </div>
 
-                    <span className="s-policy-point" title={`${fullNum(preview.point)} · ${preview.detail}`}>
-                      <strong>{shortNum(preview.point)}</strong>
+                    <span className="s-policy-point" title={preview.detail}>
+                      {/* Long numbers slide instead of being cut off (2026-11-18). */}
+                      <strong><MarqueeText>{preview.point}</MarqueeText></strong>
                       <small>{preview.detail}</small>
                     </span>
 
@@ -735,10 +726,14 @@ function Settings({
                           </div>
                           {manualError(row)
                             ? <small className="s-policy-error">{manualError(row)}</small>
-                            : <span className="s-policy-bands">{bandsFor(Number(row.criticalPoint), Number(row.lowPoint))}</span>}
+                            : <MarqueeText className="s-policy-bands-marquee"><span className="s-policy-bands">{bandsFor(Number(row.criticalPoint), Number(row.lowPoint))}</span></MarqueeText>}
                         </>
                       ) : (
-                        <span className="s-policy-bands">{bandsFor(Number(row.safetyStock) || 0, preview.point)}</span>
+                        /* ===== LONG STATUS NUMBERS SLIDE (2026-11-18) =====
+                           One line; when the numbers are too long they slide
+                           left and back (like the Inventory Value card) instead
+                           of wrapping and making the row taller. */
+                        <MarqueeText className="s-policy-bands-marquee"><span className="s-policy-bands">{bandsFor(Number(row.safetyStock) || 0, preview.point)}</span></MarqueeText>
                       )}
                     </div>
 

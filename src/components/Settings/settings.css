@@ -1419,3 +1419,22 @@
     .s-policy-head,
     .s-policy-row { grid-template-columns: minmax(110px, 1fr) 52px 100px 52px 136px 32px; }
 }
+
+/* ===== SAFETY STOCK POLICY: SLIDING NUMBERS + RESET BUTTON (2026-11-18) =====
+   1. The coloured status numbers stay on one line. When they are too long
+      for the column they slide left and back (MarqueeText), so the row
+      never grows or wraps. Hover pauses; the reorder point does the same.
+   2. The reset button sits up beside the Formula / Manual switch instead of
+      in the middle of the row. */
+.s-policy-bands-marquee .s-policy-bands {
+    display: inline-flex;
+    flex-wrap: nowrap;
+}
+.s-policy-bands-marquee .s-dot { white-space: nowrap; }
+.s-policy-point strong { display: block; min-width: 0; max-width: 100%; }
+@media (min-width: 641px) {
+    .s-policy-row > .s-icon-btn {
+        align-self: start;
+        margin-top: -2px;   /* level with the Formula / Manual switch */
+    }
+}
