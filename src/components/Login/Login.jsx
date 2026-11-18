@@ -256,6 +256,10 @@ function Login({ onLogin }) {
 
                 {/* ===== SIGN-IN FORM ===== */}
                 <main className="lg-form-side">
+                    {/* ===== PHONES, NIGHT LOOK: LAMP OVER THE SIGN-IN BOX (2026-11-18) =====
+                        Decoration only; laptops keep the lamp over the shelf. */}
+                    <span className="lg-form-lamp-light" aria-hidden="true" />
+                    <span className="lg-form-lamp" aria-hidden="true" />
                     <div className="lg-form-wrap">
                         <header className="lg-heading">
                             <span className="lg-eyebrow"><ShieldCheck size={12} aria-hidden="true" /> Secure sign-in</span>
