@@ -3854,3 +3854,20 @@
     padding: 0;
     box-sizing: border-box;
 }
+
+/* ==========SEASONAL EVENT CARDS — LONG NAMES + PHONE ROW (2026-11-18)==========
+   1. A long event name (even one long word) wraps inside its own column
+      instead of running over the percentage on the right.
+   2. Phones: Edit / Delete sit on the same row as the status badge
+      (badge on the left, icons on the right) instead of a row of their own. */
+.f-event-info strong {
+    overflow-wrap: anywhere;
+}
+@media (max-width: 680px) {
+    .f-event-item { align-items: center; }
+    .f-event-pct { align-self: start; }
+    .f-event-actions {
+        grid-column: auto;
+        justify-self: end;
+    }
+}

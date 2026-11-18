@@ -10,6 +10,13 @@ import { CountUp } from '../../utils/countUp';
 import MarqueeText from '../../utils/marqueeText';
 
 const fmt = (value) => Number(value || 0).toLocaleString('en-PH');
+// Short numbers for narrow columns (2026-11-18): 100,000 and up show as
+// 172.4K / 6.7M so they fit; the full number stays in the hover tip.
+const compactNumber = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+const fmtShort = (value) => {
+  const n = Number(value || 0);
+  return Math.abs(n) >= 100000 ? compactNumber.format(n) : fmt(n);
+};
 
 /* One short, plain label per Reorder List row (full reasons stay in the tooltip).
    Same products and statuses as the Reorder List page (2026-11-07). */
@@ -1280,8 +1287,8 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
                         <span className="db-ps-sub">{product.category || 'No category'}</span>
                       </span>
                     </span>
-                    <span className={`db-ps-num ${product.stockLevel}`} role="cell">{product.stock == null ? '—' : fmt(product.stock)}</span>
-                    <span className="db-ps-num db-ps-sold" role="cell">{fmt(product.units)}</span>
+                    <span className={`db-ps-num ${product.stockLevel}`} role="cell">{product.stock == null ? '—' : fmtShort(product.stock)}</span>
+                    <span className="db-ps-num db-ps-sold" role="cell">{fmtShort(product.units)}</span>
                   </div>
                 ))}
               </div>
