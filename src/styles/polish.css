@@ -502,6 +502,7 @@ select:not([multiple]):focus-visible {
     .ra-table .ra-product > *,
     .ra-bulk-table .ra-product > * {
         min-width: 0;
+        max-width: 100%;   /* never wider than its cell, so it cuts with "…" instead of overlapping */
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -521,6 +522,7 @@ select:not([multiple]):focus-visible {
     }
     .tb-name > strong,
     .tb-name > small {
+        max-width: 100%;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
