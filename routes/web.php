@@ -66,6 +66,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::match(['put', 'patch'], '/profile', [ProfileController::class, 'update']);
     // 2026-11-16: at most 5 tries a minute (nobody can keep guessing the current password).
     Route::post('/profile/password', [ProfileController::class, 'changePassword'])->middleware('throttle:5,1,profile-password');
+    // Change email (2026-11-19): password (+ app code), then a code sent to the new address.
+    Route::post('/profile/email/request', [ProfileController::class, 'requestEmailChange'])->middleware('throttle:5,1,profile-email');
+    Route::post('/profile/email/confirm', [ProfileController::class, 'confirmEmailChange'])->middleware('throttle:10,1,profile-email-confirm');
     Route::get('/profile/activity', [ProfileController::class, 'activity']);
     // Your own Appearance theme (saved per account, see ThemePreferenceController).
     Route::put('/profile/theme', [\App\Http\Controllers\ThemePreferenceController::class, 'update']);

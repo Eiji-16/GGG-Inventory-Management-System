@@ -38,6 +38,19 @@ class ProfileController extends Controller
             'department' => ['sometimes', 'nullable', 'string', 'max:255'],
         ]);
 
+        /* ===== EMAIL NEEDS CONFIRMING (2026-11-19) =====
+           A new email is no longer saved here: Profile → Change email asks for
+           the password (and authenticator code) and a code sent to the new
+           address first. Sending the same email again (the whole form) is fine. */
+        if (array_key_exists('email', $data)) {
+            if (mb_strtolower(trim((string) $data['email'])) !== mb_strtolower(trim((string) $user->email))) {
+                throw ValidationException::withMessages([
+                    'email' => 'To change your email, use Change email so we can confirm the new address first.',
+                ]);
+            }
+            unset($data['email']);
+        }
+
         // department is optional and only persisted if the column exists.
         $department = $data['department'] ?? null;
         unset($data['department']);
@@ -92,26 +105,7 @@ class ProfileController extends Controller
             ]);
         }
 
-        if ($user->hasTwoFactor()) {
-            $code = (string) ($data['code'] ?? '');
-            if ($code === '') {
-                throw ValidationException::withMessages([
-                    'code' => 'Enter the 6-digit code from your authenticator app.',
-                ]);
-            }
-            $step = \App\Support\Totp::verify((string) $user->two_factor_secret, $code);
-            if ($step === null) {
-                throw ValidationException::withMessages([
-                    'code' => 'That code is incorrect. Check the time on your phone and type the newest code.',
-                ]);
-            }
-            // The same code cannot be used twice (same rule as signing in).
-            if (! \Illuminate\Support\Facades\Cache::add("totp_used:{$user->id}:{$step}", 1, now()->addMinutes(3))) {
-                throw ValidationException::withMessages([
-                    'code' => 'This code was already used. Wait for the next code in your app, then type it.',
-                ]);
-            }
-        }
+        $this->assertAppCode($user, $data['code'] ?? null);
 
         $user->password = $data['password'];
         // "Remember me" on other browsers stops working.
@@ -139,6 +133,151 @@ class ProfileController extends Controller
             'message' => 'Your password has been updated. Other devices were signed out.',
             'signedOutDevices' => $signedOut,
         ]);
+    }
+
+    /* ===== CHANGE EMAIL (2026-11-19) =====
+     * Step 1  POST /profile/email/request  { email, current_password, code? }
+     *         Checks the password (and the authenticator code), then emails a
+     *         6-digit code to the NEW address. The email is not changed yet.
+     * Step 2  POST /profile/email/confirm  { code }
+     *         The right code changes the email, and the OLD address gets a
+     *         "Your email was changed" notice.
+     * The waiting change is kept in the cache for 10 minutes (no new table).
+     * At most 5 wrong codes, then the person has to start again.
+     */
+    private const EMAIL_CODE_MINUTES = 10;
+    private const EMAIL_CODE_TRIES = 5;
+
+    private function emailChangeKey(User $user): string
+    {
+        return 'email_change:'.$user->id;
+    }
+
+    public function requestEmailChange(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'email'            => ['required', 'email', 'max:255', 'unique:users,email,'.$user->id],
+            'current_password' => ['required', 'string'],
+            'code'             => ['nullable', 'digits:6'],
+        ], [
+            'email.unique' => 'This email is already used by another account.',
+            'code.digits'  => 'The code must be exactly 6 numbers.',
+        ]);
+
+        $newEmail = trim($data['email']);
+        if (mb_strtolower($newEmail) === mb_strtolower(trim((string) $user->email))) {
+            throw ValidationException::withMessages(['email' => 'This is already your email.']);
+        }
+        if (! Hash::check($data['current_password'], $user->password)) {
+            throw ValidationException::withMessages(['current_password' => 'Your current password is incorrect.']);
+        }
+        $this->assertAppCode($user, $data['code'] ?? null);
+
+        $code = (string) random_int(100000, 999999);
+        try {
+            \Illuminate\Support\Facades\Mail::to($newEmail)->send(new \App\Mail\EmailChangeCodeMail($code, self::EMAIL_CODE_MINUTES));
+        } catch (\Throwable $exception) {
+            \Illuminate\Support\Facades\Log::error('Email change code could not be sent. Check the MAIL_* settings in .env, then run php artisan config:clear.', [
+                'to' => $newEmail,
+                'exception' => $exception,
+            ]);
+            throw ValidationException::withMessages(['email' => 'We could not send a code to that email. Check the address and try again.']);
+        }
+
+        \Illuminate\Support\Facades\Cache::put($this->emailChangeKey($user), [
+            'email' => $newEmail,
+            'hash' => Hash::make($code),
+            'tries' => 0,
+        ], now()->addMinutes(self::EMAIL_CODE_MINUTES));
+
+        return response()->json([
+            'message' => "We sent a 6-digit code to {$newEmail}.",
+            'email' => $newEmail,
+            'expiresInMinutes' => self::EMAIL_CODE_MINUTES,
+        ]);
+    }
+
+    public function confirmEmailChange(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $data = $request->validate(['code' => ['required', 'digits:6']], [
+            'code.digits' => 'The code must be exactly 6 numbers.',
+        ]);
+
+        $cache = \Illuminate\Support\Facades\Cache::store();
+        $key = $this->emailChangeKey($user);
+        $pending = $cache->get($key);
+        if (! is_array($pending) || empty($pending['email'])) {
+            throw ValidationException::withMessages(['code' => 'This code has expired. Start again with Change email.']);
+        }
+        if (! Hash::check($data['code'], (string) $pending['hash'])) {
+            $pending['tries'] = (int) ($pending['tries'] ?? 0) + 1;
+            if ($pending['tries'] >= self::EMAIL_CODE_TRIES) {
+                $cache->forget($key);
+                throw ValidationException::withMessages(['code' => 'Too many wrong codes. Start again with Change email.']);
+            }
+            $cache->put($key, $pending, now()->addMinutes(self::EMAIL_CODE_MINUTES));
+            throw ValidationException::withMessages(['code' => 'That code is incorrect. Check the newest email and try again.']);
+        }
+        // Someone else may have taken the address in the last few minutes.
+        if (User::where('email', $pending['email'])->where('id', '!=', $user->id)->exists()) {
+            $cache->forget($key);
+            throw ValidationException::withMessages(['code' => 'This email is already used by another account.']);
+        }
+
+        $oldEmail = (string) $user->email;
+        $user->email = $pending['email'];
+        $user->save();
+        $cache->forget($key);
+
+        ActivityLog::record('profile.email', 'Changed account email', 'user');
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($oldEmail)->send(new \App\Mail\EmailChangedMail(
+                $user->name,
+                $pending['email'],
+                now()->timezone(config('app.business_timezone', 'Asia/Manila'))->format('M j, Y g:i A'),
+                $this->deviceLabel((string) $request->userAgent()),
+            ));
+        } catch (\Throwable $exception) {
+            \Illuminate\Support\Facades\Log::error('Email changed notice could not be sent. Check the MAIL_* settings in .env, then run php artisan config:clear.', [
+                'to' => $oldEmail,
+                'exception' => $exception,
+            ]);
+        }
+
+        return response()->json($this->format($user->fresh()));
+    }
+
+    /**
+     * Accounts with the authenticator app must type a correct, unused code
+     * (Change Password and Change email share this check).
+     */
+    private function assertAppCode(User $user, $code): void
+    {
+        if (! $user->hasTwoFactor()) {
+            return;
+        }
+        $code = (string) ($code ?? '');
+        if ($code === '') {
+            throw ValidationException::withMessages([
+                'code' => 'Enter the 6-digit code from your authenticator app.',
+            ]);
+        }
+        $step = \App\Support\Totp::verify((string) $user->two_factor_secret, $code);
+        if ($step === null) {
+            throw ValidationException::withMessages([
+                'code' => 'That code is incorrect. Check the time on your phone and type the newest code.',
+            ]);
+        }
+        // The same code cannot be used twice (same rule as signing in).
+        if (! \Illuminate\Support\Facades\Cache::add("totp_used:{$user->id}:{$step}", 1, now()->addMinutes(3))) {
+            throw ValidationException::withMessages([
+                'code' => 'This code was already used. Wait for the next code in your app, then type it.',
+            ]);
+        }
     }
 
     /**

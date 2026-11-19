@@ -276,10 +276,12 @@ class RoleMatrixDeepTest extends TestCase
     {
         config(['auth.super_admin_email' => 'owner@ggg.test']);
         $boss = $this->user(User::ROLE_SUPER_ADMIN, ['email' => 'owner@ggg.test']);
-        $this->actingAs($boss)->putJson('/profile', ['email' => 'new-owner@ggg.test'])->assertOk();
+        // 2026-11-19: Profile Save no longer changes the email (it needs a
+        // confirmation code now), so the emails are set directly here.
+        $boss->forceFill(['email' => 'new-owner@ggg.test'])->save();
 
         $staff = $this->user(User::ROLE_STAFF);
-        $this->actingAs($staff)->putJson('/profile', ['email' => 'owner@ggg.test'])->assertOk();
+        $staff->forceFill(['email' => 'owner@ggg.test'])->save();
 
         foreach ([['GET', '/api/trash'], ['GET', '/api/system/overview'], ['PUT', '/api/role-access'], ['GET', '/staff/account-requests']] as [$method, $uri]) {
             $this->actingAs($staff->fresh())->json($method, $uri, [])->assertForbidden();

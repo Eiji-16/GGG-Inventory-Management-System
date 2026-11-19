@@ -151,6 +151,68 @@ export default function Profile() {
   const [pwdSuccess, setPwdSuccess] = useState('');
   const [pwdSaving, setPwdSaving] = useState(false);
 
+  /* ===== CHANGE EMAIL (2026-11-19) =====
+     Step 1: password (+ authenticator code). Step 2: the code sent to the
+     new email. The email only changes after step 2. */
+  const EMAIL_FLOW_START = { step: 1, email: '', password: '', appCode: '', code: '', busy: false, error: '', info: '' };
+  const [emailFlow, setEmailFlow] = useState(null);
+  const [emailNotice, setEmailNotice] = useState('');
+  const closeEmailFlow = () => setEmailFlow(null);
+  const patchEmailFlow = (changes) => setEmailFlow((prev) => (prev ? { ...prev, ...changes } : prev));
+
+  const firstError = (data, status) => (status === 429
+    ? 'Too many tries. Wait a minute, then try again.'
+    : (data.errors ? Object.values(data.errors).flat()[0] : data.message));
+
+  const sendEmailCode = async (event) => {
+    event.preventDefault();
+    if (!emailFlow) return;
+    patchEmailFlow({ busy: true, error: '' });
+    try {
+      const response = await fetch('/profile/email/request', {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
+        body: JSON.stringify({
+          email: emailFlow.email,
+          current_password: emailFlow.password,
+          code: user?.twoFactorApp ? emailFlow.appCode : undefined,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        patchEmailFlow({ busy: false, error: firstError(data, response.status) || `Could not send the code (${response.status}).`, appCode: data.errors?.code ? '' : emailFlow.appCode });
+        return;
+      }
+      patchEmailFlow({ step: 2, busy: false, code: '', appCode: '', info: data.message || `We sent a 6-digit code to ${emailFlow.email}.` });
+    } catch {
+      patchEmailFlow({ busy: false, error: 'Could not reach the server. Check your connection and try again.' });
+    }
+  };
+
+  const confirmEmailCode = async (event) => {
+    event.preventDefault();
+    if (!emailFlow) return;
+    patchEmailFlow({ busy: true, error: '' });
+    try {
+      const response = await fetch('/profile/email/confirm', {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
+        body: JSON.stringify({ code: emailFlow.code }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        patchEmailFlow({ busy: false, code: '', error: firstError(data, response.status) || `Could not change the email (${response.status}).` });
+        return;
+      }
+      setUser(data);
+      setDraft(data);
+      setEmailFlow(null);
+      setEmailNotice(`Your email is now ${data.email}. We told your old email about the change.`);
+    } catch {
+      patchEmailFlow({ busy: false, error: 'Could not reach the server. Check your connection and try again.' });
+    }
+  };
+
   /* ===== OWN PROFILE PHOTO (separate from the system logo) ===== */
   const photoInputRef = useRef(null);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -228,11 +290,18 @@ export default function Profile() {
 
   const saveEdit = async () => {
     setSaveError('');
+    // A new email is confirmed in its own pop-up (2026-11-19); Save keeps the current one.
+    const newEmail = String(draft.email || '').trim();
+    const emailChanged = newEmail !== '' && newEmail.toLowerCase() !== String(user.email || '').trim().toLowerCase();
+    if (emailChanged && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+      setSaveError('Enter a valid email address.');
+      return;
+    }
     try {
       const response = await fetch('/profile', {
         method: 'PATCH',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
-        body: JSON.stringify({ name: draft.fullName, email: draft.email, department: draft.department }),
+        body: JSON.stringify({ name: draft.fullName, email: user.email, department: draft.department }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -242,6 +311,7 @@ export default function Profile() {
       setUser(data);
       setDraft(data);
       setIsEditing(false);
+      if (emailChanged) setEmailFlow({ ...EMAIL_FLOW_START, email: newEmail });
     } catch (e) {
       setSaveError(e.message || 'Could not save your changes.');
     }
@@ -396,6 +466,7 @@ export default function Profile() {
           <p className="pf-sub hint-text">Contact information tied to this account</p>
 
           <PageToast message={saveError} type="error" onShown={() => setSaveError('')} />
+          <PageToast message={emailNotice} type="success" onShown={() => setEmailNotice('')} />
 
           <div className="pf-field-grid">
             <div className="pf-field">
@@ -510,6 +581,77 @@ export default function Profile() {
         </section>
 
       </div>
+
+      {/* ===== CHANGE EMAIL MODAL (2026-11-19) ===== */}
+      {emailFlow && createPortal(
+        <div className="pf-modal-overlay" onClick={closeEmailFlow}>
+          <div className="pf-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="pf-email-title">
+            <div className="pf-modal-header">
+              <h3 id="pf-email-title"><Mail size={16} /> {emailFlow.step === 1 ? 'Confirm it\'s you' : 'Check your new email'}</h3>
+              <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" onClick={closeEmailFlow} aria-label="Close"><X size={16} /></button>
+            </div>
+            {emailFlow.step === 1 ? (
+              <form className="pf-pwd-form" onSubmit={sendEmailCode}>
+                <p className="pf-sub pf-email-step">Step 1 of 2 · Change your email to <strong>{emailFlow.email}</strong></p>
+                <label>
+                  Current password
+                  <span className="pf-pwd-input">
+                    <input
+                      type="password"
+                      autoComplete="current-password"
+                      required
+                      autoFocus
+                      value={emailFlow.password}
+                      onChange={(event) => patchEmailFlow({ password: event.target.value })}
+                    />
+                  </span>
+                </label>
+                {user?.twoFactorApp && (
+                  <div className="pf-pwd-code">
+                    <span className="pf-pwd-code-label">6-digit code from your authenticator app</span>
+                    <OtpInput value={emailFlow.appCode} onChange={(value) => patchEmailFlow({ appCode: value })} autoFocus={false} idPrefix="pf-email-app-code" label="6-digit code from your authenticator app" />
+                  </div>
+                )}
+                <p className="pf-pwd-note hint-text">
+                  <ShieldCheck size={14} aria-hidden="true" />
+                  <span>We'll send a code to the new email. <strong>Your email stays the same until you type it.</strong></span>
+                </p>
+                <PageToast message={emailFlow.error} type="error" onShown={() => patchEmailFlow({ error: '' })} />
+                <div className="pf-modal-actions">
+                  <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" onClick={closeEmailFlow}>Cancel</button>
+                  <button
+                    type="submit"
+                    className="pf-btn pf-btn-primary pf-btn-sm"
+                    disabled={emailFlow.busy || !emailFlow.password || (user?.twoFactorApp && emailFlow.appCode.length !== 6)}
+                  >
+                    {emailFlow.busy ? 'Sending…' : 'Send code'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form className="pf-pwd-form" onSubmit={confirmEmailCode}>
+                <p className="pf-sub pf-email-step">Step 2 of 2 · {emailFlow.info} It expires in 10 minutes.</p>
+                <div className="pf-pwd-code">
+                  <span className="pf-pwd-code-label">6-digit code from the email</span>
+                  <OtpInput value={emailFlow.code} onChange={(value) => patchEmailFlow({ code: value })} idPrefix="pf-email-code" label="6-digit code from the email" />
+                </div>
+                <p className="pf-pwd-note hint-text">
+                  <ShieldCheck size={14} aria-hidden="true" />
+                  <span>Didn't get it? Check spam, or go <strong>Back</strong> to send a new code.</span>
+                </p>
+                <PageToast message={emailFlow.error} type="error" onShown={() => patchEmailFlow({ error: '' })} />
+                <div className="pf-modal-actions">
+                  <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" onClick={() => patchEmailFlow({ step: 1, error: '', code: '' })}>Back</button>
+                  <button type="submit" className="pf-btn pf-btn-primary pf-btn-sm" disabled={emailFlow.busy || emailFlow.code.length !== 6}>
+                    {emailFlow.busy ? 'Checking…' : 'Change email'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>,
+        document.body,
+      )}
 
       {/* ===== CHANGE PASSWORD MODAL ===== */}
       {/* 2026-11-12: drawn on the page body so it is always centred on phones. */}
