@@ -151,9 +151,9 @@ export default function Profile() {
   const [pwdSuccess, setPwdSuccess] = useState('');
   const [pwdSaving, setPwdSaving] = useState(false);
 
-  /* ===== CHANGE EMAIL (2026-11-19) =====
-     Step 1: password (+ authenticator code). Step 2: the code sent to the
-     new email. The email only changes after step 2. */
+  /* ===== CHANGE EMAIL: DOUBLE CONFIRMATION (2026-11-19) =====
+     1 password (+ authenticator code) → 2 code from the CURRENT email →
+     3 new email → 4 code from the NEW email. Nothing changes before step 4. */
   const EMAIL_FLOW_START = { step: 1, email: '', password: '', appCode: '', code: '', busy: false, error: '', info: '' };
   const [emailFlow, setEmailFlow] = useState(null);
   const [emailNotice, setEmailNotice] = useState('');
@@ -164,52 +164,53 @@ export default function Profile() {
     ? 'Too many tries. Wait a minute, then try again.'
     : (data.errors ? Object.values(data.errors).flat()[0] : data.message));
 
-  const sendEmailCode = async (event) => {
-    event.preventDefault();
-    if (!emailFlow) return;
+  /* One POST for every step; returns the reply, or null after showing the error. */
+  const emailStep = async (url, body) => {
     patchEmailFlow({ busy: true, error: '' });
     try {
-      const response = await fetch('/profile/email/request', {
+      const response = await fetch(url, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
-        body: JSON.stringify({
-          email: emailFlow.email,
-          current_password: emailFlow.password,
-          code: user?.twoFactorApp ? emailFlow.appCode : undefined,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        patchEmailFlow({ busy: false, error: firstError(data, response.status) || `Could not send the code (${response.status}).`, appCode: data.errors?.code ? '' : emailFlow.appCode });
-        return;
+        const message = firstError(data, response.status) || `Something went wrong (${response.status}).`;
+        // "Start again" errors send the person back to step 1.
+        const restart = /Start again/i.test(message);
+        patchEmailFlow({ busy: false, error: message, code: '', appCode: '', ...(restart ? { step: 1 } : {}) });
+        return null;
       }
-      patchEmailFlow({ step: 2, busy: false, code: '', appCode: '', info: data.message || `We sent a 6-digit code to ${emailFlow.email}.` });
+      return data;
     } catch {
       patchEmailFlow({ busy: false, error: 'Could not reach the server. Check your connection and try again.' });
+      return null;
     }
   };
 
-  const confirmEmailCode = async (event) => {
+  const submitEmailStep = async (event) => {
     event.preventDefault();
-    if (!emailFlow) return;
-    patchEmailFlow({ busy: true, error: '' });
-    try {
-      const response = await fetch('/profile/email/confirm', {
-        method: 'POST',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
-        body: JSON.stringify({ code: emailFlow.code }),
+    if (!emailFlow || emailFlow.busy) return;
+    if (emailFlow.step === 1) {
+      const data = await emailStep('/profile/email/start', {
+        current_password: emailFlow.password,
+        code: user?.twoFactorApp ? emailFlow.appCode : undefined,
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        patchEmailFlow({ busy: false, code: '', error: firstError(data, response.status) || `Could not change the email (${response.status}).` });
-        return;
+      if (data) patchEmailFlow({ step: 2, busy: false, code: '', appCode: '', password: '', info: data.message });
+    } else if (emailFlow.step === 2) {
+      const data = await emailStep('/profile/email/approve', { code: emailFlow.code });
+      if (data) patchEmailFlow({ step: 3, busy: false, code: '', info: '' });
+    } else if (emailFlow.step === 3) {
+      const data = await emailStep('/profile/email/request', { email: emailFlow.email.trim() });
+      if (data) patchEmailFlow({ step: 4, busy: false, code: '', info: data.message });
+    } else {
+      const data = await emailStep('/profile/email/confirm', { code: emailFlow.code });
+      if (data) {
+        setUser(data);
+        setDraft(data);
+        setEmailFlow(null);
+        setEmailNotice(`Your email is now ${data.email}. Both your old and new email got a notice.`);
       }
-      setUser(data);
-      setDraft(data);
-      setEmailFlow(null);
-      setEmailNotice(`Your email is now ${data.email}. We told your old email about the change.`);
-    } catch {
-      patchEmailFlow({ busy: false, error: 'Could not reach the server. Check your connection and try again.' });
     }
   };
 
@@ -582,72 +583,111 @@ export default function Profile() {
 
       </div>
 
-      {/* ===== CHANGE EMAIL MODAL (2026-11-19) ===== */}
+      {/* ===== CHANGE EMAIL MODAL (2026-11-19): double confirmation ===== */}
       {emailFlow && createPortal(
         <div className="pf-modal-overlay" onClick={closeEmailFlow}>
           <div className="pf-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="pf-email-title">
             <div className="pf-modal-header">
-              <h3 id="pf-email-title"><Mail size={16} /> {emailFlow.step === 1 ? 'Confirm it\'s you' : 'Check your new email'}</h3>
+              <h3 id="pf-email-title">
+                <Mail size={16} />{' '}
+                {['Confirm it\'s you', 'Approve from your current email', 'Type your new email', 'Check your new email'][emailFlow.step - 1]}
+              </h3>
               <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" onClick={closeEmailFlow} aria-label="Close"><X size={16} /></button>
             </div>
-            {emailFlow.step === 1 ? (
-              <form className="pf-pwd-form" onSubmit={sendEmailCode}>
-                <p className="pf-sub pf-email-step">Step 1 of 2 · Change your email to <strong>{emailFlow.email}</strong></p>
+            <form className="pf-pwd-form" onSubmit={submitEmailStep}>
+              <div className="pf-email-steps" aria-hidden="true">
+                {[1, 2, 3, 4].map((n) => (
+                  <span key={n} className={`pf-email-dot${n < emailFlow.step ? ' is-done' : ''}${n === emailFlow.step ? ' is-now' : ''}`} />
+                ))}
+              </div>
+              <p className="pf-sub pf-email-step">
+                Step {emailFlow.step} of 4 ·{' '}
+                {emailFlow.step === 1 && <>To change your email, first confirm it's you.</>}
+                {emailFlow.step === 2 && <>{emailFlow.info} Type it to approve the change. It expires in 10 minutes.</>}
+                {emailFlow.step === 3 && <>Approved by <strong>{user.email}</strong>. Now type the email you want to use.</>}
+                {emailFlow.step === 4 && <>{emailFlow.info} Type it to finish. It expires in 10 minutes.</>}
+              </p>
+
+              {emailFlow.step === 1 && (
+                <>
+                  <label>
+                    Current password
+                    <span className="pf-pwd-input">
+                      <input
+                        type="password"
+                        autoComplete="current-password"
+                        required
+                        autoFocus
+                        value={emailFlow.password}
+                        onChange={(event) => patchEmailFlow({ password: event.target.value })}
+                      />
+                    </span>
+                  </label>
+                  {user?.twoFactorApp && (
+                    <div className="pf-pwd-code">
+                      <span className="pf-pwd-code-label">6-digit code from your authenticator app</span>
+                      <OtpInput value={emailFlow.appCode} onChange={(value) => patchEmailFlow({ appCode: value })} autoFocus={false} idPrefix="pf-email-app-code" label="6-digit code from your authenticator app" />
+                    </div>
+                  )}
+                </>
+              )}
+
+              {(emailFlow.step === 2 || emailFlow.step === 4) && (
+                <div className="pf-pwd-code">
+                  <span className="pf-pwd-code-label">6-digit code from {emailFlow.step === 2 ? 'your current email' : 'your new email'}</span>
+                  <OtpInput
+                    key={emailFlow.step}
+                    value={emailFlow.code}
+                    onChange={(value) => patchEmailFlow({ code: value })}
+                    idPrefix={`pf-email-code-${emailFlow.step}`}
+                    label={`6-digit code from ${emailFlow.step === 2 ? 'your current email' : 'your new email'}`}
+                  />
+                </div>
+              )}
+
+              {emailFlow.step === 3 && (
                 <label>
-                  Current password
+                  New email
                   <span className="pf-pwd-input">
                     <input
-                      type="password"
-                      autoComplete="current-password"
+                      type="email"
+                      autoComplete="email"
                       required
                       autoFocus
-                      value={emailFlow.password}
-                      onChange={(event) => patchEmailFlow({ password: event.target.value })}
+                      value={emailFlow.email}
+                      onChange={(event) => patchEmailFlow({ email: event.target.value })}
                     />
                   </span>
                 </label>
-                {user?.twoFactorApp && (
-                  <div className="pf-pwd-code">
-                    <span className="pf-pwd-code-label">6-digit code from your authenticator app</span>
-                    <OtpInput value={emailFlow.appCode} onChange={(value) => patchEmailFlow({ appCode: value })} autoFocus={false} idPrefix="pf-email-app-code" label="6-digit code from your authenticator app" />
-                  </div>
-                )}
-                <p className="pf-pwd-note hint-text">
-                  <ShieldCheck size={14} aria-hidden="true" />
-                  <span>We'll send a code to the new email. <strong>Your email stays the same until you type it.</strong></span>
-                </p>
-                <PageToast message={emailFlow.error} type="error" onShown={() => patchEmailFlow({ error: '' })} />
-                <div className="pf-modal-actions">
-                  <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" onClick={closeEmailFlow}>Cancel</button>
-                  <button
-                    type="submit"
-                    className="pf-btn pf-btn-primary pf-btn-sm"
-                    disabled={emailFlow.busy || !emailFlow.password || (user?.twoFactorApp && emailFlow.appCode.length !== 6)}
-                  >
-                    {emailFlow.busy ? 'Sending…' : 'Send code'}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <form className="pf-pwd-form" onSubmit={confirmEmailCode}>
-                <p className="pf-sub pf-email-step">Step 2 of 2 · {emailFlow.info} It expires in 10 minutes.</p>
-                <div className="pf-pwd-code">
-                  <span className="pf-pwd-code-label">6-digit code from the email</span>
-                  <OtpInput value={emailFlow.code} onChange={(value) => patchEmailFlow({ code: value })} idPrefix="pf-email-code" label="6-digit code from the email" />
-                </div>
-                <p className="pf-pwd-note hint-text">
-                  <ShieldCheck size={14} aria-hidden="true" />
-                  <span>Didn't get it? Check spam, or go <strong>Back</strong> to send a new code.</span>
-                </p>
-                <PageToast message={emailFlow.error} type="error" onShown={() => patchEmailFlow({ error: '' })} />
-                <div className="pf-modal-actions">
-                  <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" onClick={() => patchEmailFlow({ step: 1, error: '', code: '' })}>Back</button>
-                  <button type="submit" className="pf-btn pf-btn-primary pf-btn-sm" disabled={emailFlow.busy || emailFlow.code.length !== 6}>
-                    {emailFlow.busy ? 'Checking…' : 'Change email'}
-                  </button>
-                </div>
-              </form>
-            )}
+              )}
+
+              <p className="pf-pwd-note hint-text">
+                <ShieldCheck size={14} aria-hidden="true" />
+                <span>
+                  {emailFlow.step === 2
+                    ? <>Can't open your current email? <strong>Ask the Super Admin</strong> to change it for you in Staffs.</>
+                    : emailFlow.step === 4
+                      ? <>Didn't get it? Check spam, or go <strong>Back</strong> to fix the address.</>
+                      : <>Your email stays the same until the <strong>last step</strong>.</>}
+                </span>
+              </p>
+              <PageToast message={emailFlow.error} type="error" onShown={() => patchEmailFlow({ error: '' })} />
+              <div className="pf-modal-actions">
+                {emailFlow.step === 4
+                  ? <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" onClick={() => patchEmailFlow({ step: 3, error: '', code: '' })}>Back</button>
+                  : <button type="button" className="pf-btn pf-btn-ghost pf-btn-sm" onClick={closeEmailFlow}>Cancel</button>}
+                <button
+                  type="submit"
+                  className="pf-btn pf-btn-primary pf-btn-sm"
+                  disabled={emailFlow.busy
+                    || (emailFlow.step === 1 && (!emailFlow.password || (user?.twoFactorApp && emailFlow.appCode.length !== 6)))
+                    || ((emailFlow.step === 2 || emailFlow.step === 4) && emailFlow.code.length !== 6)
+                    || (emailFlow.step === 3 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailFlow.email.trim()))}
+                >
+                  {emailFlow.busy ? 'Please wait…' : ['Send code to my email', 'Approve', 'Send code to new email', 'Change email'][emailFlow.step - 1]}
+                </button>
+              </div>
+            </form>
           </div>
         </div>,
         document.body,

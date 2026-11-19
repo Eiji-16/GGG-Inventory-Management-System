@@ -135,15 +135,18 @@ class ProfileController extends Controller
         ]);
     }
 
-    /* ===== CHANGE EMAIL (2026-11-19) =====
-     * Step 1  POST /profile/email/request  { email, current_password, code? }
-     *         Checks the password (and the authenticator code), then emails a
-     *         6-digit code to the NEW address. The email is not changed yet.
-     * Step 2  POST /profile/email/confirm  { code }
-     *         The right code changes the email, and the OLD address gets a
-     *         "Your email was changed" notice.
-     * The waiting change is kept in the cache for 10 minutes (no new table).
-     * At most 5 wrong codes, then the person has to start again.
+    /* ===== CHANGE EMAIL: DOUBLE CONFIRMATION (2026-11-19) =====
+     * 1. POST /profile/email/start    { current_password, code? }
+     *    Password (and authenticator code) are right: a code is sent to the
+     *    CURRENT email so the real owner approves the change.
+     * 2. POST /profile/email/approve  { code }   (code from the current email)
+     * 3. POST /profile/email/request  { email }  only after step 2: a code
+     *    is sent to the NEW email to prove it is typed right and owned.
+     * 4. POST /profile/email/confirm  { code }   (code from the new email)
+     *    The email changes, and both addresses get a notice.
+     * The waiting change lives in the cache (10 minutes per step, no new
+     * table). 5 wrong codes at any step cancel it. Can't open the current
+     * email? The Super Admin can change it in Staffs.
      */
     private const EMAIL_CODE_MINUTES = 10;
     private const EMAIL_CODE_TRIES = 5;
@@ -153,44 +156,132 @@ class ProfileController extends Controller
         return 'email_change:'.$user->id;
     }
 
-    public function requestEmailChange(Request $request): JsonResponse
+    /** Save a new code for this step and return it (only its hash is kept). */
+    private function newEmailChangeCode(User $user, array $pending): string
+    {
+        $code = (string) random_int(100000, 999999);
+        \Illuminate\Support\Facades\Cache::put($this->emailChangeKey($user), $pending + [
+            'hash' => Hash::make($code),
+            'tries' => 0,
+        ], now()->addMinutes(self::EMAIL_CODE_MINUTES));
+
+        return $code;
+    }
+
+    /** The waiting change, if it is at this step; otherwise a plain error. */
+    private function pendingAt(User $user, string $stage, string $field = 'code'): array
+    {
+        $pending = \Illuminate\Support\Facades\Cache::get($this->emailChangeKey($user));
+        if (! is_array($pending) || ($pending['stage'] ?? null) !== $stage) {
+            throw ValidationException::withMessages([$field => 'This step has expired. Start again with Change email.']);
+        }
+
+        return $pending;
+    }
+
+    /** Check a typed code for this step; 5 wrong codes cancel the change. */
+    private function checkEmailChangeCode(User $user, array $pending, string $code): void
+    {
+        if (Hash::check($code, (string) ($pending['hash'] ?? ''))) {
+            return;
+        }
+        $key = $this->emailChangeKey($user);
+        $pending['tries'] = (int) ($pending['tries'] ?? 0) + 1;
+        if ($pending['tries'] >= self::EMAIL_CODE_TRIES) {
+            \Illuminate\Support\Facades\Cache::forget($key);
+            throw ValidationException::withMessages(['code' => 'Too many wrong codes. Start again with Change email.']);
+        }
+        \Illuminate\Support\Facades\Cache::put($key, $pending, now()->addMinutes(self::EMAIL_CODE_MINUTES));
+        throw ValidationException::withMessages(['code' => 'That code is incorrect. Check the newest email and try again.']);
+    }
+
+    private function sendOrFail(string $to, \Illuminate\Mail\Mailable $mail, string $field): void
+    {
+        try {
+            \Illuminate\Support\Facades\Mail::to($to)->send($mail);
+        } catch (\Throwable $exception) {
+            \Illuminate\Support\Facades\Log::error('Change email code could not be sent. Check the MAIL_* settings in .env, then run php artisan config:clear.', [
+                'to' => $to,
+                'exception' => $exception,
+            ]);
+            \Illuminate\Support\Facades\Cache::forget($this->emailChangeKey(request()->user()));
+            throw ValidationException::withMessages([$field => 'We could not send the code. Check the address and try again in a minute.']);
+        }
+    }
+
+    /** Step 1: password (+ app code), then a code to the CURRENT email. */
+    public function startEmailChange(Request $request): JsonResponse
     {
         $user = $request->user();
-
         $data = $request->validate([
-            'email'            => ['required', 'email', 'max:255', 'unique:users,email,'.$user->id],
             'current_password' => ['required', 'string'],
             'code'             => ['nullable', 'digits:6'],
         ], [
-            'email.unique' => 'This email is already used by another account.',
-            'code.digits'  => 'The code must be exactly 6 numbers.',
+            'code.digits' => 'The code must be exactly 6 numbers.',
         ]);
 
-        $newEmail = trim($data['email']);
-        if (mb_strtolower($newEmail) === mb_strtolower(trim((string) $user->email))) {
-            throw ValidationException::withMessages(['email' => 'This is already your email.']);
-        }
         if (! Hash::check($data['current_password'], $user->password)) {
             throw ValidationException::withMessages(['current_password' => 'Your current password is incorrect.']);
         }
         $this->assertAppCode($user, $data['code'] ?? null);
 
-        $code = (string) random_int(100000, 999999);
+        $code = $this->newEmailChangeCode($user, ['stage' => 'old']);
+        $this->sendOrFail((string) $user->email, new \App\Mail\EmailChangeApproveMail(
+            $user->name,
+            $code,
+            self::EMAIL_CODE_MINUTES,
+            $this->deviceLabel((string) $request->userAgent()),
+        ), 'current_password');
+
+        return response()->json([
+            'message' => "We sent a 6-digit code to your current email, {$user->email}.",
+            'expiresInMinutes' => self::EMAIL_CODE_MINUTES,
+        ]);
+    }
+
+    /** Step 2: the code from the CURRENT email approves the change. */
+    public function approveEmailChange(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $data = $request->validate(['code' => ['required', 'digits:6']], [
+            'code.digits' => 'The code must be exactly 6 numbers.',
+        ]);
+
+        $this->checkEmailChangeCode($user, $this->pendingAt($user, 'old'), $data['code']);
+        \Illuminate\Support\Facades\Cache::put($this->emailChangeKey($user), ['stage' => 'approved'], now()->addMinutes(self::EMAIL_CODE_MINUTES));
+
+        return response()->json(['message' => 'Approved. Now type your new email.']);
+    }
+
+    /** Step 3: only after approval, a code to the NEW email. */
+    public function requestEmailChange(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $this->pendingAt($user, 'approved', 'email');
+
+        $data = $request->validate([
+            'email' => ['required', 'email', 'max:255', 'unique:users,email,'.$user->id],
+        ], [
+            'email.unique' => 'This email is already used by another account.',
+        ]);
+        $newEmail = trim($data['email']);
+        if (mb_strtolower($newEmail) === mb_strtolower(trim((string) $user->email))) {
+            throw ValidationException::withMessages(['email' => 'This is already your email.']);
+        }
+
+        // The approval may be used for one new email at a time.
+        $code = $this->newEmailChangeCode($user, ['stage' => 'new', 'email' => $newEmail]);
         try {
             \Illuminate\Support\Facades\Mail::to($newEmail)->send(new \App\Mail\EmailChangeCodeMail($code, self::EMAIL_CODE_MINUTES));
         } catch (\Throwable $exception) {
-            \Illuminate\Support\Facades\Log::error('Email change code could not be sent. Check the MAIL_* settings in .env, then run php artisan config:clear.', [
+            \Illuminate\Support\Facades\Log::error('Change email code could not be sent. Check the MAIL_* settings in .env, then run php artisan config:clear.', [
                 'to' => $newEmail,
                 'exception' => $exception,
             ]);
+            // Keep the approval so the person can fix a typo and try again.
+            \Illuminate\Support\Facades\Cache::put($this->emailChangeKey($user), ['stage' => 'approved'], now()->addMinutes(self::EMAIL_CODE_MINUTES));
             throw ValidationException::withMessages(['email' => 'We could not send a code to that email. Check the address and try again.']);
         }
-
-        \Illuminate\Support\Facades\Cache::put($this->emailChangeKey($user), [
-            'email' => $newEmail,
-            'hash' => Hash::make($code),
-            'tries' => 0,
-        ], now()->addMinutes(self::EMAIL_CODE_MINUTES));
 
         return response()->json([
             'message' => "We sent a 6-digit code to {$newEmail}.",
@@ -199,6 +290,7 @@ class ProfileController extends Controller
         ]);
     }
 
+    /** Step 4: the code from the NEW email changes the email. */
     public function confirmEmailChange(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -206,46 +298,33 @@ class ProfileController extends Controller
             'code.digits' => 'The code must be exactly 6 numbers.',
         ]);
 
-        $cache = \Illuminate\Support\Facades\Cache::store();
+        $pending = $this->pendingAt($user, 'new');
+        $this->checkEmailChangeCode($user, $pending, $data['code']);
         $key = $this->emailChangeKey($user);
-        $pending = $cache->get($key);
-        if (! is_array($pending) || empty($pending['email'])) {
-            throw ValidationException::withMessages(['code' => 'This code has expired. Start again with Change email.']);
-        }
-        if (! Hash::check($data['code'], (string) $pending['hash'])) {
-            $pending['tries'] = (int) ($pending['tries'] ?? 0) + 1;
-            if ($pending['tries'] >= self::EMAIL_CODE_TRIES) {
-                $cache->forget($key);
-                throw ValidationException::withMessages(['code' => 'Too many wrong codes. Start again with Change email.']);
-            }
-            $cache->put($key, $pending, now()->addMinutes(self::EMAIL_CODE_MINUTES));
-            throw ValidationException::withMessages(['code' => 'That code is incorrect. Check the newest email and try again.']);
-        }
         // Someone else may have taken the address in the last few minutes.
         if (User::where('email', $pending['email'])->where('id', '!=', $user->id)->exists()) {
-            $cache->forget($key);
+            \Illuminate\Support\Facades\Cache::forget($key);
             throw ValidationException::withMessages(['code' => 'This email is already used by another account.']);
         }
 
         $oldEmail = (string) $user->email;
         $user->email = $pending['email'];
         $user->save();
-        $cache->forget($key);
+        \Illuminate\Support\Facades\Cache::forget($key);
 
-        ActivityLog::record('profile.email', 'Changed account email', 'user');
+        ActivityLog::record('profile.email', 'Changed account email (approved by the old and the new email)', 'user');
 
-        try {
-            \Illuminate\Support\Facades\Mail::to($oldEmail)->send(new \App\Mail\EmailChangedMail(
-                $user->name,
-                $pending['email'],
-                now()->timezone(config('app.business_timezone', 'Asia/Manila'))->format('M j, Y g:i A'),
-                $this->deviceLabel((string) $request->userAgent()),
-            ));
-        } catch (\Throwable $exception) {
-            \Illuminate\Support\Facades\Log::error('Email changed notice could not be sent. Check the MAIL_* settings in .env, then run php artisan config:clear.', [
-                'to' => $oldEmail,
-                'exception' => $exception,
-            ]);
+        $changedAt = now()->timezone(config('app.business_timezone', 'Asia/Manila'))->format('M j, Y g:i A');
+        $device = $this->deviceLabel((string) $request->userAgent());
+        foreach ([$oldEmail, $pending['email']] as $to) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($to)->send(new \App\Mail\EmailChangedMail($user->name, $pending['email'], $changedAt, $device));
+            } catch (\Throwable $exception) {
+                \Illuminate\Support\Facades\Log::error('Email changed notice could not be sent. Check the MAIL_* settings in .env, then run php artisan config:clear.', [
+                    'to' => $to,
+                    'exception' => $exception,
+                ]);
+            }
         }
 
         return response()->json($this->format($user->fresh()));

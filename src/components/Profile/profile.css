@@ -579,3 +579,7 @@
 /* ===== CHANGE EMAIL POP-UP (2026-11-19) ===== */
 .pf-email-step { margin: 0 0 4px; line-height: 1.5; overflow-wrap: anywhere; }
 .pf-email-step strong { color: var(--text-primary); }
+.pf-email-steps { display: flex; gap: 6px; margin: 0 0 2px; }
+.pf-email-dot { flex: 1; height: 4px; border-radius: 999px; background: var(--border-color); }
+.pf-email-dot.is-done { background: color-mix(in srgb, var(--accent, #E8C547) 55%, transparent); }
+.pf-email-dot.is-now { background: var(--accent, #E8C547); }

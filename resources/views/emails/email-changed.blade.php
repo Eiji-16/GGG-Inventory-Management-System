@@ -13,7 +13,7 @@
             <div style="padding:22px 24px 6px">
                 <span style="display:inline-block;padding:4px 10px;background:#16295c;color:#ffffff;font-size:11px;font-weight:700;letter-spacing:.08em;border-radius:999px">SIGN-IN SECURITY</span>
                 <h1 style="margin:14px 0 8px;font-size:21px;line-height:1.3">Your email was changed</h1>
-                <p style="margin:0 0 18px;line-height:1.6;font-size:14px;color:#5b6785">Hi {{ $userName }}, the email of your account was just changed in Profile. Sign-in codes and password resets now go to the new email.</p>
+                <p style="margin:0 0 18px;line-height:1.6;font-size:14px;color:#5b6785">Hi {{ $userName }}, the email of your account was just changed in Profile, after codes from both the old and the new email were typed. Sign-in codes and password resets now go to the new email.</p>
 
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px">
                     <tr>
@@ -39,7 +39,7 @@
             <div style="height:24px"></div>
         </td></tr>
         <tr><td style="padding:14px 6px 0;color:#8a94ab;font-size:11.5px;line-height:1.6;text-align:center">
-            This message was sent by {{ $system }}, the inventory system of Global Growth Guide, to the owner of this account. Please do not reply to this email.
+            This message was sent by {{ $system }}, the inventory system of Global Growth Guide, to the old and the new email of this account. Please do not reply to this email.
         </td></tr>
     </table>
 </body>
