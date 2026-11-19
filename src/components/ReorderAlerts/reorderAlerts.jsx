@@ -320,7 +320,8 @@ export default function ReorderAlerts({
 
   /* ===== ROWS PER PAGE (2026-11-18) =====
      A product opened from the Dashboard jumps to the page it is on. */
-  const pager = usePagedRows('reorder-list', visible, { resetKey: `${query.trim()}|${statusFilter}` });
+  /* ===== NO "ALL" OPTION (2026-11-19) ===== at most 50 rows are drawn at once, so long lists scroll smoothly */
+  const pager = usePagedRows('reorder-list', visible, { options: ['10', '25', '50'], resetKey: `${query.trim()}|${statusFilter}` });
   const { size: pageSize, setPage: setReorderPage } = pager;
   useEffect(() => {
     if (!highlightId) return;

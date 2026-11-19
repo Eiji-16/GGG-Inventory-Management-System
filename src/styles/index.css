@@ -498,7 +498,11 @@ html .dashboard-page-wrapper {
         radial-gradient(60% 38% at 50% 104%, color-mix(in srgb, var(--accent, #E8C547) 20%, transparent) 0%, transparent 72%),
         radial-gradient(40% 24% at 50% -6%, color-mix(in srgb, var(--accent, #E8C547) 8%, transparent) 0%, transparent 70%);
     background-repeat: no-repeat;
-    background-attachment: fixed;
+    /* ===== SMOOTHER SCROLLING (2026-11-19) =====
+       Was "fixed", which makes the browser repaint the whole glow on every
+       scroll step. The page box is already one screen tall (the inside
+       scrolls, not the page), so the glow looks the same without it. */
+    background-attachment: scroll;
 }
 
 /* ==========================================================================
