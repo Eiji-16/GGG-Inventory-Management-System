@@ -583,3 +583,74 @@
 .pf-email-dot { flex: 1; height: 4px; border-radius: 999px; background: var(--border-color); }
 .pf-email-dot.is-done { background: color-mix(in srgb, var(--accent, #E8C547) 55%, transparent); }
 .pf-email-dot.is-now { background: var(--accent, #E8C547); }
+
+/* ===== COMPACT PHONE VIEW (2026-11-19) =====
+   Phones only (640px or less); PC and tablet stay as they were.
+   - Photo beside the name, Edit as a small pencil button.
+   - Account Details: label and value on one line, like a settings list.
+   - Security comes before Role & Permissions; card notes are hidden. */
+@media (max-width: 640px) {
+    .pf-root { padding: 6px; }
+    .pf-grid { gap: 10px; }
+    .pf-card { padding: 12px 14px; }
+    .pf-card > .pf-sub.hint-text { display: none; }
+
+    .pf-area-identity  { order: 1; }
+    .pf-area-details   { order: 2; }
+    .pf-area-security  { order: 3; }
+    .pf-area-permissions { order: 4; }
+    .pf-area-activity  { order: 5; }
+
+    /* Photo, name and the pencil in one row. */
+    .pf-area-identity {
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+    }
+    .pf-area-identity .pf-avatar { width: 2.75rem; height: 2.75rem; font-size: 15px; }
+    .pf-identity-text h2 { font-size: 15px; }
+    .pf-identity-text > .pf-sub {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .pf-identity-text .pf-role-pill { margin-top: 5px; }
+    /* "Edit profile" becomes just the pencil (Save / Cancel keep their words). */
+    .pf-area-identity > .pf-btn {
+        align-self: flex-start;
+        flex-shrink: 0;
+        gap: 0;
+        padding: 7px 9px;
+        font-size: 0;
+    }
+    .pf-area-identity > .pf-btn svg { width: 14px; height: 14px; }
+    .pf-area-identity > .pf-edit-actions { align-self: flex-start; flex-direction: column; }
+
+    /* Account Details: one line per field. */
+    .pf-area-details .pf-field-grid { gap: 0; margin-top: 6px; }
+    .pf-area-details .pf-field {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .pf-area-details .pf-field:last-child { border-bottom: 0; }
+    .pf-area-details .pf-field label { flex-shrink: 0; }
+    .pf-area-details .pf-field label svg { display: none; }
+    .pf-area-details .pf-value {
+        min-width: 0;
+        max-width: 64%;
+        padding: 0;
+        border-bottom: 0;
+        text-align: right;
+    }
+    /* While editing, the text boxes stay under their labels. */
+    .pf-area-details .pf-field:has(input, select) {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 5px;
+    }
+}
