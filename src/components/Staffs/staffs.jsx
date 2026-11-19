@@ -81,7 +81,7 @@ function Staffs({ isSuperAdmin = false, canManageStaff = false, canReviewRequest
   // 2026-11-16: the accounts table stops at the bottom of the screen and
   // scrolls inside, so the whole Staffs page does not scroll (same helper as
   // Account requests and Stock Control).
-  const fillTableToBottom = useFillToBottom(4, { shrink: true });
+  const fillTableToBottom = useFillToBottom(4);   /* ===== FILL TO BOTTOM (2026-11-19) ===== box always reaches the page bottom, so the page bar stays at the bottom */
   // 2026-11-12: tick several deactivated accounts, then Reactivate or Move to Trash Bin at once.
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   // Tabs (Super Admin, 2026-11-06): 'accounts' | 'requests' — same style as Stock | History.

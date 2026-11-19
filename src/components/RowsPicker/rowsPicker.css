@@ -146,3 +146,15 @@
 
 /* Page bar placed under a table box (Staffs, Account Requests, Reorder List). */
 .rows-footer-outside { padding: 8px 4px 0; }
+
+/* ===== SAME GAP UNDER EVERY TABLE (2026-11-19) =====
+   One spacing for every page bar (Products, Suppliers, Stock Control,
+   Staffs, Account Requests, Trash Bin, Reorder List, Reports pop-ups):
+   12px between the table box and the bar, 8px under the bar.
+   "div.rows-footer" wins over each page's own padding rules. */
+div.rows-footer {
+    padding: 12px 4px 8px;
+}
+div.rows-footer :is(.ps-pagination, .sc-pager, .rows-footer-all) {
+    padding: 0;
+}

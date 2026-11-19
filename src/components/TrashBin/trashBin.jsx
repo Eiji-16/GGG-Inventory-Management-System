@@ -59,7 +59,7 @@ function TrashBin({ isActive = false, refreshKey = 0, onRestored, embedded = fal
   const kindTabs = restoreOnly ? KINDS.filter((tab) => tab.key !== 'account') : KINDS;
   const { formatCurrency } = useCurrency();
   // The table stretches to the bottom of the page (no empty space under it).
-  const fillTableToBottom = useFillToBottom(4, { shrink: true });   // full page fills the box; a short last page shrinks
+  const fillTableToBottom = useFillToBottom(4);   /* ===== FILL TO BOTTOM (2026-11-19) ===== box always reaches the page bottom, so the page bar stays at the bottom */
   const [records, setRecords] = useState([]);
   const [space, setSpace] = useState('trash');
   const [counts, setCounts] = useState({ all: 0, product: 0, account: 0, entry: 0, supplier: 0, event: 0 });

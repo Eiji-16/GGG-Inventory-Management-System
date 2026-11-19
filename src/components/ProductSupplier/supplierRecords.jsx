@@ -19,7 +19,7 @@ const EMPTY_SUPPLIER = { id: null, name: '', contact: '', leadTimeDays: '' };
 export default function SupplierRecords({ onSuppliersChange, canManage = true, dataRevision = 0, sectionTabs = null }) {
   // The suppliers table is as tall as its rows and stops at the bottom of the
   // page (then scrolls inside), so the page itself doesn't scroll.
-  const fillTableToBottom = useFillToBottom(4, { shrink: true });
+  const fillTableToBottom = useFillToBottom(4);   /* ===== FILL TO BOTTOM (2026-11-19) ===== box always reaches the page bottom, so the page bar stays at the bottom */
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

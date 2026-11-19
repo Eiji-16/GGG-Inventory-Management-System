@@ -45,7 +45,7 @@ export default function AccountRequests({ onChanged, onCount, hidden = false, ca
   const [busyId, setBusyId] = useState(null);
   // 2026-11-12: the table stops at the bottom of the screen and scrolls inside,
   // so the whole Staffs page does not scroll (same helper as the Trash Bin).
-  const fillTableToBottom = useFillToBottom(4, { shrink: true });
+  const fillTableToBottom = useFillToBottom(4);   /* ===== FILL TO BOTTOM (2026-11-19) ===== box always reaches the page bottom, so the page bar stays at the bottom */
   const [roles, setRoles] = useState({});        // request id → 'staff' | 'admin'
 
   const load = useCallback(async () => {
