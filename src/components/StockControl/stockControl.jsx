@@ -523,7 +523,7 @@ function StockControl({
     : null;
   const [confirmSale, setConfirmSale] = useState(null);
   // Stock and History tables stretch to the bottom of the page (no empty space under them).
-  const fillTableToBottom = useFillToBottom(4);   /* ===== FILL TO BOTTOM (2026-11-19) ===== box always reaches the page bottom, so the page bar stays at the bottom */
+  const fillTableToBottom = useFillToBottom(4, { shrink: true, pinFooter: true });   /* ===== PAGE BAR AT THE BOTTOM (2026-11-19) ===== box ends where its rows end; the page bar stays at the bottom of the page */
   // The table box (Stock or History, whichever is open). Its rows-per-page is
   // worked out from its height, so a full page fills the box exactly.
   const [tableBox, setTableBox] = useState(null);

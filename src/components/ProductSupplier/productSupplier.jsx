@@ -342,7 +342,7 @@ function ProductSupplier({
   /* ===== PRODUCTS PER PAGE =====
      Keep a predictable page size so the table doesn't clip a partially shown
      product row when the available height changes. */
-  const fillTableToBottom = useFillToBottom(4);   /* ===== FILL TO BOTTOM (2026-11-19) ===== box always reaches the page bottom, so the page bar stays at the bottom */
+  const fillTableToBottom = useFillToBottom(4, { shrink: true, pinFooter: true });   /* ===== PAGE BAR AT THE BOTTOM (2026-11-19) ===== box ends where its rows end; the page bar stays at the bottom of the page */
   const tableRef = useCallback((element) => {
     fillTableToBottom(element);
   }, [fillTableToBottom]);

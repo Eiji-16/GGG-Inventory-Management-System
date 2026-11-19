@@ -20,12 +20,17 @@ import { uiZoom } from '../fontSize';
    bottom of the page (for short lists like Suppliers, so no empty space
    inside the box).
 
+   pinFooter: true (2026-11-19) = with shrink, the page bar (.rows-footer)
+   that comes after the box is pushed down to the bottom of the page, so it
+   stays in the same place even when the list is short. The box itself still
+   ends where its rows end.
+
    Phones (900px wide or less) keep their normal card list, so nothing is
    changed there. */
 const DESKTOP = '(min-width: 901px)';
 const MIN_HEIGHT = 200;
 
-export default function useFillToBottom(gap = 4, { shrink = false } = {}) {
+export default function useFillToBottom(gap = 4, { shrink = false, pinFooter = false } = {}) {
   const cleanupRef = useRef(null);
 
   return useCallback((element) => {
@@ -38,6 +43,19 @@ export default function useFillToBottom(gap = 4, { shrink = false } = {}) {
     let page = element;
     while (page && page.parentElement && page.parentElement !== area) page = page.parentElement;
 
+    /* ===== PAGE BAR TO PUSH DOWN ===== the first .rows-footer after the box */
+    const findFooter = () => {
+      if (!pinFooter || !page) return null;
+      return Array.from(page.querySelectorAll('.rows-footer')).find(
+        (bar) => element.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ) || null;
+    };
+    let pushed = null;   // the bar we gave a top margin to
+    const clearPush = () => {
+      if (pushed) { pushed.style.marginTop = ''; delete pushed.dataset.push; }
+      pushed = null;
+    };
+
     let frame = 0;
     const apply = () => {
       frame = 0;
@@ -46,8 +64,13 @@ export default function useFillToBottom(gap = 4, { shrink = false } = {}) {
         element.style.height = '';
         element.style.minHeight = '';
         element.style.maxHeight = '';
+        clearPush();
         return;
       }
+      const footer = findFooter();
+      if (footer !== pushed) clearPush();
+      // Space the bar was already pushed down by: the box may grow into it.
+      const pushedBy = footer ? (Number(footer.dataset.push) || 0) : 0;
       // On-screen sizes are scaled by Settings → Font size; turn them back
       // into page pixels so they match clientHeight and the px we set.
       const zoom = uiZoom();
@@ -61,7 +84,7 @@ export default function useFillToBottom(gap = 4, { shrink = false } = {}) {
         - area.clientTop + area.scrollTop;
       const leftover = areaInside - pageBottom;              // empty space under the page
       const current = element.getBoundingClientRect().height / zoom;
-      const target = Math.max(MIN_HEIGHT, Math.floor(current + leftover - gap));
+      const target = Math.max(MIN_HEIGHT, Math.floor(current + pushedBy + leftover - gap));
 
       if (shrink) {
         // As tall as its rows, but never past the bottom of the page.
@@ -70,6 +93,17 @@ export default function useFillToBottom(gap = 4, { shrink = false } = {}) {
           element.style.minHeight = '0';   // no forced minimum: a 1-row page is 1 row tall
           element.style.maxHeight = `${target}px`;
           element.dispatchEvent(new CustomEvent('fill-resize'));   // tells useRowsThatFit
+        }
+        if (footer) {
+          // Push the bar down by the space the (shorter) box left empty.
+          const boxHeight = element.getBoundingClientRect().height / zoom;
+          const push = Math.max(0, Math.floor(target - boxHeight));
+          if (Math.abs(pushedBy - push) >= 1 || footer.dataset.push === undefined) {
+            // Keep the page's own shift (rowsPicker.css) and add the push.
+            footer.style.marginTop = `calc(var(--rows-footer-shift, 0px) + ${push}px)`;
+            footer.dataset.push = String(push);
+          }
+          pushed = footer;
         }
       } else if (Math.abs(current - target) >= 1) {
         element.style.height = `${target}px`;
@@ -89,12 +123,14 @@ export default function useFillToBottom(gap = 4, { shrink = false } = {}) {
       // The page changes size when a banner, the page buttons or rows appear.
       if (page && page !== element) observer.observe(page);
       if (element.parentElement) observer.observe(element.parentElement);
+      if (pinFooter) observer.observe(element);   // rows added or removed
     }
 
     cleanupRef.current = () => {
       window.removeEventListener('resize', schedule);
       observer?.disconnect();
       if (frame) window.cancelAnimationFrame(frame);
+      clearPush();
     };
-  }, [gap, shrink]);
+  }, [gap, shrink, pinFooter]);
 }

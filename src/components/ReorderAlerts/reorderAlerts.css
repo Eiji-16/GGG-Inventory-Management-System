@@ -1553,3 +1553,9 @@
 }
 .ra-choice.is-disabled:hover,
 .ra-choice:disabled:hover { transform: none; border-color: var(--border-color); }
+
+/* ===== SHORT LIST ENDS WHERE ITS ROWS END (2026-11-19) =====
+   Same as the other tables: the box is only as tall as its rows (it still
+   scrolls inside when the list is long). The page bar stays at the bottom
+   of the page because the card fills the page. */
+.ra-table-scroll { flex: 0 1 auto; }

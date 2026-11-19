@@ -150,11 +150,17 @@
 /* ===== SAME GAP UNDER EVERY TABLE (2026-11-19) =====
    One spacing for every page bar (Products, Suppliers, Stock Control,
    Staffs, Account Requests, Trash Bin, Reorder List, Reports pop-ups):
-   12px between the table box and the bar, 8px under the bar.
-   "div.rows-footer" wins over each page's own padding rules. */
+   8px between the table box and the bar, nothing extra under it.
+   "div.rows-footer" wins over each page's own padding rules.
+   --rows-footer-shift cancels the gap a page already puts between its
+   parts (Staffs 16px, Reorder List 14px), so the bar is 8px from the box
+   there too. fillToBottom.js adds its push on top of this shift. */
 div.rows-footer {
-    padding: 12px 4px 8px;
+    padding: 8px 4px 0;
+    margin-top: var(--rows-footer-shift, 0px);
 }
 div.rows-footer :is(.ps-pagination, .sc-pager, .rows-footer-all) {
     padding: 0;
 }
+.st-root > div.rows-footer { --rows-footer-shift: -16px; }
+.ra-root > div.rows-footer { --rows-footer-shift: -14px; }
