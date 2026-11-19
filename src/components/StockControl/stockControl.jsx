@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useDeferredValue } from 'react';
 import { CommaNumberInput } from '../AutoCalculator/autoCal';
 import MarqueeText from '../../utils/marqueeText';
 import useFillToBottom from '../../utils/fillToBottom';
@@ -427,8 +427,10 @@ function StockControl({
 
     const result = new Map();
     grouped.forEach((rows, key) => {
+      // Dates are "YYYY-MM-DD", so comparing the text is the same as
+      // comparing the dates, and much faster for thousands of entries.
       const ordered = [...rows].sort((a, b) => (
-        new Date(a.date) - new Date(b.date) || Number(a.id) - Number(b.id)
+        String(a.date).localeCompare(String(b.date)) || Number(a.id) - Number(b.id)
       ));
       let balance = 0;
       let totalIn = 0;
@@ -630,8 +632,25 @@ function StockControl({
     return { stockByKey, afterById, latestIds: new Set([...latestByKey.values()].map((movement) => movement.id)) };
   }, [ledgers]);
 
+  /* ===== BALANCES WORKED OUT ONCE (2026-11-19) =====
+     Balance after each entry and each product's latest balance. Before,
+     this ran again on every key press in the search box. */
+  const ledgerBalances = useMemo(() => {
+    const balanceAfterById = new Map();
+    const latestTotals = new Map();
+    ledgers.forEach((ledger, key) => {
+      ledger.movements.forEach((movement) => balanceAfterById.set(movement.id, movement.balance));
+      const last = ledger.movements[ledger.movements.length - 1];
+      if (last) latestTotals.set(key, last.balance);
+    });
+    return { balanceAfterById, latestTotals };
+  }, [ledgers]);
+
+  /* ===== SEARCH WITHOUT LAG (2026-11-19) ===== typing stays instant; the table re-filters a moment later */
+  const deferredQuery = useDeferredValue(query);
+
   const visibleRows = useMemo(() => {
-  const q = query.trim().toLowerCase();
+  const q = deferredQuery.trim().toLowerCase();
   const filtered = stockFromDatabase.filter((row) =>
     !q || [row.productName, row.category, row.type, row.notes, row.recordedBy, row.date, row.variantName]
       .some((field) => String(field || '').toLowerCase().includes(q))
@@ -641,13 +660,7 @@ function StockControl({
   // change and the balance right after it. That balance comes from the
   // product ledger (date, then id order), which uses the server's
   // remaining_stock — recalculated by the backend after every add/edit/delete.
-  const balanceAfterById = new Map();
-  const latestTotals = new Map();
-  ledgers.forEach((ledger, key) => {
-    ledger.movements.forEach((movement) => balanceAfterById.set(movement.id, movement.balance));
-    const last = ledger.movements[ledger.movements.length - 1];
-    if (last) latestTotals.set(key, last.balance);
-  });
+  const { balanceAfterById, latestTotals } = ledgerBalances;
 
   const mapped = filtered.map((row) => {
     const key = row.productId || row.productName || '—';
@@ -685,14 +698,14 @@ function StockControl({
         break;
       case 'date':
       default:
-        cmp = (new Date(a.row.date) - new Date(b.row.date)) || (Number(a.id) - Number(b.id));
+        cmp = String(a.row.date).localeCompare(String(b.row.date)) || (Number(a.id) - Number(b.id));
         break;
     }
     return cmp * dir;
   });
 
   return mapped;
-}, [stockFromDatabase, ledgers, query, productById, productOptions, sortBy, sortDir]);
+}, [stockFromDatabase, ledgerBalances, deferredQuery, productById, productOptions, sortBy, sortDir]);
 
   /* ===== MAIN TABLE: one row per product + variant =====
      Each product + variant shows once, as its newest entry (the same row,
@@ -713,7 +726,8 @@ function StockControl({
   /* Rows per page (2026-11-07): "Fit screen" (as many as fit, the old way),
      10, 25, 50 or All — chosen under the table, remembered in this browser.
      Stock and History share the choice. */
-  const [rowsChoice, setRowsChoice] = useRowsChoice('stock-control', 'fit', ['fit', '10', '25', '50', 'all']);
+  /* ===== NO "ALL" OPTION (2026-11-19) ===== drawing thousands of rows froze the table; a saved "All" falls back to Fit screen */
+  const [rowsChoice, setRowsChoice] = useRowsChoice('stock-control', 'fit', ['fit', '10', '25', '50']);
   // Show at least 11 rows per page (phones: 11 cards); the table box can scroll.
   const fitSize = useRowsThatFit(rowsChoice === 'fit' ? tableBox : null, {
     min: 11,
@@ -2101,7 +2115,7 @@ function StockControl({
           {showAll
             ? <span className="rows-footer-all">Showing all {tableRows.length.toLocaleString('en-PH')} entries</span>
             : <TablePager label="Stock movement pages" page={currentPage} pageCount={pageCount} onPage={setPage} />}
-          <RowsPicker value={rowsChoice} options={['fit', '10', '25', '50', 'all']} onChange={chooseRows} total={tableRows.length} label="Stock rows per page" />
+          <RowsPicker value={rowsChoice} options={['fit', '10', '25', '50']} onChange={chooseRows} total={tableRows.length} label="Stock rows per page" />
         </div>
       )}
       </>)}
@@ -2162,7 +2176,7 @@ function StockControl({
           {showAll
             ? <span className="rows-footer-all">Showing all {historyRows.length.toLocaleString('en-PH')} entries</span>
             : <TablePager label="Stock history pages" page={currentHistoryPage} pageCount={historyPageCount} onPage={setHistoryPage} />}
-          <RowsPicker value={rowsChoice} options={['fit', '10', '25', '50', 'all']} onChange={chooseRows} total={historyRows.length} label="History rows per page" />
+          <RowsPicker value={rowsChoice} options={['fit', '10', '25', '50']} onChange={chooseRows} total={historyRows.length} label="History rows per page" />
         </div>
       )}
       </>)}

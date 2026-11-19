@@ -65,19 +65,26 @@ class SalesForecastService
         $data = ['ids' => $ids, 'sales' => [], 'past' => [], 'first' => []];
 
         foreach (array_chunk($keys, 1000) as $chunk) {
+            /* ===== FAST READ (2026-11-19) =====
+               Plain rows instead of full models, and the date taken straight
+               from the "YYYY-MM-DD" text: the same numbers, but much faster
+               with thousands of products and years of past sales. The model
+               scopes (soft deletes) are kept because toBase() runs after them. */
             StockMovement::query()
                 ->whereIn('product_id', $chunk)
                 ->where('movement_type', 'out')
                 ->where('is_adjustment', false)
+                ->toBase()
                 ->get(['product_id', 'qty', 'movement_date'])
-                ->each(function (StockMovement $row) use (&$data): void {
-                    $data['sales'][$row->product_id][] = [Carbon::parse($row->movement_date)->toDateString(), (int) $row->qty];
+                ->each(function ($row) use (&$data): void {
+                    $data['sales'][(int) $row->product_id][] = [self::plainDate($row->movement_date), (int) $row->qty];
                 });
             PastSale::query()
                 ->whereIn('product_id', $chunk)
+                ->toBase()
                 ->get(['product_id', 'period_type', 'period_date', 'units_sold'])
-                ->each(function (PastSale $row) use (&$data): void {
-                    $data['past'][$row->product_id][] = [Carbon::parse($row->period_date)->toDateString(), (float) $row->units_sold, $row->period_type ?: 'month'];
+                ->each(function ($row) use (&$data): void {
+                    $data['past'][(int) $row->product_id][] = [self::plainDate($row->period_date), (float) $row->units_sold, $row->period_type ?: 'month'];
                 });
             StockMovement::query()
                 ->whereIn('product_id', $chunk)
@@ -93,6 +100,16 @@ class SalesForecastService
         $this->eventsByPeriod = [];
 
         return $this;
+    }
+
+    /** "YYYY-MM-DD" from a date column (text or date object), without a full Carbon parse each time. */
+    private static function plainDate($value): string
+    {
+        if (is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}/', $value)) {
+            return substr($value, 0, 10);
+        }
+
+        return Carbon::parse($value)->toDateString();
     }
 
     private function isPreloaded(Product $product): bool

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue } from 'react';
 import { PageToast } from '../../utils/toast';
 import { createPortal } from 'react-dom';
 import { Search, Plus, Edit, Trash2, X, Package, Info, Download, AlertTriangle, Upload, Image as ImageIcon, ArrowUpDown, Truck } from 'lucide-react';
@@ -296,9 +296,14 @@ function ProductSupplier({
       .catch((error) => console.error('Could not load suppliers:', error));
   }, [dataRevision]);
 
+  /* ===== SEARCH WITHOUT LAG (2026-11-19) =====
+     Typing stays instant; the table re-filters a moment later when React
+     is free, so 2,000+ products do not slow down each key press. */
+  const deferredQuery = useDeferredValue(query);
+
   /* ===== FILTER + SORT PRODUCTS ===== */
   const filteredProducts = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = deferredQuery.trim().toLowerCase();
     const bySupplier = !supplierFilter
       ? productsFromDatabase
       : productsFromDatabase.filter((p) => (supplierFilter === 'linked' ? Boolean(p.supplierId) : !p.supplierId));
@@ -328,7 +333,7 @@ function ProductSupplier({
     });
 
     return sorted;
-  }, [productsFromDatabase, query, sortBy, sortDir, supplierFilter, categoryFilter]);
+  }, [productsFromDatabase, deferredQuery, sortBy, sortDir, supplierFilter, categoryFilter]);
 
   /* Little ▲/▼ beside the column that's currently the active sort key. */
   const sortIndicator = (key) => (sortBy === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
@@ -348,7 +353,10 @@ function ProductSupplier({
   }, [fillTableToBottom]);
   /* Rows per page (2026-11-07): 10 (as before), 25, 50 or All — chosen
      under the table and remembered in this browser. */
-  const [rowsChoice, setRowsChoice] = useRowsChoice('products', '10', ['10', '25', '50', 'all']);
+  /* ===== NO "ALL" OPTION (2026-11-19) =====
+     Drawing thousands of rows at once froze the table, so the most is 50
+     per page. A saved "All" from before falls back to 10. */
+  const [rowsChoice, setRowsChoice] = useRowsChoice('products', '10', ['10', '25', '50']);
   const showAll = rowsChoice === 'all';
   const PAGE_SIZE = showAll ? Math.max(1, total) : (rowsFor(rowsChoice) || 10);
   const safeCursor = total === 0 ? 0 : Math.min(cursor, total - 1);
@@ -1051,7 +1059,7 @@ function ProductSupplier({
           </button>
           </div>
           )}
-          <RowsPicker value={rowsChoice} options={['10', '25', '50', 'all']} onChange={chooseRows} total={total} label="Products per page" />
+          <RowsPicker value={rowsChoice} options={['10', '25', '50']} onChange={chooseRows} total={total} label="Products per page" />
         </div>
       )}
 
