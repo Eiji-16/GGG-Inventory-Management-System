@@ -1136,11 +1136,26 @@ function StockControl({
 
   // Delete ONE stock entry. The server removes it and puts the product's
   // stock back to what it was before that entry (same as it never happened).
-  const requestDeleteSingleEntry = (stock) => {
+  /* ===== DELETE FROM HISTORY (2026-11-22) =====
+     The History tab can delete ANY entry (e.g. a sale saved by mistake),
+     not only the newest one. If a Correction was saved after it for the
+     same product + variant, the popup says so: that Correction would
+     otherwise keep its difference and leave the stock off. */
+  const requestDeleteSingleEntry = (stock, { fromHistory = false } = {}) => {
     const change = signedQty(stock);
+    const key = variantKeyOf(stock);
+    const laterCorrection = fromHistory && stockFromDatabase.some((row) => (
+      row.id !== stock.id
+      && row.type === 'Adjustment'
+      && variantKeyOf(row) === key
+      && (String(row.date) > String(stock.date)
+        || (String(row.date) === String(stock.date) && Number(row.id) > Number(stock.id)))
+    ));
     setConfirmDelete({
       kind: 'entry',
       stock,
+      fromHistory,
+      laterCorrection,
       changeText: `${change >= 0 ? '+' : '−'}${Math.abs(change)}`,
     });
   };
@@ -1435,7 +1450,9 @@ function StockControl({
   };
   const typeCount = (row, raw) => {
     const text = String(raw).replace(/\s+/g, '');
-    if (!/^\d{0,4}$/.test(text)) return;   // at most 4 digits (9,999)
+    // Up to 6 digits (999,999), so big products can be counted too (2026-11-22;
+    // it was 4). A count is a total on hand, not an amount moved.
+    if (!/^\d{0,6}$/.test(text)) return;
     setPendingQty((prev) => { const next = { ...prev }; delete next[row.id]; return next; });
     setTypedQty((prev) => ({ ...prev, [row.id]: text }));
   };
@@ -1446,12 +1463,15 @@ function StockControl({
     if (typedQty[row.id] !== undefined && (value === null || value === variantStockOf(row))) clearTyped(row.id);
   };
 
-  const applyCount = async (row) => {
+  const applyCount = async (row, { skipUndo = false } = {}) => {
     const product = productById.get(row.productId);
     const counted = typedCountFor(row.id);
     const variantOnHand = variantStockOf(row);
     if (!product || counted === null || counted === variantOnHand || quickBusy.has(row.id)) return;
-    if (askIfUnusual(`row-${row.id}`, counted, () => applyCount(row))) return;
+    // Undo a sale instead? (count went up on a product sold today)
+    if (!skipUndo && counted > variantOnHand && offerUndoSale(row, counted - variantOnHand, 'count')) return;
+    // "Unusual" means a big CHANGE (e.g. an extra zero), not a big count.
+    if (askIfUnusual(`row-${row.id}`, Math.abs(counted - variantOnHand), () => applyCount(row, { skipUndo: true }))) return;
     const before = Number(product.stock);
     // The server's correction rule sets the PRODUCT total to the counted
     // number, so send the total changed by this variant's difference.
@@ -1515,6 +1535,75 @@ function StockControl({
     clearPending(rowId);
   };
 
+  /* ===== UNDO A SALE (2026-11-22) =====
+     Before, pressing + (or typing a higher count) after a sale saved a NEW
+     Stock In / Correction, so the sale stayed in the Dashboard chart. Now,
+     when this product + variant was sold TODAY, a small box asks what the
+     extra units are:
+       - "Undo sale": today's sale is lowered on the server (an entry that
+         reaches 0 goes to the Trash Bin), so the stock goes back AND the
+         sales chart drops. Needs "Edit entries" in Role Access.
+       - "New stock arrived" (+) / "Save as Correction" (typed count): the
+         same as before.
+     { row, amount, soldToday, kind: 'quick' | 'count' } while open. */
+  const [undoChoice, setUndoChoice] = useState(null);
+  const [undoBusy, setUndoBusy] = useState(false);
+  const soldTodayFor = (row) => {
+    const key = variantKeyOf(row);
+    const today = todayLocal();
+    return stockFromDatabase
+      .filter((entry) => entry.type === 'Stock Out' && String(entry.date) === today && variantKeyOf(entry) === key)
+      .reduce((sum, entry) => sum + (Number(entry.qty) || 0), 0);
+  };
+  /* True (and opens the box) when there is a sale today to undo. */
+  const offerUndoSale = (row, amount, kind) => {
+    if (!canEditStock) return false;
+    const soldToday = soldTodayFor(row);
+    if (soldToday <= 0) return false;
+    setUndoChoice({ row, amount, soldToday, kind });
+    return true;
+  };
+  const chooseNotUndo = () => {
+    if (!undoChoice) return;
+    const { row, kind } = undoChoice;
+    setUndoChoice(null);
+    if (kind === 'count') applyCount(row, { skipUndo: true });
+    else applyPending(row, { skipUndo: true });
+  };
+  const confirmUndoSale = async () => {
+    if (!undoChoice || undoBusy) return;
+    const { row, amount } = undoChoice;
+    const product = productById.get(row.productId);
+    if (!product) return;
+    setUndoBusy(true);
+    try {
+      const response = await apiFetch('/api/stock-movements/undo-sale', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ productId: product.id, variantName: row.variantName || null, qty: amount }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const validationError = result.errors ? Object.values(result.errors).flat()[0] : result.message;
+        throw new Error(validationError || `Could not undo the sale (${response.status}).`);
+      }
+      setUndoChoice(null);
+      resetQty(row.id);
+      setStockError('');
+      setSafetyAlert(null);
+      setMergeNotice(`Sale undone: ${amount} ${product.name}${row.variantName ? ` (${row.variantName})` : ''} back in stock and removed from sales.`);
+      await refreshStockData();
+      await loadStockActivities();
+      if (historyProduct && historyProduct !== '—') await loadStockActivities(historyProduct);
+      onInventoryChanged?.();
+    } catch (error) {
+      setUndoChoice(null);
+      setStockError(error.message || 'Could not undo the sale.');
+    } finally {
+      setUndoBusy(false);
+    }
+  };
+
   /* Last Stock In price per product + variant (2026-11-08). A Correction
      (typed count) has no price, so when it is a variant's newest entry the
      Price column shows this price instead of "—".
@@ -1547,10 +1636,12 @@ function StockControl({
     return latest ? Number(latest.unitPrice) : null;
   };
 
-  const applyPending = async (row, { confirmed = false } = {}) => {
+  const applyPending = async (row, { confirmed = false, skipUndo = false } = {}) => {
     const product = productById.get(row.productId);
     const amount = pendingFor(row.id);
     if (!product || amount === 0 || quickBusy.has(row.id)) return;
+    // + on a product sold today: ask "undo the sale" or "new stock arrived".
+    if (!skipUndo && amount > 0 && offerUndoSale(row, amount, 'quick')) return;
 
     const before = Number(product.stock);
     if (!Number.isInteger(before) || before < 0) {
@@ -1959,7 +2050,7 @@ function StockControl({
                             onClick={() => stepPending(stock, 1)}
                             disabled={busy}
                             aria-label={`Add one ${stock.productName}`}
-                            title={isTyping ? 'One more in your count' : 'Add 1 (press ✓ to save)'}
+                            title={isTyping ? 'One more in your count' : 'Add 1 (press ✓ to save). If it was sold today, you can undo the sale.'}
                           >
                             +
                           </button>
@@ -2080,17 +2171,9 @@ function StockControl({
                         <Trash2 size={14} />
                       </button>
                       )}
-                      {canClearStock && !stock.productDeleted && (
-                      <button
-                        className="sc-table-action-btn sc-delete-btn sc-clear-all-btn"
-                        onClick={() => requestClearProductStock(stock.productId)}
-                        aria-label={`Clear all stock records for ${stock.productName}`}
-                        title={`Clear ALL stock and movement records for ${stock.productName}`}
-                        type="button"
-                      >
-                        <Eraser size={14} />
-                      </button>
-                      )}
+                      {/* ===== ERASER REMOVED (2026-11-22) ===== it sat next to the
+                          trash button and cleared EVERY entry of the product. Clearing a
+                          whole product is still possible: tick it, then "Clear stock". */}
                     </div>
                   </td>
                 </tr>
@@ -2133,11 +2216,12 @@ function StockControl({
               <th>Type</th>
               <th className="sc-th-quantity">Change</th>
               <th className="sc-th-quantity" title="Stock of this product + variant before and after the change.">Before → After</th>
+              {canDeleteStock && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
             {stockLoading ? (
-              <tr><td colSpan={7} className="sc-empty-state ui-loading">Loading stock history…</td></tr>
+              <tr><td colSpan={canDeleteStock ? 8 : 7} className="sc-empty-state ui-loading">Loading stock history…</td></tr>
             ) : historyPageRows.map(({ row: stock, id, change }) => {
               const after = variantData.afterById.get(id) ?? 0;
               const before = after - change;
@@ -2157,12 +2241,29 @@ function StockControl({
                     <span className={change >= 0 ? 'sc-in' : 'sc-out'}>{change >= 0 ? '+' : '−'}{Math.abs(change)}</span>
                   </td>
                   <td className="sc-td-nowrap" data-label="Before → After">{before} → {after}</td>
+                  {canDeleteStock && (
+                    <td className="sc-td-actions" data-label="Actions">
+                      <div className="sc-action-cell-container">
+                        {!stock.productDeleted && (
+                          <button
+                            className="sc-table-action-btn sc-delete-btn"
+                            onClick={() => requestDeleteSingleEntry(stock, { fromHistory: true })}
+                            aria-label={`Delete this ${movementLabel(stock.type)} entry for ${stock.productName}`}
+                            title="Delete this entry only (stock goes back to before it)"
+                            type="button"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               );
             })}
             {!stockLoading && !stockError && historyRows.length === 0 && (
               <tr>
-                <td colSpan={7} className="sc-empty-state">
+                <td colSpan={canDeleteStock ? 8 : 7} className="sc-empty-state">
                   {stockFromDatabase.length === 0 ? 'No stock changes recorded yet.' : 'No changes match your search.'}
                 </td>
               </tr>
@@ -2612,6 +2713,50 @@ function StockControl({
         </div>,
         document.body
       )}
+      {/* ===== UNDO SALE OR NEW STOCK? (2026-11-22) ===== */}
+      {undoChoice && createPortal(
+        <div className="sc-modal-overlay sc-confirm-overlay" onClick={() => !undoBusy && setUndoChoice(null)}>
+          <div
+            className="sc-modal sc-confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="sc-undo-title"
+            aria-describedby="sc-undo-text"
+          >
+            <span className="sc-confirm-icon" aria-hidden="true"><RotateCcw size={22} /></span>
+            <h3 id="sc-undo-title">Undo a sale or add new stock?</h3>
+            <p id="sc-undo-text">
+              {undoChoice.row.productName}{undoChoice.row.variantName ? ` (${undoChoice.row.variantName})` : ''} was sold today
+              ({undoChoice.soldToday} {undoChoice.soldToday === 1 ? 'unit' : 'units'}). What are these {undoChoice.amount} extra {undoChoice.amount === 1 ? 'unit' : 'units'}?
+              <span className="sc-confirm-detail">
+                {undoChoice.amount <= undoChoice.soldToday
+                  ? <><strong>Undo sale</strong> takes the sale back: the stock goes up and it is removed from the sales chart. </>
+                  : <>Only {undoChoice.soldToday} can be undone today. To undo, change the amount to {undoChoice.soldToday} or less. </>}
+                <strong>{undoChoice.kind === 'count' ? 'Save as Correction' : 'New stock arrived'}</strong>
+                {undoChoice.kind === 'count'
+                  ? ' keeps the sale and saves the counted number (found stock).'
+                  : ' keeps the sale and saves a Stock In.'}
+              </span>
+            </p>
+            <div className="sc-modal-actions">
+              <button type="button" className="sc-modal-cancel-btn" onClick={() => setUndoChoice(null)} disabled={undoBusy}>
+                Cancel
+              </button>
+              <button type="button" className="sc-modal-cancel-btn" onClick={chooseNotUndo} disabled={undoBusy}>
+                {undoChoice.kind === 'count' ? 'Save as Correction' : 'New stock arrived'}
+              </button>
+              {undoChoice.amount <= undoChoice.soldToday && (
+                <button type="button" className="sc-modal-save-btn" onClick={confirmUndoSale} disabled={undoBusy} autoFocus>
+                  {undoBusy ? 'Undoing…' : 'Undo sale'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* ===== MOVEMENT HISTORY ===== */}
       {/* ===== SAFETY STOCK CONFIRMATION ===== */}
       {confirmDelete && createPortal(
@@ -2629,7 +2774,7 @@ function StockControl({
             </span>
             {confirmDelete.kind === 'entry' ? (
               <>
-                <h3 id="sc-delete-title">Delete this variant’s latest entry?</h3>
+                <h3 id="sc-delete-title">{confirmDelete.fromHistory ? 'Delete this entry?' : 'Delete this variant’s latest entry?'}</h3>
                 <p id="sc-delete-text">
                   The stock will go back to what it was before this entry. Other entries are not affected. The entry moves to the Trash Bin, where it can be restored.
                   <span className="sc-confirm-detail">
@@ -2639,6 +2784,11 @@ function StockControl({
                     <strong>{confirmDelete.changeText}</strong>
                     {' · '}{confirmDelete.stock.date}
                   </span>
+                  {confirmDelete.laterCorrection && (
+                    <span className="sc-confirm-detail">
+                      A Correction was saved after this entry. Delete that Correction too, or the stock will stay off by this amount.
+                    </span>
+                  )}
                 </p>
               </>
             ) : confirmDelete.kind === 'bulk' ? (

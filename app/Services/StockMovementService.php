@@ -229,6 +229,76 @@ class StockMovementService
         });
     }
 
+    /* ===================== UNDO A SALE (2026-11-22) =====================
+     * A sale saved by mistake today (e.g. − then ✓ pressed once too often)
+     * is taken back: today's Stock Out entries for this product + variant
+     * are lowered, newest first, by the amount. An entry lowered to 0 moves
+     * to the Trash Bin (it can be restored). The units go back into stock and
+     * the monthly sales (Dashboard chart, forecast) drop by the same amount.
+     * Before, + saved a new Stock In instead, so the sale stayed in the chart.
+     * Corrections are not sales, so they are never touched.
+     *
+     * @return array{undone: int, changed: int, trashed: int, stock: int}
+     */
+    public function undoSale(Product $existingProduct, ?string $variantName, int $qty, ?User $user = null): array
+    {
+        return DB::transaction(function () use ($existingProduct, $variantName, $qty, $user) {
+            $product = Product::query()->lockForUpdate()->findOrFail($existingProduct->id);
+            $variant = mb_strtolower(trim((string) $variantName));
+            $today = now(config('app.business_timezone', 'Asia/Manila'))->toDateString();
+
+            $sales = StockMovement::query()
+                ->where('product_id', $product->id)
+                ->where('movement_type', 'out')
+                ->where('is_adjustment', false)
+                ->whereDate('movement_date', $today)
+                ->whereRaw("LOWER(TRIM(COALESCE(variant_name, ''))) = ?", [$variant])
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->get();
+
+            $soldToday = (int) $sales->sum('qty');
+            if ($soldToday < $qty) {
+                $name = $product->name.(trim((string) $variantName) !== '' ? ' ('.trim((string) $variantName).')' : '');
+                throw ValidationException::withMessages([
+                    'qty' => $soldToday === 0
+                        ? "No sale of {$name} was recorded today, so there is nothing to undo."
+                        : "Only {$soldToday} of {$name} were sold today. You can undo up to {$soldToday}.",
+                ]);
+            }
+
+            $lowestBefore = $this->historyLow($product)['min'];
+            $variantsBefore = $this->variantBalances($product);
+            $remaining = $qty;
+            $changed = 0;
+            $trashed = 0;
+            foreach ($sales as $sale) {
+                if ($remaining <= 0) {
+                    break;
+                }
+                $take = min($remaining, (int) $sale->qty);
+                $remaining -= $take;
+                if ($take === (int) $sale->qty) {
+                    $sale->forceFill($this->deletedByColumns($user) + ['deleted_with_product' => false])->save();
+                    $sale->delete();
+                    $trashed++;
+                } else {
+                    $sale->qty = (int) $sale->qty - $take;
+                    $sale->save();
+                    $changed++;
+                }
+            }
+
+            $newStock = (int) $product->stock_on_hand + $qty;
+            $product->update(['stock_on_hand' => $newStock]);
+            $this->assertHistoryNotNegative($product, $this->reconcileMovementBalances($product), $lowestBefore);
+            $this->assertVariantsNotNegative($product, $variantsBefore);
+            $this->syncSalesFromMovements($product);
+
+            return ['undone' => $qty, 'changed' => $changed, 'trashed' => $trashed, 'stock' => $newStock];
+        });
+    }
+
     /* ===================== TRASH BIN ===================== */
 
     /**

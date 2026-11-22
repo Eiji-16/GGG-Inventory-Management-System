@@ -1748,3 +1748,27 @@ table.ps-table tr > td.ps-td-pic > span.ps-thumb.ps-thumb-empty:only-child {
 @media (max-width: 760px) {
     .ps-table:not(.ps-supplier-table) .ps-supplier-cell { max-width: 100%; }
 }
+
+/* ===== SUPPLIER CONTACTS (2026-11-22) =====
+   Edit Supplier: "Contacts" label with "+ Add" on the right, then one box
+   per contact with a trash button. */
+.ps-contacts-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+.ps-supplier-item.ps-contact-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+/* Suppliers table: first contact on one line ("…" if long), then "...". */
+.ps-contact-cell .ps-variant-list {
+    flex-wrap: nowrap;
+    align-items: center;
+}
+.ps-contact-first {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

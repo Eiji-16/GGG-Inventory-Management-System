@@ -45,6 +45,8 @@ Route::middleware(['web', 'auth', 'active'])->group(function (): void {
 
     // Stock Control — each action has its own Role Access box.
     Route::post('/stock-movements', [StockMovementController::class, 'store'])->middleware('feature:stock.create');
+    // Undo a sale saved by mistake today (2026-11-22).
+    Route::post('/stock-movements/undo-sale', [StockMovementController::class, 'undoSale'])->middleware('feature:stock.edit');
     Route::match(['put', 'patch'], '/stock-movements/{stockMovement}', [StockMovementController::class, 'update'])->middleware('feature:stock.edit');
     Route::delete('/stock-movements/{stockMovement}', [StockMovementController::class, 'destroy'])->middleware('feature:stock.delete');
     // Clearing ALL of a product's stock records.

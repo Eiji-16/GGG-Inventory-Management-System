@@ -386,6 +386,40 @@ class StockMovementController extends Controller
         return response()->json(['deleted' => true, 'trashed' => true]);
     }
 
+    /**
+     * POST /api/stock-movements/undo-sale — take back a sale saved by mistake
+     * today (2026-11-22). Body: productId, variantName (optional), qty.
+     * Lowers today's Stock Out entries, so the sales chart drops too.
+     */
+    public function undoSale(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'productId'   => ['required', 'string', Rule::exists('products', 'code')->whereNull('deleted_at')],
+            'variantName' => ['nullable', 'string', 'max:255'],
+            'qty'         => ['required', 'integer', 'min:1', 'max:9999'],
+        ], ['qty.max' => 'The quantity can have at most 4 digits (up to 9,999).']);
+
+        $product = Product::where('code', $data['productId'])->firstOrFail();
+        $result = $this->stockMovements->undoSale($product, $data['variantName'] ?? null, (int) $data['qty'], $request->user());
+        $variant = trim((string) ($data['variantName'] ?? ''));
+        $label = $product->name.($variant !== '' ? " ({$variant})" : '');
+
+        ActivityLog::record(
+            'stock.edit',
+            "Undid sale of {$result['undone']} for {$label} (back in stock, removed from sales)",
+            'boxes',
+            [
+                'productId' => $product->code,
+                'product' => $product->name,
+                'variant' => $variant !== '' ? $variant : null,
+                'qty' => $result['undone'],
+                'totalQty' => $result['stock'],
+            ]
+        );
+
+        return response()->json($result);
+    }
+
     /** DELETE /api/stock-movements/products/{productCode} — moves all its entries to the Trash Bin. */
     public function clearProduct(Request $request, string $productCode): JsonResponse
     {

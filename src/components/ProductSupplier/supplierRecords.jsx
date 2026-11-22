@@ -9,7 +9,19 @@ import MobileSelectBar from '../MobileSelectBar/MobileSelectBar';
 import useFillToBottom from '../../utils/fillToBottom';
 import { usePagedRows, RowsFooter } from '../RowsPicker/RowsPicker';
 
-const EMPTY_SUPPLIER = { id: null, name: '', contact: '', leadTimeDays: '' };
+const EMPTY_SUPPLIER = { id: null, name: '', contacts: [''], leadTimeDays: '' };
+
+/* ===== MORE THAN ONE CONTACT (2026-11-22) =====
+   A supplier can have several phone numbers or emails. They are saved in the
+   same Contact field, separated by "; " (no database change), e.g.
+   "09684347044; orders@3m.com.ph". Older suppliers with one contact work
+   as before. The field holds up to 255 characters in total. */
+const CONTACT_SEPARATOR = '; ';
+const CONTACT_MAX_LENGTH = 255;
+const splitContacts = (text) => String(text || '')
+  .split(';')
+  .map((part) => part.trim())
+  .filter(Boolean);
 
 /* ===== SUPPLIER RECORDS (Figure 7) =====
    Supplier, contact, products supplied (from the products linked to it) and
@@ -36,6 +48,9 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
      The table shows one product per supplier; the "..." button opens this
      box with the full list. Holds the supplier being shown, or null. */
   const [suppliedFor, setSuppliedFor] = useState(null);
+  /* ===== ALL CONTACTS BOX ===== same idea: the table shows the first
+     contact; the "..." button opens this box with every contact. */
+  const [contactsFor, setContactsFor] = useState(null);
   useEffect(() => {
     if (!suppliedFor) return undefined;
     const closeOnEsc = (event) => { if (event.key === 'Escape') setSuppliedFor(null); };
@@ -140,10 +155,32 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
 
   const openForm = (supplier = null) => {
     setDraft(supplier
-      ? { id: supplier.id, name: supplier.name || '', contact: supplier.contact || '', leadTimeDays: supplier.leadTimeDays ?? '' }
-      : { ...EMPTY_SUPPLIER });
+      ? {
+        id: supplier.id,
+        name: supplier.name || '',
+        contacts: splitContacts(supplier.contact).length ? splitContacts(supplier.contact) : [''],
+        leadTimeDays: supplier.leadTimeDays ?? '',
+      }
+      : { ...EMPTY_SUPPLIER, contacts: [''] });
     setFormError('');
   };
+
+  /* ----- Contact boxes in the form: + Add, type, trash ----- */
+  const updateContact = (index, value) => setDraft((prev) => ({
+    ...prev,
+    contacts: prev.contacts.map((contact, i) => (i === index ? value : contact)),
+  }));
+  const addContact = () => {
+    const next = draft.contacts.length;
+    setDraft((prev) => ({ ...prev, contacts: [...prev.contacts, ''] }));
+    // Put the cursor in the new box.
+    setTimeout(() => document.getElementById(`supplier-contact-${next}`)?.focus(), 0);
+  };
+  // The last box is emptied instead of removed, so there is always one box.
+  const removeContact = (index) => setDraft((prev) => ({
+    ...prev,
+    contacts: prev.contacts.length > 1 ? prev.contacts.filter((_, i) => i !== index) : [''],
+  }));
 
   const save = async (event) => {
     event.preventDefault();
@@ -151,6 +188,11 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
     const leadText = String(draft.leadTimeDays).trim();
     const leadTimeDays = leadText === '' ? null : Number(leadText);
     if (!name) return setFormError('Enter the supplier name.');
+    // Empty boxes are skipped; the rest are saved as "a; b; c".
+    const contact = draft.contacts.flatMap(splitContacts).join(CONTACT_SEPARATOR);
+    if (contact.length > CONTACT_MAX_LENGTH) {
+      return setFormError(`All contacts together can be up to ${CONTACT_MAX_LENGTH} characters. Remove a contact or shorten one.`);
+    }
     if (leadTimeDays !== null && (!Number.isInteger(leadTimeDays) || leadTimeDays < 0 || leadTimeDays > 365)) {
       return setFormError('Lead time must be a whole number of days from 0 to 365.');
     }
@@ -161,7 +203,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
       const response = await apiFetch(draft.id ? `/api/suppliers/${draft.id}` : '/api/suppliers', {
         method: draft.id ? 'PUT' : 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, contact: draft.contact.trim() || null, leadTimeDays }),
+        body: JSON.stringify({ name, contact: contact || null, leadTimeDays }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -265,6 +307,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
               </tr>
             ) : pager.visible.map((supplier) => {
               const supplied = supplier.products || [];
+              const contacts = splitContacts(supplier.contact);
               return (
                 <tr key={supplier.id} className={selectedIds.has(supplier.id) ? 'is-selected' : ''}>
                   <td className="ps-td-check m-keep">
@@ -276,7 +319,25 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
                     />
                   </td>
                   <td className="ps-td-left m-title" data-label="Supplier" title={supplier.name}><strong>{supplier.name}</strong></td>
-                  <td className="ps-td-left ps-td-muted" data-label="Contact">{supplier.contact || '—'}</td>
+                  <td className="ps-td-left ps-td-muted ps-contact-cell" data-label="Contact">
+                    {contacts.length ? (
+                      <span className="ps-variant-list">
+                        {/* ===== FIRST CONTACT + "..." BUTTON ===== */}
+                        <span className="ps-contact-first" title={contacts[0]}>{contacts[0]}</span>
+                        {contacts.length > 1 && (
+                          <button
+                            type="button"
+                            className="ps-variant-chip ps-variant-more ps-supplied-more"
+                            onClick={() => setContactsFor({ name: supplier.name, contacts })}
+                            title={`Show all ${contacts.length} contacts`}
+                            aria-label={`Show all ${contacts.length} contacts for ${supplier.name}`}
+                          >
+                            <MoreHorizontal size={14} aria-hidden="true" />
+                          </button>
+                        )}
+                      </span>
+                    ) : '—'}
+                  </td>
                   <td className="ps-td-left ps-supplied-cell" data-label="Products Supplied">
                     {supplied.length ? (
                       <span className="ps-variant-list">
@@ -344,6 +405,31 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
         document.body
       )}
 
+      {contactsFor && createPortal(
+        <div className="ps-modal-overlay" onClick={() => setContactsFor(null)}>
+          <div className="ps-modal ps-supplied-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="ps-contacts-title">
+            <div className="ps-modal-header">
+              <div className="ps-modal-heading">
+                <span className="ps-modal-icon" aria-hidden="true"><Truck size={18} /></span>
+                <div className="ps-modal-titles">
+                  <h3 id="ps-contacts-title">{contactsFor.name}</h3>
+                  <p className="ps-modal-subtitle">{contactsFor.contacts.length} contacts</p>
+                </div>
+              </div>
+              <button className="ps-modal-close-btn" onClick={() => setContactsFor(null)} type="button" aria-label="Close">
+                <X size={16} />
+              </button>
+            </div>
+            <ul className="ps-supplied-list">
+              {contactsFor.contacts.map((contact, index) => (
+                <li key={`${contact}-${index}`}>{contact}</li>
+              ))}
+            </ul>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {draft && createPortal(
         <div className="ps-modal-overlay" onClick={() => !saving && setDraft(null)}>
           <div className="ps-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="ps-supplier-title">
@@ -366,11 +452,39 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
                     <label htmlFor="supplier-name">Supplier Name <span className="ps-required">*</span></label>
                     <input id="supplier-name" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Sunshine Garments" required />
                   </div>
-                  <div className="ps-form-row">
-                    <div className="ps-form-group">
-                      <label htmlFor="supplier-contact">Contact</label>
-                      <input id="supplier-contact" value={draft.contact} onChange={(e) => setDraft({ ...draft, contact: e.target.value })} placeholder="Phone or email" />
+                  {/* ===== CONTACTS: one box each, + Add, trash ===== */}
+                  <div className="ps-form-group ps-form-group-wide">
+                    <div className="ps-contacts-head">
+                      <label htmlFor="supplier-contact-0">Contacts</label>
+                      <button type="button" className="ps-variant-add" onClick={addContact}>
+                        <Plus size={12} /> Add
+                      </button>
                     </div>
+                    <div className="ps-supplier-list">
+                      {draft.contacts.map((contact, index) => (
+                        <div className="ps-supplier-item ps-contact-item" key={index}>
+                          <input
+                            id={`supplier-contact-${index}`}
+                            autoComplete="off"
+                            value={contact}
+                            onChange={(e) => updateContact(index, e.target.value)}
+                            placeholder="Phone or email"
+                            aria-label={`Contact ${index + 1}`}
+                          />
+                          <button
+                            type="button"
+                            className="ps-supplier-remove"
+                            onClick={() => removeContact(index)}
+                            aria-label={`Remove contact ${index + 1}`}
+                            title="Remove contact"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="ps-form-row">
                     <div className="ps-form-group">
                       <label htmlFor="supplier-lead">Lead Time (days)</label>
                       <input id="supplier-lead" type="number" min="0" max="365" step="1" value={draft.leadTimeDays} onChange={(e) => setDraft({ ...draft, leadTimeDays: limitDigits(e.target.value, { whole: 3 }) })} placeholder="e.g. 3" />
