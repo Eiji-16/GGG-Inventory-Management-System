@@ -1390,6 +1390,12 @@ function StockControl({
           `${payload.productName}: ${sign}${result.addedQty} was added to today's entry `
           + `(${sign}${result.mergedFromQty} → ${sign}${result.qty}), so no new row was created.`
         );
+        /* ===== SHOW WHERE IT WENT (2026-11-22) ===== the row it was added
+           to flashes, so it doesn't look like the entry disappeared. */
+        if (payload.productId) {
+          setHighlightId(payload.productId);
+          setTimeout(() => setHighlightId(null), 2600);
+        }
       } else {
         setMergeNotice('');
       }
@@ -1889,7 +1895,8 @@ function StockControl({
 
       {/* Page messages and the safety stock alert show as bottom-right
           pop-ups (2026-11-06). The alert keeps its Calculate Now button. */}
-      <PageToast message={mergeNotice} type="info" onShown={() => setMergeNotice('')} />
+      {/* Stays 10 seconds (was the short default) so it can be read (2026-11-22). */}
+      <PageToast message={mergeNotice} type="info" duration={10000} onShown={() => setMergeNotice('')} />
       <PageToast
         type={safetyAlert?.level === 'out' ? 'error' : 'warning'}
         title={safetyAlert?.level === 'out' ? 'Out of stock' : 'Below safety stock'}
@@ -2183,9 +2190,23 @@ function StockControl({
             {!stockLoading && !stockError && tableRows.length === 0 && (
               <tr>
                 <td colSpan={11} className="sc-empty-state">
-                  {stockFromDatabase.length === 0
-                    ? 'No stock movements recorded yet. Click “Add Item” to record one.'
-                    : 'No movements match your search.'}
+                  {/* ===== NEW PRODUCT HINT (2026-11-22) =====
+                      A product shows here only after its first entry. If the
+                      search names a product with no entries yet, say how to start it. */}
+                  {(() => {
+                    const q = query.trim().toLowerCase();
+                    const waiting = q
+                      ? productOptions.find((p) => String(p.name || '').toLowerCase().includes(q)
+                        && !stockFromDatabase.some((row) => row.productId === p.id))
+                      : null;
+                    if (stockFromDatabase.length === 0) {
+                      return 'No stock movements recorded yet. Click “Update Stock”, pick a product, then “Set Opening Stock”.';
+                    }
+                    if (waiting) {
+                      return `${waiting.name} has no stock entries yet. Click “Update Stock”, pick it, then “Set Opening Stock” to start it.`;
+                    }
+                    return 'No movements match your search. New products appear here after “Set Opening Stock” (in Update Stock).';
+                  })()}
                 </td>
               </tr>
             )}

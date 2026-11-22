@@ -983,9 +983,18 @@ function ProductSupplier({
                   {product.supplierName ? (
                     <span className="ps-supplier-cell">
                       <span className="ps-supplier-name">{product.supplierName}</span>
-                      {product.supplierContact && (
-                        <span className="ps-supplier-contact">{product.supplierContact}</span>
-                      )}
+                      {/* ===== FIRST CONTACT + "+N" (2026-11-22) =====
+                          A supplier can have several contacts ("a; b"). Show the
+                          first; hover lists them all. Same idea as the Suppliers table. */}
+                      {(() => {
+                        const contacts = String(product.supplierContact || '').split(';').map((c) => c.trim()).filter(Boolean);
+                        if (!contacts.length) return null;
+                        return (
+                          <span className="ps-supplier-contact" title={contacts.join('\n')}>
+                            {contacts[0]}{contacts.length > 1 ? ` +${contacts.length - 1}` : ''}
+                          </span>
+                        );
+                      })()}
                     </span>
                   ) : '—'}
                 </td>

@@ -840,7 +840,7 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
                 </span>
                 <span className="db-kpi-legend">
                   <span data-tip={`In stock\n${fmt(derived.health.in)} of ${fmt(kpi.total)} products (${pct(derived.health.in, kpi.total)}%)`}><i className="is-good" />{fmt(derived.health.in)} in stock</span>
-                  <span data-tip={`Low stock\n${fmt(derived.health.low)} of ${fmt(kpi.total)} products (${pct(derived.health.low, kpi.total)}%)\nAt or below the reorder point (safety stock included)`}><i className="is-warn" />{fmt(derived.health.low)} low</span>
+                  <span data-tip={`Low stock (includes Critical)\n${fmt(derived.health.low)} of ${fmt(kpi.total)} products (${pct(derived.health.low, kpi.total)}%)\nAt or below the reorder point (safety stock included).\nReports count these as Low + Critical.`}><i className="is-warn" />{fmt(derived.health.low)} low <small className="db-kpi-incl">(incl. Critical)</small></span>
                   <span data-tip={`Out of stock\n${fmt(derived.health.out)} of ${fmt(kpi.total)} products (${pct(derived.health.out, kpi.total)}%)`}><i className="is-bad" />{fmt(derived.health.out)} out</span>
                   {derived.health.none > 0 && <span data-tip={`No stock records\n${fmt(derived.health.none)} of ${fmt(kpi.total)} products (${pct(derived.health.none, kpi.total)}%)\nNo Stock In or Stock Out entries yet`}><i className="is-none" />{fmt(derived.health.none)} no records</span>}
                   {derived.health.low + derived.health.critical + derived.health.out > 0 && <span className="db-kpi-pulse" aria-hidden="true" />}
@@ -1031,7 +1031,7 @@ function Dashboard({ onNavigate, canOpen = () => true, isSuperAdmin = false, saf
               <div className="db-card-titles">
                 <span className="db-card-title">Reorder List</span>
                 <span className="db-card-sub">
-                  At or below the Low level
+                  At or below the Low level (includes Critical)
                   {(summary.reorderSuggestions || []).length ? ` · ${fmt(summary.reorderSuggestions.length)} product${summary.reorderSuggestions.length === 1 ? '' : 's'}` : ''}
                 </span>
               </div>

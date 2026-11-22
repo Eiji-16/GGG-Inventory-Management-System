@@ -289,7 +289,12 @@ class TrashBinController extends Controller
     private function recordQueries(string $space, string $search = '', ?string $actorFilter = null): array
     {
         $queries = [
-            'product' => Product::onlyTrashed()->withoutPhoto()->with(['supplier' => fn ($query) => $query->withTrashed()]),
+            // withoutPhoto() reads only the list columns, so add the Trash Bin
+            // ones back: before (2026-11-22) a product showed no "Deleted by"
+            // and no archive date.
+            'product' => Product::onlyTrashed()->withoutPhoto()
+                ->addSelect(['products.deleted_by_name', 'products.archived_at', 'products.archived_by_name'])
+                ->with(['supplier' => fn ($query) => $query->withTrashed()]),
             'entry' => StockMovement::onlyTrashed()->with(['product' => fn ($query) => $query->withTrashed()->withoutPhoto()]),
             'supplier' => Supplier::onlyTrashed()->withCount(['products' => fn ($query) => $query->withTrashed()]),
             'event' => SeasonalEvent::onlyTrashed(),
