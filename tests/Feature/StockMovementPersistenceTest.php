@@ -194,15 +194,16 @@ class StockMovementPersistenceTest extends TestCase
             ->assertOk()
             ->assertJsonPath('type', 'Stock In')
             ->assertJsonPath('qty', 5)
-            ->assertJsonPath('remainingStock', 25);
+            ->assertJsonPath('remainingStock', 5);
 
-        $this->assertSame(25, $product->fresh()->stock_on_hand);
+        // 2026-11-22: an edit REPLACES the amount (20 in, edited to 5 = 5).
+        $this->assertSame(5, $product->fresh()->stock_on_hand);
         $this->assertDatabaseCount('stock_movements', 1);
         $this->assertDatabaseHas('stock_movements', [
             'id' => $movement->id,
             'movement_type' => 'in',
             'qty' => 5,
-            'remaining_stock' => 25,
+            'remaining_stock' => 5,
         ]);
     }
 
@@ -227,18 +228,19 @@ class StockMovementPersistenceTest extends TestCase
             ->assertOk()
             ->assertJsonPath('type', 'Stock Out')
             ->assertJsonPath('qty', 10)
-            ->assertJsonPath('remainingStock', 5);
+            ->assertJsonPath('remainingStock', 10);
 
-        $this->assertSame(5, $product->fresh()->stock_on_hand);
+        // 2026-11-22: 20 on hand, a sale of 5 edited to 10 leaves 10 (not 5).
+        $this->assertSame(10, $product->fresh()->stock_on_hand);
         $this->assertDatabaseHas('stock_movements', [
             'id' => $movement['id'],
             'movement_type' => 'out',
             'qty' => 10,
-            'remaining_stock' => 5,
+            'remaining_stock' => 10,
         ]);
     }
 
-    public function test_editing_an_opening_in_movement_by_five_shows_five_and_total_fifteen(): void
+    public function test_editing_an_opening_in_movement_to_five_shows_five_and_total_five(): void
     {
         $product = $this->createProduct(0);
         $movement = $this->postJson('/api/stock-movements', [
@@ -257,13 +259,14 @@ class StockMovementPersistenceTest extends TestCase
             'date' => now()->toDateString(),
         ])->assertOk()
             ->assertJsonPath('qty', 5)
-            ->assertJsonPath('remainingStock', 15);
+            ->assertJsonPath('remainingStock', 5);
 
+        // 2026-11-22: the edit replaces 10 with 5, so the total is 5 (was 15).
         $this->getJson('/api/stock-movements')
             ->assertOk()
             ->assertJsonPath('0.qty', 5)
-            ->assertJsonPath('0.totalQty', 15);
-        $this->assertSame(15, $product->fresh()->stock_on_hand);
+            ->assertJsonPath('0.totalQty', 5);
+        $this->assertSame(5, $product->fresh()->stock_on_hand);
     }
 
     public function test_new_stock_in_from_zero_saves_five(): void
@@ -428,16 +431,18 @@ class StockMovementPersistenceTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('type', 'Stock In')
-            ->assertJsonPath('remainingStock', 14);
+            ->assertJsonPath('remainingStock', 18);
 
-        $this->assertSame(11, $product->fresh()->stock_on_hand);
-        $this->assertSame(11, $adjustment['id'] ? StockMovement::findOrFail($adjustment['id'])->remaining_stock : null);
+        // 2026-11-22: the sale of 4 is replaced by a delivery of 8:
+        // opening 10, +8 = 18, then the correction −3 = 15.
+        $this->assertSame(15, $product->fresh()->stock_on_hand);
+        $this->assertSame(15, $adjustment['id'] ? StockMovement::findOrFail($adjustment['id'])->remaining_stock : null);
 
         $this->deleteJson('/api/stock-movements/'.$adjustment['id'])
             ->assertOk()
             ->assertJsonPath('deleted', true);
 
-        $this->assertSame(14, $product->fresh()->stock_on_hand);
+        $this->assertSame(18, $product->fresh()->stock_on_hand);
         // Deleted entries go to the Trash Bin (kept, but hidden everywhere).
         $this->assertSoftDeleted('stock_movements', ['id' => $adjustment['id']]);
     }
@@ -469,7 +474,8 @@ class StockMovementPersistenceTest extends TestCase
         $this->deleteJson('/api/stock-movements/'.$movement['id'])->assertOk();
 
         $this->getJson('/api/stock-movements')->assertOk()->assertJsonMissing(['id' => $movement['id']]);
-        $this->assertSame(12, $product->fresh()->stock_on_hand);
+        // 2026-11-22: 10 + 2 edited to 7 = 17; deleting it leaves the 10.
+        $this->assertSame(10, $product->fresh()->stock_on_hand);
     }
 
     public function test_editing_a_past_adjustment_preserves_later_stock_movements(): void

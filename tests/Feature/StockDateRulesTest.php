@@ -95,12 +95,12 @@ class StockDateRulesTest extends TestCase
         $this->assertSame(3, StockMovement::count());
         $this->assertSame(0, StockMovement::where('remaining_stock', '<', 0)->count());
 
-        // An edit keeps the old amount in the opening balance (existing design),
-        // so whatever it saves, no day may end up below zero.
+        // 2026-11-22: an edit replaces the amount, so lowering the first
+        // Stock In below what was sold after it is refused too.
         $this->putJson("/api/stock-movements/{$firstIn->id}", [
             'unitPrice' => 10,
             'productId' => 'PRD-D1', 'type' => 'Stock In', 'qty' => 4, 'date' => $this->day(30),
-        ])->assertOk();
+        ])->assertStatus(422);
         $this->assertSame(0, StockMovement::where('remaining_stock', '<', 0)->count());
     }
 

@@ -121,9 +121,12 @@ class StockMovementService
 
             if ($newProduct->id === $oldProduct->id) {
                 $newProduct = $oldProduct;
-                // An edit enters the new change to apply to today's stock; the
-                // previous row amount becomes part of the opening balance.
-                $stockBeforeReplacement = (int) $oldProduct->stock_on_hand;
+                // ===== AN EDIT REPLACES THE OLD AMOUNT (2026-11-22) =====
+                // Take the old row amount out first, then apply the new one,
+                // so Stock In 10 edited to 5 leaves 5 (not 15). Before, the old
+                // amount stayed hidden in the stock, so the stock no longer
+                // matched its entries.
+                $stockBeforeReplacement = (int) $oldProduct->stock_on_hand - $oldDelta;
             } else {
                 $oldProduct->stock_on_hand = (int) $oldProduct->stock_on_hand - $oldDelta;
                 $oldProduct->save();
