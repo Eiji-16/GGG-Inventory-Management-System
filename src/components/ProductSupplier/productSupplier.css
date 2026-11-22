@@ -1772,3 +1772,33 @@ table.ps-table tr > td.ps-td-pic > span.ps-thumb.ps-thumb-empty:only-child {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+/* ===== CONTACTS TIDY (2026-11-22) =====
+   Trash button as tall as the box beside it; "Add another contact" is a
+   full-width dashed button under the list. */
+.ps-contact-item .ps-supplier-remove {
+    width: 38px;
+    height: auto;
+    align-self: stretch;
+}
+.ps-contact-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 0.55rem 0.8rem;
+    border: 1px dashed var(--border-color);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: color 0.18s ease, border-color 0.18s ease;
+}
+.ps-contact-add:hover,
+.ps-contact-add:focus-visible {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+    outline: none;
+}

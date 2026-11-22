@@ -2700,3 +2700,65 @@
     }
     .product-variant-Name > label:nth-of-type(2) { margin-top: 0.45rem; }
 }
+
+/* ===== UNDO SALE OR NEW STOCK (2026-11-22) =====
+   Two full-width choices with one short line each, then Cancel. */
+.sc-undo-intro { margin-bottom: 14px; }
+.sc-undo-options {
+    display: grid;
+    gap: 8px;
+    margin: 0 0 10px;
+    text-align: left;
+}
+.sc-undo-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+.sc-undo-option svg { flex-shrink: 0; margin-top: 2px; }
+.sc-undo-option strong { display: block; font-size: 13px; }
+.sc-undo-option small {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+.sc-undo-option:hover:not(:disabled),
+.sc-undo-option:focus-visible {
+    background: var(--background-icon-active-color-theme);
+    outline: none;
+}
+.sc-undo-option.is-primary {
+    border-color: color-mix(in srgb, var(--accent-med) 60%, transparent);
+    background: color-mix(in srgb, var(--accent-med) 10%, transparent);
+}
+.sc-undo-option.is-primary svg { color: var(--accent-med); }
+.sc-undo-option:disabled { opacity: 0.55; cursor: wait; }
+.sc-undo-note {
+    margin: 0 !important;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 12px !important;
+    color: var(--text-muted) !important;
+    background: color-mix(in srgb, var(--accent-med) 8%, transparent);
+}
+.sc-modal-save-btn.sc-undo-cancel,
+.sc-modal-cancel-btn.sc-undo-cancel {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+}

@@ -18,6 +18,8 @@ const EMPTY_SUPPLIER = { id: null, name: '', contacts: [''], leadTimeDays: '' };
    as before. The field holds up to 255 characters in total. */
 const CONTACT_SEPARATOR = '; ';
 const CONTACT_MAX_LENGTH = 255;
+// At most 5 contacts per supplier (2026-11-22); the server checks it too.
+const CONTACT_MAX_COUNT = 5;
 const splitContacts = (text) => String(text || '')
   .split(';')
   .map((part) => part.trim())
@@ -172,6 +174,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
   }));
   const addContact = () => {
     const next = draft.contacts.length;
+    if (next >= CONTACT_MAX_COUNT) return;
     setDraft((prev) => ({ ...prev, contacts: [...prev.contacts, ''] }));
     // Put the cursor in the new box.
     setTimeout(() => document.getElementById(`supplier-contact-${next}`)?.focus(), 0);
@@ -189,7 +192,11 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
     const leadTimeDays = leadText === '' ? null : Number(leadText);
     if (!name) return setFormError('Enter the supplier name.');
     // Empty boxes are skipped; the rest are saved as "a; b; c".
-    const contact = draft.contacts.flatMap(splitContacts).join(CONTACT_SEPARATOR);
+    const contactList = draft.contacts.flatMap(splitContacts);
+    if (contactList.length > CONTACT_MAX_COUNT) {
+      return setFormError(`A supplier can have up to ${CONTACT_MAX_COUNT} contacts.`);
+    }
+    const contact = contactList.join(CONTACT_SEPARATOR);
     if (contact.length > CONTACT_MAX_LENGTH) {
       return setFormError(`All contacts together can be up to ${CONTACT_MAX_LENGTH} characters. Remove a contact or shorten one.`);
     }
@@ -454,12 +461,7 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
                   </div>
                   {/* ===== CONTACTS: one box each, + Add, trash ===== */}
                   <div className="ps-form-group ps-form-group-wide">
-                    <div className="ps-contacts-head">
-                      <label htmlFor="supplier-contact-0">Contacts</label>
-                      <button type="button" className="ps-variant-add" onClick={addContact}>
-                        <Plus size={12} /> Add
-                      </button>
-                    </div>
+                    <label htmlFor="supplier-contact-0">Contacts</label>
                     <div className="ps-supplier-list">
                       {draft.contacts.map((contact, index) => (
                         <div className="ps-supplier-item ps-contact-item" key={index}>
@@ -478,16 +480,25 @@ export default function SupplierRecords({ onSuppliersChange, canManage = true, d
                             aria-label={`Remove contact ${index + 1}`}
                             title="Remove contact"
                           >
-                            <Trash2 size={13} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       ))}
+                      {/* ===== ADD BELOW THE LIST (2026-11-22) ===== */}
+                      {draft.contacts.length < CONTACT_MAX_COUNT ? (
+                        <button type="button" className="ps-contact-add" onClick={addContact}>
+                          <Plus size={13} aria-hidden="true" /> Add another contact ({draft.contacts.length}/{CONTACT_MAX_COUNT})
+                        </button>
+                      ) : (
+                        <p className="ps-field-note">Up to {CONTACT_MAX_COUNT} contacts. Remove one to add another.</p>
+                      )}
                     </div>
                   </div>
                   <div className="ps-form-row">
                     <div className="ps-form-group">
                       <label htmlFor="supplier-lead">Lead Time (days)</label>
                       <input id="supplier-lead" type="number" min="0" max="365" step="1" value={draft.leadTimeDays} onChange={(e) => setDraft({ ...draft, leadTimeDays: limitDigits(e.target.value, { whole: 3 }) })} placeholder="e.g. 3" />
+                      <p className="ps-field-note">Days from order to delivery.</p>
                     </div>
                   </div>
                   <PageToast message={formError} type="error" onShown={() => setFormError('')} />

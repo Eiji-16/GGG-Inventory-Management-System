@@ -30,12 +30,25 @@ class SupplierController extends Controller
         return response()->json($this->format($supplier));
     }
 
+    /** At most 5 contacts, saved as "a; b; c" (2026-11-22). */
+    private const MAX_CONTACTS = 5;
+
+    private function contactRules(): array
+    {
+        return ['nullable', 'string', 'max:255', function (string $attribute, $value, \Closure $fail): void {
+            $count = count(array_filter(array_map('trim', explode(';', (string) $value)), fn ($part) => $part !== ''));
+            if ($count > self::MAX_CONTACTS) {
+                $fail('A supplier can have up to '.self::MAX_CONTACTS.' contacts.');
+            }
+        }];
+    }
+
     /** POST /api/suppliers */
     public function store(Request $request)
     {
         $data = $request->validate([
             'name'    => ['required', 'string', 'max:255', 'unique:suppliers,name'],
-            'contact' => ['nullable', 'string', 'max:255'],
+            'contact' => $this->contactRules(),
             'company' => ['nullable', 'string', 'max:255'],
             'leadTimeDays' => ['nullable', 'integer', 'min:0', 'max:365'],
         ], ['name.unique' => 'A supplier with this name already exists (it may be in the Trash Bin — restore it from there).']);
@@ -56,7 +69,7 @@ class SupplierController extends Controller
     {
         $data = $request->validate([
             'name'    => ['sometimes', 'string', 'max:255', 'unique:suppliers,name,'.$supplier->id],
-            'contact' => ['nullable', 'string', 'max:255'],
+            'contact' => $this->contactRules(),
             'company' => ['nullable', 'string', 'max:255'],
             'leadTimeDays' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:365'],
         ], ['name.unique' => 'A supplier with this name already exists (it may be in the Trash Bin — restore it from there).']);

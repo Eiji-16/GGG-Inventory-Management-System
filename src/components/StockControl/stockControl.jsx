@@ -2746,33 +2746,44 @@ function StockControl({
             aria-describedby="sc-undo-text"
           >
             <span className="sc-confirm-icon" aria-hidden="true"><RotateCcw size={22} /></span>
-            <h3 id="sc-undo-title">Undo a sale or add new stock?</h3>
-            <p id="sc-undo-text">
-              {undoChoice.row.productName}{undoChoice.row.variantName ? ` (${undoChoice.row.variantName})` : ''} was sold today
-              ({undoChoice.soldToday} {undoChoice.soldToday === 1 ? 'unit' : 'units'}). What are these {undoChoice.amount} extra {undoChoice.amount === 1 ? 'unit' : 'units'}?
+            {/* ===== CLEAR CHOICES (2026-11-22) ===== two full-width options with
+                a short line each, then Cancel, so nothing wraps or crowds. */}
+            <h3 id="sc-undo-title">Undo the sale or add stock?</h3>
+            <p id="sc-undo-text" className="sc-undo-intro">
+              <strong>{undoChoice.row.productName}{undoChoice.row.variantName ? ` (${undoChoice.row.variantName})` : ''}</strong>
               <span className="sc-confirm-detail">
-                {undoChoice.amount <= undoChoice.soldToday
-                  ? <><strong>Undo sale</strong> takes the sale back: the stock goes up and it is removed from the sales chart. </>
-                  : <>Only {undoChoice.soldToday} can be undone today. To undo, change the amount to {undoChoice.soldToday} or less. </>}
-                <strong>{undoChoice.kind === 'count' ? 'Save as Correction' : 'New stock arrived'}</strong>
-                {undoChoice.kind === 'count'
-                  ? ' keeps the sale and saves the counted number (found stock).'
-                  : ' keeps the sale and saves a Stock In.'}
+                Sold today: {undoChoice.soldToday} · You’re adding: +{undoChoice.amount}
               </span>
             </p>
-            <div className="sc-modal-actions">
-              <button type="button" className="sc-modal-cancel-btn" onClick={() => setUndoChoice(null)} disabled={undoBusy}>
-                Cancel
-              </button>
-              <button type="button" className="sc-modal-cancel-btn" onClick={chooseNotUndo} disabled={undoBusy}>
-                {undoChoice.kind === 'count' ? 'Save as Correction' : 'New stock arrived'}
-              </button>
-              {undoChoice.amount <= undoChoice.soldToday && (
-                <button type="button" className="sc-modal-save-btn" onClick={confirmUndoSale} disabled={undoBusy} autoFocus>
-                  {undoBusy ? 'Undoing…' : 'Undo sale'}
+            <div className="sc-undo-options">
+              {undoChoice.amount <= undoChoice.soldToday ? (
+                <button type="button" className="sc-undo-option is-primary" onClick={confirmUndoSale} disabled={undoBusy} autoFocus>
+                  <RotateCcw size={16} aria-hidden="true" />
+                  <span>
+                    <strong>{undoBusy ? 'Undoing…' : 'Undo sale'}</strong>
+                    <small>It was a mistake. Stock goes back up and the sale is removed from the sales chart.</small>
+                  </span>
                 </button>
+              ) : (
+                <p className="sc-undo-note">
+                  Only {undoChoice.soldToday} sold today can be undone. To undo, change the amount to {undoChoice.soldToday} or less.
+                </p>
               )}
+              <button type="button" className="sc-undo-option" onClick={chooseNotUndo} disabled={undoBusy}>
+                {undoChoice.kind === 'count' ? <Check size={16} aria-hidden="true" /> : <PlusCircle size={16} aria-hidden="true" />}
+                <span>
+                  <strong>{undoChoice.kind === 'count' ? 'Save as Correction' : 'New stock arrived'}</strong>
+                  <small>
+                    {undoChoice.kind === 'count'
+                      ? 'The sale stays. The counted number is saved (found stock).'
+                      : 'The sale stays. A Stock In is saved.'}
+                  </small>
+                </span>
+              </button>
             </div>
+            <button type="button" className="sc-modal-cancel-btn sc-undo-cancel" onClick={() => setUndoChoice(null)} disabled={undoBusy}>
+              Cancel
+            </button>
           </div>
         </div>,
         document.body

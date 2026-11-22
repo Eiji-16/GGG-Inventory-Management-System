@@ -42,6 +42,13 @@ class SupplierContactsTest extends TestCase
         $this->assertNull($supplier->fresh()->contact);
     }
 
+    public function test_five_contacts_are_allowed_and_six_are_refused(): void
+    {
+        $this->postJson('/api/suppliers', ['name' => 'Five', 'contact' => 'a1; a2; a3; a4; a5'])->assertCreated();
+        $this->postJson('/api/suppliers', ['name' => 'Six', 'contact' => 'a1; a2; a3; a4; a5; a6'])
+            ->assertUnprocessable()->assertJsonValidationErrors('contact');
+    }
+
     public function test_contacts_longer_than_the_field_are_refused(): void
     {
         $this->postJson('/api/suppliers', [
