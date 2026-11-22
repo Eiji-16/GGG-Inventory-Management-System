@@ -34,7 +34,10 @@ class SystemNameController extends Controller
         abort_unless($request->user()?->isSuperAdmin(), 403, 'Only the Super Admin can change the system name.');
 
         // Tidy spaces first, so "  My   Shop " is saved as "My Shop".
-        $request->merge(['name' => trim((string) preg_replace('/\s+/u', ' ', (string) $request->input('name', '')))]);
+        // Not text (e.g. a list) counts as empty, so it gets the normal message instead of a crash (2026-11-22).
+        $raw = $request->input('name', '');
+        $raw = is_string($raw) ? $raw : '';
+        $request->merge(['name' => trim((string) preg_replace('/\s+/u', ' ', $raw))]);
         $data = $request->validate([
             'name' => ['required', 'string', 'min:2', 'max:'.AppSetting::SYSTEM_NAME_MAX, 'regex:/^[^<>]+$/u'],
         ], [

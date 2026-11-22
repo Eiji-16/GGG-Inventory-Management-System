@@ -123,6 +123,10 @@ class StockMovementController extends Controller
             // to stock, so a big suggestion no longer blocks a custom amount
             // (2026-11-18). The quantity itself is still at most 9,999.
             'suggestedQty' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
+            // Checked as text first (2026-11-22): a list sent here used to crash with a 500.
+            'productId' => ['required', 'string'],
+            'variantName' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string', 'max:255'],
         ], [
             'photo.image' => 'The proof must be a picture (JPG, PNG, WEBP or GIF).',
             'photo.mimes' => 'The proof must be a picture (JPG, PNG, WEBP or GIF).',
