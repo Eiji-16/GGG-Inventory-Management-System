@@ -251,7 +251,7 @@ function Login({ onLogin }) {
                         ))}
                     </ul>
 
-                    <p className="lg-brand-foot">© {new Date().getFullYear()} Global Growth Guide</p>
+                    {/* ===== SIGN-IN FORM ===== <p className="lg-brand-foot">© {new Date().getFullYear()} Global Growth Guide </p>*/}
                 </aside>
 
                 {/* ===== SIGN-IN FORM ===== */}
