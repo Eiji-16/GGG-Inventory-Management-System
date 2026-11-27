@@ -369,7 +369,7 @@ html[data-field-hints="hidden"] :is(
     }
 }
 
-/*==========TABLE CHECKBOXES: one size everywhere==========
+/* ===== TABLE CHECKBOXES: one size everywhere =====
    The browser's own checkbox is redrawn slightly bigger or smaller depending
    on where its row lands on the screen (most visible when the browser zoom is
    not 100%), so ticks in the same column looked different sizes. These are
@@ -425,7 +425,7 @@ table input[type="checkbox"]:disabled {
     }
 }
 
-/*==========TABLE ROWS STRETCH TO FILL THEIR BOX==========
+/* ===== TABLE ROWS STRETCH TO FILL THEIR BOX =====
    Set by src/utils/fitRows.js: rows get a few pixels taller so a full page
    of rows reaches the bottom of the table box (no empty band under the last
    row). Message rows ("Loading…", "No rows") keep their own height. */
@@ -433,7 +433,7 @@ table input[type="checkbox"]:disabled {
     height: var(--fit-row-height, auto);
 }
 
-/*==========FONT SIZE (Settings → Font size)==========
+/* ===== FONT SIZE (Settings → Font size) =====
    Small / Medium / Large scale the whole screen (text, icons and boxes
    together) — see src/fontSize.js. --ui-zoom is used by sizes written in
    vh / vw, which zoom would otherwise make too big for the window. */
@@ -441,7 +441,7 @@ table input[type="checkbox"]:disabled {
 html[data-font-size="small"] { zoom: 0.9; --ui-zoom: 0.9; }
 html[data-font-size="large"] { zoom: 1.1; --ui-zoom: 1.1; }
 
-/*==========CHART HOVER TOOLTIP==========
+/* ===== CHART HOVER TOOLTIP =====
    One shared data box for every chart (src/utils/chartTooltip.js). Any
    element with data-tip="…" shows it on hover / keyboard focus. */
 .chart-tip {
@@ -490,7 +490,7 @@ html[data-font-size="large"] { zoom: 1.1; --ui-zoom: 1.1; }
     .chart-tip { transition: none; }
 }
 
-/*==========PAGE GLOW==========
+/* ===== PAGE GLOW =====
    A faint glow in the theme's accent colour rising from the bottom of the
    window (decoration only). (The old "sunlight" card effect was removed.) */
 html .dashboard-page-wrapper {
@@ -660,7 +660,7 @@ html .dashboard-page-wrapper {
 }
 
 
-/*==========LOADING SKELETON (2026-11-11)==========
+/* ===== LOADING SKELETON (2026-11-11) =====
    Add "ui-loading" to a loading box or table cell: its text and dashed box
    are hidden (screen readers still read the text) and three soft bars with
    a light sweep show instead — the same look as the Products table while it
@@ -707,7 +707,7 @@ html .dashboard-page-wrapper {
 }
 
 
-/*==========PAGE COLOUR LAYER (2026-11-11)==========
+/* ===== PAGE COLOUR LAYER (2026-11-11) =====
    html/body are one screen tall, so a gradient page colour (Midnight Blue,
    Citrus, Ember…) repeated every screen height on long pages (phones):
    bright band, then dark again. The page colour now sits on its own fixed

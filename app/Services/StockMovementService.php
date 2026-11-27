@@ -121,7 +121,7 @@ class StockMovementService
 
             if ($newProduct->id === $oldProduct->id) {
                 $newProduct = $oldProduct;
-                // ===== AN EDIT REPLACES THE OLD AMOUNT (2026-11-22) =====
+                /* ===== AN EDIT REPLACES THE OLD AMOUNT (2026-11-22) ===== */
                 // Take the old row amount out first, then apply the new one,
                 // so Stock In 10 edited to 5 leaves 5 (not 15). Before, the old
                 // amount stayed hidden in the stock, so the stock no longer

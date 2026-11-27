@@ -42,7 +42,7 @@
     white-space: nowrap;
 }
 
-/*==========MAXIMUM INVENTORY / REORDER PLAN==========*/
+/* ===== MAXIMUM INVENTORY / REORDER PLAN ===== */
 .sc-reorder-fullscreen-overlay {
     position: fixed;
     inset: 0;
@@ -466,7 +466,7 @@
     }
 }
 
-/*==========SAFETY LEVEL BADGE==========*/
+/* ===== SAFETY LEVEL BADGE ===== */
 .sc-safety-badge {
     display: inline-flex;
     align-items: center;
@@ -510,7 +510,7 @@
     background: var(--accent-high-soft);
 }
 
-/*==========ROW STATUS TINTS==========*/
+/* ===== ROW STATUS TINTS ===== */
 .sc-table tbody tr.sc-row-critical td:first-child {
     box-shadow: inset 3px 0 0 rgba(255, 77, 77, 0.65);
 }
@@ -531,7 +531,7 @@
 .sc-table tbody tr.sc-row-outofstock { background-color: rgba(220, 38, 38, 0.1); }
 .sc-table tbody tr.sc-row-low { background-color: color-mix(in srgb, var(--accent-med) 7%, transparent); }
 
-/*==========TYPE PILL==========*/
+/* ===== TYPE PILL ===== */
 .sc-type-pill {
     display: inline-block;
     padding: 2px 9px;
@@ -619,7 +619,7 @@
     cursor: not-allowed;
 }
 
-/*==========ICON-ONLY TOOLBAR BUTTONS==========*/
+/* ===== ICON-ONLY TOOLBAR BUTTONS ===== */
 .sc-add-btn.sc-icon-only {
     padding: 0.4rem;
     width: 2rem;
@@ -627,7 +627,7 @@
     justify-content: center;
 }
 
-/*==========SORT DROPDOWN==========*/
+/* ===== SORT DROPDOWN ===== */
 .sc-sort-wrap {
     position: relative;
     display: inline-flex;
@@ -691,7 +691,7 @@
     border-color: #ff4d4d;
 }
 
-/*==========TABLE SCROLL==========*/
+/* ===== TABLE SCROLL ===== */
 .sc-table-scroll {
     width: 100%;
     overflow-x: auto;
@@ -700,7 +700,7 @@
     background: var(--bg-card);
 }
 
-/*==========SEMANTIC TABLE==========*/
+/* ===== SEMANTIC TABLE ===== */
 .sc-table {
     width: 100%;
     border-collapse: collapse;
@@ -769,11 +769,11 @@
 
 .sc-th-check, .sc-td-check { width: 36px; }
 
-/*==========CHECKBOX==========*/
+/* ===== CHECKBOX ===== */
 /* Look and size come from the shared table checkbox style in
    src/styles/index.css, so every checkbox is exactly the same size. */
 
-/*==========EMPTY STATE==========*/
+/* ===== EMPTY STATE ===== */
 .sc-empty-state {
     padding: 2.5rem 1rem !important;
     text-align: center;
@@ -781,7 +781,7 @@
     color: var(--text-muted, #666);
 }
 
-/*==========TABLE ACTION BUTTONS==========*/
+/* ===== TABLE ACTION BUTTONS ===== */
 .sc-table-action-btn {
     background: transparent !important;
     border: none !important;
@@ -835,12 +835,12 @@
     filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 35%, transparent));
 }
 
-/*==========TAP FEEDBACK==========*/
+/* ===== TAP FEEDBACK ===== */
 .sc-table-action-btn:active {
     transform: scale(0.9);
 }
 
-/*==========ACTION CELL==========*/
+/* ===== ACTION CELL ===== */
 .sc-action-cell-container {
     display: flex;
     flex-direction: row;
@@ -852,7 +852,7 @@
     gap: 2px;
 }
 
-/*==========PRODUCT LINK==========*/
+/* ===== PRODUCT LINK ===== */
 .sc-product-link {
     background: none;
     border: none;
@@ -874,7 +874,7 @@
     border-bottom-color: var(--accent, #E8C547);
 }
 
-/*==========COMPUTED FIELD==========*/
+/* ===== COMPUTED FIELD ===== */
 .sc-computed-field {
     display: flex;
     align-items: center;
@@ -930,7 +930,7 @@
     color: var(--text-muted);
 }
 
-/*==========PRODUCT THUMBNAIL (read-only)==========*/
+/* ===== PRODUCT THUMBNAIL (read-only) ===== */
 .sc-name-cell {
     display: inline-flex;
     align-items: center;
@@ -955,7 +955,7 @@
     color: var(--text-muted);
 }
 
-/*==========STATUS PREVIEW==========*/
+/* ===== STATUS PREVIEW ===== */
 .sc-status-preview {
     display: flex;
     align-items: center;
@@ -1007,7 +1007,7 @@
     color: var(--text-muted);
 }
 
-/*==========ADD / EDIT STOCK ENTRY MODAL==========*/
+/* ===== ADD / EDIT STOCK ENTRY MODAL ===== */
 .sc-modal-overlay {
     position: fixed;
     inset: 0;
@@ -1026,7 +1026,7 @@
     to { opacity: 1; }
 }
 
-/*==========MODAL SHELL==========*/
+/* ===== MODAL SHELL ===== */
 .sc-modal {
     display: flex;
     flex-direction: column;
@@ -1193,7 +1193,7 @@
     grid-row: 2;
 }
 
-/*==========FULL WIDTH FIELD==========*/
+/* ===== FULL WIDTH FIELD ===== */
 .sc-form-group-wide {
     width: 100%;
 }
@@ -1303,7 +1303,7 @@
     cursor: not-allowed;
 }
 
-/*==========MOVEMENT HISTORY PANEL==========*/
+/* ===== MOVEMENT HISTORY PANEL ===== */
 .sc-history-panel {
     background-color: var(--bg-card, #ffffff);
     color: var(--text-primary);
@@ -1327,7 +1327,7 @@
     color: var(--text-muted);
 }
 
-/*==========HISTORY TOTALS==========*/
+/* ===== HISTORY TOTALS ===== */
 .sc-history-summary {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1551,7 +1551,7 @@
     color: var(--text-muted);
 }
 
-/*==========ACTIVITY DRAWER==========*/
+/* ===== ACTIVITY DRAWER ===== */
 .sc-drawer-overlay {
     position: fixed;
     inset: 0;
@@ -1720,7 +1720,7 @@
     .sc-activity-drawer .sc-drawer-footer { padding-left: 0.85rem; padding-right: 0.85rem; }
 }
 
-/*==========RESPONSIVENESS==========*/
+/* ===== RESPONSIVENESS ===== */
 /* ==========MOBILE / TABLET CARD LIST==========
    Up to 900px wide (phones and portrait tablets) each stock-movement row
    becomes a card: cells show their column name (data-label) beside the value,
@@ -1935,7 +1935,7 @@
         flex: 1;
     }
 
-    /*==========STACKED OUTCOME CARD==========*/
+    /* ===== STACKED OUTCOME CARD ===== */
     .sc-computed-field {
         flex-direction: column;
         align-items: flex-start;
@@ -1944,7 +1944,7 @@
 }
 
 @media (max-width: 480px) {
-    /*==========TWO ROW TOTALS==========*/
+    /* ===== TWO ROW TOTALS ===== */
     .sc-history-summary {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         row-gap: 0.8rem;
@@ -2111,7 +2111,7 @@
 .sc-pager-arrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .sc-pager-arrow:disabled { opacity: 0.35; cursor: default; }
 
-/*==========TOOLBAR BUTTONS ON SMALL SCREENS==========
+/* ===== TOOLBAR BUTTONS ON SMALL SCREENS =====
    Labels never wrap onto two lines; on very small phones the Add / Update /
    Delete buttons become square icon buttons (Delete keeps its count). */
 .sc-add-btn { white-space: nowrap; flex-shrink: 0; }
@@ -2144,7 +2144,7 @@
     }
 }
 
-/*==========EMPTY / LOADING MESSAGE IN CARD VIEW==========
+/* ===== EMPTY / LOADING MESSAGE IN CARD VIEW =====
    The message row is not a card: centre it instead of pushing it right. */
 @media (max-width: 900px) {
     .sc-table tbody td.sc-empty-state {
@@ -2163,7 +2163,7 @@
     }
 }
 
-/*==========TABS: Stock | History==========*/
+/* ===== TABS: Stock | History ===== */
 .sc-view-tabs {
     display: inline-flex;
     gap: 4px;
@@ -2192,7 +2192,7 @@
 .sc-view-tabs button.is-active { color: var(--btn-fill-text, #0B1426); background: var(--btn-fill-bg, var(--accent)); }
 .sc-view-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/*==========QTY: typeable number between − and +==========*/
+/* ===== QTY: typeable number between − and + ===== */
 /* − [count] + ✓ always stay on one line (they used to wrap at 100% zoom). */
 .sc-qty-typed { flex-wrap: nowrap; justify-content: center; gap: 0.3rem; }
 .sc-qty-input {
@@ -2215,7 +2215,7 @@
 .sc-qty-input.sc-out { border-color: #ff4d4d; }
 .sc-qty-input.is-count { border-color: var(--accent); }
 
-/*==========HISTORY TAB (read-only)==========*/
+/* ===== HISTORY TAB (read-only) ===== */
 @media (min-width: 901px) {
     .sc-history-table th.sc-th-left,
     .sc-history-table tbody td.sc-td-left { text-align: left; }
@@ -2230,7 +2230,7 @@
     .sc-navigation-bar .sc-view-tabs { flex: 1 1 100%; }
 }
 
-/*==========SCROLL INSIDE THE TABLE BOX (Stock + History, also Trash Bin)==========
+/* ===== SCROLL INSIDE THE TABLE BOX (Stock + History, also Trash Bin) =====
    Long tables scroll inside their own box; the column titles (already
    sticky) stay visible at the top. Phones keep the normal card list. */
 @media (min-width: 901px) {
@@ -2256,7 +2256,7 @@
     }
 }
 
-/*==========TABLES AT 100% ZOOM: keep every row on one line==========
+/* ===== TABLES AT 100% ZOOM: keep every row on one line =====
    On a normal laptop screen at 100% zoom the Stock table is narrower, so
    cells wrapped (− count + on one line and ✓ on the next, "Super Admin" /
    "User" on two lines), making rows twice as tall. Cells now stay on one
@@ -2269,7 +2269,7 @@
     .sc-qty-btn { width: 1.4rem; height: 1.4rem; }
 }
 
-/*==========FIT THE STOCK TABLE ON LAPTOP SCREENS (2026-10-30)==========
+/* ===== FIT THE STOCK TABLE ON LAPTOP SCREENS (2026-10-30) =====
    Same problem as Product & Supplier: at 100% zoom on a laptop (and with
    Large font) the last columns were cut off. Desktop only: tighter cell
    spacing, and long product names / notes / names wrap onto 2 lines
@@ -2335,7 +2335,7 @@
     .sc-stock-table .sc-qty-input { width: 2.4rem; }
 }
 
-/*==========ACTION COLUMN ALWAYS VISIBLE (2026-10-30)==========
+/* ===== ACTION COLUMN ALWAYS VISIBLE (2026-10-30) =====
    With real data (long names, notes, big numbers) the table can still be a
    little wider than its box, and the last column (Action) was cut off.
    Desktop: the Action column now stays pinned to the right edge of the table
@@ -2470,7 +2470,7 @@
     height: 0;
 }
 
-/*==========LIGHT THEMES: READABLE STATUS COLOURS (2026-11-08)==========
+/* ===== LIGHT THEMES: READABLE STATUS COLOURS (2026-11-08) =====
    The status colours above (pale red, green, blue) were made for dark
    backgrounds. On Soft White, Lavender, Teal Citrus and Olive they were
    hard to read (e.g. the Out of Stock badge was almost invisible). Here they
@@ -2613,7 +2613,7 @@
 .sc-proof-link:focus-visible { color: var(--text-primary); }
 .sc-proof-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/*==========STOCK CARDS ON PHONES/TABLETS: TAP TO OPEN/CLOSE (2026-11-12)==========
+/* ===== STOCK CARDS ON PHONES/TABLETS: TAP TO OPEN/CLOSE (2026-11-12) =====
    The product name was a link to the history, so tapping it on an open card
    opened the history instead of closing the card (and was a small target).
    On cards the name is now plain text: tapping anywhere on the title opens or

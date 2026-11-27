@@ -1,4 +1,4 @@
-/*==========ROOT==========*/
+/* ===== ROOT ===== */
 .dashboard-content-view {
     width: 100%;
     height: 100%;
@@ -7,10 +7,10 @@
     box-sizing: border-box;
 }
 
-/*==========THEME==========*/
+/* ===== THEME ===== */
 /* Theme variables are owned by landingPage.css. Do not redeclare them here. */
 
-/*==========SCROLL CONTAINER==========*/
+/* ===== SCROLL CONTAINER ===== */
 .dashboard-scroll-container {
     width: 100%;
     height: 100%;
@@ -21,7 +21,7 @@
     scroll-behavior: smooth;
 }
 
-/*==========GRID==========*/
+/* ===== GRID ===== */
 .parent {
     display: grid;
     gap: 6px;
@@ -32,7 +32,7 @@
     min-width: 0;
 }
 
-/*==========BASE CARD==========*/
+/* ===== BASE CARD ===== */
 .card {
     border: 1px solid var(--border-color, rgba(0,0,0,0.15));
     background: var(--bg-card);
@@ -47,16 +47,16 @@
     position: relative;
     min-width: 0;
 
-    /*==========CARD AS FLEX COLUMN==========*/
+    /* ===== CARD AS FLEX COLUMN ===== */
     display: flex;
     flex-direction: column;
     gap: 6px;
 
-    /*==========CARD ANIMATION==========*/
+    /* ===== CARD ANIMATION ===== */
     animation: cardEnter 0.35s ease both;
 }
 
-/*==========KPI SUMMARY==========*/
+/* ===== KPI SUMMARY ===== */
 .db-kpi-row {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -148,7 +148,7 @@
     }
 }
 
-/*==========LOADING SKELETON==========*/
+/* ===== LOADING SKELETON ===== */
 .db-skeleton .db-skel-card {
     animation: none;
     gap: 10px;
@@ -202,7 +202,7 @@
     .db-skel-spark::after { animation: none; }
 }
 
-/*==========STAGGER DELAY==========*/
+/* ===== STAGGER DELAY ===== */
 .parent > .card:nth-child(1) { animation-delay: 0.00s; }
 .parent > .card:nth-child(2) { animation-delay: 0.04s; }
 .parent > .card:nth-child(3) { animation-delay: 0.08s; }
@@ -214,8 +214,8 @@
 .parent > .card:nth-child(9) { animation-delay: 0.32s; }
 .parent > .card:nth-child(10) { animation-delay: 0.36s; }
 
-/*==========CLICKABLE CARD==========*/
-/*==========CARD HEAD==========*/
+/* ===== CLICKABLE CARD ===== */
+/* ===== CARD HEAD ===== */
 .db-card-head {
     display: flex;
     align-items: flex-start;
@@ -243,7 +243,7 @@
     line-height: 1.2;
 }
 
-/*==========OPEN AFFORDANCE ARROW==========*/
+/* ===== OPEN AFFORDANCE ARROW ===== */
 .db-open-arrow {
     width: 16px;
     height: 16px;
@@ -277,7 +277,7 @@
     outline-offset: 2px;
 }
 
-/*==========SEGMENT TOGGLE==========*/
+/* ===== SEGMENT TOGGLE ===== */
 .db-seg {
     display: inline-flex;
     gap: 2px;
@@ -305,9 +305,9 @@
     color: var(--icon-active-color);
 }
 
-/*==========DELTA PILL==========*/
-/*==========METRIC BLOCK==========*/
-/*==========HERO (SALES ANALYTICS)==========*/
+/* ===== DELTA PILL ===== */
+/* ===== METRIC BLOCK ===== */
+/* ===== HERO (SALES ANALYTICS) ===== */
 .db-hero-plot {
     position: relative;
     flex: 1;
@@ -353,7 +353,7 @@
 .db-hero-tooltip span { color: var(--text-muted); }
 .db-hero-tooltip strong { font-size: 11px; }
 
-/*==========STAT CARDS==========*/
+/* ===== STAT CARDS ===== */
 .db-stat-value {
     font-size: 26px;
     font-weight: 800;
@@ -386,8 +386,8 @@
     width: 100%;
 }
 
-/*==========STACKED SEGMENT BAR==========*/
-/*==========LEGEND==========*/
+/* ===== STACKED SEGMENT BAR ===== */
+/* ===== LEGEND ===== */
 .db-legend {
     display: flex;
     flex-wrap: wrap;
@@ -417,7 +417,7 @@
     flex-shrink: 0;
 }
 
-/*==========REGIONAL (DONUT)==========*/
+/* ===== REGIONAL (DONUT) ===== */
 .db-donut-row {
     display: flex;
     align-items: center;
@@ -446,8 +446,8 @@
     font-weight: 700;
 }
 
-/*==========GAUGE (EOQ)==========*/
-/*==========COLUMN CHART (ORDERS)==========*/
+/* ===== GAUGE (EOQ) ===== */
+/* ===== COLUMN CHART (ORDERS) ===== */
 .db-col-chart {
     flex: 1;
     min-height: 76px;
@@ -544,7 +544,7 @@
     opacity: 1;
 }
 
-/*==========RANKING BARS (PRODUCT SALES)==========*/
+/* ===== RANKING BARS (PRODUCT SALES) ===== */
 /* Thin, visible scrollbar: with the scrollbar hidden, a list with more
    items than fit just looked cut off half-way through a row. */
 .db-rank,
@@ -553,9 +553,9 @@
     padding-right: 4px;
 }
 
-/*==========ALERT LIST (STOCK ALERTS)==========*/
+/* ===== ALERT LIST (STOCK ALERTS) ===== */
 /* Clickable alert rows jump to the item in Stock Control. */
-/*==========DESKTOP LAYOUT==========*/
+/* ===== DESKTOP LAYOUT ===== */
 .salesAnalytics-card {
     grid-column: 1 / span 5;
     grid-row: 2;
@@ -598,7 +598,7 @@ grid-column: 5 / span 2;
     grid-column: 1 / span 2;
 }
 
-/*==========TABLET RESPONSIVENESS==========*/
+/* ===== TABLET RESPONSIVENESS ===== */
 @media (max-width: 1024px) {
     .db-kpi-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -653,7 +653,7 @@ grid-column: 5 / span 2;
     }
 }
 
-/*==========MOBILE RESPONSIVENESS==========*/
+/* ===== MOBILE RESPONSIVENESS ===== */
 @media (max-width: 640px) {
     .parent {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -734,7 +734,7 @@ grid-column: 5 / span 2;
     }
 }
 
-/*==========SMALL MOBILE RESPONSIVENESS==========*/
+/* ===== SMALL MOBILE RESPONSIVENESS ===== */
 @media (max-width: 400px) {
     .db-kpi-row {
         gap: 6px;
@@ -770,8 +770,8 @@ grid-column: 5 / span 2;
     .totalCustomer-card { min-height: 10.5rem; }
 }
 
-/*==========EMPTY CARD==========*/
-/*==========ORDER SOON (reorder suggestions, in the regionalBreakdown slot)==========*/
+/* ===== EMPTY CARD ===== */
+/* ===== ORDER SOON (reorder suggestions, in the regionalBreakdown slot) ===== */
 .regionalBreakdown-card {
     display: flex;
     flex-direction: column;
@@ -954,7 +954,7 @@ grid-column: 5 / span 2;
     .db-coverage-content { gap: 12px; }
 }
 
-/*==========DASHBOARD BOTTOM ROW==========*/
+/* ===== DASHBOARD BOTTOM ROW ===== */
 /* Stock Alerts fills the space left by the removed duplicate reorder card. */.parent-without-user-accounts .productSales-card { grid-column: 1 / span 3; }
 @media (max-width: 1024px) {
     .parent-without-user-accounts .totalOrder-card { grid-column: 1 / span 4; }    .parent-without-user-accounts .productSales-card { grid-column: 1 / span 2; }
@@ -974,7 +974,7 @@ grid-column: 5 / span 2;
 
 /* User Accounts in the top row (Super Admin) and the Reorder List card below. */
 
-/*==========SALES HISTORY: y-axis labels==========*/
+/* ===== SALES HISTORY: y-axis labels ===== */
 .salesAnalytics-card .db-hero-plot { --plot-pad: 34px; padding-left: var(--plot-pad); }
 .db-hero-yaxis {
     position: absolute;
@@ -991,9 +991,9 @@ grid-column: 5 / span 2;
     font-variant-numeric: tabular-nums;
     line-height: 1;
 }
-/*==========SMALL CHIP (Total Units Sold)==========*/
-/*==========STOCK ALERTS: rows are buttons — drop the browser's default border==========*/
-/*==========INVENTORY BY CATEGORY — rose pie==========*/
+/* ===== SMALL CHIP (Total Units Sold) ===== */
+/* ===== STOCK ALERTS: rows are buttons — drop the browser's default border ===== */
+/* ===== INVENTORY BY CATEGORY — rose pie ===== */
 .db-rose-svg { overflow: visible; }
 .db-rose-slice {
     stroke: var(--bg-card);
@@ -1043,7 +1043,7 @@ grid-column: 5 / span 2;
 .db-category-section .db-donut-svg.db-rose-svg { width: 132px; height: 132px; flex: 0 0 132px; }
 @media (max-width: 640px) { .db-category-section .db-donut-svg.db-rose-svg { width: 136px; height: 136px; flex-basis: 136px; } }
 
-/*==========SALES HISTORY — trend overview==========*/
+/* ===== SALES HISTORY — trend overview ===== */
 .db-trend-total {
     display: grid;
     gap: 1px;
@@ -1079,8 +1079,8 @@ grid-column: 5 / span 2;
 .salesAnalytics-card .db-trend-plot .db-trend-dot { margin-left: 0; }
 .salesAnalytics-card .db-trend-plot > svg { width: 100%; }
 
-/*==========TOTAL UNITS SOLD — smooth area==========*/
-/*==========COLOURED CARDS==========
+/* ===== TOTAL UNITS SOLD — smooth area ===== */
+/* ===== COLOURED CARDS =====
    Four fixed tones (same in every theme). Each tone re-points the theme
    variables inside its card so text, borders, bars and charts stay readable. */
 .db-tone { border-color: transparent !important; }.db-tone-flame {
@@ -1099,7 +1099,7 @@ grid-column: 5 / span 2;
 .db-tone-flame .db-col-bar { opacity: 0.5; }
 .db-tone-flame .db-col-bar-max { opacity: 1; }
 
-/*==========DASHBOARD LAYOUT (4 columns)==========
+/* ===== DASHBOARD LAYOUT (4 columns) =====
    Top KPI row is separate and unchanged.
    Row 1-2: Sales History (3 columns) | Supplier Coverage over Inventory by Category.
    Row 3:   Reorder List (2 columns) | Top Products Sold | Stock Movements.
@@ -1151,7 +1151,7 @@ grid-column: 5 / span 2;
     }
 }
 
-/*==========TOP KPI CARDS (redesign)==========
+/* ===== TOP KPI CARDS (redesign) =====
    Four cards in the existing .db-kpi-row grid. Each card gets its own accent
    colour (--kpi-accent) but shares the same size, spacing and motion.
    Colours come from the active theme, so the cards follow every theme
@@ -1471,7 +1471,7 @@ grid-column: 5 / span 2;
     .db-kpi-tile:hover .db-kpi-tile-go { transform: none; }
 }
 
-/*==========BIG NUMBERS STAY INSIDE THEIR CARD==========
+/* ===== BIG NUMBERS STAY INSIDE THEIR CARD =====
    Large values (e.g. 2,000,047 units or a long currency amount) used to run
    past the card edge and overlap the next card. The number now shrinks a
    little on narrower screens and wraps instead of overflowing. */
@@ -1493,7 +1493,7 @@ grid-column: 5 / span 2;
 .db-kpi-bar-seg.is-crit, .db-kpi-legend i.is-crit { background: color-mix(in srgb, var(--accent-low) 70%, var(--accent-med)); }
 .db-kpi-legend { gap: 4px 8px; }
 
-/*==========SUPPLIER COVERAGE (ring + detail rows)==========
+/* ===== SUPPLIER COVERAGE (ring + detail rows) =====
    Ring = share of products linked to a supplier (hover each part for the
    numbers). Detail rows on the right, each opens Product & Supplier. */
 .db-cov {
@@ -1577,7 +1577,7 @@ grid-column: 5 / span 2;
     .db-cov { gap: 10px; }
 }
 
-/*==========TOP PRODUCTS SOLD (photo list)==========
+/* ===== TOP PRODUCTS SOLD (photo list) =====
    Columns: Item (photo, name, category) | Stock now | Units sold. */
 .db-ps {
     display: flex;
@@ -1637,7 +1637,7 @@ grid-column: 5 / span 2;
 .db-ps-num.is-out { color: var(--accent-low); }
 .db-ps-sold { font-weight: 800; }
 
-/*==========RECENT ACTIVITY==========*/
+/* ===== RECENT ACTIVITY ===== */
 .activity-card { gap: 6px; }
 .db-act-list {
     display: flex;
@@ -1699,7 +1699,7 @@ grid-column: 5 / span 2;
 .db-act-qty.is-out { color: var(--accent-low); }
 .db-act-time { color: var(--text-muted); font-size: 9.5px; white-space: nowrap; }
 
-/*==========HOVER DATA on the small KPI bars==========*/
+/* ===== HOVER DATA on the small KPI bars ===== */
 .db-kpi-bar-seg[data-tip],
 .db-kpi-progress[data-tip] { cursor: default; transition: filter 0.15s ease, transform 0.15s ease; }
 .db-kpi-bar-seg[data-tip]:hover { filter: brightness(1.25); }
@@ -1711,7 +1711,7 @@ grid-column: 5 / span 2;
 .db-kpi-bar-hover .db-kpi-bar-seg::after { content: ''; position: absolute; inset: -8px 0; }
 .db-kpi-legend > span[data-tip] { cursor: default; }
 
-/*==========SALES HISTORY: BAR CHART OPTION (Line | Bar)==========*/
+/* ===== SALES HISTORY: BAR CHART OPTION (Line | Bar) ===== */
 .db-sales-bar {
     transform-box: fill-box;
     transform-origin: bottom;
@@ -1723,7 +1723,7 @@ grid-column: 5 / span 2;
 .db-sales-bar.is-active { filter: brightness(1.15) drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 50%, transparent)); }
 /* Month labels sit under the middle of each bar. */@media (prefers-reduced-motion: reduce) { .db-sales-bar { animation: none; } }
 
-/*==========KPI CARDS — ACRYLIC, CLEAN (2026-10-30)==========
+/* ===== KPI CARDS — ACRYLIC, CLEAN (2026-10-30) =====
    Frosted-glass cards again (blur + soft light behind them), but kept calm:
    the light behind the row now comes from the ACTIVE THEME's accent colour
    (gold on Midnight Blue, orange on Ember, blue on Graphite …), so the row
@@ -1769,7 +1769,7 @@ grid-column: 5 / span 2;
     box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-/*==========STOCK MOVEMENTS CARD FOLLOWS THE THEME==========
+/* ===== STOCK MOVEMENTS CARD FOLLOWS THE THEME =====
    It used to be orange in every theme. Now it uses the theme's own button
    colour and the matching text colour (gold with dark text on Midnight Blue,
    blue on Graphite, orange on Ember …). */
@@ -1791,7 +1791,7 @@ grid-column: 5 / span 2;
         linear-gradient(150deg, color-mix(in srgb, var(--tone-bg) 85%, #ffffff) 0%, var(--tone-bg) 55%, color-mix(in srgb, var(--tone-bg) 82%, #000000) 100%) !important;
 }
 
-/*==========REORDER LIST / RECENT ACTIVITY FILL THEIR CARD==========
+/* ===== REORDER LIST / RECENT ACTIVITY FILL THEIR CARD =====
    The list takes the free height of its card (desktop) and the page shows as
    many whole rows as fit (useFitCount in dashboard.jsx). "contain: size"
    stops the list from making the card taller by itself. */
@@ -1845,7 +1845,7 @@ grid-column: 5 / span 2;
     .db-fit-box > .db-fit-hidden { display: none; }
 }
 
-/*==========SALES TREND OVERVIEW (2026-10-30, round 2)==========
+/* ===== SALES TREND OVERVIEW (2026-10-30, round 2) =====
    Frosted acrylic card with soft theme light, controls in the header
    (Weekly / Monthly / Yearly, Line / Bar, Refresh, Download), a thin line
    with dotted guide lines, and a bar view with hatched bars for the period

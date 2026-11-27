@@ -9,7 +9,7 @@
     margin: 0;
 }
 
-/*==========TAB BAR==========*/
+/* ===== TAB BAR ===== */
 .r-tabbar {
     display: flex;
     gap: 6px;
@@ -39,7 +39,7 @@
 }
 .r-tab:hover:not(.active) { background: var(--overlay-soft); }
 
-/*==========PANEL HEADER==========*/
+/* ===== PANEL HEADER ===== */
 .r-panel-header {
     display: flex;
     align-items: flex-start;
@@ -75,7 +75,7 @@
 .r-export-btn:hover { background: var(--background-icon-active-color-theme); }
 .r-export-btn:active { transform: scale(0.96); }
 
-/*==========FILTERS BAR==========*/
+/* ===== FILTERS BAR ===== */
 .r-filters-bar {
     display: flex;
     flex-wrap: wrap;
@@ -131,7 +131,7 @@
     color: var(--btn-fill-text, #fff);
 }
 
-/*==========KPI CARDS==========*/
+/* ===== KPI CARDS ===== */
 .r-kpi-row {
     display: flex;
     gap: 12px;
@@ -164,7 +164,7 @@
     margin-top: 3px;
 }
 
-/*==========CHART CARD==========*/
+/* ===== CHART CARD ===== */
 .r-chart-card {
     background: var(--bg-card, #fff);
     border: 0.5px solid var(--border-color, rgba(0,0,0,0.15));
@@ -192,7 +192,7 @@
     font-size: 12px;
 }
 
-/*==========MINI BAR CHART (movement over time)==========*/
+/* ===== MINI BAR CHART (movement over time) ===== */
 .r-mini-chart {
     height: 220px;
     display: flex;
@@ -232,7 +232,7 @@
     white-space: nowrap;
 }
 
-/*==========TABLE==========*/
+/* ===== TABLE ===== */
 .r-table-card {
     background: var(--bg-card, #fff);
     border: 0.5px solid var(--border-color, rgba(0,0,0,0.15));
@@ -268,7 +268,7 @@
 .r-trend-up { color: var(--accent-high); font-weight: 700; }
 .r-trend-down { color: var(--accent-low); font-weight: 700; }
 
-/*==========STATUS BADGES==========*/
+/* ===== STATUS BADGES ===== */
 .r-badge {
     display: inline-flex;
     align-items: center;
@@ -289,7 +289,7 @@
 .r-badge-bad { background: var(--accent-low-soft); color: var(--accent-low); }
 .r-badge-bad .r-dot { background: var(--accent-low); }
 
-/*==========RESPONSIVENESS==========*/
+/* ===== RESPONSIVENESS ===== */
 @media (max-width: 640px) {
     /* Stack the panel title above its export button. */
     .r-panel-header {
@@ -333,7 +333,7 @@
 .r-badge-neutral { background: var(--overlay-medium); color: var(--text-muted, #888); }
 .r-badge-neutral .r-dot { background: var(--text-muted, #888); }
 
-/*==========SUPPLIER NOTE==========*/
+/* ===== SUPPLIER NOTE ===== */
 .r-supplier-note {
     display: flex;
     align-items: center;
@@ -345,7 +345,7 @@
     padding: 0.6rem 0.8rem;
     margin-top: 0.9rem;
 }
-/*==========EXPORT ACTIONS (PDF + Excel)==========*/
+/* ===== EXPORT ACTIONS (PDF + Excel) ===== */
 .r-export-actions {
     display: flex;
     flex-wrap: wrap;
@@ -353,7 +353,7 @@
     flex-shrink: 0;
 }
 
-/*==========FAST & SLOW MOVING==========*/
+/* ===== FAST & SLOW MOVING ===== */
 .r-fs-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -390,7 +390,7 @@
     .r-export-actions { align-self: flex-start; }
 }
 
-/*==========EOQ SUMMARY: DEMAND DETAILS==========*/
+/* ===== EOQ SUMMARY: DEMAND DETAILS ===== */
 .r-detail {
     display: grid;
     gap: 2px;
@@ -472,7 +472,7 @@
 }
 @media (prefers-reduced-motion: reduce) { .r-live-dot { animation: none; } }
 
-/*==========OVERALL REPORT (the whole Reports page, no tabs)==========*/
+/* ===== OVERALL REPORT (the whole Reports page, no tabs) ===== */
 .r-overall { padding-top: 10px; }
 /* "Export full report" buttons: bottom left, under the left chart. */
 .r-overall-toolbar {
@@ -536,7 +536,7 @@
 .r-overall .r-fs-list { gap: 7px; }
 .r-export-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/*==========REPORT POP-UP==========*/
+/* ===== REPORT POP-UP ===== */
 .r-modal-overlay {
     position: fixed;
     inset: 0;
@@ -623,7 +623,7 @@
     .r-modal { max-height: calc(92vh / var(--ui-zoom, 1)); }
 }
 
-/*==========REPORTS FIT THE SCREEN, BOTH COLUMNS END ON ONE LINE==========
+/* ===== REPORTS FIT THE SCREEN, BOTH COLUMNS END ON ONE LINE =====
    The charts area gets its height from useFillToBottom (it reaches the
    bottom of the page). Left: the Stock In vs Out chart grows to fill, with
    the export buttons under it. Right: Fast-Moving and Slow-Moving share the
@@ -678,7 +678,7 @@
 .r-overall-left .r-mini-col { height: auto; align-self: stretch; }
 .r-overall-left .r-mini-bars { height: auto; flex: 1 1 auto; min-height: 0; }
 
-/*==========REPORT CARDS: same design details as the Dashboard KPI cards==========
+/* ===== REPORT CARDS: same design details as the Dashboard KPI cards =====
    Each card has its own accent colour (--kpi-accent): a coloured icon chip, a
    thin accent line along the top, a soft glow in the corner, a light tinted
    background and a ↗ arrow. Hover lifts the card and brightens the accent.
@@ -766,7 +766,7 @@
 .r-kpi-tile:hover .r-kpi-tile-go { opacity: 1; color: var(--kpi-accent); transform: translate(2px, -2px); }
 .r-kpi-tile.r-clickable:focus-visible { outline: 2px solid var(--kpi-accent); }
 
-/*==========EXPORT FULL REPORT: two wide buttons filling the space==========*/
+/* ===== EXPORT FULL REPORT: two wide buttons filling the space ===== */
 .r-overall-toolbar {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -852,7 +852,7 @@
 .r-reorder-value { white-space: nowrap; }
 .r-overall-fs.is-single { grid-template-rows: 1fr; }
 
-/*==========REPORTS LAYOUT (one grid, every card opens a different report)==========
+/* ===== REPORTS LAYOUT (one grid, every card opens a different report) =====
      1  2  3  4        1 Products        2 Inventory Value  3 Units Sold  4 Forecast
      5  6  7  7        5 Order Quantity  6 Aging Stock      7 Stock Health (wide)
     10 10  8  8        10 Stock In vs Out chart (big)       8 Fast-Moving
@@ -1121,7 +1121,7 @@
     .r-list-search-wrap { flex-basis: auto; }
 }
 
-/*==========HOVER DATA ON EVERY CHART==========
+/* ===== HOVER DATA ON EVERY CHART =====
    The data box itself is shared (src/utils/chartTooltip.js). Here: the
    hovered bar / row / week lights up so it is clear which one the box is for. */
 .r-line-hit { fill: transparent; }
@@ -1141,7 +1141,7 @@
 .r-health-legend > span[data-tip] { border-radius: 4px; transition: color 0.15s ease; }
 .r-health-legend > span[data-tip]:hover { color: var(--text-primary); }
 
-/*==========CLEAN, PROFESSIONAL SUMMARY CARDS==========
+/* ===== CLEAN, PROFESSIONAL SUMMARY CARDS =====
    The summary cards and the two export cards drop their per-card colours:
    no coloured glow, no coloured top line, no tinted background. One quiet
    style for all of them — plain card surface, neutral icon box, muted
@@ -1244,7 +1244,7 @@
     box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-/*==========REPORT POP-UP ON PHONES: X TOP RIGHT, COMPACT CARDS (2026-11-16)==========
+/* ===== REPORT POP-UP ON PHONES: X TOP RIGHT, COMPACT CARDS (2026-11-16) =====
    Phones: the close X stays in the top-right corner (it used to drop under
    the export buttons). Each table row becomes a small card — the name on
    top, the other values in three columns with their small labels — so the
@@ -1314,7 +1314,7 @@
     .r-modal-body .r-table tbody td[colspan]::before { display: none; }
 }
 
-/*==========REPORT PHONE CARDS: CLEANER LAYOUT (2026-11-16)==========
+/* ===== REPORT PHONE CARDS: CLEANER LAYOUT (2026-11-16) =====
    Name on the left with its status badge (Confidence, Status…) in the
    top-right corner; values in even columns with lined-up numbers; Units
    Needed in bold gold when more than 0, grey at 0; a clear line between

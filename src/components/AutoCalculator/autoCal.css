@@ -1,4 +1,4 @@
-/*==========ROOT==========*/
+/* ===== ROOT ===== */
 
 .ac-root {
     font-family: var(--font-sans);
@@ -18,7 +18,7 @@
     min-height: max(34rem, calc(calc(100vh / var(--ui-zoom, 1)) - 10rem));
 }
 
-/*==========HEADER==========*/
+/* ===== HEADER ===== */
 .ac-header {
     display: flex;
     align-items: center;
@@ -65,7 +65,7 @@
 }
 .ac-add-btn:hover { opacity: 0.8; }
 
-/*==========FORM ELEMENTS==========*/
+/* ===== FORM ELEMENTS ===== */
 .ac-label {
     font-size: 13px;
     font-weight: 600;
@@ -95,7 +95,7 @@
 .ac-input-sm { flex: 1; padding: 0.4rem 0.5rem; font-size: 11px; }
 .ac-input-key { max-width: 72px; flex: 0 0 auto; text-align: center; font-weight: 600; opacity: 0.75; cursor: default; }
 
-/*==========CALCULATOR BODY==========*/
+/* ===== CALCULATOR BODY ===== */
 .ac-body {
     display: grid;
     grid-template-columns: 1.6fr 1fr;
@@ -106,7 +106,7 @@
     .ac-body { grid-template-columns: 1fr; }
 }
 
-/*==========CALCULATOR PANELS==========*/
+/* ===== CALCULATOR PANELS ===== */
 .ac-workspace {
     display: grid;
     flex: 1;
@@ -194,7 +194,7 @@
     }
 }
 
-/*==========INPUTS GRID (2-column)==========*/
+/* ===== INPUTS GRID (2-column) ===== */
 .ac-inputs-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -257,7 +257,7 @@
 }
 .ac-btn-reset:hover { background: var(--overlay-soft); }
 
-/*==========COMPUTATION RESULT==========*/
+/* ===== COMPUTATION RESULT ===== */
 .ac-result-section-label {
     font-size: 12px;
     font-weight: 700;
@@ -297,7 +297,7 @@
     from { opacity: 0; transform: translateY(5px) scale(0.98); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
-/*==========MODALS==========*/
+/* ===== MODALS ===== */
 .ac-modal-overlay {
     position: fixed;
     inset: 0;
@@ -407,7 +407,7 @@
 }
 .ac-add-field-btn:hover { background: var(--overlay-soft); }
 
-/*==========HEADER ACTIONS==========*/
+/* ===== HEADER ACTIONS ===== */
 .ac-header-actions {
     display: flex;
     gap: 6px;
@@ -427,7 +427,7 @@
 }
 .ac-icon-btn:hover { background: var(--background-icon-active-color-theme); }
 
-/*==========CROSS TAB LINK==========*/
+/* ===== CROSS TAB LINK ===== */
 .ac-icon-btn-link {
     color: var(--accent, #E8C547);
     border-color: var(--accent, #E8C547);
@@ -437,7 +437,7 @@
     background: var(--background-icon-active-color-theme, rgba(232, 197, 71, 0.1));
 }
 
-/*==========SOURCE NOTE==========*/
+/* ===== SOURCE NOTE ===== */
 .ac-source-note {
     display: flex;
     align-items: center;
@@ -450,7 +450,7 @@
 
 .ac-source-note svg { flex-shrink: 0; }
 
-/*==========HANDOFF BANNER==========*/
+/* ===== HANDOFF BANNER ===== */
 .ac-handoff-banner {
     display: flex;
     align-items: flex-start;
@@ -499,7 +499,7 @@
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/*==========PRODUCT SELECTOR==========*/
+/* ===== PRODUCT SELECTOR ===== */
 .ac-product-selector {
     display: flex;
     flex-direction: column;
@@ -562,7 +562,7 @@
     color: var(--text-muted);
 }
 
-/*==========EXPORT==========*/
+/* ===== EXPORT ===== */
 .ac-export-actions {
     display: flex;
     gap: 6px;
@@ -587,7 +587,7 @@
     color: var(--accent-low, #c4432e);
 }
 
-/*==========HISTORY==========*/
+/* ===== HISTORY ===== */
 .ac-modal-wide { max-width: 620px; }
 .ac-history-list {
     display: flex;
@@ -625,7 +625,7 @@
 }
 .ac-history-result { font-size: 12px; }
 
-/*==========COMPARISON MODE==========*/
+/* ===== COMPARISON MODE ===== */
 .ac-compare-wrapper {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -653,7 +653,7 @@
     margin-top: 8px;
 }
 
-/*==========BATCH COMPUTE==========*/
+/* ===== BATCH COMPUTE ===== */
 .ac-batch-product-list {
     display: flex;
     flex-direction: column;
@@ -682,7 +682,7 @@
     text-align: left;
 }
 
-/*==========FIELD ERROR==========*/
+/* ===== FIELD ERROR ===== */
 .ac-input-error {
     border-color: var(--accent-low) !important;
     box-shadow: 0 0 0 2px var(--accent-low-soft);
@@ -693,7 +693,7 @@
     margin-top: 1px;
 }
 
-/*==========EOQ COST SUMMARY==========*/
+/* ===== EOQ COST SUMMARY ===== */
 .ac-metrics-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1524,7 +1524,7 @@
 .eq-card .eq-note { margin: 0; }
 .eq-card .eq-actions .ac-btn-reset { min-height: 32px; }
 
-/*==========RESULT IN A POP-UP (no empty result panel on the page)==========
+/* ===== RESULT IN A POP-UP (no empty result panel on the page) =====
    The Inputs card now uses the full width; on wider screens the five number
    fields sit in one tidy 3-column grid. Compute opens the result pop-up. */
 .eq-grid.eq-grid-single { grid-template-columns: minmax(0, 1fr); }
@@ -1553,7 +1553,7 @@
     .eq-last-result { margin-left: 0; width: 100%; }
 }
 
-/*==========HISTORY (redesign)==========*/
+/* ===== HISTORY (redesign) ===== */
 .ac-history-modal { max-width: 640px; }
 .ac-history-head { display: flex; align-items: center; gap: 10px; }
 .ac-history-head-icon {
@@ -1703,7 +1703,7 @@
     opacity: 0.7;
 }
 
-/*==========RESULT POP-UP ON PHONES (2026-11-12)==========
+/* ===== RESULT POP-UP ON PHONES (2026-11-12) =====
    - The window is centred on the screen (was stuck to the bottom).
    - Its middle part scrolls: a flex child needs min-height: 0 to shrink,
      otherwise it was as tall as its content and nothing could scroll.

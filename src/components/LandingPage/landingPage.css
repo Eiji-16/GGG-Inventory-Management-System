@@ -25,7 +25,7 @@ body {
 
 
 
-/*==========DARK AND LIGHT MODE==========*/
+/* ===== DARK AND LIGHT MODE ===== */
 /* Fallback values only — the app always sets a data-theme. (The pure White
    theme was removed; saved "white" now opens as Soft White, see theme.js.) */
 :root {
@@ -44,7 +44,7 @@ body {
     --scroll-thumb: rgba(11, 27, 51, 0.22);
     --scroll-thumb-hover: rgba(11, 27, 51, 0.4);
 
-    /*==========ACCENTS==========*/
+    /* ===== ACCENTS ===== */
     --accent: #E8C547;
     --accent-low: #C4432E;
     --accent-med: #C08A1E;
@@ -61,7 +61,7 @@ body {
     --shadow-card: 0 1px 3px rgba(11, 27, 51, 0.08);
     --shadow-hover: 0 8px 22px rgba(11, 27, 51, 0.14);
 
-    /*==========NEUTRAL OVERLAYS==========*/
+    /* ===== NEUTRAL OVERLAYS ===== */
     --overlay-soft: rgba(11, 27, 51, 0.05);
     --overlay-medium: rgba(11, 27, 51, 0.10);
     --hairline: rgba(11, 27, 51, 0.15);
@@ -103,7 +103,7 @@ body {
     --scroll-thumb: rgba(248, 250, 252, 0.22);
     --scroll-thumb-hover: rgba(248, 250, 252, 0.42);
 
-    /*==========ACCENTS==========*/
+    /* ===== ACCENTS ===== */
     --accent: #E8C547;
     --accent-low: #FF8A75;
     --accent-med: #F0C05A;
@@ -120,7 +120,7 @@ body {
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.28);
     --shadow-hover: 0 8px 22px rgba(0, 0, 0, 0.38);
 
-    /*==========NEUTRAL OVERLAYS==========*/
+    /* ===== NEUTRAL OVERLAYS ===== */
     --overlay-soft: rgba(248, 250, 252, 0.06);
     --overlay-medium: rgba(248, 250, 252, 0.12);
     --hairline: rgba(248, 250, 252, 0.14);
@@ -560,7 +560,7 @@ body {
     --background-icon-active-color-theme: rgba(232, 103, 42, 0.28);
 }
 
-/*==========DARK MODE GLOW==========*/
+/* ===== DARK MODE GLOW ===== */
 [data-theme="midnight-blue"] .siderbar-item button:hover .sidebar-icon {
     color: var(--accent);
     filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.65))
@@ -568,7 +568,7 @@ body {
     transform: rotate(-12deg) scale(1.08);
 }
 
-/*==========LIGHT MODE GLOW==========*/
+/* ===== LIGHT MODE GLOW ===== */
 [data-theme="white"] .siderbar-item button:hover .sidebar-icon {
     color: var(--accent);
     filter: drop-shadow(0 0 6px rgba(11, 27, 51, 0.45))
@@ -576,7 +576,7 @@ body {
     transform: scale(1.12);
 }
 
-/*==========GRAPHITE MODE GLOW==========*/
+/* ===== GRAPHITE MODE GLOW ===== */
 [data-theme="graphite"] .siderbar-item button:hover .sidebar-icon {
     color: var(--accent);
     filter: drop-shadow(0 0 6px var(--accent-glow))
@@ -584,7 +584,7 @@ body {
     transform: scale(1.12);
 }
 
-/*==========SIDEBAR ICON TRANSITIONS==========*/
+/* ===== SIDEBAR ICON TRANSITIONS ===== */
 .sidebar-icon {
     transition: filter 0.25s cubic-bezier(0.4, 0, 0.2, 1),
                 transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
@@ -592,7 +592,7 @@ body {
     will-change: filter, transform;
 }
 
-/*==========TOGGLE BUTTON RESET==========*/
+/* ===== TOGGLE BUTTON RESET ===== */
 .siderbar-item button {
     background: transparent;
     border: none;
@@ -616,7 +616,7 @@ body {
     will-change: background-color;
 }
 
-/*==========THEME BACKGROUND TRANSITIONS==========*/
+/* ===== THEME BACKGROUND TRANSITIONS ===== */
 .dashboard-page-wrapper,
 .dashboard-container-parent,
 .sidebar-menu,
@@ -630,7 +630,7 @@ body {
     will-change: background-color;
 }
 
-/*==========DASHBOARD BODY==========*/
+/* ===== DASHBOARD BODY ===== */
 
 .dashboard-page-wrapper{
     width: 100%;
@@ -945,7 +945,7 @@ body {
     stroke: #ff0000fd !important;
 }
 
-/*==========CONTENT BODY==========*/
+/* ===== CONTENT BODY ===== */
 .main-wrapper {
     padding: 0.5rem;
     display: flex;
@@ -958,7 +958,7 @@ body {
     box-sizing: border-box;
     flex-direction: column;
 }
-/*==========NAVBAR==========*/
+/* ===== NAVBAR ===== */
 .top-navbar {
     background-color: transparent;
     width: 100%;
@@ -1091,7 +1091,7 @@ body {
   transform: translateY(0);
 }
 
-/*==========NOTIFICATION BOX==========*/
+/* ===== NOTIFICATION BOX ===== */
 .notif-wrapper {
   position: relative;
   display: flex;
@@ -1355,7 +1355,7 @@ body {
   }
 }
 
-/*==========NOTIFICATIONS — visual rows==========*/
+/* ===== NOTIFICATIONS — visual rows ===== */
 .notif-box { width: min(24rem, calc(92vw / var(--ui-zoom, 1))); }
 
 /* Summary chips under the header */
@@ -1501,7 +1501,7 @@ body {
     padding-bottom: 0;
 }
 
-/*==========VIEW TRANSITION==========*/
+/* ===== VIEW TRANSITION ===== */
 /* A view animates the first time it is mounted; visited views stay mounted
    while hidden so switching tabs preserves their current state. */
 .main-content-window > * {
@@ -1524,7 +1524,7 @@ body {
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/*==========RESPONSIVENESS==========*/
+/* ===== RESPONSIVENESS ===== */
 /* Tablet / small laptop — tighten the outer frame so content gets more room. */
 @media (max-width: 1024px) {
     .dashboard-container-parent {
@@ -1886,7 +1886,7 @@ body {
     }
 }
 
-/*==========REDUCED MOTION==========
+/* ===== REDUCED MOTION =====
    Respect the OS "reduce motion" accessibility setting: neutralize animations
    and transitions app-wide so nothing slides, pops, or fades for users who are
    motion-sensitive. Kept last so it overrides the rules above. */
@@ -2088,7 +2088,7 @@ body {
     }
 }
 
-/*==========PAGE AREA FILLS THE WINDOW (desktop)==========
+/* ===== PAGE AREA FILLS THE WINDOW (desktop) =====
    The page area used a fixed height (93% of the window minus 4rem), which
    left an unused strip at the bottom of every page. Now the frame is exactly
    one window tall and the page area takes all the height left under the top
@@ -2114,7 +2114,7 @@ body {
     }
 }
 
-/*==========SIDEBAR: ICONS ONLY / ICONS WITH NAMES (desktop)==========
+/* ===== SIDEBAR: ICONS ONLY / ICONS WITH NAMES (desktop) =====
    The panel button under the logo switches between the normal icon bar and
    a wider bar that also shows each page's name (src: landingPage.jsx,
    "ggg-sidebar-mode" in this browser). Phones keep their slide-in menu. */
@@ -2288,7 +2288,7 @@ body {
     .sidebar-body.is-expanded .sidebar-section-label { animation: none; }
 }
 
-/*==========SIDEBAR NEVER TALLER THAN THE WINDOW (desktop)==========
+/* ===== SIDEBAR NEVER TALLER THAN THE WINDOW (desktop) =====
    On short windows (or Large font / names shown) the page buttons were
    taller than the window, which pushed the whole page down and cut off its
    bottom. Now the sidebar stays inside the frame: the footer (Staffs …
@@ -2328,7 +2328,7 @@ body {
     .sidebar-body.is-expanded .sidebar-footer-item { gap: 0.4rem; padding-top: 0.5rem; padding-bottom: 0; }
 }
 
-/*==========SOFT FADE AT THE TOP / BOTTOM OF THE PAGE AREA==========
+/* ===== SOFT FADE AT THE TOP / BOTTOM OF THE PAGE AREA =====
    Content scrolling under the page title used to be cut off sharply. Now
    it fades out over a short distance. The fade only shows on the edge that
    has more content past it: none at the very top, none at the very end
@@ -2382,7 +2382,7 @@ body {
     }
 }
 
-/*==========OPEN SIDEBAR — ONE PANEL STYLE==========
+/* ===== OPEN SIDEBAR — ONE PANEL STYLE =====
    "Icons with names" now looks like one continuous panel: compact rows, a soft highlight + gold marker for the open page,
    and the signed-in person with a Logout button at the bottom.
    Icons-only mode and the phone menu are unchanged. */
@@ -2552,7 +2552,7 @@ body {
     }
 }
 
-/*==========OPEN SIDEBAR USES THE FULL WINDOW HEIGHT (desktop)==========
+/* ===== OPEN SIDEBAR USES THE FULL WINDOW HEIGHT (desktop) =====
    Like a classic app sidebar: when names are shown it reaches the top,
    bottom and left edges of the window (the frame's padding is cancelled
    with negative margins), with rounded corners only on the right. The
@@ -2585,7 +2585,7 @@ body {
     .sidebar-body { transition: none; }
 }
 
-/*==========NESTED FRAME (desktop) — try-out, remove this block to undo==========
+/* ===== NESTED FRAME (desktop) — try-out, remove this block to undo =====
    A dark outer app shell holds the sidebar; the pages sit inside a large
    rounded inner panel with clear spacing between the two layers.
    The shell is the same dark navy in every theme; the inner panel uses the
@@ -2657,7 +2657,7 @@ body {
     .sidebar-user-avatar { box-shadow: 0 0 0 2px var(--shell-bg), 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent); }
 }
 
-/*==========DARK THEMES — REFINED SURFACES==========
+/* ===== DARK THEMES — REFINED SURFACES =====
    The three dark themes get a deep but not pure-black page, cards one step
    lighter than the page, and inputs one step lighter again, so cards,
    tables, forms and pop-ups are easy to tell apart. Borders take a hint of
@@ -2696,7 +2696,7 @@ body {
     --border-strong: #463c35;
 }
 
-/*==========THE SIDEBAR CONTAINER FOLLOWS THE THEME (desktop)==========
+/* ===== THE SIDEBAR CONTAINER FOLLOWS THE THEME (desktop) =====
    The outer frame and the whole sidebar take the selected theme's colour:
    a deep shade of the theme (never pure black) with a soft wash of its
    accent at the top, an accent-tinted edge, and accent hover states.
@@ -2749,7 +2749,7 @@ body {
     }
 }
 
-/*==========OLIVE THEME (charcoal frame + cream page)==========
+/* ===== OLIVE THEME (charcoal frame + cream page) =====
    Inspired by the Inventory360 look: a near-black frame and sidebar, a warm
    cream page with white cards, and a muted olive accent with a soft lime
    highlight. A light theme (cream page), so it follows the light-theme
@@ -2817,7 +2817,7 @@ body {
     --background-icon-active-color-theme: rgba(255, 255, 255, 0.08);
 }
 
-/*==========SIDEBAR: SOLID, CLEAN, LESS GLOW (desktop)==========
+/* ===== SIDEBAR: SOLID, CLEAN, LESS GLOW (desktop) =====
    The sidebar is one solid colour — exactly the frame behind it (each
    theme's own deep shade) — with no colour wash or glow. The open page uses
    a soft left-to-right highlight with a thin accent line, like a classic
@@ -2891,7 +2891,7 @@ body {
     }
 }
 
-/*==========OPEN SIDEBAR IS TRANSPARENT (desktop)==========
+/* ===== OPEN SIDEBAR IS TRANSPARENT (desktop) =====
    It shows the frame behind it, so its colour is always exactly the frame's
    and changes together with it when the theme changes (no mismatch while
    the frame fades). The icon-only pills fade at the same speed. */
@@ -2918,7 +2918,7 @@ body {
     }
 }
 
-/*==========OPEN SIDEBAR: EDGE-TO-EDGE HIGHLIGHT (desktop)==========
+/* ===== OPEN SIDEBAR: EDGE-TO-EDGE HIGHLIGHT (desktop) =====
    The open page's row runs the full width of the sidebar (no rounded box):
    a soft light fading out to the right, a faint touch of the theme colour
    at the left, and a thin accent line down the whole left edge of the row.
@@ -2968,7 +2968,7 @@ body {
     }
 }
 
-/*==========OPEN SIDEBAR: SELECTION ANIMATION (desktop)==========
+/* ===== OPEN SIDEBAR: SELECTION ANIMATION (desktop) =====
    When a page is selected, its highlight sweeps in from the left while
    fading up, the accent line grows out from the middle, and the icon and
    name ease into their bright colour. Short (about 0.4s) and played once. */
@@ -3038,7 +3038,7 @@ body {
     }
 }
 
-/*==========OPEN SIDEBAR: NO DIVIDER LINES (desktop)==========
+/* ===== OPEN SIDEBAR: NO DIVIDER LINES (desktop) =====
    Fully see-through: the lines under the logo, above Staffs and above the
    account row are removed; the groups are separated by space instead. */
 @media (min-width: 821px) {
@@ -3051,7 +3051,7 @@ body {
     .sidebar-body.is-expanded .sub-sidebar-footer-item-logout { padding-top: 0.45rem; }
 }
 
-/*==========OPEN SIDEBAR: ACCOUNT ROW — GLOW INSTEAD OF A BOX (desktop)==========
+/* ===== OPEN SIDEBAR: ACCOUNT ROW — GLOW INSTEAD OF A BOX (desktop) =====
    Hovering your name no longer draws a grey box (the avatar's dark ring cut
    into it). Instead the avatar gets a soft glow in the theme colour and the
    name brightens. The Logout button keeps its own 2rem size (the full-width
@@ -3095,7 +3095,7 @@ body {
 }
 
 
-/*==========OPEN SIDEBAR: SOFT TOP / BOTTOM EDGES ON THE SELECTED PAGE (2026-10-30)==========
+/* ===== OPEN SIDEBAR: SOFT TOP / BOTTOM EDGES ON THE SELECTED PAGE (2026-10-30) =====
    The highlight behind the open page and its accent line now fade out at the
    top and bottom, so the selected row blends into the sidebar instead of
    ending in a hard edge. */
@@ -3112,7 +3112,7 @@ body {
     }
 }
 
-/*==========ICONS-ONLY SIDEBAR WITH LARGE FONT (2026-10-30)==========
+/* ===== ICONS-ONLY SIDEBAR WITH LARGE FONT (2026-10-30) =====
    The icons-only sidebar has no text, so the Large font size only made it
    taller: on a laptop screen it no longer fit and the page icons were cut
    off / scrolled inside their pill. It now stays at its normal size when
@@ -3355,7 +3355,7 @@ body {
 }
 
 
-/*==========NOTIFICATIONS ON PHONES / TABLETS (2026-11-11)==========
+/* ===== NOTIFICATIONS ON PHONES / TABLETS (2026-11-11) =====
    Smaller panel, and swiping inside the list never scrolls the page
    behind it. (The panel also closes when the page itself is scrolled —
    see landingPage.jsx.) */
@@ -3399,7 +3399,7 @@ body {
     .sidebar-body .sidebar-logo-row { gap: 0.65rem; }
 }
 
-/*==========NO LINE ABOVE STAFFS (2026-11-12)==========
+/* ===== NO LINE ABOVE STAFFS (2026-11-12) =====
    The thin line between the menu and the bottom group (Staffs, Trash,
    Profile, Settings) is removed, on laptops and phones. */
 .sidebar-footer-item,

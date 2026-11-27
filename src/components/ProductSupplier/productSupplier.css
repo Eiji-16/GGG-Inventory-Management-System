@@ -1,4 +1,4 @@
-/*==========TABLE PARENT==========*/
+/* ===== TABLE PARENT ===== */
 .ps-table-parent {
     padding: 10px;
     width: 100%;
@@ -57,7 +57,7 @@
     .ps-skeleton-block::after { animation: none; }
 }
 
-/*==========SEARCH BAR==========*/
+/* ===== SEARCH BAR ===== */
 .ps-navigation-bar{
     background: transparent;
     padding: 5px;
@@ -67,7 +67,7 @@
     margin-bottom: 10px;
 }
 
-/*==========SEARCH FIELD SCOPE==========*/
+/* ===== SEARCH FIELD SCOPE ===== */
 .ps-search-wrapper {
     margin-right: auto;
 }
@@ -129,7 +129,7 @@
     cursor: not-allowed;
 }
 
-/*==========ICON-ONLY TOOLBAR BUTTONS==========*/
+/* ===== ICON-ONLY TOOLBAR BUTTONS ===== */
 .ps-add-btn.ps-icon-only {
     padding: 0.4rem;
     width: 2rem;
@@ -137,7 +137,7 @@
     justify-content: center;
 }
 
-/*==========SORT DROPDOWN==========*/
+/* ===== SORT DROPDOWN ===== */
 .ps-sort-wrap {
     position: relative;
     display: inline-flex;
@@ -211,7 +211,7 @@
     background-color: var(--background-icon-active-color, #E8C547) !important;
 }
 
-/*==========TABLE SCROLL==========*/
+/* ===== TABLE SCROLL ===== */
 .ps-table-scroll {
     width: 100%;
     overflow-x: auto;
@@ -220,7 +220,7 @@
     background: var(--bg-card);
 }
 
-/*==========SEMANTIC TABLE==========*/
+/* ===== SEMANTIC TABLE ===== */
 .ps-table {
     width: 100%;
     border-collapse: collapse;
@@ -285,7 +285,7 @@
 
 .ps-th-check, .ps-td-check { width: 36px; }
 
-/*==========CLICKABLE ROW==========*/
+/* ===== CLICKABLE ROW ===== */
 .ps-row-clickable {
     cursor: pointer;
 }
@@ -308,7 +308,7 @@
     text-underline-offset: 2px;
 }
 
-/*==========CHECKBOX==========*/
+/* ===== CHECKBOX ===== */
 .ps-table input[type="checkbox"] {
     width: 14px;
     height: 14px;
@@ -316,7 +316,7 @@
     accent-color: var(--background-icon-active-color, #E8C547);
 }
 
-/*==========TABLE ACTION BUTTONS==========*/
+/* ===== TABLE ACTION BUTTONS ===== */
 .ps-table-action-btn {
     background: transparent !important;
     border: none !important;
@@ -346,7 +346,7 @@
     transform: scale(1.08);
 }
 
-/*==========TAP FEEDBACK==========*/
+/* ===== TAP FEEDBACK ===== */
 .ps-table-action-btn:active {
     transform: scale(0.9);
 }
@@ -359,7 +359,7 @@
     gap: 6px;
 }
 
-/*==========EMPTY STATE==========*/
+/* ===== EMPTY STATE ===== */
 .ps-empty-state {
     padding: 2.5rem 1rem !important;
     text-align: center;
@@ -367,7 +367,7 @@
     color: var(--text-muted, #666);
 }
 
-/*==========ADD / EDIT MODAL==========*/
+/* ===== ADD / EDIT MODAL ===== */
 .ps-modal-overlay {
     position: fixed;
     inset: 0;
@@ -386,7 +386,7 @@
     to { opacity: 1; }
 }
 
-/*==========MODAL SHELL==========*/
+/* ===== MODAL SHELL ===== */
 .ps-modal {
     display: flex;
     flex-direction: column;
@@ -478,7 +478,7 @@
     flex: 1;
 }
 
-/*==========SCROLL REGION==========*/
+/* ===== SCROLL REGION ===== */
 .ps-modal-body {
     flex: 1;
     min-height: 0;
@@ -599,7 +599,7 @@
     min-width: 0;
 }
 
-/*==========FULL WIDTH FIELD==========*/
+/* ===== FULL WIDTH FIELD ===== */
 .ps-form-group-wide {
     width: 100%;
 }
@@ -654,7 +654,7 @@
     color: var(--text-muted);
 }
 
-/*==========DELETE CONFIRMATION==========*/
+/* ===== DELETE CONFIRMATION ===== */
 .ps-confirm-modal {
     width: min(calc(94vw / var(--ui-zoom, 1)), 24rem);
     max-height: none;
@@ -713,7 +713,7 @@
     transform: translateY(-1px);
 }
 
-/*==========DETAIL MODAL==========*/
+/* ===== DETAIL MODAL ===== */
 .ps-detail-modal {
     width: min(calc(94vw / var(--ui-zoom, 1)), 38rem);
 }
@@ -996,7 +996,7 @@ table.ps-table tr > td.ps-td-pic > span.ps-thumb.ps-thumb-empty:only-child {
     }
 }
 
-/*==========MODAL FOOTER==========*/
+/* ===== MODAL FOOTER ===== */
 .ps-modal-actions {
     flex-shrink: 0;
     display: flex;
@@ -1056,7 +1056,7 @@ table.ps-table tr > td.ps-td-pic > span.ps-thumb.ps-thumb-empty:only-child {
     }
 }
 
-/*==========RESPONSIVENESS==========*/
+/* ===== RESPONSIVENESS ===== */
 /* ==========MOBILE / TABLET CARD LIST==========
    Up to 900px wide (phones and portrait tablets) the table stops being a wide
    horizontal scroll and each row becomes a self-contained card: every cell
@@ -1237,7 +1237,7 @@ table.ps-table tr > td.ps-td-pic > span.ps-thumb.ps-thumb-empty:only-child {
     }
 }
 
-/*==========PAGINATION==========*/
+/* ===== PAGINATION ===== */
 .ps-pagination {
     display: flex;
     align-items: center;
@@ -1450,7 +1450,7 @@ table.ps-table tr > td.ps-td-pic > span.ps-thumb.ps-thumb-empty:only-child {
     background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
-/*==========TOOLBAR BUTTONS ON SMALL SCREENS==========
+/* ===== TOOLBAR BUTTONS ON SMALL SCREENS =====
    Labels never wrap onto two lines; on very small phones the Add / Update /
    Delete buttons become square icon buttons (Delete keeps its count). */
 .ps-add-btn { white-space: nowrap; flex-shrink: 0; }
@@ -1483,7 +1483,7 @@ table.ps-table tr > td.ps-td-pic > span.ps-thumb.ps-thumb-empty:only-child {
     }
 }
 
-/*==========EMPTY / LOADING MESSAGE IN CARD VIEW==========
+/* ===== EMPTY / LOADING MESSAGE IN CARD VIEW =====
    The message row is not a card: centre it instead of pushing it right. */
 @media (max-width: 900px) {
     .ps-table tbody td.ps-empty-state {
@@ -1518,7 +1518,7 @@ table.ps-table tr > td.ps-td-pic > span.ps-thumb.ps-thumb-empty:only-child {
     }
 }
 
-/*==========FIT TO SCREEN (Products table)==========
+/* ===== FIT TO SCREEN (Products table) =====
    Products are paginated to fit the available table area, so only horizontal
    scrolling is needed on desktop. Phones keep the normal card list. */
 @media (min-width: 901px) {
@@ -1545,7 +1545,7 @@ table.ps-table tr > td.ps-td-pic > span.ps-thumb.ps-thumb-empty:only-child {
 .ps-detail-grid .ps-detail-item-full { grid-column: 1 / -1; }
 .ps-detail-variants { max-width: none; margin-top: 2px; }
 
-/*==========FIT THE PRODUCTS TABLE ON LAPTOP SCREENS (2026-10-30)==========
+/* ===== FIT THE PRODUCTS TABLE ON LAPTOP SCREENS (2026-10-30) =====
    At 100% browser zoom on a laptop (and more so with Large font) the table
    was wider than its box and the Supplier / Actions columns were cut off.
    Desktop only (phones keep their cards):
@@ -1596,7 +1596,7 @@ table.ps-table tr > td.ps-td-pic > span.ps-thumb.ps-thumb-empty:only-child {
     :root[data-font-size="large"] .ps-variant-row > .ps-variant-more-short { display: none; }
 }
 
-/*==========ACTIONS COLUMN ALWAYS VISIBLE (2026-10-30)==========
+/* ===== ACTIONS COLUMN ALWAYS VISIBLE (2026-10-30) =====
    Same as Stock Control: on desktop the Actions column stays pinned to the
    right edge of the table box (solid background, soft shadow on its left),
    so Edit / Delete are never cut off even when a row has long text. */
@@ -1629,7 +1629,7 @@ table.ps-table tr > td.ps-td-pic > span.ps-thumb.ps-thumb-empty:only-child {
     }
 }
 
-/*==========SUPPLIER FILTER CHIP (2026-10-30)==========
+/* ===== SUPPLIER FILTER CHIP (2026-10-30) =====
    Shown when the Dashboard's Supplier Coverage card opened a filtered list
    ("With a supplier" / "Without a supplier"). Click it to show everything. */
 .ps-filter-chip {

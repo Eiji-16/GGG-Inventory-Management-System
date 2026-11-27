@@ -1,4 +1,4 @@
-/*==========AUTO REORDER ALERTS==========*/
+/* ===== AUTO REORDER ALERTS ===== */
 .reorder-alerts-panel {
     height: 100%;
     min-height: 0;
@@ -292,7 +292,7 @@
     font-size: 11px;
 }
 
-/*==========RESTOCK REQUESTS (Staff "Notify")==========*/
+/* ===== RESTOCK REQUESTS (Staff "Notify") ===== */
 .ra-notice {
     display: flex;
     align-items: center;

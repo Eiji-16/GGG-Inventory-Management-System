@@ -4,7 +4,7 @@
     box-sizing: border-box;
 }
 
-/*==========DOCUMENT==========*/
+/* ===== DOCUMENT ===== */
 html, body, #root {
     font-family: var(--font-sans);
     height: 100%;
@@ -18,7 +18,7 @@ body {
     background: var(--bg-main, #ffffff);
 }
 
-/*==========LOGIN PAGE WRAPPER==========*/
+/* ===== LOGIN PAGE WRAPPER ===== */
 .Login-page-wrapper {
     width: 100%;
     min-height: calc(100vh / var(--ui-zoom, 1));
@@ -29,7 +29,7 @@ body {
 }
 
 
-/*==========LOGIN BOX==========*/
+/* ===== LOGIN BOX ===== */
 .Login-box {
     display: flex;
     width: min(calc(100vw / var(--ui-zoom, 1)), 70rem);
@@ -41,7 +41,7 @@ body {
     background: #ffffff;
 }
 
-/*==========DESIGN SIDE==========*/
+/* ===== DESIGN SIDE ===== */
 .Design-side {
     width: 50%;
     min-width: 20rem;
@@ -73,8 +73,8 @@ body {
     color: rgba(255, 255, 255, 0.9);
 }
 
-/*==========LOGIN SIDE==========*/
-/*==========WELCOME TEXT==========*/
+/* ===== LOGIN SIDE ===== */
+/* ===== WELCOME TEXT ===== */
 .WelcomeText {
     text-align: left;
 }
@@ -93,7 +93,7 @@ body {
     max-width: 22.5rem;
 }
 
-/*==========LOGIN FORM==========*/
+/* ===== LOGIN FORM ===== */
 .Login-side {
     width: 50%;
     min-width: 0;
@@ -382,7 +382,7 @@ body {
     padding: 0 1rem;
 }
 
-/*==========BUTTON LINES==========*/
+/* ===== BUTTON LINES ===== */
 .Login-button span::before,
 .Login-button span::after {
     content: "";
@@ -394,19 +394,19 @@ body {
     transition: width 0.35s ease;
 }
 
-/*==========LEFT LINE==========*/
+/* ===== LEFT LINE ===== */
 .Login-button span::before {
     right: 100%;
     margin-right: 0.5rem;
 }
 
-/*==========RIGHT LINE==========*/
+/* ===== RIGHT LINE ===== */
 .Login-button span::after {
     left: 100%;
     margin-left: 0.5rem;
 }
 
-/*==========BUTTON HOVER==========*/
+/* ===== BUTTON HOVER ===== */
 .Login-button:hover {
     color: #0d1b3e;
 }
@@ -422,7 +422,7 @@ body {
     min-width: 1.5rem;
 }
 
-/*==========RESPONSIVENESS==========*/
+/* ===== RESPONSIVENESS ===== */
 /* Small laptops / tablets — ease the form padding. */
 @media (max-width: 900px) {
     .Login-side {
