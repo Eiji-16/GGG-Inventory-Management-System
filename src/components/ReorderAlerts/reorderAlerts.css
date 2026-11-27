@@ -1186,9 +1186,9 @@
         table-layout: fixed;
         font-size: 12px;
     }
-    .ra-bulk-modal .ra-bulk-table th:nth-child(1) { width: 24%; }
+    .ra-bulk-modal .ra-bulk-table th:nth-child(1) { width: 25%; }
     .ra-bulk-modal .ra-bulk-table th:nth-child(2) { width: 7%; }
-    .ra-bulk-modal .ra-bulk-table th:nth-child(3) { width: 12%; }
+    .ra-bulk-modal .ra-bulk-table th:nth-child(3) { width: 11%; }
     .ra-bulk-modal .ra-bulk-table th:nth-child(4),
     .ra-bulk-modal .ra-bulk-table th:nth-child(5) { width: 11%; }
     .ra-bulk-modal .ra-bulk-table th:nth-child(6),
@@ -1198,10 +1198,12 @@
        fit (3% was ~25px, so the × was cut off on the right; 2026-11-08). */
     .ra-bulk-modal .ra-bulk-table th:nth-child(9) { width: 36px; }
     .ra-bulk-modal .ra-bulk-table td[data-label="Remove"] { text-align: center; }
-    /* Ordering / Holding cost boxes line up with the Annual demand box
-       (that one has a hint under it, so it sits higher; 2026-11-08). */
+    /* Keep all editable values in the same-sized columns and at the same
+       vertical position, even when a neighboring field has a hint. */
+    .ra-bulk-modal .ra-bulk-table td[data-label="Annual demand"],
     .ra-bulk-modal .ra-bulk-table td[data-label="Ordering cost"],
-    .ra-bulk-modal .ra-bulk-table td[data-label="Holding cost"] { vertical-align: top; }
+    .ra-bulk-modal .ra-bulk-table td[data-label="Holding cost"],
+    .ra-bulk-modal .ra-bulk-table td[data-label="Owner’s quantity"] { vertical-align: top; }
     .ra-bulk-modal .ra-bulk-table th:first-child,
     .ra-bulk-modal .ra-bulk-table td[data-label="Product"] { min-width: 0 !important; }
     .ra-bulk-modal .ra-bulk-table th {
